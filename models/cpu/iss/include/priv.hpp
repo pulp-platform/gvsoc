@@ -1,0 +1,118 @@
+/*
+ * Copyright (C) 2018 ETH Zurich and University of Bologna
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* 
+ * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
+ */
+
+#ifndef __CPU_ISS_PRIV_HPP
+#define __CPU_ISS_PRIV_HPP
+
+
+
+static inline iss_insn_t *csrrw_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value;
+  if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
+  { 
+    if (insn->out_regs[0] != 0) REG_SET(0, value);
+  }
+  if (insn->in_regs[0] != 0) iss_csr_write(iss, UIM_GET(0), REG_GET(0));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *csrrc_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value;
+  if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
+  { 
+    if (insn->out_regs[0] != 0) REG_SET(0, value);
+  }
+  if (insn->in_regs[0] != 0) iss_csr_write(iss, UIM_GET(0), value & ~REG_GET(0));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *csrrs_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value;
+  if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
+  { 
+    if (insn->out_regs[0] != 0) REG_SET(0, value);
+  }
+  if (insn->in_regs[0] != 0) iss_csr_write(iss, UIM_GET(0), value | REG_GET(0));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *csrrwi_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value;
+  if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
+  { 
+    if (insn->out_regs[0] != 0) REG_SET(0, value);
+  }
+  iss_csr_write(iss, UIM_GET(0),UIM_GET(1));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *csrrci_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value;
+  if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
+  { 
+    if (insn->out_regs[0] != 0) REG_SET(0, value);
+  }
+  iss_csr_write(iss, UIM_GET(0), value & ~UIM_GET(1));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *csrrsi_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value;
+  if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
+  { 
+    if (insn->out_regs[0] != 0) REG_SET(0, value);
+  }
+  iss_csr_write(iss, UIM_GET(0), value | UIM_GET(1));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *wfi_exec(iss *iss, iss_insn_t *insn)
+{
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *mret_exec(iss *iss, iss_insn_t *insn)
+{
+  return iss_irq_handle_mret(iss);
+}
+
+
+
+#endif
