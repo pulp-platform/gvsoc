@@ -88,12 +88,12 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
         break;
 
       case ISS_DECODER_ARG_TYPE_UIMM:
-        arg->u.uim.value = decode_ranges(iss, opcode, &darg->u.uimm.info.u.range_set, false);
+        arg->u.uim.value = decode_ranges(iss, opcode, &darg->u.uimm.info.u.range_set, darg->u.uimm.is_signed);
         insn->uim[darg->u.uimm.id] = arg->u.uim.value;
         break;
 
       case ISS_DECODER_ARG_TYPE_SIMM:
-        arg->u.sim.value = decode_ranges(iss, opcode, &darg->u.simm.info.u.range_set, true);
+        arg->u.sim.value = decode_ranges(iss, opcode, &darg->u.simm.info.u.range_set, darg->u.simm.is_signed);
         insn->sim[darg->u.simm.id] = arg->u.sim.value;
         break;
 
@@ -101,7 +101,7 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
         arg->u.indirect_imm.reg_index = decode_info(iss, insn, opcode, &darg->u.indirect_imm.reg.info, false);
         if (darg->u.indirect_imm.reg.flags & ISS_DECODER_ARG_FLAG_COMPRESSED) arg->u.indirect_imm.reg_index += 8;
         insn->in_regs[darg->u.indirect_imm.reg.id] = arg->u.indirect_imm.reg_index;
-        arg->u.indirect_imm.imm = decode_info(iss, insn, opcode, &darg->u.indirect_imm.imm.info, true);
+        arg->u.indirect_imm.imm = decode_info(iss, insn, opcode, &darg->u.indirect_imm.imm.info, darg->u.indirect_imm.imm.is_signed);
         insn->sim[darg->u.indirect_imm.imm.id] = arg->u.indirect_imm.imm;
         break;
 

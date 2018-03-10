@@ -103,6 +103,7 @@ static inline iss_insn_t *csrrsi_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *wfi_exec(iss *iss, iss_insn_t *insn)
 {
+  iss->wait_for_interrupt();
   return insn->next;
 }
 

@@ -122,8 +122,7 @@ string vp::time_engine::run()
       int rc = 0;
       struct timespec ts;
       clock_gettime(CLOCK_REALTIME, &ts);
-      //ts.tv_sec += 10;
-      ts.tv_nsec += 100000000;
+      ts.tv_sec += 1;
 
       while (running && rc == 0)
       {

@@ -20,7 +20,7 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
-//#include <vp/itf/wire.hpp>
+#include <vp/itf/wire.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <archi/eu/eu_v3.h>
@@ -100,6 +100,8 @@ public:
   void reset();
 
 private:
+  void check_barrier(int barrier_id);
+
   Event_unit *top;
   vp::trace     trace;
   Barrier *barriers;
@@ -158,7 +160,7 @@ class Core_event_unit
 {
 public:
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
-  void set_top(Event_unit *top, int core_id) { this->top = top; this->core_id = core_id; }
+  void build(Event_unit *top, int core_id);
   void set_status(uint32_t new_value);
   void reset();
   void check_state();
@@ -179,6 +181,8 @@ private:
   int core_id;
   Event_unit_core_state_e state;
   vp::io_req *pending_req;
+
+  vp::wire_master<bool> barrier_itf;
 };
 
 
@@ -319,6 +323,13 @@ void Event_unit::send_event(int core, uint32_t mask)
 }
 
 
+void Core_event_unit::build(Event_unit *top, int core_id)
+{
+  this->top = top;
+  this->core_id = core_id;
+  demux_in.set_req_meth_muxed(&Event_unit::demux_req, core_id);
+  top->new_slave_port("demux_in_" + std::to_string(core_id), &demux_in);
+}
 
 vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data)
 {
@@ -475,8 +486,7 @@ vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int cor
   }
   else if (offset >= EU_SW_EVENTS_DEMUX_OFFSET && offset < EU_SW_EVENTS_DEMUX_OFFSET + EU_SW_EVENTS_DEMUX_SIZE)
   {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //return coreEvt[coreId].swEventsIoReq(req, offset - EU_SW_EVENTS_DEMUX_OFFSET, isRead, data);
+    return _this->sw_events_req(req, offset - EU_SW_EVENTS_DEMUX_OFFSET, is_write, (uint32_t *)data);
   }
   else if (offset >= EU_BARRIER_DEMUX_OFFSET && offset < EU_BARRIER_DEMUX_OFFSET + EU_BARRIER_DEMUX_SIZE)
   {
@@ -499,9 +509,7 @@ void Event_unit::build()
 
   for (int i=0; i<nb_core; i++)
   {
-    core_eu[i].set_top(this, i);
-    core_eu[i].demux_in.set_req_meth_muxed(&Event_unit::demux_req, i);
-    new_slave_port("demux_in_" + std::to_string(i), &core_eu[i].demux_in);
+    core_eu[i].build(this, i);
   }
 
   reset();
@@ -702,6 +710,7 @@ void Core_event_unit::check_state()
     break;
 
     case CORE_STATE_WAITING_EVENT:
+    case CORE_STATE_WAITING_BARRIER:
     if (status & evt_mask)
     {
       top->trace.msg("Activating clock (core: %d)\n", core_id);
@@ -906,6 +915,19 @@ Barrier_unit::Barrier_unit(Event_unit *top)
   barriers = new Barrier[nb_barriers];
 }
 
+void Barrier_unit::check_barrier(int barrier_id)
+{
+  Barrier *barrier = &barriers[barrier_id];
+
+  if (barrier->status == barrier->core_mask) 
+  {
+    trace.msg("Barrier reached, triggering event (barrier: %d, coreMask: 0x%x, targetMask: 0x%x)\n", barrier_id, barrier->core_mask, barrier->target_mask);
+    barrier->status = 0;
+    top->trigger_event(1<<barrier_event, barrier->target_mask);
+  }
+}
+
+
 vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core)
 {
   unsigned int barrier_id = EU_BARRIER_AREA_BARRIERID_GET(offset);
@@ -919,6 +941,7 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     else {
       trace.msg("Setting barrier core mask (barrier: %d, mask: 0x%x)\n", barrier_id, *data);
       barrier->core_mask = *data;
+      check_barrier(barrier_id);
     }
   }
 
@@ -928,6 +951,7 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     else {
       trace.msg("Setting barrier target mask (barrier: %d, mask: 0x%x)\n", barrier_id, *data);
       barrier->target_mask = *data;
+      check_barrier(barrier_id);
     }
   }
   else if (offset == EU_HW_BARR_STATUS)
@@ -936,6 +960,7 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     else {
       trace.msg("Setting barrier status (barrier: %d, status: 0x%x)\n", barrier_id, *data);
       barrier->status = *data;
+      check_barrier(barrier_id);
     }
   }
   else if (offset == EU_HW_BARR_TRIGGER)
@@ -945,6 +970,8 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
       barrier->status |= *data;
       trace.msg("Barrier mask trigger (barrier: %d, mask: 0x%x, newStatus: 0x%x)\n", barrier_id, *data, barrier->status);
     }
+
+    check_barrier(barrier_id);
   }
   else if (offset == EU_HW_BARR_TRIGGER_SELF)
   {
@@ -953,6 +980,8 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     barrier->status |= 1 << core
     ;
     trace.msg("Barrier trigger (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
+
+    check_barrier(barrier_id);
   }
   else if (offset == EU_HW_BARR_TRIGGER_WAIT)
   {
@@ -971,6 +1000,9 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
       barrier->status |= 1 << core;
       trace.msg("Barrier trigger and wait (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
     }
+
+    check_barrier(barrier_id);
+
     return core_eu->wait_event(req, CORE_STATE_WAITING_BARRIER);
   }
   else if (offset == EU_HW_BARR_TRIGGER_WAIT_CLEAR)
@@ -983,7 +1015,7 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     {
       // The core was already waiting for the barrier which means it was interrupted
       // by an interrupt. Just resume the barrier by going to sleep
-      trace.msg("Resuming barrier trigger and wait (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
+      trace.msg("Resuming barrier trigger and wait (barrier: %d, coreId: %d, mask: 0x%x, newStatus: 0x%x)\n", barrier_id, core, barrier->core_mask, barrier->status);
     }
     else
     {
@@ -991,6 +1023,9 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
       trace.msg("Barrier trigger, wait and clear (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
     }
     core_eu->clear_evt_mask = core_eu->evt_mask;
+
+    check_barrier(barrier_id);
+
     return core_eu->wait_event(req, CORE_STATE_WAITING_BARRIER);
   }
   else if (offset == EU_HW_BARR_STATUS_SUMMARY)
@@ -1001,13 +1036,6 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     *data = status;
   }
   else return vp::IO_REQ_INVALID;
-
-  if (barrier->status == barrier->core_mask) 
-  {
-    trace.msg("Barrier reached, triggering event (barrier: %d, coreMask: 0x%x, targetMask: 0x%x)\n", barrier_id, barrier->core_mask, barrier->target_mask);
-    barrier->status = 0;
-    top->trigger_event(1<<barrier_event, barrier->target_mask);
-  }
 
   return vp::IO_REQ_OK;
 }

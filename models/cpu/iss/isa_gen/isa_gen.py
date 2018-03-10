@@ -169,7 +169,7 @@ class SignedImm(OpcodeField):
         return 'pc->sim[%d]' % (self.id)
 
     def gen_info(self, isaFile):
-        dump(isaFile, '{ .id=%d, .info= ' % (self.id))
+        dump(isaFile, '{ .is_signed=%d, .id=%d, .info= ' % (self.isSigned, self.id))
         self.ranges.gen_info(isaFile)
         dump(isaFile, '}, ')
 
@@ -200,7 +200,7 @@ class UnsignedImm(OpcodeField):
         return 'pc->uim[%d]' % (self.id)
 
     def gen_info(self, isaFile):
-        dump(isaFile, '{ .id=%d, .info= ' % (self.id))
+        dump(isaFile, '{ .is_signed=%d, .id=%d, .info= ' % (self.isSigned, self.id))
         self.ranges.gen_info(isaFile)
         dump(isaFile, '}, ')
 

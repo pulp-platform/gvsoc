@@ -159,10 +159,12 @@ typedef struct iss_decoder_arg_s {
   iss_decoder_arg_flag_e flags;
   union {
     struct {
+      bool is_signed;
       int id;
       iss_decoder_arg_info_t info;
     } uimm;
     struct {
+      bool is_signed;
       int id;
       iss_decoder_arg_info_t info;
     } simm;
@@ -180,6 +182,7 @@ typedef struct iss_decoder_arg_s {
         iss_decoder_arg_info_t info;
       } reg;
       struct {
+        bool is_signed;
         int id;
         iss_decoder_arg_info_t info;
       } imm;

@@ -49,6 +49,7 @@ public:
   static void irq_req_sync(void *__this, int irq);
 
   void irq_check();
+  void wait_for_interrupt();
 
   vp::io_master data;
   vp::io_master fetch;
@@ -74,6 +75,7 @@ private:
   bool is_active = false;
   bool fetch_enable = false;
   bool stalled = false;
+  bool wfi = false;
 
   vp::wire_slave<uint32_t> bootaddr_itf;
   vp::wire_slave<bool>     fetchen_itf;

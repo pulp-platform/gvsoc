@@ -111,11 +111,15 @@ void iss::check_state()
 {
   if (!is_active)
   {
-    if (fetch_enable && !stalled)
+    if (fetch_enable && !stalled && !wfi)
     {
       is_active = true;
       enqueue_next_instr(1);
     }
+  }
+  else
+  {
+    if (wfi) is_active = false;
   }
 }
 
@@ -134,11 +138,20 @@ void iss::irq_check()
 }
 
 
+void iss::wait_for_interrupt()
+{
+  wfi = true;
+  check_state();
+}
+
+
 void iss::irq_req_sync(void *__this, int irq)
 {
   iss *_this = (iss *)__this;
   _this->irq_check();
   iss_irq_req(_this, irq);
+  _this->wfi = false;
+  _this->check_state();
 }
 
 
