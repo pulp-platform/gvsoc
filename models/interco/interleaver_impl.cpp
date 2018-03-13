@@ -76,6 +76,10 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
 
   offset -= _this->remove_offset;
 
+  uint8_t *init_data = data;
+  uint64_t init_size = size;
+  uint64_t init_offset = offset;
+
   while(size) {
     
     int loop_size = port_size;
@@ -103,6 +107,9 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
     data += loop_size;
   }
 
+  req->set_addr(init_offset);
+  req->set_size(init_size);
+  req->set_data(init_data);
 
 
   return vp::IO_REQ_OK;

@@ -39,6 +39,8 @@ namespace vp {
 
     string run();
 
+    int run_status() { return stop_status; }
+
     inline void stop();
 
     inline void stop(int status);
@@ -62,7 +64,7 @@ namespace vp {
     pthread_t run_thread;
 
     int64_t time = 0;
-    int stop_status = 0;
+    int stop_status = -1;
 
   };
 

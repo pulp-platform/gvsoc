@@ -90,7 +90,7 @@ class Runner(Platform):
         elif status == 'error':
           return -1
         else:
-          return 0
+          return time_engine.run_status()
 
 
         return 0

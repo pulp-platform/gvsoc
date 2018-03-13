@@ -341,6 +341,11 @@ extern "C" const char *vp_run(void *comp)
   return ((cm::component *)comp)->run().c_str();
 }
 
+extern "C" int vp_run_status(void *comp)
+{
+  return ((cm::component *)comp)->run_status();
+}
+
 extern "C" void vp_post_post_build(void *comp)
 {
   ((cm::component *)comp)->post_post_build();

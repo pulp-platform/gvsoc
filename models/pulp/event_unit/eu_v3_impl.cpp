@@ -151,6 +151,7 @@ protected:
   vp::io_req_status_e sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data);
   void trigger_event(int event, uint32_t core_mask);
   void send_event(int core, uint32_t mask);
+  static void in_event_sync(void *__this, bool active, int id);
 
 };
 
@@ -183,6 +184,7 @@ private:
   vp::io_req *pending_req;
 
   vp::wire_master<bool> barrier_itf;
+  vp::wire_slave<bool> in_event_itf[32];
 };
 
 
@@ -329,6 +331,13 @@ void Core_event_unit::build(Event_unit *top, int core_id)
   this->core_id = core_id;
   demux_in.set_req_meth_muxed(&Event_unit::demux_req, core_id);
   top->new_slave_port("demux_in_" + std::to_string(core_id), &demux_in);
+
+  for (int i=0; i<32; i++)
+  {
+    in_event_itf[i].set_sync_meth_muxed(&Event_unit::in_event_sync, (core_id << 16 | i));
+    top->new_slave_port("in_event_" + std::to_string(i) + "_pe_" + std::to_string(core_id), &in_event_itf[i]);
+  }
+
 }
 
 vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data)
@@ -494,6 +503,17 @@ vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int cor
   }
 
   return vp::IO_REQ_INVALID;
+}
+
+void Event_unit::in_event_sync(void *__this, bool active, int id)
+{
+  Event_unit *_this = (Event_unit *)__this;
+  int core_id = id >> 16;
+  int event_id = id & 0xffff;
+  _this->trace.msg("Received input event (core: %d, event: %d, active: %d)\n", core_id, event_id, active);
+  Core_event_unit *eu = &_this->core_eu[core_id];
+  eu->set_status(eu->status | (1<<event_id));
+  eu->check_state();
 }
 
 void Event_unit::build()

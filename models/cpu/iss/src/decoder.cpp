@@ -62,6 +62,7 @@ static int decode_info(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
 
 static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_decoder_item_t *item)
 {
+  insn->hwloop_handler = NULL;
   insn->handler = item->u.insn.handler;
   insn->decoder_item = item;
   insn->size = item->u.insn.size;

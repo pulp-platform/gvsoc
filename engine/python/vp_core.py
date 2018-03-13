@@ -190,6 +190,9 @@ class default_implementation_class(object):
     def run(self):
         return self.implem_run(self.instance).decode('utf-8')
 
+    def run_status(self):
+        return self.module.vp_run_status(self.instance)
+
     def get_port_class(self, master):
         if master:
             return impl_master_port
@@ -447,6 +450,11 @@ class component(component_trace):
             return self.impl.run()
         return "error"
 
+    def run_status(self):
+        if self.impl is not None:
+            return self.impl.run_status()
+        else:
+            return -1
 
     def pre_start_all(self):
 

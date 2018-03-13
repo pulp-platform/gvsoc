@@ -47,6 +47,7 @@ namespace cm {
     virtual void pre_start() {}
     virtual void start() {}
     virtual string run() { return "error"; }
+    virtual int run_status() { return 0; }
 
     void new_master_port(std::string name, master_port *port);
 

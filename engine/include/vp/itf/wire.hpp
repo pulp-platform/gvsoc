@@ -68,6 +68,7 @@ namespace vp {
     inline wire_slave();
 
     void set_sync_meth(void (*)(void *_this, T value));
+    void set_sync_meth_muxed(void (*)(void *_this, T value, int), int id);
 
     inline void bind_to(cm::port *_port, cm::config *config);
 
@@ -126,6 +127,14 @@ namespace vp {
   {
     sync = meth;
     sync_mux = NULL;
+  }
+
+  template<class T>
+  inline void wire_slave<T>::set_sync_meth_muxed(void (*meth)(void *, T, int), int id)
+  {
+    sync = NULL;
+    sync_mux = meth;
+    sync_mux_id = id;
   }
 
   template<class T>
