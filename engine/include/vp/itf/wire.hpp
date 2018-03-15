@@ -40,6 +40,7 @@ namespace vp {
 
     inline void sync(T value)
     {
+      if (next) next->sync(value);
       sync_meth((void *)comp, value);
     }
 
@@ -52,7 +53,9 @@ namespace vp {
 
     vp::component *comp_mux;
     int sync_mux;
-    wire_slave<T> *slave_port;
+    wire_slave<T> *slave_port = NULL;
+    wire_master<T> *next = NULL;
+
   };
 
 
@@ -87,19 +90,29 @@ namespace vp {
   template<class T>
   inline void wire_master<T>::bind_to(cm::port *_port, cm::config *config)
   {
-    wire_slave<T> *port = (wire_slave<T> *)_port;
-    if (port->sync_mux == NULL)
+    if (slave_port != NULL)
     {
-      sync_meth = port->sync;
-      comp = (vp::component *)port->get_comp();
+      wire_master<T> *master = new wire_master<T>;
+      master->bind_to(_port, config);
+      master->next = this->next;
+      this->next = master;
     }
     else
     {
-      sync_meth_mux = port->sync_mux;
-      sync_meth = (void (*)(void *, T))&wire_master::sync_muxed;
-      comp = (vp::component *)this;
-      comp_mux = (vp::component *)port->get_comp();
-      sync_mux = port->sync_mux_id;
+      wire_slave<T> *port = (wire_slave<T> *)_port;
+      if (port->sync_mux == NULL)
+      {
+        sync_meth = port->sync;
+        comp = (vp::component *)port->get_comp();
+      }
+      else
+      {
+        sync_meth_mux = port->sync_mux;
+        sync_meth = (void (*)(void *, T))&wire_master::sync_muxed;
+        comp = (vp::component *)this;
+        comp_mux = (vp::component *)port->get_comp();
+        sync_mux = port->sync_mux_id;
+      }
     }
   }
 
@@ -117,6 +130,9 @@ namespace vp {
   {
     slave_port::bind_to(_port, config);
     wire_master<T> *port = (wire_master<T> *)_port;
+
+    if (port->next) port = port->next;
+
     port->slave_port = new wire_slave();
     port->slave_port->set_comp(port->get_comp());
     port->slave_port->comp = port->get_comp();

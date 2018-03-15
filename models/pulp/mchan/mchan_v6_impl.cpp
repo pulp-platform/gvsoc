@@ -144,6 +144,7 @@ private:
 
   vp::wire_master<bool> event_itf;
   vp::wire_master<bool> irq_itf;
+  vp::wire_master<bool> ext_irq_itf;
 
 };
 
@@ -473,6 +474,7 @@ Mchan_channel::Mchan_channel(int id, mchan *top)
 
   top->new_master_port("event_itf_" + std::to_string(id), &event_itf);
   top->new_master_port("irq_itf_" + std::to_string(id), &irq_itf);
+  top->new_master_port("ext_irq_itf", &ext_irq_itf);
 }
 
 vp::io_req_status_e Mchan_channel::req(vp::io_req *req)
@@ -494,14 +496,22 @@ vp::io_req_status_e Mchan_channel::req(vp::io_req *req)
 
 void Mchan_channel::trigger_event(Mchan_cmd *cmd)
 {
-  if (cmd->raise_irq) {
-    top->trace.msg("Raising irq line (channel: %d)\n", id);
-    irq_itf.sync(true);
+  if (id == top->nb_channels - 1)
+  {
+    top->trace.msg("Raising external irq line (channel: %d)\n", id);
+    ext_irq_itf.sync(true);
   }
+  else
+  {
+    if (cmd->raise_irq) {
+      top->trace.msg("Raising irq line (channel: %d)\n", id);
+      irq_itf.sync(true);
+    }
 
-  if (cmd->raise_event) {
-    top->trace.msg("Raising event line (channel: %d)\n", id);
-    event_itf.sync(true);
+    if (cmd->raise_event) {
+      top->trace.msg("Raising event line (channel: %d)\n", id);
+      event_itf.sync(true);
+    }
   }
 }
 

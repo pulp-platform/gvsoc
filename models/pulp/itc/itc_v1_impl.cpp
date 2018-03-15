@@ -35,6 +35,8 @@ public:
   void build();
   void start();
 
+private:
+
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
   vp::io_req_status_e itc_mask_ioReq(uint32_t offset, uint32_t *data, uint32_t size, bool is_write);
@@ -55,8 +57,7 @@ public:
   void reset();
 
   static void irq_ack_sync(void *__this, int irq);
-
-private:
+  static void in_event_sync(void *__this, bool active, int id);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -77,6 +78,9 @@ private:
 
   vp::wire_master<int>    irq_req_itf;
   vp::wire_slave<int>     irq_ack_itf;
+
+
+  vp::wire_slave<bool> in_event_itf[32];
 
 };
 
@@ -264,6 +268,14 @@ void itc::irq_ack_sync(void *__this, int irq)
   _this->trace.msg("Updated irq ack (value: 0x%x)\n", _this->ack);
 }
 
+void itc::in_event_sync(void *__this, bool active, int id)
+{
+  itc *_this = (itc *)__this;
+  _this->trace.msg("Received input event (event: %d, active: %d)\n", id, active);
+  _this->itc_status_setValue(_this->status | (1<<id));
+  _this->check_state();
+}
+
 void itc::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -280,6 +292,12 @@ void itc::build()
   fifo_irq = get_config_int("**/fifo_irq");
 
   fifo_event = new int[nb_fifo_events];
+
+  for (int i=0; i<32; i++)
+  {
+    in_event_itf[i].set_sync_meth_muxed(&itc::in_event_sync, i);
+    new_slave_port("in_event_" + std::to_string(i), &in_event_itf[i]);
+  }
 
 }
 
