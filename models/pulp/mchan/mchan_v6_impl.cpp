@@ -73,7 +73,6 @@ public:
 
   int id;
   
-  Mchan_cmd *next;        // Used for linking command in linked lists
   Mchan_channel *channel;  // The channel port from which the command arrived
 
   void set_next(Mchan_cmd *next) { this->next = next; }
@@ -84,6 +83,8 @@ public:
   //void endOfCmdEventHandle(Plp3_dma *dma);
   //void handleCounterZero(Plp3_dma *dma, int inputId);
 
+private:
+  Mchan_cmd *next;        // Used for linking command in linked lists
 };
 
 // The structure used for describing a DMA queue (global or private) as a linked list of commands
@@ -131,6 +132,7 @@ private:
   vp::io_req_status_e handle_queue_write(vp::io_req *req, uint32_t *value);
   bool check_command(Mchan_cmd *cmd);
   int unpack_command(Mchan_cmd *cmd);
+  void handle_req(vp::io_req *req, uint32_t *value);
 
   int id;
   mchan *top;
@@ -189,6 +191,7 @@ private:
   void handle_cmd_termination(Mchan_cmd *cmd);
   void account_transfered_bytes(Mchan_cmd *cmd, int bytes);
   void send_req_to_ext(Mchan_cmd *cmd, vp::io_req *req);
+  void handle_ext_write_req_end(Mchan_cmd *cmd, vp::io_req *req);
 
   vp::trace     trace;
 
@@ -230,6 +233,8 @@ private:
   vp::io_master *loc_itf;
 
   int64_t *loc_port_ready_cycle;
+
+  bool ext_is_stalled;
 
 };
 
@@ -306,6 +311,7 @@ T *Mchan_queue<T>::pop()
   T *cmd = first;
   first = cmd->get_next();
   nb_cmd--;
+
   return cmd;
 }
 
@@ -326,7 +332,13 @@ T *Mchan_queue<T>::pop(bool loc2ext)
   else
     first = current->get_next();
 
+  if (last == current)
+  {
+    last = prev;
+  }
+
   nb_cmd--;
+
   return current;
 }
 
@@ -347,10 +359,20 @@ Mchan_cmd *Mchan_channel::pop_cmd(bool read_queue)
   Mchan_cmd *cmd = pending_cmds->pop(!read_queue);
   if (cmd == NULL) return NULL;
   pending_cmd--;
+
   if (cmd->loc2ext)
     top->nb_core_write_cmd--;
   else
     top->nb_core_read_cmd--;
+
+  if (pending_req)
+  {
+    vp::io_req *req = pending_req;
+    pending_req = NULL;
+    handle_req(req, (uint32_t *)req->get_data());
+    req->get_resp_port()->resp(req);
+  }
+
   return cmd;
 }
 
@@ -376,6 +398,23 @@ bool Mchan_channel::check_command(Mchan_cmd *cmd)
   return true;
 }
 
+void Mchan_channel::handle_req(vp::io_req *req, uint32_t *value)
+{
+
+  if (current_cmd == NULL) {
+    // No on-going command, allocate a new one
+    current_cmd = top->get_command();
+    top->trace.msg("Starting new command\n");
+  }
+
+  current_cmd->content[current_cmd->step++] = *value;
+
+  if (check_command(current_cmd)) {
+    current_cmd = NULL;
+  }
+
+}
+
 
 vp::io_req_status_e Mchan_channel::handle_queue_write(vp::io_req *req, uint32_t *value)
 {
@@ -389,17 +428,7 @@ vp::io_req_status_e Mchan_channel::handle_queue_write(vp::io_req *req, uint32_t 
     return vp::IO_REQ_PENDING;
   }
 
-  if (current_cmd == NULL) {
-    // No on-going command, allocate a new one
-    current_cmd = top->get_command();
-    top->trace.msg("Starting new command\n");
-  }
-
-  current_cmd->content[current_cmd->step++] = *value;
-
-  if (check_command(current_cmd)) {
-    current_cmd = NULL;
-  }
+  handle_req(req, value);
 
   return vp::IO_REQ_OK;
 }
@@ -477,12 +506,28 @@ void Mchan_channel::trigger_event(Mchan_cmd *cmd)
 }
 
 
-void mchan::ext_grant(void *_this, vp::io_req *req)
+void mchan::ext_grant(void *__this, vp::io_req *req)
 {
+  mchan *_this = (mchan *)__this;
+  _this->trace.msg("Received grant (req: %p\n", req);
+  _this->ext_is_stalled = false;
+  _this->check_queue();
 }
 
-void mchan::ext_response(void *_this, vp::io_req *req)
+void mchan::ext_response(void *__this, vp::io_req *req)
 {
+  mchan *_this = (mchan *)__this;
+  _this->trace.msg("Received response (req: %p\n", req);
+  if (req->get_is_write())
+  {
+    Mchan_cmd *cmd = (Mchan_cmd *)*req->arg_get(0);
+    _this->handle_ext_write_req_end(cmd, req);
+  }
+  else
+  {
+    _this->push_req_to_loc(req);
+    _this->check_queue();
+  }
 }
 
 void mchan::loc_grant(void *_this, vp::io_req *req)
@@ -639,7 +684,7 @@ Mchan_cmd *mchan::get_command()
   else
   {
     cmd = first_command;
-    first_command = cmd->next;
+    first_command = cmd->get_next();
   }
   cmd->init();
   return cmd;
@@ -647,7 +692,7 @@ Mchan_cmd *mchan::get_command()
 
 void mchan::free_command(Mchan_cmd *cmd)
 {
-  cmd->next = first_command;
+  cmd->set_next(first_command);
   first_command = cmd;
 }
 
@@ -684,24 +729,31 @@ void mchan::push_req_to_loc(vp::io_req *req)
   pending_write_reqs->push(req);
 }
 
+void mchan::handle_ext_write_req_end(Mchan_cmd *cmd, vp::io_req *req)
+{
+  int64_t size = req->get_size();
+
+  cmd->size_to_write -= size;
+
+  trace.msg("Updating command (size_to_write: %d)\n", cmd->size_to_write);
+
+  req->set_next(first_ext_write_req);
+  first_ext_write_req = req;
+  nb_pending_ext_write_req--;
+
+  account_transfered_bytes(cmd, size);
+  if (cmd->size_to_write == 0)
+  {
+    handle_cmd_termination(cmd);
+  }
+}
+
 void mchan::send_req_to_ext(Mchan_cmd *cmd, vp::io_req *req)
 {
   vp::io_req_status_e err = ext_itf.req(req);
   if (err == vp::IO_REQ_OK)
   {
-    int64_t size = req->get_size();
-
-    cmd->size_to_write -= size;
-
-    req->set_next(first_ext_write_req);
-    first_ext_write_req = req;
-    nb_pending_ext_write_req--;
-
-    account_transfered_bytes(cmd, size);
-    if (cmd->size_to_write == 0)
-    {
-      handle_cmd_termination(cmd);
-    }
+    handle_ext_write_req_end(cmd, req);
   }
 }
 
@@ -713,13 +765,13 @@ void mchan::send_loc_read_req()
   if (size > max_burst_length)
     size = max_burst_length;
 
-  trace.msg("Preparing write request to external interface (addr: 0x%x, size: 0x%x)\n",
-    cmd->dest, size);
-
   nb_pending_ext_write_req++;
 
   vp::io_req *req = first_ext_write_req;
   first_ext_write_req = req->get_next();
+
+  trace.msg("Preparing write request to external interface (req: %p, addr: 0x%x, size: 0x%x)\n",
+    req, cmd->dest, size);
 
   req->set_addr(cmd->dest);
   req->set_size(size);
@@ -731,13 +783,14 @@ void mchan::send_loc_read_req()
   cmd->dest += size;
   cmd->source += size;
   cmd->size_to_read -= size;
+
   if (cmd->is_2d)
   {
     cmd->line_size_to_read -= size;
     if (cmd->line_size_to_read == 0)
     {
       cmd->line_size_to_read = cmd->length;
-      cmd->dest += cmd->stride - size;
+      cmd->dest = cmd->dest - size + cmd->stride;
     }
   }
 
@@ -747,7 +800,6 @@ void mchan::send_loc_read_req()
   {
     current_ext_write_cmd = NULL;
   }
-
 }
 
 void mchan::send_req()
@@ -758,13 +810,13 @@ void mchan::send_req()
   if (size > max_burst_length)
     size = max_burst_length;
 
-  trace.msg("Sending read request to external interface (addr: 0x%x, size: 0x%x)\n",
-    cmd->source, size);
-
   nb_pending_ext_read_req++;
 
   vp::io_req *req = first_ext_read_req;
   first_ext_read_req = req->get_next();
+
+  trace.msg("Sending read request to external interface (req: %p, addr: 0x%lx, size: 0x%x)\n",
+    req, cmd->source, size);
 
   req->set_addr(cmd->source);
   req->set_size(size);
@@ -782,7 +834,7 @@ void mchan::send_req()
     if (cmd->line_size_to_read == 0)
     {
       cmd->line_size_to_read = cmd->length;
-      cmd->source += cmd->stride - size;
+      cmd->source = cmd->source - size + cmd->stride;
     }
   }
 
@@ -796,6 +848,10 @@ void mchan::send_req()
   {
     cmd->received_size += size;
     push_req_to_loc(req);
+  }
+  else if (err == vp::IO_REQ_DENIED)
+  {
+    ext_is_stalled = true;
   }
 }
 
@@ -825,7 +881,6 @@ void mchan::check_ext_write_handler(void *__this, vp::clock_event *event)
 
   if (_this->current_ext_write_cmd == NULL)
     _this->current_ext_write_cmd = _this->pending_write_cmds->pop();
-
 
   if (_this->current_ext_write_cmd != NULL)
   {
@@ -879,6 +934,8 @@ void mchan::check_loc_transfer_handler(void *__this, vp::clock_event *event)
     // Bypass this port if it is still busy with a previous request
     if (_this->loc_port_ready_cycle[i] > cycles)
     {
+      _this->trace.msg("Bypassing port (port: %d, ready_cycle: %ld)\n",
+        i, cycles + _this->loc_port_ready_cycle[i]);
       continue;
     }
 
@@ -900,13 +957,13 @@ void mchan::check_loc_transfer_handler(void *__this, vp::clock_event *event)
     uint32_t addr = *(uint32_t *)ext_req->arg_get(1) + done_size;
     uint8_t *data = ext_req->get_data() + done_size;
     int32_t size = 4;
+    if (addr & 0x3) size -= addr & 0x3;
     if (size > ext_size) size = ext_size;
-
-    _this->trace.msg("Sending %s request to local port (port: %d, addr: 0x%x, size: 0x%x)\n",
-      is_write ? "write" : "read", i, addr, size);
 
     // Create request to local port
     vp::io_req *req = &_this->loc_req[i];
+    _this->trace.msg("Sending %s request to local port (req: %p, port: %d, addr: 0x%x, size: 0x%x)\n",
+      is_write ? "write" : "read", req, i, addr, size);
     req->set_addr(addr);
     req->set_size(size);
     req->set_is_write(is_write);
@@ -916,11 +973,21 @@ void mchan::check_loc_transfer_handler(void *__this, vp::clock_event *event)
     // TODO for now we assume this is synchronous
     vp::io_req_status_e err = _this->loc_itf[i].req(req);
 
+    if (err) 
+    {
+
+    }
+    else
+    {
+      _this->loc_port_ready_cycle[i] = cycles + req->get_latency() + 1;
+    }
+
     if (is_write)
     {
       // Update the command and check if it can be released
       Mchan_cmd *cmd = (Mchan_cmd *)*ext_req->arg_get(0);
       cmd->size_to_write -= size;
+      _this->trace.msg("Updating command (size_to_write: %d)\n", cmd->size_to_write);
       _this->account_transfered_bytes(cmd, size);
       if (cmd->size_to_write == 0)
       {
@@ -942,9 +1009,12 @@ void mchan::check_loc_transfer_handler(void *__this, vp::clock_event *event)
     }
     else
     {
+      _this->trace.msg("Updating request (size_to_read: %d)\n", ext_size - size);
+
       // Removed the request if it is finished
       if (ext_size - size == 0)
       {
+        _this->trace.msg("Finished request\n");
         Mchan_cmd *cmd = (Mchan_cmd *)*ext_req->arg_get(0);
         _this->pending_loc_read_req = NULL;
         _this->send_req_to_ext(cmd, ext_req);
@@ -991,20 +1061,25 @@ void mchan::check_queue()
   if (!pending_read_cmds->is_empty() && current_ext_read_cmd == NULL ||
     current_ext_read_cmd != NULL && nb_pending_ext_read_req < max_nb_ext_read_req)
   {
-    if (!check_ext_read_event->is_enqueued())
-      event_enqueue(check_ext_read_event, 1);
+    if (!ext_is_stalled)
+    {
+      if (!check_ext_read_event->is_enqueued())
+        event_enqueue(check_ext_read_event, 1);
+    }
   }
 
   if (!pending_write_cmds->is_empty() && current_ext_write_cmd == NULL ||
     current_ext_write_cmd != NULL && nb_pending_ext_write_req < max_nb_ext_write_req &&
     pending_loc_read_req == NULL)
   {
-    if (!check_ext_write_event->is_enqueued())
-      event_enqueue(check_ext_write_event, 1);
+    if (!ext_is_stalled)
+    {
+      if (!check_ext_write_event->is_enqueued())
+        event_enqueue(check_ext_write_event, 1);
+    }
   }
 
-  if (!pending_write_cmds->is_empty() && current_loc_cmd == NULL ||
-    !pending_write_reqs->is_empty() || pending_loc_read_req != NULL)
+  if (!pending_write_reqs->is_empty() || pending_loc_read_req != NULL)
   {
     if (!check_loc_transfer_event->is_enqueued())
     {
@@ -1019,10 +1094,13 @@ void mchan::check_queue()
           min_ready_cycle = loc_port_ready_cycle[i];
         }
       }
-      if (min_ready_cycle <= cycles)
+      if (min_ready_cycle <= cycles){
         event_enqueue(check_loc_transfer_event, 1);
+      }
       else
+      {
         event_enqueue(check_loc_transfer_event, min_ready_cycle - cycles);
+      }
     }
   }
 }
@@ -1075,6 +1153,7 @@ void mchan::reset()
   current_ext_write_cmd = NULL;
   current_loc_cmd = NULL;
   pending_loc_read_req = NULL;
+  ext_is_stalled = false;
 }
 
 void Mchan_cmd::init()

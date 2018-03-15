@@ -68,6 +68,10 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
   uint64_t size = req->get_size();
   uint8_t *data = req->get_data();
 
+  uint8_t *init_data = data;
+  uint64_t init_size = size;
+  uint64_t init_offset = offset;
+
   _this->trace.msg("Received IO req (offset: 0x%llx, size: 0x%llx, is_write: %d)\n", offset, size, is_write);
  
   int port_size = 1<<_this->interleaving_bits;
@@ -75,10 +79,6 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
   if (align_size) align_size = port_size - align_size;
 
   offset -= _this->remove_offset;
-
-  uint8_t *init_data = data;
-  uint64_t init_size = size;
-  uint64_t init_offset = offset;
 
   while(size) {
     

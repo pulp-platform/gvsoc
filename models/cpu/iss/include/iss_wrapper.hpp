@@ -58,6 +58,7 @@ public:
   vp::wire_master<int>     irq_ack_itf;
 
   vp::io_req     io_req;
+  vp::io_req     fetch_req;
 
   iss_cpu_t cpu;
 

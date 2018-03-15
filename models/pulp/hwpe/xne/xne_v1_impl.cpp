@@ -39,6 +39,7 @@ private:
 
   vp::trace     trace;
   vp::io_slave in;
+  vp::io_master out;
 };
 
 xne::xne(const char *config)
@@ -66,6 +67,7 @@ void xne::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&xne::req);
   new_slave_port("in", &in);
+  new_master_port("out", &out);
 }
 
 void xne::start()

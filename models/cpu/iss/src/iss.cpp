@@ -34,6 +34,8 @@ int iss_open(iss_t *iss)
 
   iss_csr_init(iss);
 
+  iss->io_req.set_data(new uint8_t[sizeof(iss_reg_t)]);
+
   return 0;
 }
 

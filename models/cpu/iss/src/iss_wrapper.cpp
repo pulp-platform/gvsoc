@@ -64,9 +64,8 @@ void iss::exec_first_instr(void *__this, vp::clock_event *event)
   _this->exec_first_instr(event);
 }
 
-void iss::data_grant(void *_this, vp::io_req *req)
+void iss::data_grant(void *__this, vp::io_req *req)
 {
-
 }
 
 void iss::data_response(void *__this, vp::io_req *req)

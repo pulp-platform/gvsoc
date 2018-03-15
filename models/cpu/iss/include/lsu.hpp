@@ -50,6 +50,26 @@ static inline int iss_lsu_load(iss *iss, iss_insn_t *insn, iss_addr_t addr, int 
   return iss_data_req(iss, addr, value, size, false);
 }
 
+static inline void iss_lsu_store_resume(iss *iss)
+{
+  // For now we don't have to do anything as the register was written directly
+  // by the request but we cold support sign-extended loads here;
+}
+
+static inline void iss_lsu_store_async(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+  if (!iss_data_req(iss, addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, true))
+  {
+    // For now we don't have to do anything as the register was written directly
+    // by the request but we cold support sign-extended loads here;
+  }
+  else
+  {
+    iss->cpu.state.stall_callback = iss_lsu_store_resume;
+    iss->cpu.state.stall_reg = reg;
+  }
+}
+
 static inline int iss_lsu_store(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, uint8_t *value)
 {
   return iss_data_req(iss, addr, value, size, true);
