@@ -20,15 +20,59 @@
 
 #include "iss.hpp"
 
+static int iss_parse_isa(iss_t *iss)
+{
+  const char *current = iss->cpu.config.isa;
+  int len = strlen(current);
+
+  if (strncmp(current, "rv32", 4) == 0)
+  {
+    current += 4;
+    len -= 4;
+  }
+  else
+  {
+    iss->trace.warning("Unsupported ISA: %s\n", current);
+    return -1;
+  }
+
+  while (len)
+  {
+    switch (*current)
+    {
+      case 'x':
+        if (strncmp(current, "xpulpv2", 7) == 0)
+        {
+          iss_isa_pulpv2_activate(iss);
+          current += 6;
+          len -= 6;
+        }
+        break;
+      case 'i':
+      case 'm':
+      case 'c':
+        break;
+      default:
+        iss->trace.warning("Unknwon ISA descriptor: %c\n", *current);
+        return -1;
+    }
+    current++;
+    len--;
+  }
+
+  return 0;
+}
+
 int iss_open(iss_t *iss)
 {
+  iss_isa_pulpv2_init(iss);
+
+  if (iss_parse_isa(iss)) return -1;
+
   insn_cache_init(iss);
   prefetcher_init(iss);
 
   iss->cpu.regfile.regs[0] = 0;
-
-  iss->cpu.state.hwloop_count[0] = 0;
-  iss->cpu.state.hwloop_count[1] = 0;
 
   iss_irq_init(iss);
 

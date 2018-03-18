@@ -21,6 +21,17 @@
 #ifndef __CPU_ISS_PULP_V2_HPP
 #define __CPU_ISS_PULP_V2_HPP
 
+#define PULPV2_HWLOOP_LPSTART0 0
+#define PULPV2_HWLOOP_LPEND0   1
+#define PULPV2_HWLOOP_LPCOUNT0 2
+
+#define PULPV2_HWLOOP_LPSTART1 3
+#define PULPV2_HWLOOP_LPEND1   4
+#define PULPV2_HWLOOP_LPCOUNT1 5
+
+#define PULPV2_HWLOOP_LPSTART(x) (PULPV2_HWLOOP_LPSTART0 + (x)*3)
+#define PULPV2_HWLOOP_LPEND(x) (PULPV2_HWLOOP_LPEND0 + (x)*3)
+#define PULPV2_HWLOOP_LPCOUNT(x) (PULPV2_HWLOOP_LPCOUNT0 + (x)*3)
 
 static inline iss_insn_t *LB_RR_exec(iss *iss, iss_insn_t *insn)
 {
@@ -142,7 +153,6 @@ static inline iss_insn_t *SB_POSTINC_exec(iss *iss, iss_insn_t *insn)
   iss_reg_t value = REG_GET(1);
   iss_lsu_store(iss, insn, REG_GET(0), 1, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  REG_SET(0, value);
   return insn->next;
 }
 
@@ -153,7 +163,6 @@ static inline iss_insn_t *SH_POSTINC_exec(iss *iss, iss_insn_t *insn)
   iss_reg_t value = REG_GET(1);
   iss_lsu_store(iss, insn, REG_GET(0), 2, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  REG_SET(0, value);
   return insn->next;
 }
 
@@ -172,7 +181,7 @@ static inline iss_insn_t *SW_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *LB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + REG_GET(1), 1, (uint8_t *)&value);
+  iss_lsu_load(iss, insn, REG_GET(0), 1, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   REG_SET(0, iss_get_signed_value(value, 8));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
@@ -184,7 +193,7 @@ static inline iss_insn_t *LB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *LH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + REG_GET(1), 2, (uint8_t *)&value);
+  iss_lsu_load(iss, insn, REG_GET(0), 2, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   REG_SET(0, iss_get_signed_value(value, 16));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
@@ -196,7 +205,7 @@ static inline iss_insn_t *LH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *LW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + REG_GET(1), 4, (uint8_t *)&value);
+  iss_lsu_load(iss, insn, REG_GET(0), 4, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   REG_SET(0, iss_get_signed_value(value, 32));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
@@ -208,7 +217,7 @@ static inline iss_insn_t *LW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *LBU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + REG_GET(1), 1, (uint8_t *)&value);
+  iss_lsu_load(iss, insn, REG_GET(0), 1, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   REG_SET(0, value);
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
@@ -220,7 +229,7 @@ static inline iss_insn_t *LBU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *LHU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + REG_GET(1), 2, (uint8_t *)&value);
+  iss_lsu_load(iss, insn, REG_GET(0), 2, (uint8_t *)&value);
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   REG_SET(0, value);
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
@@ -232,9 +241,8 @@ static inline iss_insn_t *LHU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *SB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = REG_GET(1);
-  iss_lsu_store(iss, insn, REG_GET(0) + REG_GET(1), 1, (uint8_t *)&value);
-  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  REG_SET(0, value);
+  iss_lsu_store(iss, insn, REG_GET(0), 1, (uint8_t *)&value);
+  IN_REG_SET(0, REG_GET(0) + REG_GET(2));
   return insn->next;
 }
 
@@ -243,9 +251,8 @@ static inline iss_insn_t *SB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *SH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = REG_GET(1);
-  iss_lsu_store(iss, insn, REG_GET(0) + REG_GET(1), 2, (uint8_t *)&value);
-  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  REG_SET(0, value);
+  iss_lsu_store(iss, insn, REG_GET(0), 2, (uint8_t *)&value);
+  IN_REG_SET(0, REG_GET(0) + REG_GET(2));
   return insn->next;
 }
 
@@ -254,9 +261,8 @@ static inline iss_insn_t *SH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *SW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = REG_GET(1);
-  iss_lsu_store(iss, insn, REG_GET(0) + REG_GET(1), 4, (uint8_t *)&value);
-  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  REG_SET(0, value);
+  iss_lsu_store(iss, insn, REG_GET(0), 4, (uint8_t *)&value);
+  IN_REG_SET(0, REG_GET(0) + REG_GET(2));
   return insn->next;
 }
 
@@ -409,23 +415,23 @@ static inline iss_insn_t *hwloop_check_exec(iss *iss, iss_insn_t *insn)
   iss_insn_t *insn_next = iss_exec_insn_handler(iss, insn, insn->hwloop_handler);
 
   // First check HW loop 0 as it has higher priority compared to HW loop 1
-  if (iss->cpu.state.hwloop_count[0] && iss->cpu.state.hwloop_end[0] == pc)
+  if (iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT0] && iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPEND0] == pc)
   {
-    iss->cpu.state.hwloop_count[0]--;
-    iss->decode_trace.msg("Reached end of HW loop (index: 0, loop count: %d)\n", iss->cpu.state.hwloop_count[0]);
+    iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT0]--;
+    iss->decode_trace.msg("Reached end of HW loop (index: 0, loop count: %d)\n", iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT0]);
 
     // If counter is not zero, we must jump back to beginning of the loop.
-    if (iss->cpu.state.hwloop_count[0]) return iss->cpu.state.hwloop_start_insn[0];
+    if (iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT0]) return iss->cpu.state.hwloop_start_insn[0];
   }
 
   // We get here either if HW loop 0 was not active or if the counter reached 0.
   // In both cases, HW loop 1 can jump back to the beginning of the loop.
-  if (iss->cpu.state.hwloop_count[1] && iss->cpu.state.hwloop_end[1] == pc)
+  if (iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT1] && iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPEND1] == pc)
   {
-    iss->cpu.state.hwloop_count[1]--;
+    iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT1]--;
     // If counter is not zero, we must jump back to beginning of the loop.
-    iss->decode_trace.msg("Reached end of HW loop (index: 1, loop count: %d)\n", iss->cpu.state.hwloop_count[1]);
-    if (iss->cpu.state.hwloop_count[1]) return iss->cpu.state.hwloop_start_insn[1];
+    iss->decode_trace.msg("Reached end of HW loop (index: 1, loop count: %d)\n", iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT1]);
+    if (iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT1]) return iss->cpu.state.hwloop_start_insn[1];
   }
 
   // In case no HW loop jumped back, just continue with the next instruction.
@@ -434,7 +440,7 @@ static inline iss_insn_t *hwloop_check_exec(iss *iss, iss_insn_t *insn)
 
 static inline void hwloop_set_start(iss *iss, iss_insn_t *insn, int index, iss_reg_t start)
 {
-  iss->cpu.state.hwloop_start[index] = start;
+  iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPSTART(index)] = start;
   iss->cpu.state.hwloop_start_insn[index] = insn_cache_get(iss, start);  
 }
 
@@ -448,12 +454,12 @@ static inline void hwloop_set_end(iss *iss, iss_insn_t *insn, int index, iss_reg
     end_insn->handler = hwloop_check_exec;
   }
 
-  iss->cpu.state.hwloop_end[index] = end;
+  iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPEND(index)] = end;
 }
 
 static inline void hwloop_set_count(iss *iss, iss_insn_t *insn, int index, iss_reg_t count)
 {
-  iss->cpu.state.hwloop_count[index] = count;
+  iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT(index)] = count;
 }
 
 static inline void hwloop_set_all(iss *iss, iss_insn_t *insn, int index, iss_reg_t start, iss_reg_t end, iss_reg_t count)
@@ -465,7 +471,7 @@ static inline void hwloop_set_all(iss *iss, iss_insn_t *insn, int index, iss_reg
 
 static inline iss_insn_t *lp_starti_exec(iss *iss, iss_insn_t *insn)
 {
-  iss->cpu.state.hwloop_start[UIM_GET(0)] = insn->addr + (UIM_GET(1) << 1);
+  hwloop_set_start(iss, insn, UIM_GET(0), insn->addr + (UIM_GET(1) << 1));
   return insn->next;
 }
 
@@ -1455,5 +1461,17 @@ static inline iss_insn_t *p_bset_exec(iss *iss, iss_insn_t *insn)
   return insn->next;
 }
 
+static inline void iss_isa_pulpv2_init(iss *iss)
+{
+  iss->cpu.pulpv2.hwloop = false;
+}
+
+static inline void iss_isa_pulpv2_activate(iss *iss)
+{
+  iss->cpu.pulpv2.hwloop = true;
+  iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT(0)] = 0;
+  iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPCOUNT(1)] = 0;
+
+}
 
 #endif

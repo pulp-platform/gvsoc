@@ -21,6 +21,7 @@
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
 #include "iss.hpp"
+#include <algorithm>
 
 
 
@@ -185,10 +186,9 @@ void iss::build()
   fetch_enable = get_config_bool("fetch_enable");
 
   this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
-
-  iss_open(this);
-  iss_pc_set(this, get_config_int("boot_addr") + 0x80);
-  iss_irq_set_vector_table(this, get_config_int("boot_addr"));
+  string isa = get_config_str("isa");
+  transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
+  this->cpu.config.isa = strdup(isa.c_str());
 
 
 }
@@ -197,6 +197,11 @@ void iss::build()
 
 void iss::start()
 {
+  if (iss_open(this)) throw logic_error("Error while instantiating the ISS");
+
+  iss_pc_set(this, get_config_int("boot_addr") + 0x80);
+  iss_irq_set_vector_table(this, get_config_int("boot_addr"));
+
   trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable, is_active, get_config_int("boot_addr"));
 
   check_state();

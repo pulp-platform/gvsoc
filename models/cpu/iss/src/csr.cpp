@@ -823,14 +823,12 @@ static bool pcmr_write(iss *iss, unsigned int prev_val, unsigned int value) {
 }
 
 static bool hwloop_read(iss *iss, int reg, iss_reg_t *value) {
-  // HW loop registers are just ignored for now
-  //*value = iss->sprs[reg];
+  *value = iss->cpu.pulpv2.hwloop_regs[reg];
   return false;
 }
 
 static bool hwloop_write(iss *iss, int reg, unsigned int value) {
-  // HW loop registers are just ignored for now
-  //iss->sprs[reg] = value;
+  iss->cpu.pulpv2.hwloop_regs[reg] = value;
   return false;
 }
 
@@ -1029,10 +1027,14 @@ bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value)
   if (getOption(iss, __pulp_perf_counters)) {
     if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_read(iss, reg, value);
   }
+#endif
 
-  if (getOption(iss, __pulp_hw_loop)) {
-    if (reg >= 0x7B0 && reg <= 0x7B6) return hwloop_read(iss, reg, value);
+  if (iss->cpu.pulpv2.hwloop)
+  {
+    if (reg >= 0x7B0 && reg <= 0x7B6) return hwloop_read(iss, reg - 0x7B0, value);
   }
+
+  #if 0
 
   triggerException_cause(iss, iss->currentPc, EXCEPTION_ILLEGAL_INSTR, ECAUSE_ILL_INSTR);
 #endif
@@ -1153,11 +1155,14 @@ bool iss_csr_write(iss *iss, iss_reg_t reg, iss_reg_t value)
   if (getOption(iss, __pulp_perf_counters)) {
     if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_write(iss, reg, value);
   }
+  #endif
 
-  if (getOption(iss, __pulp_hw_loop)) {
-    if (reg >= 0x7B0 && reg <= 0x7B6) return hwloop_write(iss, reg, value);
+  if (iss->cpu.pulpv2.hwloop)
+  {
+    if (reg >= 0x7B0 && reg <= 0x7B6) return hwloop_write(iss, reg - 0x7B0, value);
   }
 
+#if 0
   triggerException_cause(iss, iss->currentPc, EXCEPTION_ILLEGAL_INSTR, ECAUSE_ILL_INSTR);
 #endif
 

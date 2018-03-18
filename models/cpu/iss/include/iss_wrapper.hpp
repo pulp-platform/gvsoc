@@ -62,12 +62,11 @@ public:
 
   iss_cpu_t cpu;
 
+  vp::trace     trace;
   vp::trace     decode_trace;
   vp::trace     insn_trace;
   
 private:
-
-  vp::trace     trace;
 
   vp::clock_event *current_event;
   vp::clock_event *instr_event;

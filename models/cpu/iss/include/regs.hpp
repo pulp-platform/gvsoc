@@ -25,6 +25,7 @@
 
 static inline void iss_set_reg(iss_t *iss, int reg, iss_reg_t value)
 {
+  if (reg == 0) printf("WRITING TO 0 %x\n", value);
   iss->cpu.regfile.regs[reg] = value;
 }
 

@@ -282,9 +282,6 @@ typedef struct iss_regfile_s {
 } iss_regfile_t;
 
 typedef struct iss_cpu_state_s {
-  iss_reg_t   hwloop_start[2];
-  iss_reg_t   hwloop_count[2];
-  iss_reg_t   hwloop_end[2];
   iss_insn_t *hwloop_start_insn[2];
 
   iss_addr_t bootaddr;
@@ -298,6 +295,7 @@ typedef struct iss_cpu_state_s {
 
 typedef struct iss_config_s {
   iss_reg_t mhartid;
+  const char *isa;
 } iss_config_t;
 
 typedef struct iss_irq_s {
@@ -313,6 +311,16 @@ typedef struct iss_csr_s
   iss_reg_t epc;
 } iss_csr_t;
 
+
+#define PULPV2_HWLOOP_NB_REGS 6
+
+typedef struct iss_pulpv2_s
+{
+  bool hwloop;
+  iss_reg_t hwloop_regs[PULPV2_HWLOOP_NB_REGS];
+} iss_pulpv2_t;
+
+
 typedef struct iss_cpu_s {
   iss_prefetcher_t prefetcher;
   iss_insn_cache_t insn_cache;
@@ -322,6 +330,7 @@ typedef struct iss_cpu_s {
   iss_config_t config;
   iss_irq_t irq;
   iss_csr_t csr;
+  iss_pulpv2_t pulpv2;
 } iss_cpu_t;
 
 #endif
