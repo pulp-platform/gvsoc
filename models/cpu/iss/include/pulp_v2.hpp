@@ -877,7 +877,7 @@ static inline iss_insn_t *pv_extract_b_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *pv_extractu_h_exec(iss *iss, iss_insn_t *insn)
 {
-  REG_SET(0, LIB_CALL2(lib_VEC_EXT_16, REG_GET(0), UIM_GET(0)));
+  REG_SET(0, LIB_CALL2(lib_VEC_EXTU_16, REG_GET(0), UIM_GET(0)));
   return insn->next;
 }
 
@@ -885,7 +885,7 @@ static inline iss_insn_t *pv_extractu_h_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *pv_extractu_b_exec(iss *iss, iss_insn_t *insn)
 {
-  REG_SET(0, LIB_CALL2(lib_VEC_EXT_8, REG_GET(0), UIM_GET(0)));
+  REG_SET(0, LIB_CALL2(lib_VEC_EXTU_8, REG_GET(0), UIM_GET(0)));
   return insn->next;
 }
 

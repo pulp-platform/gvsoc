@@ -51,6 +51,8 @@ static int iss_parse_isa(iss_t *iss)
       case 'i':
       case 'm':
       case 'c':
+      case 'f':
+      case 'd':
         break;
       default:
         iss->trace.warning("Unknwon ISA descriptor: %c\n", *current);
