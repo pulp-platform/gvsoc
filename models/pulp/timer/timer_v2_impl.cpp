@@ -22,6 +22,7 @@
 #include <vp/itf/io.hpp>
 #include <stdio.h>
 #include <string.h>
+#include "vp/itf/wire.hpp"
 
 #include "archi/timer/timer_v2.h"
 
@@ -49,6 +50,15 @@ private:
   vp::io_req_status_e handle_configure(int counter, uint32_t *data, unsigned int size, bool is_write);
   vp::io_req_status_e handle_value(int counter, uint32_t *data, unsigned int size, bool is_write);
   vp::io_req_status_e handle_compare(int counter, uint32_t *data, unsigned int size, bool is_write);
+  void check_state();
+  uint64_t get_remaining_cycles(bool is_64, int counter);
+  void check_state_counter(bool is_64, int counter);
+  static void event_handler(void *__this, vp::clock_event *event);
+  uint64_t get_compare_value(bool is_64, int counter);
+  uint64_t get_value(bool is_64, int counter);
+  void set_value(bool is_64, int counter, uint64_t new_value);
+
+  vp::wire_master<bool> irq_itf[2];
 
   uint32_t value[2];
   uint32_t config[2];
@@ -66,6 +76,8 @@ private:
   bool is_64;
 
   int64_t sync_time;
+
+  vp::clock_event *event;
 };
 
 timer::timer(const char *config)
@@ -87,6 +99,98 @@ void timer::sync()
   {
     if (is_enabled[0]) value[0] += cycles;
     if (is_enabled[1]) value[1] += cycles;
+  }
+}
+
+uint64_t timer::get_remaining_cycles(bool is_64, int counter)
+{
+  uint64_t cycles;
+
+  if (is_64) {
+    // No need to check overflow on 64 bits the engine is anyway having 64 bits timestamps
+    cycles = *(uint64_t *)compare_value - *(uint64_t *)value;
+  } else {
+    cycles = (uint32_t)(compare_value[counter] - value[counter]);
+    if (cycles == 0) cycles = 0x100000000;
+  }
+  if (prescaler[counter]) return cycles * (prescaler_value[counter] + 1);
+  else return cycles;
+}
+
+uint64_t timer::get_compare_value(bool is_64, int counter)
+{
+  if (is_64) return *(uint64_t *)compare_value;
+  else return compare_value[counter];
+}
+
+uint64_t timer::get_value(bool is_64, int counter)
+{
+  if (is_64) return *(uint64_t *)value;
+  else return value[counter];
+}
+
+void timer::set_value(bool is_64, int counter, uint64_t new_value)
+{
+  if (is_64) *(uint64_t *)value = new_value;
+  else value[counter] = new_value;
+}
+
+void timer::check_state_counter(bool is_64, int counter)
+{
+  if (is_enabled[counter] && get_compare_value(is_64, counter) == get_value(is_64, counter))
+  {
+    trace.msg("Reached compare value (timer: %d)\n", counter);
+
+    if (cmp_clr[counter]) {
+      trace.msg("Clearing timer due to compare value (timer: %d)\n", counter);
+      set_value(is_64, counter, 0);
+    }
+
+    if (irq_enabled[counter])
+    {
+      trace.msg("Raising interrupt (timer: %d)\n", counter);
+      if (!irq_itf[counter].is_bound())
+        trace.warning("Trying to send timer interrupt while irq port is not connected (irq: %d)\n", counter);
+      else
+        irq_itf[counter].sync(true);
+    }
+
+    if (one_shot[counter]) {
+      trace.msg("Reached one-shot end (timer: %d)\n", counter);
+      is_enabled[counter] = false;
+    }
+
+  }
+
+  if (is_enabled[counter] && !ref_clock[counter] && (irq_enabled[counter] || cmp_clr[counter]))
+  {
+    int64_t cycles = get_remaining_cycles(is_64, counter);
+
+    if (cycles != 0) {
+      trace.msg("Timer is enabled, reenqueueing event (timer: %d, diffCycles: 0x%lx)\n", counter, cycles);
+      event_reenqueue(event, cycles);
+    }
+
+  }
+}
+
+void timer::event_handler(void *__this, vp::clock_event *event)
+{
+  timer *_this = (timer *)__this;
+  _this->sync();
+  _this->check_state();
+}
+
+void timer::check_state()
+{
+  if (is_64)
+  {
+    check_state_counter(true, 0);
+  }
+  else
+  {
+    check_state_counter(false, 0);
+    check_state_counter(false, 1);
   }
 }
 
@@ -115,6 +219,8 @@ vp::io_req_status_e timer::handle_configure(int counter, uint32_t *data, unsigne
     if (counter == 0) setMask |= 1 << PLP_TIMER_64_BIT;
 
     config[counter] &= setMask;
+
+    check_state();
   }
   else
   {
@@ -126,8 +232,14 @@ vp::io_req_status_e timer::handle_configure(int counter, uint32_t *data, unsigne
 
 vp::io_req_status_e timer::handle_value(int counter, uint32_t *data, unsigned int size, bool is_write)
 {
-  if (is_write) value[counter] = *data;
-  else *data = value[counter];
+  if (is_write)
+  {
+    trace.msg("Modified value (timer: %d, value: 0x%x)\n", *data);
+    value[counter] = *data;
+    check_state();
+  }
+  else
+    *data = value[counter];
 
   return vp::IO_REQ_OK;
 
@@ -135,6 +247,16 @@ vp::io_req_status_e timer::handle_value(int counter, uint32_t *data, unsigned in
 
 vp::io_req_status_e timer::handle_compare(int counter, uint32_t *data, unsigned int size, bool is_write)
 {
+  if (is_write)
+  {
+    trace.msg("Modified compare value (timer: %d, value: 0x%x)\n", *data);
+    compare_value[counter] = *data;
+    check_state();
+  }
+  else
+  {
+    *data = compare_value[counter];
+  }
   return vp::IO_REQ_OK;
 
 }
@@ -196,8 +318,14 @@ vp::io_req_status_e timer::req(void *__this, vp::io_req *req)
 void timer::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
+
   in.set_req_meth(&timer::req);
   new_slave_port("in", &in);
+
+  event = event_new(timer::event_handler);
+
+  new_master_port("irq_itf_0", &irq_itf[0]);
+  new_master_port("irq_itf_1", &irq_itf[1]);
 }
 
 void timer::reset()

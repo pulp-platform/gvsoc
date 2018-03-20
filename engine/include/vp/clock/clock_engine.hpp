@@ -37,6 +37,10 @@ namespace vp {
 
     clock_engine(const char *config);
 
+    void cancel(clock_event *event);
+
+    inline clock_event *reenqueue(clock_event *event, int64_t cycles);
+
     inline clock_event *enqueue(clock_event *event, int64_t cycles)
     {
       event->enqueued = true;
@@ -94,5 +98,21 @@ namespace vp {
   };    
 
 };
+
+
+inline vp::clock_event *vp::clock_engine::reenqueue(vp::clock_event *event, int64_t enqueue_cycles)
+{
+  int64_t cycles = this->cycles + enqueue_cycles;
+  if (event->is_enqueued())
+  {
+    if (cycles >= event->get_cycle()) return event;
+    cancel(event);
+
+  }
+  enqueue(event, enqueue_cycles);
+  event->cycle = cycles;
+
+  return event;
+}
 
 #endif

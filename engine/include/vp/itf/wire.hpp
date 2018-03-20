@@ -46,6 +46,8 @@ namespace vp {
 
     void bind_to(cm::port *port, cm::config *config);
 
+    bool is_bound() { return slave_port != NULL; }
+
   private:
     static inline void sync_muxed(wire_master *_this, T value);
     void (*sync_meth)(void *, T value);

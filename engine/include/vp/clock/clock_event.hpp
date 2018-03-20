@@ -54,6 +54,8 @@ namespace vp {
 
     inline bool is_enqueued() { return enqueued; }
 
+    int64_t get_cycle() { return cycle; }
+
   private:
     uint8_t payload[CLOCK_EVENT_PAYLOAD_SIZE];
     void *args[CLOCK_EVENT_NB_ARGS];

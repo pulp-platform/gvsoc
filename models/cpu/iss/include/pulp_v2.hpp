@@ -748,7 +748,7 @@ static inline iss_insn_t *pv_##insn_name##_h_sc_exec(iss *iss, iss_insn_t *insn)
                                                                                              \
 static inline iss_insn_t *pv_##insn_name##_h_sci_exec(iss *iss, iss_insn_t *insn)            \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_16, REG_GET(2), REG_GET(0), SIM_GET(0))); \
+  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_16, REG_GET(0), REG_GET(1), SIM_GET(0))); \
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -766,7 +766,7 @@ static inline iss_insn_t *pv_##insn_name##_b_sc_exec(iss *iss, iss_insn_t *insn)
                                                                                              \
 static inline iss_insn_t *pv_##insn_name##_b_sci_exec(iss *iss, iss_insn_t *insn)            \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_8, REG_GET(2), REG_GET(0), SIM_GET(0))); \
+  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_8, REG_GET(0), REG_GET(1), SIM_GET(0))); \
   return insn->next;                                                                         \
 }
 
@@ -787,7 +787,7 @@ static inline iss_insn_t *pv_##insn_name##_h_sc_exec(iss *iss, iss_insn_t *insn)
                                                                                              \
 static inline iss_insn_t *pv_##insn_name##_h_sci_exec(iss *iss, iss_insn_t *insn)            \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_16, REG_GET(2), REG_GET(0), UIM_GET(0))); \
+  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_16, REG_GET(0), REG_GET(1), UIM_GET(0))); \
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -805,7 +805,7 @@ static inline iss_insn_t *pv_##insn_name##_b_sc_exec(iss *iss, iss_insn_t *insn)
                                                                                              \
 static inline iss_insn_t *pv_##insn_name##_b_sci_exec(iss *iss, iss_insn_t *insn)            \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_8, REG_GET(2), REG_GET(0), UIM_GET(0))); \
+  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SC_8, REG_GET(0), REG_GET(1), UIM_GET(0))); \
   return insn->next;                                                                         \
 }
 

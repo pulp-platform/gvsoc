@@ -37,6 +37,11 @@ inline void vp::component_clock::event_enqueue(vp::clock_event *event, int64_t c
   clock->enqueue(event, cycles);
 }
 
+inline void vp::component_clock::event_reenqueue(vp::clock_event *event, int64_t cycles)
+{
+  clock->reenqueue(event, cycles);
+}
+
 inline vp::clock_event *vp::component_clock::event_new(vp::clock_event_meth_t *meth)
 {
   return clock->event_new(this, meth);

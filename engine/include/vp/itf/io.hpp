@@ -145,6 +145,8 @@ namespace vp {
     inline io_req *req_new(uint64_t addr, uint8_t *data, uint64_t size, bool is_write);
     inline void req_del(io_req *req);
 
+    bool is_bound() { return slave_port != NULL; }
+
   private:
 
     static inline io_req_status_e req_muxed(io_master *_this, io_req *req);
@@ -158,7 +160,7 @@ namespace vp {
 
     vp::component *comp_mux;
     int req_mux;
-    io_slave *slave_port;
+    io_slave *slave_port = NULL;
   };
 
 

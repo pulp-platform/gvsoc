@@ -87,6 +87,37 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
   return event;
 }
 
+void vp::clock_engine::cancel(vp::clock_event *event)
+{
+  uint64_t cycle_diff = event->cycle - get_cycles();
+  if (cycle_diff >= CLOCK_EVENT_QUEUE_SIZE)
+  {
+    vp::clock_event *current = delayed_queue, *prev = NULL;
+    while (current != event)
+    {
+      prev = current;
+      current = current->next;
+    }
+    if (prev)
+      prev->next = event->next;
+    else
+      delayed_queue = event->next;
+  }
+  else
+  {    
+    vp::clock_event *current = event_queue[cycle_diff], *prev = NULL;
+    while (current != event)
+    {
+      prev = current;
+      current = current->next;
+    }
+    if (prev)
+      prev->next = event->next;
+    else
+      event_queue[cycle_diff] = event->next;
+  }
+}
+
 int64_t vp::clock_engine::exec()
 {
 
