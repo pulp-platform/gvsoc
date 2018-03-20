@@ -31,6 +31,7 @@ class Core_cluster_ctrl
 public:
   vp::wire_master<uint32_t> bootaddr_itf;
   vp::wire_master<bool> fetchen_itf;
+  uint32_t bootaddr;
 };
 
 class cluster_ctrl : public vp::component
@@ -105,7 +106,16 @@ vp::io_req_status_e cluster_ctrl::fetch_en_req(bool is_write, uint32_t *data)
 
 vp::io_req_status_e cluster_ctrl::bootaddr_req(int core, bool is_write, uint32_t *data)
 {
-  cores[core].bootaddr_itf.sync(*data);
+  if (is_write)
+  {
+    trace.msg("Setting boot address (core: %d, addr: 0x%x)\n", core, *data);
+    cores[core].bootaddr_itf.sync(*data);
+    cores[core].bootaddr = *data;
+  }
+  else
+  {
+    *data = cores[core].bootaddr;
+  }
   return vp::IO_REQ_OK;
 }
 

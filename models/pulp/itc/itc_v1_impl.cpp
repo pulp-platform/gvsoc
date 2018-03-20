@@ -264,6 +264,7 @@ void itc::irq_ack_sync(void *__this, int irq)
 
   _this->itc_status_setValue(_this->status & ~(1<<irq));
   _this->ack |= 1<<irq;
+  _this->sync_irq = -1;
 
   _this->trace.msg("Updated irq ack (value: 0x%x)\n", _this->ack);
 }

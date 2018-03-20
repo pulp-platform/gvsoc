@@ -570,12 +570,13 @@ static bool mscratch_write(iss *iss, unsigned int value) {
 
 
 static bool mepc_read(iss *iss, iss_reg_t *value) {
-  //*value = iss->epc[GVSIM_MODE_MACHINE];
+  *value = iss->cpu.csr.epc;
   return false;
 }
 
 static bool mepc_write(iss *iss, unsigned int value) {
-  //iss->epc[GVSIM_MODE_MACHINE] = value;
+  iss->trace.msg("Setting MEPC (value: 0x%x)\n", value);
+  iss->cpu.csr.epc = value;
   return false;
 }
 

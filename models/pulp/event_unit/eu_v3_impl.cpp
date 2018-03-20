@@ -134,6 +134,7 @@ public:
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
   static vp::io_req_status_e demux_req(void *__this, vp::io_req *req, int core);
+  static void irq_ack_sync(void *__this, int irq, int core);
 
 protected:
 
@@ -170,12 +171,16 @@ public:
   void check_pending_req();
   vp::io_req_status_e wait_event(vp::io_req *req, Event_unit_core_state_e wait_state=CORE_STATE_WAITING_EVENT);
   Event_unit_core_state_e get_state() { return state; }
+  void irq_ack_sync(int irq, int core);
 
   vp::io_slave demux_in;
 
   uint32_t status;
   uint32_t evt_mask;
+  uint32_t irq_mask;
   uint32_t clear_evt_mask;
+
+  int sync_irq;
 
 private:
   Event_unit *top;
@@ -185,6 +190,10 @@ private:
 
   vp::wire_master<bool> barrier_itf;
   vp::wire_slave<bool> in_event_itf[32];
+
+  vp::wire_master<int>    irq_req_itf;
+  vp::wire_slave<int>     irq_ack_itf;
+
 };
 
 
@@ -332,6 +341,11 @@ void Core_event_unit::build(Event_unit *top, int core_id)
   demux_in.set_req_meth_muxed(&Event_unit::demux_req, core_id);
   top->new_slave_port("demux_in_" + std::to_string(core_id), &demux_in);
 
+  top->new_master_port("irq_req_" + std::to_string(core_id), &irq_req_itf);
+
+  irq_ack_itf.set_sync_meth_muxed(&Event_unit::irq_ack_sync, core_id);
+  top->new_slave_port("irq_ack_" + std::to_string(core_id), &irq_ack_itf);
+
   for (int i=0; i<32; i++)
   {
     in_event_itf[i].set_sync_meth_muxed(&Event_unit::in_event_sync, (core_id << 16 | i));
@@ -416,39 +430,31 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
   }
   else if (offset == EU_CORE_MASK_IRQ)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) *data = irqMask;
-    //else {
-    //  trace.msg("Updating irq mask (newValue: 0x%x)\n", *data);
-    //  irqMask = *data;
-    //  checkCoreState();
-    //}
-    return vp::IO_REQ_INVALID;
+    if (!is_write) *data = irq_mask;
+    else {
+      top->trace.msg("Updating irq mask (newValue: 0x%x)\n", *data);
+      irq_mask = *data;
+      check_state();
+    }
   }
   else if (offset == EU_CORE_BUFFER_IRQ_MASKED)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = status & irqMask;
-    return vp::IO_REQ_INVALID;
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = status & irq_mask;
   }
   else if (offset == EU_CORE_MASK_IRQ_AND)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //irqMask &= ~*data;
-    //trace.msg("Clearing irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irqMask);
-    //checkCoreState();
-    return vp::IO_REQ_INVALID;
+    if (!is_write) return vp::IO_REQ_INVALID;
+    irq_mask &= ~*data;
+    top->trace.msg("Clearing irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irq_mask);
+    check_state();
   }
   else if (offset == EU_CORE_MASK_IRQ_OR)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //irqMask |= *data;
-    //trace.msg("Setting irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irqMask);
-    //checkCoreState();
-    return vp::IO_REQ_INVALID;
+    if (!is_write) return vp::IO_REQ_INVALID;
+    irq_mask |= *data;
+    top->trace.msg("Setting irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irq_mask);
+    check_state();
   }
   else
   {
@@ -456,6 +462,15 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
   }
 
   return vp::IO_REQ_OK;
+}
+
+void Event_unit::irq_ack_sync(void *__this, int irq, int core)
+{
+  Event_unit *_this = (Event_unit *)__this;
+
+  _this->trace.msg("Received IRQ acknowledgement (core: %d, irq: %d)\n", core, irq);
+
+  _this->core_eu[core].irq_ack_sync(irq, core);
 }
 
 vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int core)
@@ -542,6 +557,16 @@ void Event_unit::start()
 extern "C" void *vp_constructor(const char *config)
 {
   return (void *)new Event_unit(config);
+}
+
+
+
+void Core_event_unit::irq_ack_sync(int irq, int core)
+{
+  set_status(status & ~(1<<irq));
+  sync_irq = -1;
+
+  check_state();
 }
 
 
@@ -716,13 +741,24 @@ void Core_event_unit::reset()
 {
   status = 0;
   evt_mask = 0;
-  clear_evt_mask;
+  irq_mask = 0;
+  clear_evt_mask = 0;
+  sync_irq = -1;
   state = CORE_STATE_ACTIVE;
 }
 
 void Core_event_unit::check_state()
 {
   //top->trace.msg("Checking core state (coreId: %d, active: %d, waitingEvent: %d, status: 0x%llx, evtMask: 0x%llx, irqMask: 0x%llx)\n", coreId, active, waitingEvent, status, evtMask, irqMask);
+
+  uint32_t status_masked = status & irq_mask;
+  int irq = status_masked ? 31 - __builtin_clz(status_masked) : -1;
+
+  if (irq != sync_irq) {
+    top->trace.msg("Updating irq req (core: %d, irq: %d)\n", core_id, irq);
+    sync_irq = irq;
+    irq_req_itf.sync(irq);
+  }
 
   switch (state)
   {
