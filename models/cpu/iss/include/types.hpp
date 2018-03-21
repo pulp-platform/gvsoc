@@ -290,6 +290,9 @@ typedef struct iss_cpu_state_s {
 
   void (*stall_callback)(iss *iss);
   int stall_reg;
+  int stall_size;
+
+  iss_insn_arg_t saved_args[ISS_MAX_DECODE_ARGS];
 
 } iss_cpu_state_t;
 
@@ -325,6 +328,7 @@ typedef struct iss_cpu_s {
   iss_prefetcher_t prefetcher;
   iss_insn_cache_t insn_cache;
   iss_insn_t *current_insn;
+  iss_insn_t *stall_insn;
   iss_regfile_t regfile;
   iss_cpu_state_t state;
   iss_config_t config;

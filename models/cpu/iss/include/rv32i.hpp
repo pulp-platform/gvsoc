@@ -154,9 +154,7 @@ static inline iss_insn_t *bgeu_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lb_exec(iss *iss, iss_insn_t *insn)
 {
-  uint32_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + SIM_GET(0), 1, (uint8_t *)&value);
-  REG_SET(0, iss_get_signed_value(value, 8));
+  iss_lsu_load_async_signed(iss, insn, REG_GET(0) + SIM_GET(0), 1, REG_OUT(0));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
@@ -165,9 +163,7 @@ static inline iss_insn_t *lb_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lh_exec(iss *iss, iss_insn_t *insn)
 {
-  uint32_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + SIM_GET(0), 2, (uint8_t *)&value);
-  REG_SET(0, iss_get_signed_value(value, 16));
+  iss_lsu_load_async_signed(iss, insn, REG_GET(0) + SIM_GET(0), 2, REG_OUT(0));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
@@ -176,9 +172,7 @@ static inline iss_insn_t *lh_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lw_exec(iss *iss, iss_insn_t *insn)
 {
-  uint32_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + SIM_GET(0), 4, (uint8_t *)&value);
-  REG_SET(0, value);
+  iss_lsu_load_async(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
@@ -187,9 +181,7 @@ static inline iss_insn_t *lw_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lbu_exec(iss *iss, iss_insn_t *insn)
 {
-  uint32_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + SIM_GET(0), 1, (uint8_t *)&value);
-  REG_SET(0, value);
+  iss_lsu_load_async(iss, insn, REG_GET(0) + SIM_GET(0), 1, REG_OUT(0));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
@@ -198,9 +190,7 @@ static inline iss_insn_t *lbu_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lhu_exec(iss *iss, iss_insn_t *insn)
 {
-  uint32_t value = 0;
-  iss_lsu_load(iss, insn, REG_GET(0) + SIM_GET(0), 2, (uint8_t *)&value);
-  REG_SET(0, value);
+  iss_lsu_load_async(iss, insn, REG_GET(0) + SIM_GET(0), 2, REG_OUT(0));
   //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }

@@ -22,6 +22,10 @@
 #define __CPU_ISS_ISS_CORE_HPP
 
 #include "types.hpp"
+
+static inline void iss_exec_insn_stall(iss *iss);
+static inline void iss_exec_insn_resume(iss *iss);
+
 #include "utils.hpp"
 #include "platform_wrapper.hpp"
 #include "regs.hpp"

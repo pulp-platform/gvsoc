@@ -26,28 +26,44 @@
 
 static inline void iss_lsu_load_resume(iss *iss)
 {
-  // For now we don't have to do anything as the register was written directly
-  // by the request but we cold support sign-extended loads here;
+  // Nothing to do, the zero-extension was done by initializing the register to 0
+}
+
+static inline void iss_lsu_load_signed_resume(iss *iss)
+{
+  int reg = iss->cpu.state.stall_reg;
+  iss->cpu.regfile.regs[reg] = iss_get_signed_value(iss->cpu.regfile.regs[reg], iss->cpu.state.stall_size*8);
 }
 
 static inline void iss_lsu_load_async(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
   iss->cpu.regfile.regs[reg] = 0;
-  if (!iss_data_req(iss, addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, false))
+  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, false))
   {
-    // For now we don't have to do anything as the register was written directly
-    // by the request but we cold support sign-extended loads here;
+    // We don't need to do anything as the target will write directly to the register
+    // and we the zero extension is already managed by the initial value
   }
   else
   {
     iss->cpu.state.stall_callback = iss_lsu_load_resume;
     iss->cpu.state.stall_reg = reg;
+    iss_exec_insn_stall(iss);
   }
 }
 
-static inline int iss_lsu_load(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, uint8_t *value)
+static inline void iss_lsu_load_async_signed(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
-  return iss_data_req(iss, addr, value, size, false);
+  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, false))
+  {
+    iss->cpu.regfile.regs[reg] = iss_get_signed_value(iss->cpu.regfile.regs[reg], size*8);
+  }
+  else
+  {
+    iss->cpu.state.stall_callback = iss_lsu_load_signed_resume;
+    iss->cpu.state.stall_reg = reg;
+    iss->cpu.state.stall_size = size;
+    iss_exec_insn_stall(iss);
+  }
 }
 
 static inline void iss_lsu_store_resume(iss *iss)
@@ -58,7 +74,7 @@ static inline void iss_lsu_store_resume(iss *iss)
 
 static inline void iss_lsu_store_async(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
-  if (!iss_data_req(iss, addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, true))
+  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, true))
   {
     // For now we don't have to do anything as the register was written directly
     // by the request but we cold support sign-extended loads here;
@@ -67,12 +83,8 @@ static inline void iss_lsu_store_async(iss *iss, iss_insn_t *insn, iss_addr_t ad
   {
     iss->cpu.state.stall_callback = iss_lsu_store_resume;
     iss->cpu.state.stall_reg = reg;
+    iss_exec_insn_stall(iss);
   }
-}
-
-static inline int iss_lsu_store(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, uint8_t *value)
-{
-  return iss_data_req(iss, addr, value, size, true);
 }
 
 

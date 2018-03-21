@@ -22,6 +22,22 @@
 #define __CPU_ISS_ISS_INSN_EXEC_HPP
 
 iss_insn_t *iss_exec_insn_with_trace(iss *iss, iss_insn_t *insn);
+void iss_trace_dump(iss *iss, iss_insn_t *insn);
+
+
+static inline void iss_exec_insn_resume(iss *iss)
+{
+  if (iss->insn_trace.get_active())
+  {
+    iss_trace_dump(iss, iss->cpu.stall_insn);
+  }
+}
+
+static inline void iss_exec_insn_stall(iss *iss)
+{
+  iss->cpu.stall_insn = iss->cpu.current_insn;
+  iss->cpu.state.insn_cycles = -1;
+}
 
 static inline iss_insn_t *iss_exec_insn_handler(iss *instance, iss_insn_t *insn, iss_insn_t *(*handler)(iss *, iss_insn_t *))
 {
@@ -40,6 +56,11 @@ static inline int iss_exec_step_nofetch(iss_t *iss)
   iss_insn_t *insn = iss->cpu.current_insn;
   iss->cpu.current_insn = iss_exec_insn(iss, insn);
   return iss->cpu.state.insn_cycles;
+}
+
+static inline int iss_exec_is_stalled(iss *iss)
+{
+  return iss->cpu.state.insn_cycles == -1;
 }
 
 static inline int iss_exec_step(iss_t *iss)

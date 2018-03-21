@@ -40,20 +40,6 @@ static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint
   return _this->fetch.req(req);
 }
 
-static inline int iss_data_req(iss_t *iss, iss_addr_t addr, uint8_t *data, int size, bool is_write)
-{
-  iss->decode_trace.msg("Data request (addr: 0x%lx, size: 0x%x, is_write: %d)\n", addr, size, is_write);
-  vp::io_req *req = &iss->io_req;
-  req->set_addr(addr);
-  req->set_size(size);
-  req->set_is_write(is_write);
-  req->set_data(data);
-  int err = iss->data.req(req);
-  if (err < vp::IO_REQ_DENIED) return err;
-  iss->cpu.state.insn_cycles = -1;
-  return err;
-}
-
 static inline int iss_irq_ack(iss_t *iss, int irq)
 {
   iss->decode_trace.msg("Acknowledging interrupt (irq: %d)\n", irq);

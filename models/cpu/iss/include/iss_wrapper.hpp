@@ -45,8 +45,13 @@ public:
   static void exec_first_instr(void *__this, vp::clock_event *event);
   void exec_first_instr(vp::clock_event *event);
   static void exec_instr_check_irq(void *__this, vp::clock_event *event);
+  static inline void exec_misaligned(void *__this, vp::clock_event *event);
 
   static void irq_req_sync(void *__this, int irq);
+
+  inline int data_req(iss_addr_t addr, uint8_t *data, int size, bool is_write);
+  inline int data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);
+  int data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);
 
   void irq_check();
   void wait_for_interrupt();
@@ -71,11 +76,19 @@ private:
   vp::clock_event *current_event;
   vp::clock_event *instr_event;
   vp::clock_event *irq_event;
+  vp::clock_event *misaligned_event;
 
   bool is_active = false;
   bool fetch_enable = false;
   bool stalled = false;
   bool wfi = false;
+  bool misaligned_access = false;
+
+  int        misaligned_size;
+  uint8_t   *misaligned_data;
+  iss_addr_t misaligned_addr;
+  bool       misaligned_is_write;
+  int64_t    misaligned_latency;
 
   vp::wire_slave<uint32_t> bootaddr_itf;
   vp::wire_slave<bool>     fetchen_itf;
@@ -85,9 +98,61 @@ private:
   void check_state();
   static void bootaddr_sync(void *_this, uint32_t value);
   static void fetchen_sync(void *_this, bool active);
-  inline void enqueue_next_instr(int cycles);
+  inline void enqueue_next_instr(int64_t cycles);
 };
 
 typedef iss iss_t;
+
+inline void iss::enqueue_next_instr(int64_t cycles)
+{
+  if (is_active)
+  {
+    trace.msg("Enqueue next instruction (cycles: %ld)\n", cycles);
+    event_enqueue(current_event, cycles);
+  }
+}
+
+void iss::exec_misaligned(void *__this, vp::clock_event *event)
+{
+  iss *_this = (iss *)__this;
+  if (_this->data_req_aligned(_this->misaligned_addr, _this->misaligned_data,
+    _this->misaligned_size, _this->misaligned_is_write) == vp::IO_REQ_OK)
+  {
+    iss_exec_insn_resume(_this);
+    _this->enqueue_next_instr(_this->io_req.get_latency() + 1);
+  }
+  else
+  {
+    _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+  }
+}
+
+inline int iss::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write)
+{
+  decode_trace.msg("Data request (addr: 0x%lx, size: 0x%x, is_write: %d)\n", addr, size, is_write);
+  vp::io_req *req = &io_req;
+  req->init();
+  req->set_addr(addr);
+  req->set_size(size);
+  req->set_is_write(is_write);
+  req->set_data(data_ptr);
+  int err = data.req(req);
+  if (err < vp::IO_REQ_DENIED) return err;
+  return err;
+}
+
+#define ADDR_MASK (~(ISS_REG_WIDTH/8 - 1))
+
+inline int iss::data_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write)
+{
+
+  iss_addr_t addr0 = addr & ADDR_MASK;
+  iss_addr_t addr1 = (addr + size - 1) & ADDR_MASK;
+
+  if (likely(addr0 == addr1))
+    return data_req_aligned(addr, data_ptr, size, is_write);
+  else
+    return data_misaligned_req(addr, data_ptr, size, is_write);
+}
 
 #endif

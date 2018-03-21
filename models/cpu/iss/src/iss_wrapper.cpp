@@ -39,8 +39,15 @@ void iss::exec_instr(void *__this, vp::clock_event *event)
   }
   else
   {
-    _this->is_active = false;
-    _this->stalled = true;
+    if (_this->misaligned_access)
+    {
+      _this->event_enqueue(_this->misaligned_event, _this->misaligned_latency);
+    }
+    else
+    {
+      _this->is_active = false;
+      _this->stalled = true;      
+    }
   }
 }
 
@@ -73,7 +80,13 @@ void iss::data_response(void *__this, vp::io_req *req)
 {
   iss *_this = (iss *)__this;
   _this->stalled = false;
-  _this->cpu.state.stall_callback(_this);
+  if (_this->misaligned_access)
+    _this->misaligned_access = false;
+  else
+  {
+    _this->cpu.state.stall_callback(_this);
+    iss_exec_insn_resume(_this);
+  }
   _this->check_state();
 }
 
@@ -123,12 +136,42 @@ void iss::check_state()
   }
 }
 
-inline void iss::enqueue_next_instr(int cycles)
+int iss::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write)
 {
-  if (is_active)
+
+  iss_addr_t addr0 = addr & ADDR_MASK;
+  iss_addr_t addr1 = (addr + size - 1) & ADDR_MASK;
+
+  decode_trace.msg("Misaligned data request (addr: 0x%lx, size: 0x%x, is_write: %d)\n", addr, size, is_write);
+
+  // The access is a misaligned access
+  // Change the event so that we can do the first access now and the next access
+  // during the next cycle
+  int size0 = addr1 - addr;
+  int size1 = size - size0;
+  
+  misaligned_access = true;
+
+  // Remember the access properties for the second access
+  misaligned_size = size1;
+  misaligned_data = data_ptr + size0;
+  misaligned_addr = addr1;
+  misaligned_is_write = is_write;
+
+  // And do the first one now
+  int err = data_req_aligned(addr, data_ptr, size0, is_write);
+  if (err == vp::IO_REQ_OK)
   {
-    trace.msg("Enqueue next instruction (cycles: %d)\n", cycles);
-    event_enqueue(current_event, cycles);
+    // As the transaction is split into 2 parts, we must tell the ISS
+    // that the access is pending as the instruction must be executed
+    // only when the second access is finished.
+    misaligned_latency = io_req.get_latency() + 1;
+    iss_exec_insn_stall(this);
+    return vp::IO_REQ_PENDING;
+  }
+  else
+  {
+    trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);      
   }
 }
 
@@ -182,6 +225,7 @@ void iss::build()
   current_event = event_new(iss::exec_first_instr);
   instr_event = event_new(iss::exec_instr);
   irq_event = event_new(iss::exec_instr_check_irq);
+  misaligned_event = event_new(iss::exec_misaligned);
 
   fetch_enable = get_config_bool("fetch_enable");
 

@@ -271,19 +271,24 @@ static void iss_trace_save_args(iss *iss, iss_insn_t *insn, iss_insn_arg_t saved
   }
 }
 
-iss_insn_t *iss_exec_insn_with_trace(iss *iss, iss_insn_t *insn)
+void iss_trace_dump(iss *iss, iss_insn_t *insn)
 {
   char buffer[1024];
-  iss_insn_arg_t saved_args[insn->decoder_item->u.insn.nb_args];
 
-  iss_trace_save_args(iss, insn, saved_args, false);
+  iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, true);
+  
+  iss_trace_dump_insn(iss, insn, buffer, 1024, iss->cpu.state.saved_args, true, 3);
+  iss->insn_trace.msg(buffer);
+}
+
+iss_insn_t *iss_exec_insn_with_trace(iss *iss, iss_insn_t *insn)
+{
+  iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, false);
   
   iss_insn_t *next_insn = iss_exec_insn_handler(iss, insn, insn->saved_handler);
 
-  iss_trace_save_args(iss, insn, saved_args, true);
-  
-  iss_trace_dump_insn(iss, insn, buffer, 1024, saved_args, true, 3);
-  iss->insn_trace.msg(buffer);
+  if (!iss_exec_is_stalled(iss))
+    iss_trace_dump(iss, insn);
 
   return next_insn;
 }
