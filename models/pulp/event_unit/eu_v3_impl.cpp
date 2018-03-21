@@ -937,6 +937,8 @@ Dispatch_unit::Dispatch_unit(Event_unit *top)
           top->trace.msg("No ready dispatch value, going to sleep (dispatch: %d, value: %x, dispatchStatus: 0x%x)\n", id, dispatch->value, dispatch->status_mask);
           return enqueue_sleep(dispatch, req, core_id);
         }
+        
+        return vp::IO_REQ_OK;       
       }
 
       return vp::IO_REQ_INVALID;
