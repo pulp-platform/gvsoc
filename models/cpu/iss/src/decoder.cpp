@@ -79,10 +79,13 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
       case ISS_DECODER_ARG_TYPE_IN_REG:
       case ISS_DECODER_ARG_TYPE_OUT_REG:
         arg->u.reg.index = decode_info(iss, insn, opcode, &darg->u.reg.info, false);
-        if (darg->flags & ISS_DECODER_ARG_FLAG_COMPRESSED) arg->u.reg.index += 8;
-        if (darg->flags & ISS_DECODER_ARG_FLAG_FREG) {
+        
+        if (darg->flags & ISS_DECODER_ARG_FLAG_COMPRESSED)
+          arg->u.reg.index += 8;
+
+        if (darg->flags & ISS_DECODER_ARG_FLAG_FREG)
           arg->u.reg.index += ISS_NB_REGS;
-        }
+
         if (darg->type == ISS_DECODER_ARG_TYPE_IN_REG) {
           insn->in_regs[darg->u.reg.id] = arg->u.reg.index;
         }
