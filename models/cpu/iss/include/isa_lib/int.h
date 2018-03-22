@@ -1233,9 +1233,7 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
 #endif
 
 
-#if 0
-
-#include "softfloat/softfloat.h"
+#include "softfloat.h"
 
 static inline unsigned int lib_float_add_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
   float_exception_flags = 0;
@@ -1520,8 +1518,6 @@ uint_fast16_t f32_classify( float32_t a )
         ( isNaNF32UI( uiA ) &&  softfloat_isSigNaNF32UI( uiA )) << 8 |
         ( isNaNF32UI( uiA ) && !softfloat_isSigNaNF32UI( uiA )) << 9;
 }
-
-#endif
 
 
 

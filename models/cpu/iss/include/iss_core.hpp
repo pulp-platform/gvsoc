@@ -33,6 +33,7 @@ static inline void iss_exec_insn_resume(iss *iss);
 #include "prefetcher.hpp"
 #include "insn_cache.hpp"
 #include "irq.hpp"
+#include "exceptions.hpp"
 #include "exec.hpp"
 
 

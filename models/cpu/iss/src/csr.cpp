@@ -123,12 +123,12 @@ static bool uip_write(iss *iss, unsigned int value) {
 
 
 static bool fflags_read(iss *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: fflags\n");
+  *value = 0;
   return false;
 }
 
 static bool fflags_write(iss *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: fflags\n");
+  value = 0;
   return false;
 }
 

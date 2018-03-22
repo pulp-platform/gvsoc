@@ -373,12 +373,11 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
   }
   else if (offset == EU_CORE_BUFFER_CLEAR)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //setStatus(req->getSecure(), status & (~*data));
-    //trace.msg("Clearing buffer status (mask: 0x%x, newValue: 0x%x)\n", *data, status);
-    //checkCoreState();
-    return vp::IO_REQ_INVALID;
+    if (!is_write) return vp::IO_REQ_INVALID;
+    set_status(status & (~*data));
+    top->trace.msg("Clearing buffer status (mask: 0x%x, newValue: 0x%x)\n", *data, status);
+    check_state();
+    return vp::IO_REQ_OK;
   }
   else if (offset == EU_CORE_MASK)
   {
@@ -412,12 +411,11 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
   }
   else if (offset == EU_CORE_EVENT_WAIT)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //trace.msg("Wait\n");
-    //*data = waitEvent(req);
-    //return req->error != 0;
-    return vp::IO_REQ_INVALID;
+    if (is_write) return vp::IO_REQ_INVALID;
+    top->trace.msg("Wait\n");
+    vp::io_req_status_e err = wait_event(req);
+    *data = evt_mask & status;
+    return err;
   }
 
   else if (offset == EU_CORE_EVENT_WAIT_CLEAR)
@@ -937,7 +935,7 @@ Dispatch_unit::Dispatch_unit(Event_unit *top)
           top->trace.msg("No ready dispatch value, going to sleep (dispatch: %d, value: %x, dispatchStatus: 0x%x)\n", id, dispatch->value, dispatch->status_mask);
           return enqueue_sleep(dispatch, req, core_id);
         }
-        
+
         return vp::IO_REQ_OK;       
       }
 

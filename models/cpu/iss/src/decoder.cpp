@@ -80,6 +80,9 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
       case ISS_DECODER_ARG_TYPE_OUT_REG:
         arg->u.reg.index = decode_info(iss, insn, opcode, &darg->u.reg.info, false);
         if (darg->flags & ISS_DECODER_ARG_FLAG_COMPRESSED) arg->u.reg.index += 8;
+        if (darg->flags & ISS_DECODER_ARG_FLAG_FREG) {
+          arg->u.reg.index += ISS_NB_REGS;
+        }
         if (darg->type == ISS_DECODER_ARG_TYPE_IN_REG) {
           insn->in_regs[darg->u.reg.id] = arg->u.reg.index;
         }
@@ -165,6 +168,12 @@ static int decode_opcode(iss *iss, iss_insn_t *insn, iss_opcode_t opcode)
   return -1;
 }
 
+static iss_insn_t *iss_exec_insn_illegal(iss *iss, iss_insn_t *insn)
+{
+  iss->decode_trace.msg("Executing illegal instruction\n");
+  return iss_except_raise(iss, ISS_EXCEPT_ILLEGAL);
+}
+
 iss_insn_t *iss_decode_pc_noexec(iss *iss, iss_insn_t *insn)
 {
   iss->decode_trace.msg("Decoding instruction (pc: 0x%lx)\n", insn->addr);
@@ -173,7 +182,11 @@ iss_insn_t *iss_decode_pc_noexec(iss *iss, iss_insn_t *insn)
 
   iss->decode_trace.msg("Got opcode (opcode: 0x%lx)\n", opcode);
 
-  decode_opcode(iss, insn, opcode);
+  if (decode_opcode(iss, insn, opcode) == -1)
+  {
+    insn->handler = iss_exec_insn_illegal;
+    return insn;
+  }
 
 
   if (iss->insn_trace.get_active())

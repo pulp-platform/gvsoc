@@ -243,6 +243,9 @@ class OutReg(OpcodeField):
         dump(isaFile, '%s},\n' % (' '*indent))
 
 class OutFReg(OutReg):
+    def __init__(self, id, ranges, dumpName=True):
+        super(OutFReg, self).__init__(id=id, ranges=ranges, dumpName=dumpName, flags=['ISS_DECODER_ARG_FLAG_FREG'])
+
     def genExtract(self, isaFile, level):
         dump(isaFile, level, '  pc->outReg[%d] = %s + NB_REGS;\n' % (self.id, self.ranges.gen()))
 
@@ -253,7 +256,10 @@ class OutRegComp(OutReg):
     def genExtract(self, isaFile, level):
         dump(isaFile, level, '  pc->outReg[%d] = (%s) + 8;\n' % (self.id, self.ranges.gen()))
 
-class OutFRegComp(OutRegComp):
+class OutFRegComp(OutReg):
+    def __init__(self, id, ranges, dumpName=True):
+        super(OutFRegComp, self).__init__(id=id, ranges=ranges, dumpName=dumpName, flags=['ISS_DECODER_ARG_FLAG_COMPRESSED', 'ISS_DECODER_ARG_FLAG_FREG'])
+
     def genExtract(self, isaFile, level):
          dump(isaFile, level, '  pc->outReg[%d] = (%s) + 8 + NB_REGS;\n' % (self.id, self.ranges.gen()))
 
@@ -289,6 +295,9 @@ class InReg(OpcodeField):
         dump(isaFile, '%s},\n' % (' '*indent))
 
 class InFReg(InReg):
+    def __init__(self, id, ranges, dumpName=True):
+        super(InFReg, self).__init__(id=id, ranges=ranges, dumpName=dumpName, flags=['ISS_DECODER_ARG_FLAG_FREG'])
+
     def genExtract(self, isaFile, level):
         dump(isaFile, level, '  pc->inReg[%d] = %s + NB_REGS;\n' % (self.id, self.ranges.gen()))
 
@@ -300,6 +309,9 @@ class InRegComp(InReg):
         dump(isaFile, level, '  pc->inReg[%d] = (%s) + 8;\n' % (self.id, self.ranges.gen()))
 
 class InFRegComp(InReg):
+    def __init__(self, id, ranges, dumpName=True):
+        super(InFRegComp, self).__init__(id=id, ranges=ranges, dumpName=dumpName, flags=['ISS_DECODER_ARG_FLAG_COMPRESSED', 'ISS_DECODER_ARG_FLAG_FREG'])
+
     def genExtract(self, isaFile, level):
         dump(isaFile, level, '  pc->inReg[%d] = (%s) + 8 + NB_REGS;\n' % (self.id, self.ranges.gen()))
 

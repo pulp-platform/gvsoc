@@ -582,52 +582,52 @@ rv32d = [
 
 rv32f = [
 
-    R5('flw',       'FL', '------- ----- ----- 010 ----- 0000111', mapTo="lib_FLW"),
-    R5('fsw',       'FS', '------- ----- ----- 010 ----- 0100111', mapTo="lib_FSW"),
-    R5('fmadd.s',   'R4U','-----00 ----- ----- --- ----- 1000011', mapTo="lib_fmadd_s", group=fpuGroupFmadd),
-    R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1000111', mapTo="lib_fmsub_s", group=fpuGroupFmadd),
-    R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1001011', mapTo="lib_fnmsub_s", group=fpuGroupFmadd),
-    R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1001111', mapTo="lib_fnmadd_s", group=fpuGroupFmadd),
+#    R5('flw',       'FL', '------- ----- ----- 010 ----- 0000111', mapTo="lib_FLW"),
+#    R5('fsw',       'FS', '------- ----- ----- 010 ----- 0100111', mapTo="lib_FSW"),
+    R5('fmadd.s',   'R4U','-----00 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
+#    R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1000111', mapTo="lib_fmsub_s", group=fpuGroupFmadd),
+#    R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1001011', mapTo="lib_fnmsub_s", group=fpuGroupFmadd),
+#    R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1001111', mapTo="lib_fnmadd_s", group=fpuGroupFmadd),
+#
+    R5('fadd.s',    'RF', '0000000 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+#    R5('fsub.s',    'RF', '0000100 ----- ----- --- ----- 1010011', mapTo="lib_fsub_s", group=fpuGroupAdd),
+    R5('fmul.s',    'RF', '0001000 ----- ----- --- ----- 1010011', group=fpuGroupMul),
+    R5('fdiv.s',    'RF', '0001100 ----- ----- --- ----- 1010011', group=fpuGroupDiv),
+    R5('fsqrt.s',  'R2F3','0101100 00000 ----- --- ----- 1010011', group=fpuGroupDiv),
+#
+#    R5('fsgnj.s',   'RF', '0010000 ----- ----- 000 ----- 1010011', mapTo="lib_fsgnj_s", group=fpuGroupConv),
+#    R5('fsgnjn.s',  'RF', '0010000 ----- ----- 001 ----- 1010011', mapTo="lib_fsgnjn_s", group=fpuGroupConv),
+#    R5('fsgnjx.s',  'RF', '0010000 ----- ----- 010 ----- 1010011', mapTo="lib_fsgnjx_s", group=fpuGroupConv),
+#
+#    R5('fmin.s',    'RF', '0010100 ----- ----- 000 ----- 1010011', mapTo="lib_fmin_s", group=fpuGroupConv),
+#    R5('fmax.s',    'RF', '0010100 ----- ----- 001 ----- 1010011', mapTo="lib_fmax_s", group=fpuGroupConv),
+#
+#    R5('fcvt.w.s', 'R2F1','1100000 00000 ----- --- ----- 1010011', mapTo="lib_fcvt_w_s", group=fpuGroupConv),
+#    R5('fcvt.wu.s','R2F1','1100000 00001 ----- --- ----- 1010011', mapTo="lib_fcvt_wu_s", group=fpuGroupConv),
+#
+    R5('fmv.x.s',   'R3F','1110000 00000 ----- 000 ----- 1010011'),
 
-    R5('fadd.s',    'RF', '0000000 ----- ----- --- ----- 1010011', mapTo="lib_fadd_s", group=fpuGroupAdd),
-    R5('fsub.s',    'RF', '0000100 ----- ----- --- ----- 1010011', mapTo="lib_fsub_s", group=fpuGroupAdd),
-    R5('fmul.s',    'RF', '0001000 ----- ----- --- ----- 1010011', mapTo="lib_fmul_s", group=fpuGroupMul),
-    R5('fdiv.s',    'RF', '0001100 ----- ----- --- ----- 1010011', mapTo="lib_fdiv_s", group=fpuGroupDiv),
-    R5('fsqrt.s',  'R2F3','0101100 00000 ----- --- ----- 1010011', mapTo="lib_fsqrt_s", group=fpuGroupDiv),
-
-    R5('fsgnj.s',   'RF', '0010000 ----- ----- 000 ----- 1010011', mapTo="lib_fsgnj_s", group=fpuGroupConv),
-    R5('fsgnjn.s',  'RF', '0010000 ----- ----- 001 ----- 1010011', mapTo="lib_fsgnjn_s", group=fpuGroupConv),
-    R5('fsgnjx.s',  'RF', '0010000 ----- ----- 010 ----- 1010011', mapTo="lib_fsgnjx_s", group=fpuGroupConv),
-
-    R5('fmin.s',    'RF', '0010100 ----- ----- 000 ----- 1010011', mapTo="lib_fmin_s", group=fpuGroupConv),
-    R5('fmax.s',    'RF', '0010100 ----- ----- 001 ----- 1010011', mapTo="lib_fmax_s", group=fpuGroupConv),
-
-    R5('fcvt.w.s', 'R2F1','1100000 00000 ----- --- ----- 1010011', mapTo="lib_fcvt_w_s", group=fpuGroupConv),
-    R5('fcvt.wu.s','R2F1','1100000 00001 ----- --- ----- 1010011', mapTo="lib_fcvt_wu_s", group=fpuGroupConv),
-
-    R5('fmv.x.s',   'R3F','1110000 00000 ----- 000 ----- 1010011', mapTo="lib_fmv_x_s"),
-
-    R5('feq.s',    'RF2', '1010000 ----- ----- 010 ----- 1010011', mapTo="lib_feq_s"),
-    R5('flt.s',    'RF2', '1010000 ----- ----- 001 ----- 1010011', mapTo="lib_flt_s"),
-    R5('fle.s',    'RF2', '1010000 ----- ----- 000 ----- 1010011', mapTo="lib_fle_s"),
-
-    R5('fclass.s',  'R3F','1110000 00000 ----- 001 ----- 1010011', mapTo="lib_fclass_s"),
-
-    R5('fcvt.s.w', 'R2F2','1101000 00000 ----- --- ----- 1010011', mapTo="lib_fcvt_s_w", group=fpuGroupConv),
-    R5('fcvt.s.wu','R2F2','1101000 00001 ----- --- ----- 1010011', mapTo="lib_fcvt_s_wu", group=fpuGroupConv),
-
-    R5('fmv.s.x',  'R3F2','1111000 00000 ----- 000 ----- 1010011', mapTo="lib_fmv_x_s"),
-
-    # Just here to have simulator working with compiler which instantiates doubles for nothing
-    R5('fcvt.s.d', 'R2F1','0100000 00001 ----- --- ----- 1010011', mapTo="lib_fcvt_s_d", group=fpuGroupConv),
-    R5('fcvt.d.s', 'R2F1','0100001 00000 ----- --- ----- 1010011', mapTo="lib_fcvt_d_s", group=fpuGroupConv),
-    R5('fsgnj.d',  'RF',  '0010001 ----- ----- 000 ----- 1010011', mapTo="lib_fsgnj_s", group=fpuGroupConv),
-
-
-    R5('c.fsw',      'FCS',  '111 --- --- -- --- 00'),
-    R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10'),
-    R5('c.flw',      'FCL',  '011 --- --- -- --- 00'),
-    R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10'),
+    R5('feq.s',    'RF2', '1010000 ----- ----- 010 ----- 1010011'),
+    R5('flt.s',    'RF2', '1010000 ----- ----- 001 ----- 1010011'),
+    R5('fle.s',    'RF2', '1010000 ----- ----- 000 ----- 1010011'),
+#
+#    R5('fclass.s',  'R3F','1110000 00000 ----- 001 ----- 1010011', mapTo="lib_fclass_s"),
+#
+#    R5('fcvt.s.w', 'R2F2','1101000 00000 ----- --- ----- 1010011', mapTo="lib_fcvt_s_w", group=fpuGroupConv),
+#    R5('fcvt.s.wu','R2F2','1101000 00001 ----- --- ----- 1010011', mapTo="lib_fcvt_s_wu", group=fpuGroupConv),
+#
+    R5('fmv.s.x',  'R3F2','1111000 00000 ----- 000 ----- 1010011'),
+#
+#    # Just here to have simulator working with compiler which instantiates doubles for nothing
+#    R5('fcvt.s.d', 'R2F1','0100000 00001 ----- --- ----- 1010011', mapTo="lib_fcvt_s_d", group=fpuGroupConv),
+#    R5('fcvt.d.s', 'R2F1','0100001 00000 ----- --- ----- 1010011', mapTo="lib_fcvt_d_s", group=fpuGroupConv),
+#    R5('fsgnj.d',  'RF',  '0010001 ----- ----- 000 ----- 1010011', mapTo="lib_fsgnj_s", group=fpuGroupConv),
+#
+#
+#    R5('c.fsw',      'FCS',  '111 --- --- -- --- 00'),
+#    R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10'),
+#    R5('c.flw',      'FCL',  '011 --- --- -- --- 00'),
+#    R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10'),
 
 ]
 
@@ -1208,7 +1208,7 @@ isa = Isa(
         IsaSubset('pulp', pulp),
         IsaSubset('pulp_v2', pulp_v2),
         #IsaSubset('pulp_zeroriscy', pulp_zeroriscy),
-        #IsaSubset('fpu', rv32f),
+        IsaSubset('fpu', rv32f),
         #IsaSubset('fpud', rv32d),
         #IsaSubset('gap8', gap8),
         #IsaSubset('priv_pulp_v2', priv_pulp_v2),

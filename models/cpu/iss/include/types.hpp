@@ -59,7 +59,8 @@ typedef uint32_t iss_opcode_t;
 
 class iss;
 
-#define ISS_NB_REGS 32
+#define ISS_NB_REGS  32
+#define ISS_NB_FREGS 32
 
 #define ISS_PREFETCHER_SIZE (ISS_OPCODE_MAX_SIZE*16)
 
@@ -74,6 +75,10 @@ class iss;
 #define ISS_INSN_PC_BITS 1
 #define ISS_INSN_BLOCK_ID_BITS 12
 #define ISS_INSN_NB_BLOCKS (1<<ISS_INSN_BLOCK_ID_BITS)
+
+#define ISS_EXCEPT_RESET    0
+#define ISS_EXCEPT_ILLEGAL  1
+#define ISS_EXCEPT_ECALL    2
 
 typedef struct iss_cpu_s iss_cpu_t;
 typedef struct iss_insn_s iss_insn_t;
@@ -97,6 +102,7 @@ typedef enum {
   ISS_DECODER_ARG_FLAG_POSTINC = 1,
   ISS_DECODER_ARG_FLAG_PREINC = 2,
   ISS_DECODER_ARG_FLAG_COMPRESSED = 4,
+  ISS_DECODER_ARG_FLAG_FREG = 8,
 } iss_decoder_arg_flag_e;
 
 typedef struct iss_insn_arg_s {
@@ -278,7 +284,7 @@ typedef struct iss_insn_cache_s {
 } iss_insn_cache_t;
 
 typedef struct iss_regfile_s {
-  iss_reg_t regs[ISS_NB_REGS];
+  iss_reg_t regs[ISS_NB_REGS + ISS_NB_FREGS];
 } iss_regfile_t;
 
 typedef struct iss_cpu_state_s {
@@ -302,7 +308,7 @@ typedef struct iss_config_s {
 } iss_config_t;
 
 typedef struct iss_irq_s {
-  iss_insn_t *vectors[32];
+  iss_insn_t *vectors[35];
   int irq_enable;
   int saved_irq_enable;
   int req_irq;

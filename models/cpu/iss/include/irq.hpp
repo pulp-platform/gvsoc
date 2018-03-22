@@ -59,6 +59,11 @@ static inline void iss_irq_set_vector_table(iss_t *iss, iss_addr_t base)
   {
     iss->cpu.irq.vectors[i] = insn_cache_get(iss, base + i * 4);
   }
+
+  for (int i=32; i<35; i++)
+  {
+    iss->cpu.irq.vectors[i] = insn_cache_get(iss, base + i * 4);
+  }
 }
 
 static inline void iss_irq_init(iss_t *iss)
