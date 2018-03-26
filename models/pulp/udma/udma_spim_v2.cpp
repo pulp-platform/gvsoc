@@ -22,42 +22,24 @@
 
 #include "udma_v2_impl.hpp"
 #include "archi/udma/udma_periph_v2.h"
+#include "vp/itf/qspim.hpp"
 
-
-class Spim_rx_channel : public Udma_rx_channel
-{
-public:
-  Spim_rx_channel(udma *top, int id, string name) : Udma_rx_channel(top, id, name) {}
-};
-
-
-
-class Spim_tx_channel : public Udma_tx_channel
-{
-public:
-  Spim_tx_channel(udma *top, int id, string name) : Udma_tx_channel(top, id, name) {}
-  void handle_ready_req(vp::io_req *req);
-
-private:
-  void reset();
-
-  bool has_pending_word;
-  uint32_t pending_word;
-};
 
 
 
 Spim_periph_v2::Spim_periph_v2(udma *top, int id, int itf_id) : Udma_periph(top, id)
 {
-  channel0 = new Spim_rx_channel(top, UDMA_CHANNEL_ID(id), "spim" + std::to_string(itf_id) + "_rx");
-  channel1 = new Spim_tx_channel(top, UDMA_CHANNEL_ID(id) + 1, "spim" + std::to_string(itf_id) + "_tx");
+  std::string itf_name = "spim" + std::to_string(itf_id);
+
+  channel0 = new Spim_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
+  channel1 = new Spim_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
+
+  top->new_master_port(itf_name, &qspim_itf);
 }
   
 void Spim_tx_channel::handle_ready_req(vp::io_req *req)
 {
   uint32_t data = *(uint32_t *)req->get_data();
-
-  printf("%x\n", data);
 
   uint32_t command = data >> SPI_CMD_ID_OFFSET;
 
@@ -75,6 +57,10 @@ void Spim_tx_channel::handle_ready_req(vp::io_req *req)
     case SPI_CMD_SOT_ID: {
       int cs = (data >> SPI_CMD_SOT_CS_OFFSET) & ((1<<SPI_CMD_SOT_CS_WIDTH)-1);
       trace.msg("Received command SOT (cs: %d)\n", cs);
+      if (!periph->qspim_itf.is_bound())
+        trace.warning("Trying to set chip select to unbound QSPIM interface\n");
+      else
+        periph->qspim_itf.cs_sync(cs, 1);
       break;
     }
 

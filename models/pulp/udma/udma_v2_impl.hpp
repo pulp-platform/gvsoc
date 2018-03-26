@@ -23,6 +23,8 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
+#include <vp/itf/qspim.hpp>
+#include <vp/itf/wire.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -160,11 +162,44 @@ private:
 
 
 
+class Spim_periph_v2;
+
+
+class Spim_rx_channel : public Udma_rx_channel
+{
+public:
+  Spim_rx_channel(udma *top, Spim_periph_v2 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
+
+private:
+  Spim_periph_v2 *periph;
+};
+
+
+class Spim_tx_channel : public Udma_tx_channel
+{
+public:
+  Spim_tx_channel(udma *top, Spim_periph_v2 *periph, int id, string name) : Udma_tx_channel(top, id, name), periph(periph) {}
+  void handle_ready_req(vp::io_req *req);
+
+private:
+  void reset();
+
+  Spim_periph_v2 *periph;
+  bool has_pending_word;
+  uint32_t pending_word;
+};
+
+
 class Spim_periph_v2 : public Udma_periph
 {
+  friend class Spim_tx_channel;
+  friend class Spim_rx_channel;
+
 public:
   Spim_periph_v2(udma *top, int id, int itf_id);
 
+protected:
+  vp::qspim_master qspim_itf;
 };
 
 
@@ -181,6 +216,52 @@ inline void Udma_queue<T>::push(T *cmd)
 }
 
 
+
+class udma : public vp::component
+{
+  friend class Udma_periph;
+
+public:
+
+  udma(const char *config);
+
+  void build();
+  void start();
+
+  void enqueue_ready(Udma_channel *channel);
+
+  static void channel_handler(void *__this, vp::clock_event *event);
+  void free_read_req(vp::io_req *req);
+
+  void trigger_event(int event);
+
+private:
+
+  void reset();
+  void check_state();
+
+  vp::io_req_status_e conf_req(vp::io_req *req, uint64_t offset);
+  vp::io_req_status_e periph_req(vp::io_req *req, uint64_t offset);
+  static vp::io_req_status_e req(void *__this, vp::io_req *req);
+  static void event_handler(void *__this, vp::clock_event *event);
+  static void l2_grant(void *__this, vp::io_req *req);
+  static void l2_response(void *__this, vp::io_req *req);
+
+  vp::trace     trace;
+  vp::io_slave in;
+  int nb_periphs;
+  int l2_read_fifo_size;
+  std::vector<Udma_periph *>periphs;
+  Udma_queue<Udma_channel> *ready_rx_channels;
+  Udma_queue<Udma_channel> *ready_tx_channels;
+  uint32_t clock_gating;
+  vp::clock_event *event;
+  Udma_queue<vp::io_req> *l2_read_reqs;
+  Udma_queue<vp::io_req> *l2_read_waiting_reqs;
+  
+  vp::io_master l2_itf;
+  vp::wire_master<int>    event_itf;
+};
 
 
 #endif

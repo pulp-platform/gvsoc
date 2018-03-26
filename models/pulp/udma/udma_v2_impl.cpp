@@ -23,55 +23,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
-#include <vp/itf/wire.hpp>
 #include "archi/utils.h"
 #include "archi/udma/udma_v2.h"
 #include "udma_v2_impl.hpp"
-
-class udma : public vp::component
-{
-  friend class Udma_periph;
-
-public:
-
-  udma(const char *config);
-
-  void build();
-  void start();
-
-  void enqueue_ready(Udma_channel *channel);
-
-  static void channel_handler(void *__this, vp::clock_event *event);
-  void free_read_req(vp::io_req *req);
-
-  void trigger_event(int event);
-
-private:
-
-  void reset();
-  void check_state();
-
-  vp::io_req_status_e conf_req(vp::io_req *req, uint64_t offset);
-  vp::io_req_status_e periph_req(vp::io_req *req, uint64_t offset);
-  static vp::io_req_status_e req(void *__this, vp::io_req *req);
-  static void event_handler(void *__this, vp::clock_event *event);
-  static void l2_grant(void *__this, vp::io_req *req);
-  static void l2_response(void *__this, vp::io_req *req);
-
-  vp::trace     trace;
-  vp::io_slave in;
-  int nb_periphs;
-  int l2_read_fifo_size;
-  std::vector<Udma_periph *>periphs;
-  Udma_queue<Udma_channel> *ready_rx_channels;
-  Udma_queue<Udma_channel> *ready_tx_channels;
-  uint32_t clock_gating;
-  vp::clock_event *event;
-  Udma_queue<vp::io_req> *l2_read_reqs;
-  Udma_queue<vp::io_req> *l2_read_waiting_reqs;
-  vp::io_master l2_itf;
-  vp::wire_master<int>    event_itf;
-};
 
 
 void Udma_channel::handle_transfer_end()

@@ -18,11 +18,6 @@
  
 import vp_core as vp
 
-
 class component(vp.component):
 
-    def build(self):
-
-        self.create_comps('vp_comps', 'vp_class', 'utils/composite')
-
-        self.create_bindings('vp_bindings')
+    implementation = 'pulp.padframe.padframe_v1_impl'
