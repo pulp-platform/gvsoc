@@ -78,6 +78,8 @@ private:
   vp::clock_event *irq_event;
   vp::clock_event *misaligned_event;
 
+  int irq_req;
+
   bool is_active = false;
   bool fetch_enable = false;
   bool stalled = false;

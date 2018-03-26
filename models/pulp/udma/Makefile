@@ -1,5 +1,9 @@
-ifeq '$(udma/archi)' '2'
+ifeq '$(udma/version)' '2'
 IMPLEMENTATIONS += pulp/udma/udma_v2_impl
 COMPONENTS += pulp/udma/udma_v2
 pulp/udma/udma_v2_impl_SRCS = pulp/udma/udma_v2_impl.cpp
+endif
+
+ifeq '$(udma/spim/version)' '2'
+pulp/udma/udma_v2_impl_SRCS += pulp/udma/udma_spim_v2.cpp
 endif

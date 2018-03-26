@@ -40,6 +40,7 @@ namespace cm {
     virtual int get_int() { return 0; }
     virtual bool get_bool() { return false; }
     virtual config *get(std::string name) { return NULL; }
+    virtual int get_nb_elem() { return 0; }
     virtual config *get_elem(int index) { return NULL; }
     virtual std::map<std::string, config *> get_childs() {
       return std::map<std::string, config *>();
@@ -73,6 +74,7 @@ namespace cm {
     config_array(jsmntok_t *tokens, int *size=NULL);
     cm::config *get_from_list(std::vector<std::string> name_list);
 
+    int get_nb_elem() { return elems.size(); }
     config *get_elem(int index) {
       return elems[index]; }
 

@@ -124,15 +124,22 @@ void iss::check_state()
 {
   if (!is_active)
   {
-    if (fetch_enable && !stalled && !wfi)
+    if (fetch_enable && !stalled && (!wfi || irq_req != -1))
     {
+      wfi = false;
       is_active = true;
       enqueue_next_instr(1);
     }
   }
   else
   {
-    if (wfi) is_active = false;
+    if (wfi)
+    {
+      if (irq_req == -1)
+        is_active = false;
+      else
+        wfi = false;
+    }
   }
 }
 
@@ -191,6 +198,7 @@ void iss::wait_for_interrupt()
 void iss::irq_req_sync(void *__this, int irq)
 {
   iss *_this = (iss *)__this;
+  _this->irq_req = irq;
   _this->irq_check();
   iss_irq_req(_this, irq);
   _this->wfi = false;
@@ -247,6 +255,8 @@ void iss::start()
   iss_irq_set_vector_table(this, get_config_int("boot_addr"));
 
   trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable, is_active, get_config_int("boot_addr"));
+
+  irq_req = -1;
 
   check_state();
 }

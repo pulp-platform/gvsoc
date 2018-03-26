@@ -58,6 +58,7 @@ private:
 
   static void irq_ack_sync(void *__this, int irq);
   static void in_event_sync(void *__this, bool active, int id);
+  static void soc_event_sync(void *__this, int event);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -78,6 +79,7 @@ private:
 
   vp::wire_master<int>    irq_req_itf;
   vp::wire_slave<int>     irq_ack_itf;
+  vp::wire_slave<int>     soc_event_itf;
 
 
   vp::wire_slave<bool> in_event_itf[32];
@@ -256,6 +258,26 @@ vp::io_req_status_e itc::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
+void itc::soc_event_sync(void *__this, int event)
+{
+  itc *_this = (itc *)__this;
+  _this->trace.msg("Received soc event (event: %d)\n", event);
+
+  if (_this->nb_free_events == 0) {
+    return;
+  }
+
+  _this->nb_free_events--;
+  _this->fifo_event[_this->fifo_event_head] = event;
+  _this->fifo_event_head++;
+  if (_this->fifo_event_head == _this->nb_fifo_events) _this->fifo_event_head = 0;
+
+  if (_this->fifo_irq != -1 && _this->nb_free_events == _this->nb_fifo_events - 1) {
+    _this->trace.msg("Generating FIFO irq (id: %d)\n", _this->fifo_irq);
+    _this->itc_status_setValue(_this->status | (1<<_this->fifo_irq));
+  }
+}
+
 void itc::irq_ack_sync(void *__this, int irq)
 {
   itc *_this = (itc *)__this;
@@ -285,6 +307,9 @@ void itc::build()
   new_slave_port("in", &in);
 
   new_master_port("irq_req", &irq_req_itf);
+
+  soc_event_itf.set_sync_meth(&itc::soc_event_sync);
+  new_slave_port("soc_event", &soc_event_itf);
 
   irq_ack_itf.set_sync_meth(&itc::irq_ack_sync);
   new_slave_port("irq_ack", &irq_ack_itf);
