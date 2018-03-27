@@ -63,6 +63,8 @@ namespace vp {
 
     void pre_build(component *comp);
 
+    inline int64_t get_period();
+
   protected:
     clock_engine *clock;
 

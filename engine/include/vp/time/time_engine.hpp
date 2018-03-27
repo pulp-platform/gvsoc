@@ -41,6 +41,10 @@ namespace vp {
 
     int run_status() { return stop_status; }
 
+    inline void lock();
+
+    inline void unlock();
+
     inline void stop();
 
     inline void stop(int status);
@@ -51,6 +55,8 @@ namespace vp {
 
   private:
     time_engine_client *first_client = NULL;
+    bool locked = false;
+    bool locked_run_req;
     bool run_req;
     bool stop_req;
     bool finished = false;
@@ -111,6 +117,26 @@ namespace vp {
   {
     stop_status = status;
     stop();
+  }
+
+  inline void vp::time_engine::lock()
+  {
+    pthread_mutex_lock(&mutex);
+    locked = true;
+    locked_run_req = run_req;
+    run_req = false;
+    pthread_cond_broadcast(&cond);
+    while (running) pthread_cond_wait(&cond, &mutex);
+    pthread_mutex_unlock(&mutex);
+  }
+
+  inline void vp::time_engine::unlock()
+  {
+    pthread_mutex_lock(&mutex);
+    run_req = locked_run_req;
+    locked = false;
+    pthread_cond_broadcast(&cond);
+    pthread_mutex_unlock(&mutex);
   }
 
 

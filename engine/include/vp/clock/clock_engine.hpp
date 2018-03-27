@@ -71,9 +71,13 @@ namespace vp {
 
     void set_time_engine(vp::time_engine *engine) { this->engine = engine; }
 
+    vp::time_engine *get_engine() { return engine; }
+
     inline int64_t get_cycles() { return cycles; }
 
     inline void stop(int status) { engine->stop(status); }
+
+    int64_t get_period() { return period; }
 
   protected:
 

@@ -96,6 +96,11 @@ string vp::time_engine::run()
 
   pthread_mutex_lock(&mutex);
 
+  while(locked)
+  {
+    pthread_cond_wait(&cond, &mutex);
+  }
+
   // First run the engine
   run_req = true;
   pthread_cond_broadcast(&cond);
@@ -228,7 +233,7 @@ void vp::time_engine::run_loop()
 
     pthread_mutex_lock(&mutex);
     running = false;
-    finished = true;
+    if (!locked) finished = true;
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&mutex);
   }
