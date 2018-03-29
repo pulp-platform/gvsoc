@@ -53,11 +53,14 @@ public:
   inline int data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);
   int data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);
 
+  static vp::io_req_status_e dbg_unit_req(void *__this, vp::io_req *req);
+
   void irq_check();
   void wait_for_interrupt();
 
   vp::io_master data;
   vp::io_master fetch;
+  vp::io_slave  dbg_unit;
 
   vp::wire_slave<int>      irq_req_itf;
   vp::wire_master<int>     irq_ack_itf;
@@ -85,6 +88,7 @@ private:
   bool stalled = false;
   bool wfi = false;
   bool misaligned_access = false;
+  bool halted = false;
 
   int        misaligned_size;
   uint8_t   *misaligned_data;
@@ -94,12 +98,14 @@ private:
 
   vp::wire_slave<uint32_t> bootaddr_itf;
   vp::wire_slave<bool>     fetchen_itf;
+  vp::wire_slave<bool>     halt_itf;
 
   iss_addr_t bootaddr;
 
   void check_state();
   static void bootaddr_sync(void *_this, uint32_t value);
   static void fetchen_sync(void *_this, bool active);
+  static void halt_sync(void *_this, bool active);
   inline void enqueue_next_instr(int64_t cycles);
 };
 

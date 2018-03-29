@@ -31,6 +31,7 @@ class Core_cluster_ctrl
 public:
   vp::wire_master<uint32_t> bootaddr_itf;
   vp::wire_master<bool> fetchen_itf;
+  vp::wire_master<bool> halt_itf;
   uint32_t bootaddr;
 };
 
@@ -50,6 +51,7 @@ private:
 
 
   vp::io_req_status_e fetch_en_req(bool is_write, uint32_t *data);
+  vp::io_req_status_e halt_mask_req(bool is_write, uint32_t *data);
   vp::io_req_status_e bootaddr_req(int core, bool is_write, uint32_t *data);
 
   vp::trace     trace;
@@ -89,10 +91,23 @@ vp::io_req_status_e cluster_ctrl::req(void *__this, vp::io_req *req)
   {
     return _this->bootaddr_req(ARCHI_CLUSTER_CTRL_BOOTADDR_COREID(offset), is_write, (uint32_t *)data);
   }
+  else if (offset == ARCHI_CLUSTER_CTRL_HALT_MASK)
+  {
+    return _this->halt_mask_req(is_write, (uint32_t *)data);
+  }
 
   _this->trace.warning("Invalid access\n");
 
   return vp::IO_REQ_INVALID;
+}
+
+vp::io_req_status_e cluster_ctrl::halt_mask_req(bool is_write, uint32_t *data)
+{
+  for (int i=0; i<nb_core; i++)
+  {
+    cores[i].halt_itf.sync(((*data) >> i) & 1);
+  }
+  return vp::IO_REQ_OK;
 }
 
 vp::io_req_status_e cluster_ctrl::fetch_en_req(bool is_write, uint32_t *data)
@@ -132,6 +147,7 @@ void cluster_ctrl::build()
   {
     new_master_port("bootaddr_" + std::to_string(i), &cores[i].bootaddr_itf);
     new_master_port("fetchen_" + std::to_string(i), &cores[i].fetchen_itf);
+    new_master_port("halt_" + std::to_string(i), &cores[i].halt_itf);
   }
 }
 

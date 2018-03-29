@@ -111,7 +111,7 @@ void iss::bootaddr_sync(void *__this, uint32_t value)
 void iss::fetchen_sync(void *__this, bool active)
 {
   iss *_this = (iss *)__this;
-  _this->trace.msg("Setting fetch enable (active: 0x%d)\n", active);
+  _this->trace.msg("Setting fetch enable (active: %d)\n", active);
   _this->fetch_enable = active;
   if (active)
   {
@@ -120,11 +120,19 @@ void iss::fetchen_sync(void *__this, bool active)
   _this->check_state();
 }
 
+void iss::halt_sync(void *__this, bool halted)
+{
+  iss *_this = (iss *)__this;
+  _this->trace.msg("Setting halt mode (halted: 0x%d)\n", halted);
+  _this->halted = halted;
+  _this->check_state();
+}
+
 void iss::check_state()
 {
   if (!is_active)
   {
-    if (fetch_enable && !stalled && (!wfi || irq_req != -1))
+    if (&halted && fetch_enable && !stalled && (!wfi || irq_req != -1))
     {
       wfi = false;
       is_active = true;
@@ -133,7 +141,11 @@ void iss::check_state()
   }
   else
   {
-    if (wfi)
+    if (halted)
+    {
+      is_active = false;
+    }
+    else if (wfi)
     {
       if (irq_req == -1)
         is_active = false;
@@ -205,6 +217,40 @@ void iss::irq_req_sync(void *__this, int irq)
   _this->check_state();
 }
 
+vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
+{
+  iss *_this = (iss *)__this;
+
+  uint64_t offset = req->get_addr();
+  uint8_t *data = req->get_data();
+  uint64_t size = req->get_size();
+
+  _this->trace.msg("IO access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, req->get_is_write());
+
+  if (offset >= 0x400)
+  {
+    offset -= 0x4000;
+
+    if (size != 4) return vp::IO_REQ_INVALID;
+
+
+    bool err;
+    if (req->get_is_write())
+      err = iss_csr_write(_this, offset / 4, *(iss_reg_t *)data);
+    else
+      err = iss_csr_read(_this, offset / 4, (iss_reg_t *)data);
+
+    if (err) return vp::IO_REQ_INVALID;
+  }
+  else
+  {
+    _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+    return vp::IO_REQ_INVALID;
+  }
+
+  return vp::IO_REQ_OK;
+}
+
 
 void iss::build()
 {
@@ -220,6 +266,9 @@ void iss::build()
   fetch.set_grant_meth(&iss::fetch_grant);
   new_master_port("fetch", &fetch);
 
+  dbg_unit.set_req_meth(&iss::dbg_unit_req);
+  new_slave_port("dbg_unit", &dbg_unit);
+
   bootaddr_itf.set_sync_meth(&iss::bootaddr_sync);
   new_slave_port("bootaddr", &bootaddr_itf);
 
@@ -229,6 +278,9 @@ void iss::build()
 
   fetchen_itf.set_sync_meth(&iss::fetchen_sync);
   new_slave_port("fetchen", &fetchen_itf);
+
+  halt_itf.set_sync_meth(&iss::halt_sync);
+  new_slave_port("halt", &halt_itf);
 
   current_event = event_new(iss::exec_first_instr);
   instr_event = event_new(iss::exec_instr);
