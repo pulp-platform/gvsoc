@@ -62,6 +62,9 @@ namespace vp {
       return event;
     }
 
+    inline void retain() { engine->retain(); }
+    inline void release() { engine->release(); }
+
     void event_del(component_clock *comp, clock_event *event)
     {
       delete event;
@@ -98,7 +101,6 @@ namespace vp {
     int64_t freq;
     int64_t cycles = 0;
     int nb_enqueued_to_cycle = 0;
-
   };    
 
 };

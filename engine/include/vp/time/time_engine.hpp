@@ -53,6 +53,9 @@ namespace vp {
 
     int64_t get_time() { return time; }
 
+    inline void retain() { retain_count++; }
+    inline void release() { retain_count--; }
+
   private:
     time_engine_client *first_client = NULL;
     bool locked = false;
@@ -71,7 +74,7 @@ namespace vp {
 
     int64_t time = 0;
     int stop_status = -1;
-
+    int retain_count = 0;
   };
 
   class time_engine_client : public component {

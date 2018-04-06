@@ -29,7 +29,7 @@
 #include <thread>
 #include <unistd.h>
 
-static thread_local vp::clock_event *wait_event;
+static thread_local vp::clock_event *wait_evt;
 static thread_local bool is_waiting = false;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -49,6 +49,8 @@ public:
   void create_task(void *arg1, void *arg2);
   int wait(int64_t t);
   int wait_ps(int64_t t);
+  void wait_event();
+  void raise_event();
 
 private:
 
@@ -60,6 +62,8 @@ private:
 
   vector<std::thread *>threads;
   vector<void *>models;
+
+  bool event_raised = false;
 };
 
 dpi_wrapper::dpi_wrapper(const char *config)
@@ -80,8 +84,8 @@ void dpi_wrapper::wait_handler(void *__this, vp::clock_event *event)
 void dpi_wrapper::task_thread_routine(void *arg1, void *arg2)
 {
   get_clock()->get_engine()->lock();
-  wait_event = event_new(dpi_wrapper::wait_handler);
-  wait_event->get_args()[0] = &is_waiting;
+  wait_evt = event_new(dpi_wrapper::wait_handler);
+  wait_evt->get_args()[0] = &is_waiting;
   ((void (*)(void *))arg1)(arg2);  
 }
 
@@ -89,7 +93,7 @@ int dpi_wrapper::wait(int64_t t)
 {
   int64_t period = get_period();
   int64_t cycles = (t*1000 + period - 1) / period;
-  event_enqueue(wait_event, cycles);
+  event_enqueue(wait_evt, cycles);
   is_waiting = true;
   get_clock()->get_engine()->unlock();
 
@@ -106,10 +110,36 @@ int dpi_wrapper::wait_ps(int64_t t)
 {
   int64_t period = get_period();
   int64_t cycles = (t + period - 1) / period;
-  event_enqueue(wait_event, cycles);
+  event_enqueue(wait_evt, cycles);
+  is_waiting = true;
   get_clock()->get_engine()->unlock();
+
+  pthread_mutex_lock(&mutex);
+  while(is_waiting)
+    pthread_cond_wait(&cond, &mutex);
+  pthread_mutex_unlock(&mutex);
+
   get_clock()->get_engine()->lock();
-  return 0;  
+  return 0;
+}
+
+void dpi_wrapper::wait_event()
+{
+  get_clock()->get_engine()->unlock();
+  pthread_mutex_lock(&mutex);
+  while(!event_raised)
+    pthread_cond_wait(&cond, &mutex);
+  event_raised = false;
+  pthread_mutex_unlock(&mutex);
+  get_clock()->get_engine()->lock();
+}
+
+void dpi_wrapper::raise_event()
+{
+  pthread_mutex_lock(&mutex);
+  event_raised = true;
+  pthread_cond_broadcast(&cond);
+  pthread_mutex_unlock(&mutex);
 }
 
 void dpi_wrapper::create_task(void *arg1, void *arg2)
@@ -210,6 +240,18 @@ extern "C" void dpi_print(void *data, const char *msg)
 {
   fwrite(msg, 1, strlen(msg), stdout);
   printf("\n");
+}
+
+extern "C" void dpi_wait_event(void *handle)
+{
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  return dpi->wait_event();
+}
+
+extern "C" void dpi_raise_event(void *handle)
+{
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  return dpi->raise_event();
 }
 
 extern "C" int dpi_wait(void *handle, int64_t t)

@@ -23,7 +23,13 @@
 #include "iss.hpp"
 #include <algorithm>
 
-
+#define HALT_CAUSE_EBREAK    0
+#define HALT_CAUSE_ECALL     1
+#define HALT_CAUSE_ILLEGAL   2
+#define HALT_CAUSE_INVALID   3
+#define HALT_CAUSE_INTERRUPT 4 
+#define HALT_CAUSE_HALT      5
+#define HALT_CAUSE_STEP      6
 
 
 
@@ -120,13 +126,50 @@ void iss::fetchen_sync(void *__this, bool active)
   _this->check_state();
 }
 
+
+
+void iss::set_halt_mode(bool halted)
+{
+  if (this->halted && !halted)
+  {
+    this->get_clock()->release();
+  }
+  else if (!this->halted && halted)
+  {
+    this->get_clock()->retain();
+  }
+
+  this->halted = halted;
+}
+
+
+
+void iss::halt_core()
+{
+  this->trace.msg("Halting core\n");
+
+  this->halt_cause = HALT_CAUSE_HALT;
+  if (this->cpu.prev_insn == NULL)
+    this->ppc = 0;
+  else
+    this->ppc = this->cpu.prev_insn->addr;
+  this->npc = this->cpu.current_insn->addr;
+
+  this->halt_status_itf.sync(this->halted);
+}
+
+
+
 void iss::halt_sync(void *__this, bool halted)
 {
   iss *_this = (iss *)__this;
-  _this->trace.msg("Setting halt mode (halted: 0x%d)\n", halted);
-  _this->halted = halted;
+  _this->trace.msg("Received halt signal sync (halted: 0x%d)\n", halted);
+  _this->set_halt_mode(halted);
+
   _this->check_state();
 }
+
+
 
 void iss::check_state()
 {
@@ -144,6 +187,7 @@ void iss::check_state()
     if (halted)
     {
       is_active = false;
+      this->halt_core();
     }
     else if (wfi)
     {
@@ -227,7 +271,10 @@ vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
 
   _this->trace.msg("IO access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, req->get_is_write());
 
-  if (offset >= 0x400)
+  if (size != ISS_REG_WIDTH/8)
+    return vp::IO_REQ_INVALID;
+
+  if (offset >= 0x4000)
   {
     offset -= 0x4000;
 
@@ -241,6 +288,65 @@ vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
       err = iss_csr_read(_this, offset / 4, (iss_reg_t *)data);
 
     if (err) return vp::IO_REQ_INVALID;
+  }
+  else if (offset >= 0x2000)
+  {
+    if (!_this->halted)
+    {
+      _this->trace.warning("Trying to access debug registers while core is not halted\n");
+      return vp::IO_REQ_INVALID;
+    }
+
+    if (offset == 0x2000)
+    {
+      if (req->get_is_write())
+        _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+      else
+        *(iss_reg_t *)data = _this->npc;
+    }
+    else if (offset == 0x2004)
+    {
+      if (req->get_is_write())
+        _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+      else
+        *(iss_reg_t *)data = _this->ppc;
+    }
+    else
+    {
+      return vp::IO_REQ_INVALID;
+    }
+  }
+  else if (offset >= 0x400)
+  {
+    offset -= 0x400;
+    int reg_id = offset / 4;
+
+    if (!_this->halted)
+    {
+      _this->trace.warning("Trying to access GPR while core is not halted\n");
+      return vp::IO_REQ_INVALID;
+    }
+
+    if (reg_id >= ISS_NB_REGS)
+      return vp::IO_REQ_INVALID;
+
+    if (req->get_is_write())
+      iss_set_reg(_this, reg_id, *(iss_reg_t *)data);
+    else
+      *(iss_reg_t *)data = iss_get_reg(_this, reg_id);
+  }
+  else if (offset < 0x80)
+  {
+    if (offset == 0x00)
+    {
+      _this->trace.msg("Writing DBG_CTRL (value: 0x%x)\n", *(iss_reg_t *)data);
+      _this->set_halt_mode((*(iss_reg_t *)data) >> 16);
+      _this->check_state();
+    }
+    else if (offset == 0x0C)
+    {
+      *(iss_reg_t *)data = _this->halt_cause;
+    }
   }
   else
   {
@@ -281,6 +387,8 @@ void iss::build()
 
   halt_itf.set_sync_meth(&iss::halt_sync);
   new_slave_port("halt", &halt_itf);
+
+  new_master_port("halt_status", &halt_status_itf);
 
   current_event = event_new(iss::exec_first_instr);
   instr_event = event_new(iss::exec_instr);

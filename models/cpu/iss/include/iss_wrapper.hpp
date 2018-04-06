@@ -89,6 +89,10 @@ private:
   bool wfi = false;
   bool misaligned_access = false;
   bool halted = false;
+  int halt_cause;
+
+  iss_reg_t ppc;
+  iss_reg_t npc;
 
   int        misaligned_size;
   uint8_t   *misaligned_data;
@@ -99,6 +103,7 @@ private:
   vp::wire_slave<uint32_t> bootaddr_itf;
   vp::wire_slave<bool>     fetchen_itf;
   vp::wire_slave<bool>     halt_itf;
+  vp::wire_master<bool>     halt_status_itf;
 
   iss_addr_t bootaddr;
 
@@ -107,6 +112,8 @@ private:
   static void fetchen_sync(void *_this, bool active);
   static void halt_sync(void *_this, bool active);
   inline void enqueue_next_instr(int64_t cycles);
+  void set_halt_mode(bool halted);
+  void halt_core();
 };
 
 typedef iss iss_t;

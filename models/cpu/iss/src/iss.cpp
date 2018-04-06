@@ -75,6 +75,7 @@ int iss_open(iss_t *iss)
   prefetcher_init(iss);
 
   iss->cpu.regfile.regs[0] = 0;
+  iss->cpu.prev_insn = NULL;
 
   iss_irq_init(iss);
 

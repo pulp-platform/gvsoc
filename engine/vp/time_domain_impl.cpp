@@ -168,6 +168,7 @@ void vp::time_engine::run_loop()
     while(!run_req)
     {
       running = false;
+      pthread_cond_broadcast(&cond);
       pthread_cond_wait(&cond, &mutex);
     }
     running = true;
@@ -232,8 +233,17 @@ void vp::time_engine::run_loop()
     }
 
     pthread_mutex_lock(&mutex);
+
     running = false;
-    if (!locked) finished = true;
+
+    while(!first_client && retain_count && !locked)
+    {
+      pthread_cond_wait(&cond, &mutex);
+    }
+
+    current = first_client;
+
+    if (!locked && !retain_count) finished = true;
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&mutex);
   }

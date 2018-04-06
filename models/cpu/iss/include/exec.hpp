@@ -54,6 +54,7 @@ static inline int iss_exec_step_nofetch(iss_t *iss)
 {
   iss->cpu.state.insn_cycles = 1;
   iss_insn_t *insn = iss->cpu.current_insn;
+  iss->cpu.prev_insn = insn;
   iss->cpu.current_insn = iss_exec_insn(iss, insn);
   return iss->cpu.state.insn_cycles;
 }

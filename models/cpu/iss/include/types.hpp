@@ -334,6 +334,7 @@ typedef struct iss_cpu_s {
   iss_prefetcher_t prefetcher;
   iss_insn_cache_t insn_cache;
   iss_insn_t *current_insn;
+  iss_insn_t *prev_insn;
   iss_insn_t *stall_insn;
   iss_regfile_t regfile;
   iss_cpu_state_t state;
