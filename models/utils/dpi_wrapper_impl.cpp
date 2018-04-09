@@ -157,7 +157,9 @@ void dpi_wrapper::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
-  void *config_handle = dpi_config_get_from_file("/home/haugoug/src/pulp-sdk/tests/rt-tests/rt/quick/periph/spim/build/pulp/config.json");
+  void *config_handle = dpi_config_get_from_file(getenv("PULP_CONFIG_FILE"));
+
+  if (config_handle == NULL) return;
 
   void *driver_handle = dpi_driver_set_config(config_handle);
   int nb_comp = dpi_driver_get_nb_comp(driver_handle);
@@ -169,7 +171,7 @@ void dpi_wrapper::build()
     const char *comp_type = dpi_config_get_str(dpi_config_get_config(comp_config, "type"));
     int nb_itf = dpi_driver_get_comp_nb_itf(comp_config, i);
 
-    //trace.msg("Found TB driver component (index: %d, name: %s, type: %s)\n", i, comp_name, comp_type);
+    //printf("Found TB driver component (index: %d, name: %s, type: %s)\n", i, comp_name, comp_type);
 
     if (strcmp(comp_type, "dpi") == 0)
     {

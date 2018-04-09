@@ -156,7 +156,7 @@ void padframe::build()
     cm::config *config = group.second;
     std::string type = config->get("type")->get_str();
 
-    printf("Found pad group (group: %s, type: %s)\n",
+    trace.msg("Found pad group (group: %s, type: %s)\n",
       name.c_str(), type.c_str());
 
     if (type == "qspim")

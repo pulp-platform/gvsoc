@@ -244,7 +244,6 @@ class default_implementation_class(object):
             self.implem_set_services(self.instance, size, names, services_param)
 
     def __get_services(self):
-
         size = self.implem_get_services(self.instance, 0, None, None)
 
         if size != 0:
@@ -252,6 +251,8 @@ class default_implementation_class(object):
             names = (ctypes.c_char_p * size)()
 
             size = self.implem_get_services(self.instance, size, names, services)
+
+
 
             for i in range(0, len(names)):
                 self.__set_service(names[i].decode('utf-8'), services[i])
