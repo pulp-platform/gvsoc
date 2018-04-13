@@ -243,7 +243,7 @@ void vp::time_engine::run_loop()
 
     current = first_client;
 
-    if (!locked && !retain_count) finished = true;
+    if (first_client == NULL && !locked && !retain_count) finished = true;
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&mutex);
   }

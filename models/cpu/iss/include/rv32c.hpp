@@ -196,11 +196,15 @@ static inline iss_insn_t *c_add_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *c_ebreak_exec(iss *iss, iss_insn_t *insn)
 {
+  iss->set_halt_mode(true, 3);
+  iss->check_state();
   return insn->next;
 }
 
 static inline iss_insn_t *c_sbreak_exec(iss *iss, iss_insn_t *insn)
 {
+  iss->set_halt_mode(true, 3);
+  iss->check_state();
   return insn->next;
 }
 

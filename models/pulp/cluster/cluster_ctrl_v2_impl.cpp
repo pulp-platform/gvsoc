@@ -227,7 +227,9 @@ void cluster_ctrl::halt_status_sync(void *__this, bool status, int id)
   _this->trace.msg("Received new core halt status (core: %d, halt: %d)\n", id, status);
   _this->dbg_halt_status = (_this->dbg_halt_status & ~(1<<id)) | (status << id);
   _this->dbg_halt_status_sync = (_this->dbg_halt_status & ~(1<<id)) | (status << id);
-  _this->check_dbg_halt();
+
+  if (status)
+    _this->check_dbg_halt();
 }
 
 

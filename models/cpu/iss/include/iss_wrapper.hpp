@@ -44,7 +44,7 @@ public:
   static void exec_instr(void *__this, vp::clock_event *event);
   static void exec_first_instr(void *__this, vp::clock_event *event);
   void exec_first_instr(vp::clock_event *event);
-  static void exec_instr_check_irq(void *__this, vp::clock_event *event);
+  static void exec_instr_check_all(void *__this, vp::clock_event *event);
   static inline void exec_misaligned(void *__this, vp::clock_event *event);
 
   static void irq_req_sync(void *__this, int irq);
@@ -57,6 +57,9 @@ public:
 
   void irq_check();
   void wait_for_interrupt();
+  
+  void set_halt_mode(bool halted, int cause);
+  void check_state();
 
   vp::io_master data;
   vp::io_master fetch;
@@ -78,7 +81,7 @@ private:
 
   vp::clock_event *current_event;
   vp::clock_event *instr_event;
-  vp::clock_event *irq_event;
+  vp::clock_event *check_all_event;
   vp::clock_event *misaligned_event;
 
   int irq_req;
@@ -89,7 +92,10 @@ private:
   bool wfi = false;
   bool misaligned_access = false;
   bool halted = false;
+  bool step_mode = false;
+  bool do_step = false;
   int halt_cause;
+  iss_reg_t hit_reg = 0;
 
   iss_reg_t ppc;
   iss_reg_t npc;
@@ -107,12 +113,10 @@ private:
 
   iss_addr_t bootaddr;
 
-  void check_state();
   static void bootaddr_sync(void *_this, uint32_t value);
   static void fetchen_sync(void *_this, bool active);
   static void halt_sync(void *_this, bool active);
   inline void enqueue_next_instr(int64_t cycles);
-  void set_halt_mode(bool halted);
   void halt_core();
 };
 

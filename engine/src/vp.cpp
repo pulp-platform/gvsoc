@@ -104,8 +104,9 @@ void vp::clock_engine::cancel(vp::clock_event *event)
       delayed_queue = event->next;
   }
   else
-  {    
-    vp::clock_event *current = event_queue[cycle_diff], *prev = NULL;
+  {
+    int cycle = (current_cycle + cycle_diff) & CLOCK_EVENT_QUEUE_MASK;
+    vp::clock_event *current = event_queue[cycle], *prev = NULL;
     while (current != event)
     {
       prev = current;
@@ -114,8 +115,9 @@ void vp::clock_engine::cancel(vp::clock_event *event)
     if (prev)
       prev->next = event->next;
     else
-      event_queue[cycle_diff] = event->next;
+      event_queue[cycle] = event->next;
   }
+  event->enqueued = false;
 }
 
 int64_t vp::clock_engine::exec()

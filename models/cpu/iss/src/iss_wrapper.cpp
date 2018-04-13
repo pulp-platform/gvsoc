@@ -57,12 +57,19 @@ void iss::exec_instr(void *__this, vp::clock_event *event)
   }
 }
 
-void iss::exec_instr_check_irq(void *__this, vp::clock_event *event)
+void iss::exec_instr_check_all(void *__this, vp::clock_event *event)
 {
   iss *_this = (iss *)__this;
   _this->current_event = _this->instr_event;
   iss_irq_check(_this);
   exec_instr(__this, event);
+  if (_this->step_mode)
+  {
+    _this->do_step = false;
+    _this->hit_reg |= 1;
+    _this->set_halt_mode(true, HALT_CAUSE_HALT);
+    _this->check_state();
+  }
 }
 
 void iss::exec_first_instr(vp::clock_event *event)
@@ -128,8 +135,10 @@ void iss::fetchen_sync(void *__this, bool active)
 
 
 
-void iss::set_halt_mode(bool halted)
+void iss::set_halt_mode(bool halted, int cause)
 {
+  this->halt_cause = cause;
+
   if (this->halted && !halted)
   {
     this->get_clock()->release();
@@ -140,6 +149,9 @@ void iss::set_halt_mode(bool halted)
   }
 
   this->halted = halted;
+ 
+  if (this->halt_status_itf.is_bound()) 
+    this->halt_status_itf.sync(this->halted);
 }
 
 
@@ -148,14 +160,11 @@ void iss::halt_core()
 {
   this->trace.msg("Halting core\n");
 
-  this->halt_cause = HALT_CAUSE_HALT;
   if (this->cpu.prev_insn == NULL)
     this->ppc = 0;
   else
     this->ppc = this->cpu.prev_insn->addr;
   this->npc = this->cpu.current_insn->addr;
-
-  this->halt_status_itf.sync(this->halted);
 }
 
 
@@ -164,7 +173,7 @@ void iss::halt_sync(void *__this, bool halted)
 {
   iss *_this = (iss *)__this;
   _this->trace.msg("Received halt signal sync (halted: 0x%d)\n", halted);
-  _this->set_halt_mode(halted);
+  _this->set_halt_mode(halted, HALT_CAUSE_HALT);
 
   _this->check_state();
 }
@@ -173,18 +182,24 @@ void iss::halt_sync(void *__this, bool halted)
 
 void iss::check_state()
 {
+  vp::clock_event *event = current_event;
+
+  current_event = check_all_event;
+
   if (!is_active)
   {
-    if (&halted && fetch_enable && !stalled && (!wfi || irq_req != -1))
+    if (!halted && fetch_enable && !stalled && (!wfi || irq_req != -1))
     {
       wfi = false;
       is_active = true;
+      if (step_mode)
+        do_step = true;
       enqueue_next_instr(1);
     }
   }
   else
   {
-    if (halted)
+    if (halted && !do_step)
     {
       is_active = false;
       this->halt_core();
@@ -195,6 +210,14 @@ void iss::check_state()
         is_active = false;
       else
         wfi = false;
+    }
+
+    if (!is_active)
+    {
+      if (event->is_enqueued())
+      {
+        event_cancel(event);
+      }
     }
   }
 }
@@ -240,7 +263,7 @@ int iss::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool 
 
 void iss::irq_check()
 {
-  current_event = irq_event;
+  current_event = check_all_event;
 }
 
 
@@ -300,7 +323,9 @@ vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
     if (offset == 0x2000)
     {
       if (req->get_is_write())
-        _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+      {
+        iss_cache_flush(_this);
+      }
       else
         *(iss_reg_t *)data = _this->npc;
     }
@@ -339,12 +364,38 @@ vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
   {
     if (offset == 0x00)
     {
-      _this->trace.msg("Writing DBG_CTRL (value: 0x%x)\n", *(iss_reg_t *)data);
-      _this->set_halt_mode((*(iss_reg_t *)data) >> 16);
-      _this->check_state();
+      if (req->get_is_write())
+      {
+        bool step_mode = (*(iss_reg_t *)data) & 1;
+        bool halt_mode = ((*(iss_reg_t *)data) >> 16) & 1;
+        _this->trace.msg("Writing DBG_CTRL (value: 0x%x, halt: %d, step: %d)\n", *(iss_reg_t *)data, halt_mode, step_mode);
+
+        _this->set_halt_mode(halt_mode, HALT_CAUSE_HALT);
+        _this->step_mode = step_mode;
+
+        _this->check_state();
+      }
+      else
+      {
+        *(iss_reg_t *)data = (_this->halted << 16) | _this->step_mode;
+      }
+    }
+    else if (offset == 0x04)
+    {
+      if (req->get_is_write())
+      {
+        _this->hit_reg = *(iss_reg_t *)data;
+      }
+      else
+      {
+        *(iss_reg_t *)data = _this->hit_reg;
+      }
     }
     else if (offset == 0x0C)
     {
+      if (req->get_is_write())
+        return vp::IO_REQ_INVALID;
+
       *(iss_reg_t *)data = _this->halt_cause;
     }
   }
@@ -392,7 +443,7 @@ void iss::build()
 
   current_event = event_new(iss::exec_first_instr);
   instr_event = event_new(iss::exec_instr);
-  irq_event = event_new(iss::exec_instr_check_irq);
+  check_all_event = event_new(iss::exec_instr_check_all);
   misaligned_event = event_new(iss::exec_misaligned);
 
   fetch_enable = get_config_bool("fetch_enable");

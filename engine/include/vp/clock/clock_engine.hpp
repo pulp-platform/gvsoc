@@ -90,6 +90,7 @@ namespace vp {
       event->next = event_queue[cycle];
       event_queue[cycle] = event;
       nb_enqueued_to_cycle++;
+      event->cycle = cycles + get_cycles();
     }
 
     clock_event *enqueue_other(clock_event *event, int64_t cycles);

@@ -52,9 +52,14 @@ static inline iss_opcode_t prefetcher_get_word(iss_t *iss, iss_addr_t addr)
   return *(iss_opcode_t *)&prefetcher->data[index];
 }
 
+static inline void prefetcher_flush(iss_t *iss)
+{
+  iss->cpu.prefetcher.addr = -1;
+}
+
 static inline void prefetcher_init(iss_t *iss)
 {
-  iss_prefetcher_t *prefetcher = &iss->cpu.prefetcher;
+  prefetcher_flush(iss);
 }
 
 #endif

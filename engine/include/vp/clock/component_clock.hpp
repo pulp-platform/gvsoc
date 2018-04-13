@@ -44,6 +44,8 @@ namespace vp {
 
     inline void event_reenqueue(clock_event *event, int64_t cycles);
 
+    inline void event_cancel(clock_event *event);
+
     clock_event *event_new(clock_event_meth_t *meth);
 
     inline clock_event *event_new(clock_event_meth_t *meth, void *arg)
