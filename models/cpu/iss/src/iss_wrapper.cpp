@@ -28,8 +28,8 @@
 #define HALT_CAUSE_ILLEGAL   2
 #define HALT_CAUSE_INVALID   3
 #define HALT_CAUSE_INTERRUPT 4 
-#define HALT_CAUSE_HALT      5
-#define HALT_CAUSE_STEP      6
+#define HALT_CAUSE_HALT      15
+#define HALT_CAUSE_STEP      15
 
 
 

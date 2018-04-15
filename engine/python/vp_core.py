@@ -557,10 +557,20 @@ class component(component_trace):
         bindings = self.get_config().get(bindings_tag)
         if bindings is not None:
             for binding in bindings:
-                master_comp, master_port = binding[0].split('->')
-                slave_comp, slave_port = binding[1].split('->')
+                master_comp_name, master_port = binding[0].split('->')
+                slave_comp_name, slave_port = binding[1].split('->')
                 self.trace.msg('Creating json binding (master: %s, slave: %s)' % (binding[0], binding[1]))
-                self.get_comp_from_list(master_comp.split('/')).get_port(master_port).bind_to(self.get_comp_from_list(slave_comp.split('/')).get_port(slave_port))
+                master_comp = self.get_comp_from_list(master_comp_name.split('/'))
+                slave_comp = self.get_comp_from_list(slave_comp_name.split('/'))
+
+                if master_comp is None:
+                    raise Exception('Unknown master component in binding: %s' % master_comp_name)
+
+                if slave_comp is None:
+                    raise Exception('Unknown slave component in binding: %s' % slave_comp_name)
+
+
+                master_comp.get_port(master_port).bind_to(slave_comp.get_port(slave_port))
 
 
 
