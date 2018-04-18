@@ -83,10 +83,12 @@ void dpi_wrapper::wait_handler(void *__this, vp::clock_event *event)
 
 void dpi_wrapper::task_thread_routine(void *arg1, void *arg2)
 {
-  get_clock()->get_engine()->lock();
+  this->get_clock()->get_engine()->lock();
+  this->get_clock()->retain();
   wait_evt = event_new(dpi_wrapper::wait_handler);
   wait_evt->get_args()[0] = &is_waiting;
   ((void (*)(void *))arg1)(arg2);  
+  this->get_clock()->release();
 }
 
 int dpi_wrapper::wait(int64_t t)
@@ -227,8 +229,6 @@ void dpi_wrapper::start()
 
 extern "C" void dpi_ctrl_reset_edge(void *handle, int reset)
 {
-  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
-  exit(-1);
 }
 
 extern "C" void dpi_jtag_tck_edge(void *handle, int tck, int tdi, int tms, int trst, int *tdo)
