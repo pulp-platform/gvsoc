@@ -122,7 +122,6 @@ void vp::clock_engine::cancel(vp::clock_event *event)
 
 int64_t vp::clock_engine::exec()
 {
-
   if (unlikely(current_cycle == 0))
   {
     clock_event *event = delayed_queue;
@@ -133,9 +132,11 @@ int64_t vp::clock_engine::exec()
       uint64_t cycle_diff = event->cycle - get_cycles();
       if (cycle_diff >= CLOCK_EVENT_QUEUE_SIZE) break;
 
+      clock_event *next = event->next;
+
       enqueue_to_cycle(event, cycle_diff);
 
-      event = event->next;
+      event = next;
       delayed_queue = event;
     }
   }
@@ -150,7 +151,8 @@ int64_t vp::clock_engine::exec()
     clock_event *next = current->next;
     current->enqueued = false;
     nb_enqueued_to_cycle--;
-    current->meth(static_cast<vp::component *>(current->comp), current);
+
+    current->meth(current->_this, current);
     current = next;
   }
   event_queue[current_cycle] = NULL;
@@ -173,4 +175,11 @@ int64_t vp::clock_engine::exec()
       return -1;
     }
   }
+}
+
+
+vp::clock_event::clock_event(component_clock *comp, clock_event_meth_t *meth) 
+: comp(comp), _this((void *)static_cast<vp::component *>((vp::component_clock *)(comp))), meth(meth), enqueued(false)
+{
+
 }

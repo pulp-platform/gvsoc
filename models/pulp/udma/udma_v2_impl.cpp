@@ -36,15 +36,24 @@ void Udma_channel::handle_transfer_end()
   top->trigger_event(id);
 }
 
+void Udma_channel::handle_ready_reqs()
+{
+  if (!ready_reqs->is_empty())
+  {
+    vp::io_req *req = ready_reqs->pop();
+    handle_ready_req_end(req);
+  }
+}
+
 void Udma_channel::handle_ready_req(vp::io_req *req)
 {
   ready_reqs->push(req);
-  handle_ready_req_end(req);
+  handle_ready_reqs();
 }
 
 void Udma_channel::handle_ready_req_end(vp::io_req *req)
 {
-  if (current_cmd->received_size >= current_cmd->size)
+  if (current_cmd && current_cmd->received_size >= current_cmd->size)
   {
     handle_transfer_end();
   }
@@ -173,6 +182,7 @@ vp::io_req_status_e Udma_channel::cfg_req(vp::io_req *req)
       (transfer_size << UDMA_CHANNEL_CFG_SIZE_BIT) |
       (!pending_reqs->is_empty() << UDMA_CHANNEL_CFG_EN_BIT) |
       (pending_reqs->is_full() << UDMA_CHANNEL_CFG_SHADOW_BIT);
+
   }
   return vp::IO_REQ_OK;
 }
@@ -224,6 +234,8 @@ bool Udma_channel::prepare_req(vp::io_req *req)
 void Udma_channel::reset()
 {
   current_cmd = NULL;
+  continuous_mode = 0;
+  transfer_size = 0;
 }
 
 
@@ -571,6 +583,19 @@ void udma::build()
           throw logic_error("Non-support udma version: " + std::to_string(version));
         }
       }
+      else if (strcmp(name.c_str(), "uart") == 0)
+      {
+        trace.msg("Instantiating UART channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 1)
+        {
+          Uart_periph_v1 *periph = new Uart_periph_v1(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-support udma version: " + std::to_string(version));
+        }
+      }
       else
       {
         trace.msg("Instantiating channel (id: %d, offset: 0x%x)\n", id, offset);
@@ -597,17 +622,6 @@ void udma::reset()
 }
 
 
-
-template<class T>
-T *Udma_queue<T>::pop()
-{
-  if (!first) return NULL;
-  T *cmd = first;
-  first = cmd->get_next();
-  nb_cmd--;
-
-  return cmd;
-}
 
 
 

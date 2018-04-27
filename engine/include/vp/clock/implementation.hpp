@@ -54,6 +54,11 @@ inline vp::clock_event *vp::component_clock::event_new(vp::clock_event_meth_t *m
   return clock->event_new(this, meth);
 }
 
+inline vp::clock_event *vp::component_clock::event_new(void *_this, vp::clock_event_meth_t *meth)
+{
+  return clock->event_new(this, _this, meth);
+}
+
 inline void vp::component_clock::event_del(vp::clock_event *event)
 {
   clock->event_del(this, event);

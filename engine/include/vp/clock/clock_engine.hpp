@@ -62,6 +62,12 @@ namespace vp {
       return event;
     }
 
+    clock_event *event_new(component_clock *comp, void *_this, clock_event_meth_t *meth)
+    {
+      clock_event *event = new clock_event(comp, _this, meth);
+      return event;
+    }
+
     inline void retain() { engine->retain(); }
     inline void release() { engine->release(); }
 

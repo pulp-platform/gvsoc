@@ -43,8 +43,10 @@ namespace vp {
 
   public:
 
-    clock_event(component_clock *comp, clock_event_meth_t *meth) 
-      : comp(comp), meth(meth), enqueued(false) {}
+    clock_event(component_clock *comp, clock_event_meth_t *meth);
+
+    clock_event(component_clock *comp, void *_this, clock_event_meth_t *meth) 
+      : comp(comp), _this(_this), meth(meth), enqueued(false) {}
 
     inline int get_payload_size() { return CLOCK_EVENT_PAYLOAD_SIZE; }
     inline uint8_t *get_payload() { return payload; }
@@ -60,6 +62,7 @@ namespace vp {
     uint8_t payload[CLOCK_EVENT_PAYLOAD_SIZE];
     void *args[CLOCK_EVENT_NB_ARGS];
     component_clock *comp;
+    void *_this;
     clock_event_meth_t *meth;
     clock_event *next;
     bool enqueued;

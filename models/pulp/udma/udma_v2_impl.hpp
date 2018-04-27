@@ -24,6 +24,7 @@
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
 #include <vp/itf/qspim.hpp>
+#include <vp/itf/uart.hpp>
 #include <vp/itf/wire.hpp>
 #include <stdio.h>
 #include <string.h>
@@ -87,10 +88,13 @@ public:
   void event_handler();
   bool prepare_req(vp::io_req *req);
   void push_ready_req(vp::io_req *req);
+  void handle_ready_req_end(vp::io_req *req);
+  virtual bool is_busy() { return false; }
 
 protected:
   vp::trace     trace;
   Udma_queue<vp::io_req> *ready_reqs;
+  udma *top;
 
 private:
   virtual vp::io_req_status_e saddr_req(vp::io_req *req);
@@ -100,7 +104,7 @@ private:
   void check_state();
   void handle_transfer_end();
   virtual void handle_ready_req(vp::io_req *req);
-  void handle_ready_req_end(vp::io_req *req);
+  virtual void handle_ready_reqs();
 
   uint32_t saddr;
   uint16_t size;
@@ -108,7 +112,6 @@ private:
   int transfer_size;
   bool continuous_mode;
 
-  udma *top;
   int id;
   string name;
   Udma_channel *next;
@@ -137,6 +140,7 @@ class Udma_tx_channel : public Udma_channel
 public:
   Udma_tx_channel(udma *top, int id, string name) : Udma_channel(top, id, name) {}
   bool is_tx() { return true; }
+
 };
 
 
@@ -146,7 +150,7 @@ class Udma_periph
 public:
   Udma_periph(udma *top, int id);
   vp::io_req_status_e req(vp::io_req *req, uint64_t offset);
-  void reset();
+  virtual void reset();
   void clock_gate(bool is_on);
 
 protected:
@@ -154,13 +158,18 @@ protected:
   Udma_channel *channel1 = NULL;
 
 private:
-  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  virtual vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
   bool is_on;
   udma *top;
   int id;
 };
 
 
+
+
+/*
+ * SPIM
+ */
 
 class Spim_periph_v2;
 
@@ -203,6 +212,99 @@ protected:
 };
 
 
+
+
+/*
+ * UART
+ */
+
+class Uart_periph_v1;
+
+class Uart_rx_channel : public Udma_rx_channel
+{
+public:
+  Uart_rx_channel(udma *top, Uart_periph_v1 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
+  bool is_busy();
+
+private:
+  Uart_periph_v1 *periph;
+};
+
+
+typedef enum
+{
+  UART_TX_STATE_START,
+  UART_TX_STATE_DATA,
+  UART_TX_STATE_PARITY,
+  UART_TX_STATE_STOP
+} uart_tx_state_e;
+
+class Uart_tx_channel : public Udma_tx_channel
+{
+public:
+  Uart_tx_channel(udma *top, Uart_periph_v1 *periph, int id, string name);
+  void handle_ready_reqs();
+  bool is_busy();
+
+private:
+  void reset();
+  void check_state();
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+
+  Uart_periph_v1 *periph;
+
+  vp::clock_event *pending_word_event;
+
+  uint32_t pending_word;
+  int pending_bits;
+  uart_tx_state_e state;
+  vp::io_req *pending_req;
+  int parity;
+  int64_t next_bit_cycle;
+  int stop_bits;
+  int sent_bits;
+};
+
+
+class Uart_periph_v1 : public Udma_periph
+{
+  friend class Uart_tx_channel;
+  friend class Uart_rx_channel;
+
+public:
+  Uart_periph_v1(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  void reset();
+
+  int parity;
+  int bit_length;
+  int stop_bits;
+  int tx;
+  int rx;
+  int clkdiv;
+  int rx_pe;
+
+protected:
+  vp::uart_master uart_itf;
+
+private:
+  vp::io_req_status_e status_req(vp::io_req *req);
+  vp::io_req_status_e setup_req(vp::io_req *req);
+  void set_setup_reg(uint32_t value);
+
+  uint32_t setup_reg_value;
+
+  vp::trace     trace;
+
+};
+
+
+
+
+/*
+ * UDMA
+ */
+
 template<class T>
 inline void Udma_queue<T>::push(T *cmd)
 {
@@ -213,6 +315,19 @@ inline void Udma_queue<T>::push(T *cmd)
   cmd->set_next(NULL);
   last = cmd;
   nb_cmd++;
+}
+
+
+
+template<class T>
+T *Udma_queue<T>::pop()
+{
+  if (!first) return NULL;
+  T *cmd = first;
+  first = cmd->get_next();
+  nb_cmd--;
+
+  return cmd;
 }
 
 
@@ -234,6 +349,8 @@ public:
   void free_read_req(vp::io_req *req);
 
   void trigger_event(int event);
+
+  vp::trace *get_trace() { return &this->trace; }
 
 private:
 

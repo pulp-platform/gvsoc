@@ -48,6 +48,8 @@ namespace vp {
 
     clock_event *event_new(clock_event_meth_t *meth);
 
+    clock_event *event_new(void *_this, clock_event_meth_t *meth);
+
     inline clock_event *event_new(clock_event_meth_t *meth, void *arg)
     {
       clock_event *event = event_new(meth);

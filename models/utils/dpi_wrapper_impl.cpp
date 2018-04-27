@@ -25,6 +25,7 @@
 #include "dpi/tb_driver.h"
 #include "vp/itf/qspim.hpp"
 #include "vp/itf/jtag.hpp"
+#include "vp/itf/uart.hpp"
 #include <vector>
 #include <thread>
 #include <unistd.h>
@@ -36,6 +37,7 @@ static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 static vector<vp::qspim_slave *> qspim_slaves;
 static vector<vp::jtag_master *> jtag_masters;
+static vector<void *> uart_handles;
 
 class dpi_wrapper : public vp::component
 {
@@ -51,12 +53,14 @@ public:
   int wait_ps(int64_t t);
   void wait_event();
   void raise_event();
+  vp::trace *get_trace() { return &trace; }
 
 private:
 
   void task_thread_routine(void *arg1, void *arg2);
   static void wait_handler(void *__this, vp::clock_event *event);
   static void jtag_sync(void *__this, int tdo, int id);
+  static void uart_sync(void *__this, int data, int id);
 
   vp::trace     trace;
 
@@ -155,6 +159,12 @@ void dpi_wrapper::jtag_sync(void *__this, int tdo, int id)
   itf->tdo = tdo;
 }
 
+void dpi_wrapper::uart_sync(void *__this, int data, int id)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  dpi_uart_edge(uart_handles[id], _this->get_clock()->get_time(), data);
+}
+
 void dpi_wrapper::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -173,7 +183,7 @@ void dpi_wrapper::build()
     const char *comp_type = dpi_config_get_str(dpi_config_get_config(comp_config, "type"));
     int nb_itf = dpi_driver_get_comp_nb_itf(comp_config, i);
 
-    //printf("Found TB driver component (index: %d, name: %s, type: %s)\n", i, comp_name, comp_type);
+    //printf("Found TB driver component (index: %d, name: %s, type: %s, nb_itf: %d)\n", i, comp_name, comp_type, nb_itf);
 
     if (strcmp(comp_type, "dpi") == 0)
     {
@@ -210,6 +220,14 @@ void dpi_wrapper::build()
           dpi_jtag_bind(dpi_model, itf_name, jtag_masters.size()-1);
 
         }
+        else if (strcmp(itf_type, "UART") == 0)
+        {
+          vp::uart_slave *itf = new vp::uart_slave();
+          itf->set_sync_meth_muxed(&dpi_wrapper::uart_sync, itf_id);
+          new_slave_port(itf_name + std::to_string(itf_id), itf);
+          void *handle = dpi_uart_bind(dpi_model, itf_name, uart_handles.size());
+          uart_handles.push_back(handle);
+        }
         else if (strcmp(itf_type, "CTRL") == 0)
         {
 //            i_comp.ctrl_bind(itf_name, ctrl_infos[itf_id].itf);
@@ -240,8 +258,13 @@ extern "C" void dpi_jtag_tck_edge(void *handle, int tck, int tdi, int tms, int t
 
 extern "C" void dpi_print(void *data, const char *msg)
 {
-  fwrite(msg, 1, strlen(msg), stdout);
-  printf("\n");
+  dpi_wrapper *_this = (dpi_wrapper *)data;
+  int len = strlen(msg);
+  char buff[len + 2];
+  strcpy(buff, msg);
+  buff[len] = '\n';
+  buff[len + 1] = 0;
+  _this->get_trace()->msg(buff);
 }
 
 extern "C" void dpi_wait_event(void *handle)

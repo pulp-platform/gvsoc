@@ -21,21 +21,27 @@
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
 #include <vp/itf/qspim.hpp>
+#include <vp/itf/uart.hpp>
 #include <vp/itf/jtag.hpp>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include <vector>
 
 using namespace std;
 
 class Pad_group
 {
+public:
+  Pad_group(std::string name) : name(name) {}
 
+  std::string name;
 };
 
 class Qspim_group : public Pad_group
 {
 public:
+  Qspim_group(std::string name) : Pad_group(name) {}
   vp::qspim_slave slave;
   vp::qspim_master master;
 };
@@ -43,8 +49,17 @@ public:
 class Jtag_group : public Pad_group
 {
 public:
+  Jtag_group(std::string name) : Pad_group(name) {}
   vp::jtag_slave slave;
   vp::jtag_master master;
+};
+
+class Uart_group : public Pad_group
+{
+public:
+  Uart_group(std::string name) : Pad_group(name) {}
+  vp::uart_slave slave;
+  vp::uart_master master;
 };
 
 class padframe : public vp::component
@@ -68,6 +83,9 @@ private:
   static void jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int id);
   static void jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id);
   static void jtag_master_sync(void *__this, int tdo, int id);
+
+  static void uart_chip_sync(void *__this, int data, int id);
+  static void uart_master_sync(void *__this, int data, int id);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -126,6 +144,29 @@ void padframe::jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
 
 
 
+void padframe::uart_chip_sync(void *__this, int data, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Uart_group *group = static_cast<Uart_group *>(_this->groups[id]);
+  if (!group->master.is_bound())
+  {
+    _this->trace.warning("Trying to send UART stream while pad is not connected (interface: %s)\n", group->name.c_str());
+  }
+  else
+  {
+    group->master.sync(data);
+  }
+}
+
+
+
+void padframe::uart_master_sync(void *__this, int data, int id)
+{
+  printf("%s %d\n", __FILE__, __LINE__);
+}
+
+
+
 vp::io_req_status_e padframe::req(void *__this, vp::io_req *req)
 {
   padframe *_this = (padframe *)__this;
@@ -161,7 +202,7 @@ void padframe::build()
 
     if (type == "qspim")
     {
-      Qspim_group *group = new Qspim_group();
+      Qspim_group *group = new Qspim_group(name);
       new_master_port(name + "_pad", &group->master);
       new_slave_port(name, &group->slave);
       group->slave.set_sync_meth_muxed(&padframe::sync, nb_itf);
@@ -172,12 +213,22 @@ void padframe::build()
     }
     else if (type == "jtag")
     {
-      Jtag_group *group = new Jtag_group();
+      Jtag_group *group = new Jtag_group(name);
       new_master_port(name, &group->master);
       new_slave_port(name + "_pad", &group->slave);
       group->master.set_sync_meth_muxed(&padframe::jtag_master_sync, nb_itf);
       group->slave.set_sync_meth_muxed(&padframe::jtag_sync, nb_itf);
       group->slave.set_sync_cycle_meth_muxed(&padframe::jtag_sync_cycle, nb_itf);
+      this->groups.push_back(group);
+      nb_itf++;
+    }
+    else if (type == "uart")
+    {
+      Uart_group *group = new Uart_group(name);
+      new_master_port(name + "_pad", &group->master);
+      new_slave_port(name, &group->slave);
+      group->master.set_sync_meth_muxed(&padframe::uart_master_sync, nb_itf);
+      group->slave.set_sync_meth_muxed(&padframe::uart_chip_sync, nb_itf);
       this->groups.push_back(group);
       nb_itf++;
     }

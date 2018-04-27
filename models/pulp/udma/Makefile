@@ -1,7 +1,8 @@
 ifeq '$(udma/version)' '2'
 IMPLEMENTATIONS += pulp/udma/udma_v2_impl
 COMPONENTS += pulp/udma/udma_v2
-pulp/udma/udma_v2_impl_SRCS = pulp/udma/udma_v2_impl.cpp
+pulp/udma/udma_v2_impl_SRCS += pulp/udma/udma_v2_impl.cpp
+pulp/udma/udma_v2_impl_SRCS += pulp/udma/udma_uart_v1.cpp
 endif
 
 ifeq '$(udma/spim/version)' '2'
