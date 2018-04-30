@@ -76,6 +76,8 @@ public:
   vp::trace     trace;
   vp::trace     decode_trace;
   vp::trace     insn_trace;
+
+  vp::trace     pc_trace_event;
   
 private:
 

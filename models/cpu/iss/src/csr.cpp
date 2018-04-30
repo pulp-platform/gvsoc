@@ -21,6 +21,10 @@
 #include "iss.hpp"
 
 
+#if defined(ISS_HAS_PERF_COUNTERS)
+void check_perf_config_change(iss *iss, unsigned int pcer, unsigned int pcmr);
+#endif
+
 /*
  *   USER CSRS
  */
@@ -814,12 +818,14 @@ static bool umode_read(iss *iss, iss_reg_t *value) {
 
 
 static bool pcer_write(iss *iss, unsigned int prev_val, unsigned int value) {
-  //checkPerfConfigChange(iss, prev_val, iss->sprs[CSR_PCMR]);
+  iss->cpu.csr.pcer = value;
+  check_perf_config_change(iss, prev_val, iss->cpu.csr.pcmr);
   return false;
 }
 
 static bool pcmr_write(iss *iss, unsigned int prev_val, unsigned int value) {
-  //checkPerfConfigChange(iss, iss->sprs[CSR_PCER], prev_val);
+  iss->cpu.csr.pcmr = value;
+  check_perf_config_change(iss, iss->cpu.csr.pcer, prev_val);
   return false;
 }
 
@@ -833,46 +839,105 @@ static bool hwloop_write(iss *iss, int reg, unsigned int value) {
   return false;
 }
 
-#if 0
+#if defined(ISS_HAS_PERF_COUNTERS)
+
+void update_external_pccr(iss *iss, int id, unsigned int pcer, unsigned int pcmr) {
+  unsigned int incr = 0;
+  // Only update if the counter is active as the external signal may report 
+  // a different value whereas the counter must remain the same
+  if ((pcer & CSR_PCER_EVENT_MASK(id)) && (pcmr & CSR_PCMR_ACTIVE))
+  {
+    //sim_read_external_callback(cpu, id - CSR_PCER_NB_INTERNAL_EVENTS, &incr);
+    iss->cpu.csr.pccr[id] += incr;
+  }
+  else {
+    // Just read the value for nothing to reset it
+    //sim_read_external_callback(cpu, id - CSR_PCER_NB_INTERNAL_EVENTS, &incr);
+  }
+  //if (cpu->traceEvent) sim_trace_event_incr(cpu, id, incr);
+}
+
+void check_perf_config_change(iss *iss, unsigned int pcer, unsigned int pcmr)
+{
+  // In case PCER or PCMR is modified, there is a special care about external signals as they
+  // are still counting whatever the event active flag is. Reset them to start again from a
+  // clean state
+  {
+    int i;
+    // Check every external signal separatly
+    for (i=CSR_PCER_NB_INTERNAL_EVENTS; i<CSR_PCER_NB_EVENTS; i++) {
+      // This will update our internal counter in case it is active or just reset it
+      update_external_pccr(iss, i, pcer, pcmr);
+    }
+  }
+}
+
+void flushExternalCounters(iss *iss)
+{
+  int i;
+  for (i=CSR_PCER_NB_INTERNAL_EVENTS; i<CSR_PCER_NB_EVENTS; i++)
+  {
+    update_external_pccr(iss, i, iss->cpu.csr.pcer, iss->cpu.csr.pcmr);
+  }
+}
+
 static bool perfCounters_read(iss *iss, int reg, iss_reg_t *value) {
-  // In case of counters connected to external signals, we need to synchronize
+  // In case of counters connected to external signals, we need to synchronize first
   if (reg >= CSR_PCCR(CSR_PCER_NB_INTERNAL_EVENTS) && reg < CSR_PCCR(CSR_NB_PCCR))
   {
-    updateExternalPcer(iss, reg - CSR_PCCR(0), iss->sprs[CSR_PCER], iss->sprs[CSR_PCMR]);
+    update_external_pccr(iss, reg - CSR_PCCR(0), iss->cpu.csr.pcer, iss->cpu.csr.pcmr);
+    *value = iss->cpu.csr.pccr[reg - CSR_PCCR(0)];
+  }
+  else if (reg == CSR_PCER)
+  {
+    *value = iss->cpu.csr.pcer;
+  }
+  else if (reg == CSR_PCMR)
+  {
+    *value = iss->cpu.csr.pcmr;
+  }
+  else
+  {
+    *value = iss->cpu.csr.pccr[reg - CSR_PCCR(0)];
   }
 
-  *value = iss->sprs[reg];
 
   return false;
 }
 
-static bool perfCounters_write(iss *iss, int reg, unsigned int value) {
-
-  // First write to the register and keep previous value
-  uint32_t prev_val = iss->sprs[reg];
-  iss->sprs[reg] = value;
-
-  if (reg == CSR_PCER) return pcer_write(iss, prev_val, value);
-  else if (reg == CSR_PCMR) return pcmr_write(iss, prev_val, value);
+static bool perfCounters_write(iss *iss, int reg, unsigned int value)
+{
+  if (reg == CSR_PCER)
+  {
+    return pcer_write(iss, iss->cpu.csr.pcer, value);
+  }
+  else if (reg == CSR_PCMR)
+  {
+    return pcmr_write(iss, iss->cpu.csr.pcmr, value);
+  }
   // In case of counters connected to external signals, we need to synchronize the external one
   // with our
   else if (reg >= CSR_PCCR(CSR_PCER_NB_INTERNAL_EVENTS) && reg < CSR_PCCR(CSR_NB_PCCR))
   {
       // This will update out counter, which will be overwritten afterwards by the new value and
       // also set the external counter to 0 which makes sure they are synchroninez
-    updateExternalPcer(iss, reg - CSR_PCCR(0), iss->sprs[CSR_PCER], iss->sprs[CSR_PCMR]);
+    update_external_pccr(iss, reg - CSR_PCCR(0), iss->cpu.csr.pcer, iss->cpu.csr.pcmr);
   }
   else if (reg == CSR_PCCR(CSR_NB_PCCR)) 
   {
     int i;
-    for (i=0; i<CSR_NB_PCCR; i++)
+    for (i=0; i<CSR_PCER_NB_EVENTS; i++)
     {
-      iss->sprs[CSR_PCCR(i)] = value;
+      iss->cpu.csr.pccr[i] = value;
       if (i >= CSR_PCER_NB_INTERNAL_EVENTS)
       {
-        updateExternalPcer(iss, i, 0, 0);
+        update_external_pccr(iss, i, 0, 0);
       }
     }  
+  }
+  else
+  {
+    iss->cpu.csr.pccr[reg - CSR_PCCR(0)] = value;
   }
   return false;
 }
@@ -1023,11 +1088,8 @@ bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value)
 
   }
 
-  #if 0
-
-  if (getOption(iss, __pulp_perf_counters)) {
-    if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_read(iss, reg, value);
-  }
+#if defined(ISS_HAS_PERF_COUNTERS)
+  if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_read(iss, reg, value);
 #endif
 
   if (iss->cpu.pulpv2.hwloop)
@@ -1152,11 +1214,9 @@ bool iss_csr_write(iss *iss, iss_reg_t reg, iss_reg_t value)
 
   }
 
-#if 0
-  if (getOption(iss, __pulp_perf_counters)) {
-    if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_write(iss, reg, value);
-  }
-  #endif
+#if defined(ISS_HAS_PERF_COUNTERS)
+  if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_write(iss, reg, value);
+#endif
 
   if (iss->cpu.pulpv2.hwloop)
   {

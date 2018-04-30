@@ -38,6 +38,12 @@ void iss::exec_instr(void *__this, vp::clock_event *event)
   iss *_this = (iss *)__this;
   _this->trace.msg("Executing instruction\n");
 
+  if (_this->pc_trace_event.get_event_active())
+  {
+    _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr);
+  }
+
+
   int cycles = iss_exec_step_nofetch(_this);
   if (cycles >= 0)
   {
@@ -177,7 +183,6 @@ void iss::halt_sync(void *__this, bool halted)
 
   _this->check_state();
 }
-
 
 
 void iss::check_state()
@@ -414,6 +419,8 @@ void iss::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
   traces.new_trace("decode_trace", &decode_trace, vp::DEBUG);
   traces.new_trace("insn", &insn_trace, vp::TRACE);
+
+  traces.new_trace_event("pc", &pc_trace_event, 32);
 
   data.set_resp_meth(&iss::data_response);
   data.set_grant_meth(&iss::data_grant);

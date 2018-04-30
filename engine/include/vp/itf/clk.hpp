@@ -21,7 +21,8 @@
 #ifndef __VP_ITF_CLK_HPP__
 #define __VP_ITF_CLK_HPP__
 
-#include "vp/vp.hpp"
+#include "vp/vp_data.hpp"
+#include "vp/ports.hpp"
 
 namespace vp {
 

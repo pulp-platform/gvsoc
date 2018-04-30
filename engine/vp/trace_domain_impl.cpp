@@ -23,6 +23,8 @@
 #include <vp/trace/trace_engine.hpp>
 #include <regex.h>
 #include <vector>
+#include <thread>
+#include <string.h>
 
 class trace_domain : public vp::trace_engine
 {
@@ -31,9 +33,9 @@ public:
 
   trace_domain(const char *config);
 
-  void add_paths(int nb_path, const char **paths);
-  void add_path(const char *path);
-  void reg_trace(vp::trace *trace, string path, string name);
+  void add_paths(int events, int nb_path, const char **paths);
+  void add_path(int events, const char *path);
+  void reg_trace(vp::trace *trace, int event, string path, string name);
 
   void build();
 
@@ -47,13 +49,28 @@ public:
 private:
 
   std::vector<regex_t *> path_regex;
+  std::vector<regex_t *> events_path_regex;
+  std::vector<string> events_file;
   int max_path_len = 0;
 };
 
 
 vp::trace_engine::trace_engine(const char *config)
-  : vp::component(config)
+  : vcd_dumper(this), vp::component(config)
 {
+
+  pthread_mutex_init(&mutex, NULL);
+  pthread_cond_init(&cond, NULL);
+
+  for (int i=0; i<TRACE_EVENT_NB_BUFFER; i++)
+  {
+    event_buffers.push_back(new char[TRACE_EVENT_BUFFER_SIZE]);
+  }
+  current_buffer = event_buffers[0];
+  event_buffers.erase(event_buffers.begin());
+  current_buffer_size = 0;
+
+  thread = new std::thread(&trace_engine::vcd_routine, this);
 }
 
 trace_domain::trace_domain(const char *config)
@@ -64,17 +81,26 @@ trace_domain::trace_domain(const char *config)
 
 
 
-void trace_domain::reg_trace(vp::trace *trace, string path, string name)
+void trace_domain::reg_trace(vp::trace *trace, int event, string path, string name)
 {
   int len = path.size() + name.size() + 1;
   if (len > max_path_len) max_path_len = len;
 
   string full_path = path + "/" + name;
-  for (auto& x: path_regex) {
+  int index = 0;
+  for (auto& x: event ? events_path_regex : path_regex) {
     if (regexec(x, full_path.c_str(), 0, NULL, 0) == 0)
     {
-      trace->set_active(true);
+      if (event)
+      {
+        vp::Vcd_trace *vcd_trace = vcd_dumper.get_trace(full_path, this->events_file[index], trace->width);
+        trace->set_event_active(true);
+        trace->vcd_trace = vcd_trace;
+      }
+      else
+        trace->set_active(true);
     }
+    index++;
   }
 }
 
@@ -83,24 +109,37 @@ void trace_domain::build()
   new_service("trace", static_cast<trace_engine *>(this));
 }
 
-void trace_domain::add_path(const char *path)
+void trace_domain::add_path(int events, const char *path)
 {
   regex_t *regex = new regex_t();
-  path_regex.push_back(regex);
+  if (events)
+  {
+    const char *file_path = "all.vcd";
+    char *delim = (char *)::index(path, '@');
+    if (delim)
+    {
+      *delim = 0;
+      file_path = delim + 1;
+    }
+    events_path_regex.push_back(regex);
+    events_file.push_back((char *)file_path);
+  }
+  else
+    path_regex.push_back(regex);
   regcomp(regex, path, 0);
 }
 
-void trace_domain::add_paths(int nb_path, const char **paths)
+void trace_domain::add_paths(int events, int nb_path, const char **paths)
 {
   for (int i=0; i<nb_path; i++)
   {
-    add_path(paths[i]);
+    add_path(events, paths[i]);
   }
 }
 
-extern "C" void vp_trace_add_paths(void *comp, int nb_path, const char **paths)
+extern "C" void vp_trace_add_paths(void *comp, int events, int nb_path, const char **paths)
 {
-  ((trace_domain *)comp)->add_paths(nb_path, paths);
+  ((trace_domain *)comp)->add_paths(events, nb_path, paths);
 }
 
 extern "C" int vp_trace_exchange_max_path_len(void *comp, int max_len)

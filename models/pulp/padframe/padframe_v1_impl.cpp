@@ -52,6 +52,11 @@ public:
   Jtag_group(std::string name) : Pad_group(name) {}
   vp::jtag_slave slave;
   vp::jtag_master master;
+  vp::trace tck_trace;
+  vp::trace tdi_trace;
+  vp::trace tms_trace;
+  vp::trace trst_trace;
+  vp::trace tdo_trace;
 };
 
 class Uart_group : public Pad_group
@@ -60,6 +65,7 @@ public:
   Uart_group(std::string name) : Pad_group(name) {}
   vp::uart_slave slave;
   vp::uart_master master;
+  vp::trace tx_trace;
 };
 
 class padframe : public vp::component
@@ -123,6 +129,12 @@ void padframe::jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int 
 {
   padframe *_this = (padframe *)__this;
   Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
+
+  group->tck_trace.event((uint8_t *)&tck);
+  group->tdi_trace.event((uint8_t *)&tdi);
+  group->tms_trace.event((uint8_t *)&tms);
+  group->trst_trace.event((uint8_t *)&trst);
+
   group->master.sync(tck, tdi, tms, trst);
 }
 
@@ -131,6 +143,9 @@ void padframe::jtag_master_sync(void *__this, int tdo, int id)
 {
   padframe *_this = (padframe *)__this;
   Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
+
+  group->tdo_trace.event((uint8_t *)&tdo);
+
   group->slave.sync(tdo);
 }
 
@@ -139,6 +154,11 @@ void padframe::jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
 {
   padframe *_this = (padframe *)__this;
   Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
+
+  group->tdi_trace.event((uint8_t *)&tdi);
+  group->tms_trace.event((uint8_t *)&tms);
+  group->trst_trace.event((uint8_t *)&trst);
+
   group->master.sync_cycle(tdi, tms, trst);
 }
 
@@ -148,6 +168,7 @@ void padframe::uart_chip_sync(void *__this, int data, int id)
 {
   padframe *_this = (padframe *)__this;
   Uart_group *group = static_cast<Uart_group *>(_this->groups[id]);
+  group->tx_trace.event((uint8_t *)&data);
   if (!group->master.is_bound())
   {
     _this->trace.warning("Trying to send UART stream while pad is not connected (interface: %s)\n", group->name.c_str());
@@ -220,6 +241,11 @@ void padframe::build()
       group->slave.set_sync_meth_muxed(&padframe::jtag_sync, nb_itf);
       group->slave.set_sync_cycle_meth_muxed(&padframe::jtag_sync_cycle, nb_itf);
       this->groups.push_back(group);
+      traces.new_trace_event(name + "/tck", &group->tck_trace, 1);
+      traces.new_trace_event(name + "/tdi", &group->tdi_trace, 1);
+      traces.new_trace_event(name + "/tdo", &group->tdo_trace, 1);
+      traces.new_trace_event(name + "/tms", &group->tms_trace, 1);
+      traces.new_trace_event(name + "/trst", &group->trst_trace, 1);
       nb_itf++;
     }
     else if (type == "uart")
@@ -230,6 +256,7 @@ void padframe::build()
       group->master.set_sync_meth_muxed(&padframe::uart_master_sync, nb_itf);
       group->slave.set_sync_meth_muxed(&padframe::uart_chip_sync, nb_itf);
       this->groups.push_back(group);
+      traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
       nb_itf++;
     }
     else

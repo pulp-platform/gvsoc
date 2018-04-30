@@ -21,7 +21,7 @@
 #ifndef __VP_CLOCK_ENGINE_HPP__
 #define __VP_CLOCK_ENGINE_HPP__
 
-#include "vp/vp.hpp"
+#include "vp/vp_data.hpp"
 #include "vp/component.hpp"
 #include "vp/time/time_engine.hpp"
 
@@ -84,7 +84,7 @@ namespace vp {
 
     inline int64_t get_cycles() { return cycles; }
 
-    inline void stop(int status) { engine->stop(status); }
+    inline void stop_engine(int status) { engine->stop_engine(status); }
 
     int64_t get_period() { return period; }
 

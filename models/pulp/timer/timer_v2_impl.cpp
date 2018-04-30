@@ -310,6 +310,26 @@ vp::io_req_status_e timer::req(void *__this, vp::io_req *req)
 
     case PLP_TIMER_CMP_LO:
       return  _this->handle_compare(0, (uint32_t *)data, size, is_write);
+
+    case PLP_TIMER_RESET_LOW: {
+      uint32_t configuration = _this->config[0] | (1<<PLP_TIMER_RESET_BIT);
+      return  _this->handle_configure(0, (uint32_t *)&configuration, 4, true);
+    }
+
+    case PLP_TIMER_RESET_HIGH: {
+      uint32_t configuration = _this->config[1] | (1<<PLP_TIMER_RESET_BIT);
+      return  _this->handle_configure(1, (uint32_t *)&configuration, 4, true);
+    }
+
+    case PLP_TIMER_START_LOW: {
+      uint32_t configuration = _this->config[0] | (1<<PLP_TIMER_ENABLE_BIT);
+      return  _this->handle_configure(0, (uint32_t *)&configuration, 4, true);
+    }
+
+    case PLP_TIMER_START_HIGH: {
+      uint32_t configuration = _this->config[1] | (1<<PLP_TIMER_ENABLE_BIT);
+      return  _this->handle_configure(1, (uint32_t *)&configuration, 4, true);
+    }
   }
 
   return vp::IO_REQ_OK;

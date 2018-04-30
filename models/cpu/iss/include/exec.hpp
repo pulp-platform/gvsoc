@@ -56,6 +56,18 @@ static inline int iss_exec_step_nofetch(iss_t *iss)
   iss_insn_t *insn = iss->cpu.current_insn;
   iss->cpu.prev_insn = insn;
   iss->cpu.current_insn = iss_exec_insn(iss, insn);
+
+  if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE)
+  {
+    if (iss->cpu.csr.pcer & (1<<CSR_PCER_CYCLES))
+    {
+      iss->cpu.csr.pccr[CSR_PCER_CYCLES] += iss->cpu.state.insn_cycles;
+    }
+
+    if (iss->cpu.csr.pcer & (1<<CSR_PCER_INSTR))
+      iss->cpu.csr.pccr[CSR_PCER_INSTR] += 1;
+  }
+
   return iss->cpu.state.insn_cycles;
 }
 

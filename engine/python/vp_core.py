@@ -141,6 +141,9 @@ class default_implementation_class(object):
         self.implem_start = self.module.vp_start
         self.module.vp_start.argtypes = [ctypes.c_void_p]
 
+        self.implem_stop = self.module.vp_stop
+        self.module.vp_stop.argtypes = [ctypes.c_void_p]
+
         self.implem_run = self.module.vp_run
         self.module.vp_run.argtypes = [ctypes.c_void_p]
         self.module.vp_run.restype = ctypes.c_char_p
@@ -186,6 +189,9 @@ class default_implementation_class(object):
 
     def start(self):
         return self.implem_start(self.instance)
+
+    def stop(self):
+        return self.implem_stop(self.instance)
 
     def run(self):
         return self.implem_run(self.instance).decode('utf-8')
@@ -440,6 +446,9 @@ class component(component_trace):
     def start(self):
         pass
 
+    def stop(self):
+        pass
+
     def pre_start(self):
         pass
 
@@ -491,6 +500,20 @@ class component(component_trace):
 
         if self.impl is not None:
             self.impl.start()
+
+        return 0
+
+    def stop_all(self):
+
+        for build in self.sub_comps:
+            build.stop_all()
+
+        self.trace.msg('Stopping component')
+
+        self.stop()
+
+        if self.impl is not None:
+            self.impl.stop()
 
         return 0
 

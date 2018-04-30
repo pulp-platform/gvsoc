@@ -25,6 +25,16 @@
 #define __STDC_FORMAT_MACROS    // This is needed for some old gcc versions
 #include <inttypes.h>
 
+#if defined(RISCY)
+#define ISS_HAS_PERF_COUNTERS 1
+#if defined(ISS_HAS_PERF_COUNTERS)
+#include "archi/riscv/pcer_v1.h"
+#include "archi/riscv/priv_1_9.h"
+#endif
+#else
+#error Unknown core version
+#endif
+
 #if defined(ISS_WORD_64)
 
 #define ISS_OPCODE_MAX_SIZE 8
@@ -318,6 +328,11 @@ typedef struct iss_csr_s
 {
   iss_reg_t status;
   iss_reg_t epc;
+#if defined(ISS_HAS_PERF_COUNTERS)
+  iss_reg_t pccr[CSR_PCER_NB_EVENTS];
+  iss_reg_t pcer;
+  iss_reg_t pcmr;
+#endif
 } iss_csr_t;
 
 

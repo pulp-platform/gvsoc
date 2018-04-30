@@ -21,7 +21,7 @@
 #ifndef __VP_COMPONENT_HPP__
 #define __VP_COMPONENT_HPP__
 
-#include "vp/vp.hpp"
+#include "vp/vp_data.hpp"
 #include <map>
 #include <list>
 #include <string>

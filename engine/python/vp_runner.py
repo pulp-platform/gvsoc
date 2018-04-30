@@ -87,6 +87,8 @@ class Runner(Platform):
 
         status = time_engine.run()
 
+        trace_engine.stop_all()
+
         if status == 'killed':
           print ('The top engine was not responding and was killed')
           return -1

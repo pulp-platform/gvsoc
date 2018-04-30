@@ -23,10 +23,15 @@
 
 #define VP_TRACE_ACTIVE 1
 
-#include "vp/vp.hpp"
+#include "vp/vp_data.hpp"
+#include "vp/trace/vcd_dumper.hpp"
 #include <stdarg.h>
 
 namespace vp {
+
+  #define BUFFER_SIZE (1<<16)
+
+  class trace_engine;
 
   class trace
   {
@@ -39,22 +44,40 @@ namespace vp {
     inline void user_msg(const char *fmt, ...);
     inline void warning(const char *fmt, ...);
 
+    inline void event(uint8_t *value);
+    inline void event_string(uint8_t *value, int size);
+
     void dump_header();
     void dump_warning_header();
 
     void set_active(bool active) { is_active = active; }
+    void set_event_active(bool active) { is_event_active = active; }
 
     bool get_active() { return is_active; }
+    bool get_event_active() { return is_event_active; }
+
+    int width;
+    int bytes;
+    Vcd_trace *vcd_trace = NULL;
 
   protected:
     int level;
     component *comp;
+    trace_engine *trace_manager;
     FILE *trace_file;
     bool is_active = false;
+    bool is_event_active = false;
     string name;
+    uint8_t *buffer = NULL;
+    int buffer_index = 0;
+
+  private:
+    void get_event_buffer();
+
   };    
 
-  inline void vp::trace::msg(const char *fmt, ...) {
+  inline void vp::trace::msg(const char *fmt, ...) 
+  {
   #ifdef VP_TRACE_ACTIVE
     if (is_active)
     {
@@ -64,41 +87,11 @@ namespace vp {
       if (vfprintf(stdout, fmt, ap) < 0) {}
       va_end(ap);  
     }
-  #else
   #endif
   }
 
 
-  inline void vp::trace::user_msg(const char *fmt, ...) {
-    #if 0
-    fprintf(trace_file, "%ld: %ld: [\033[34m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, comp->get_path());
-    va_list ap;
-    va_start(ap, fmt);
-    if (vfprintf(trace_file, format, ap) < 0) {}
-    va_end(ap);  
-    #endif
-  }
-
-  inline void vp::trace::warning(const char *fmt, ...) {
-  #ifdef VP_TRACE_ACTIVE
-    dump_warning_header();
-    va_list ap;
-    va_start(ap, fmt);
-    if (vfprintf(stdout, fmt, ap) < 0) {}
-    va_end(ap);
-  #else
-  #endif
-    #if 0
-    printf("%ld: %ld: [\033[31m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, comp->get_path());
-    va_list ap;
-    va_start(ap, fmt);
-    if (vprintf(format, ap) < 0) {}
-    va_end(ap);  
-    comp->get_clock()->stop(vp::CLOCK_ENGINE_WARNING);
-    #endif
-  }
-
-
+  void fatal(const char *fmt, ...) ;
 
 
 };

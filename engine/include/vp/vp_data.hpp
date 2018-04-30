@@ -19,12 +19,11 @@
  */
 
 
-#ifndef __VP_VP_HPP__
-#define __VP_VP_HPP__
+#ifndef __VP_VP_DATA_HPP__
+#define __VP_VP_DATA_HPP__
 
-#include "vp/vp_data.hpp"
-#include "vp/implementation.hpp"
-#include "vp/trace/implementation.hpp"
-#include "vp/clock/implementation.hpp"
+#include "vp/component.hpp"
+#include "vp/clock/clock_event.hpp"
+#include "vp/clock/clock_engine.hpp"
 
 #endif

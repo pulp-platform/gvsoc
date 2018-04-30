@@ -46,6 +46,7 @@ namespace cm {
     virtual void post_post_build() {}
     virtual void pre_start() {}
     virtual void start() {}
+    virtual void stop() {}
     virtual string run() { return "error"; }
     virtual int run_status() { return 0; }
 

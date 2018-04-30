@@ -80,7 +80,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       
       if ((_this->core_status >> APB_SOC_STATUS_EOC_BIT) & 1) 
       {
-        _this->clock->stop(_this->core_status & 0x7fffffff);
+        _this->clock->stop_engine(_this->core_status & 0x7fffffff);
       }
     }
   }

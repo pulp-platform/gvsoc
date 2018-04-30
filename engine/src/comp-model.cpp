@@ -336,6 +336,11 @@ extern "C" void vp_start(void *comp)
   ((cm::component *)comp)->start();
 }
 
+extern "C" void vp_stop(void *comp)
+{
+  ((cm::component *)comp)->stop();
+}
+
 extern "C" const char *vp_run(void *comp)
 {
   return ((cm::component *)comp)->run().c_str();

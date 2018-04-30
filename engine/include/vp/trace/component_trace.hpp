@@ -50,11 +50,16 @@ namespace vp {
 
     void new_trace(std::string name, trace *trace, trace_level_e level);
 
+    void new_trace_event(std::string name, trace *trace, int width);
+
+    void new_trace_event_string(std::string name, trace *trace);
+
     trace_engine *get_trace_manager() { return trace_manager; }
 
   protected:
 
     std::map<std::string, trace *> traces;
+    std::map<std::string, trace *> trace_events;
     trace_engine *trace_manager = NULL;
 
   private:

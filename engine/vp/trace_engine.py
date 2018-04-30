@@ -37,6 +37,18 @@ class component(vp.component):
             path = '/'
         print ('0: 0: [' + vp.bcolors.OKBLUE + path.ljust(self.max_path_len, ' ') + vp.bcolors.ENDC + '] ' + str)
 
+    def reg_traces(self, traces, event):
+
+        if event == 0:
+          for trace in traces:
+            self.traces.append(re.compile(trace))
+
+        implem_traces = (ctypes.c_char_p * len(traces))()
+        for i in range(0, len(traces)):
+          implem_traces[i] = traces[i].encode('utf-8')
+        self.impl.module.vp_trace_add_paths(self.impl.instance, event, len(traces), implem_traces)
+
+
     def build(self):
         self.new_service('trace')
         self.new_port('out')
@@ -44,15 +56,8 @@ class component(vp.component):
 
         config = self.get_config()
         if config is not None:
-          traces = config.get('trace')
-
-          for trace in traces:
-            self.traces.append(re.compile(trace))
-
-          implem_traces = (ctypes.c_char_p * len(traces))()
-          for i in range(0, len(traces)):
-            implem_traces[i] = traces[i].encode('utf-8')
-          self.impl.module.vp_trace_add_paths(self.impl.instance, len(traces), implem_traces)
+          self.reg_traces(config.get('trace'), 0)
+          self.reg_traces(config.get('event'), 1)
 
     def pre_start(self):
         length = self.impl.module.vp_trace_exchange_max_path_len(self.impl.instance, self.max_path_len)

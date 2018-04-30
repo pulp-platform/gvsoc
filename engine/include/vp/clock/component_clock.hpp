@@ -32,6 +32,7 @@ namespace vp {
   class config;
 
   class clock_engine;
+  class time_engine;
 
   class component_clock
   {
@@ -68,6 +69,8 @@ namespace vp {
     void pre_build(component *comp);
 
     inline int64_t get_period();
+
+    inline time_engine *get_engine();
 
   protected:
     clock_engine *clock;

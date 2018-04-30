@@ -21,7 +21,7 @@
 #ifndef __VP_TIME_ENGINE_HPP__
 #define __VP_TIME_ENGINE_HPP__
 
-#include "vp/vp.hpp"
+#include "vp/vp_data.hpp"
 #include "vp/component.hpp"
 
 
@@ -45,9 +45,9 @@ namespace vp {
 
     inline void unlock();
 
-    inline void stop();
+    inline void stop_engine();
 
-    inline void stop(int status);
+    inline void stop_engine(int status);
 
     void enqueue(time_engine_client *client, int64_t time);
 
@@ -56,6 +56,8 @@ namespace vp {
     inline void retain() { retain_count++; }
     inline void release() { retain_count--; }
 
+    inline void fatal(const char *fmt, ...);
+    
   private:
     time_engine_client *first_client = NULL;
     bool locked = false;
@@ -108,7 +110,7 @@ namespace vp {
 
   // This can be called from anywhere so just propagate the stop request
   // to the main python thread which will take care of stopping the engine.
-  inline void vp::time_engine::stop()
+  inline void vp::time_engine::stop_engine()
   {
     pthread_mutex_lock(&mutex);
     stop_req = true;
@@ -116,10 +118,10 @@ namespace vp {
     pthread_mutex_unlock(&mutex);
   }
 
-  inline void vp::time_engine::stop(int status)
+  inline void vp::time_engine::stop_engine(int status)
   {
     stop_status = status;
-    stop();
+    stop_engine();
   }
 
   inline void vp::time_engine::lock()
@@ -140,6 +142,16 @@ namespace vp {
     locked = false;
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&mutex);
+  }
+
+  inline void vp::time_engine::fatal(const char *fmt, ...)
+  {
+    fprintf(stdout, "[\033[31mFATAL\033[0m] ");
+    va_list ap;
+    va_start(ap, fmt);
+    if (vfprintf(stdout, fmt, ap) < 0) {}
+    va_end(ap);
+    stop_engine(-1);
   }
 
 

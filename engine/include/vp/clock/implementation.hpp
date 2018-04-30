@@ -24,6 +24,8 @@
 #include "vp/component.hpp"
 #include "vp/itf/clk.hpp"
 #include "vp/clock/clock_event.hpp"
+#include "vp/clock/component_clock.hpp"
+#include "vp/clock/clock_engine.hpp"
 
 using namespace std;
 
@@ -67,6 +69,11 @@ inline void vp::component_clock::event_del(vp::clock_event *event)
 inline vp::clock_engine *vp::component_clock::get_clock()
 {
   return clock;
+}
+
+inline vp::time_engine *vp::component_clock::get_engine()
+{
+  return get_clock()->get_engine();
 }
 
 

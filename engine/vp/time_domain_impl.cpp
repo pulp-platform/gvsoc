@@ -60,7 +60,7 @@ static void *signal_routine(void *arg) {
   sigaddset(&sigs_to_catch, SIGINT);
   do {
     sigwait(&sigs_to_catch, &caught);
-    engine->stop();
+    engine->stop_engine();
   } while (1);
   return NULL;
 }

@@ -21,20 +21,45 @@
 #ifndef __VP_TRACE_ENGINE_HPP__
 #define __VP_TRACE_ENGINE_HPP__
 
-#include "vp/vp.hpp"
+#include "vp/vp_data.hpp"
 #include "vp/component.hpp"
 #include "vp/trace/trace.hpp"
+#include <pthread.h>
+#include <thread>
 
 namespace vp {
+
+  #define TRACE_EVENT_BUFFER_SIZE (1<<10)
+  #define TRACE_EVENT_NB_BUFFER   4
 
   class trace_engine : public component
   {
   public:
     trace_engine(const char *config);
 
-    virtual void reg_trace(trace *trace, string path, string name) = 0;
+    void stop();
+
+    virtual void reg_trace(trace *trace, int event, string path, string name) = 0;
 
     virtual int get_max_path_len() = 0;
+
+    void dump_event(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
+
+    Vcd_dumper vcd_dumper;
+
+  private:
+    char *get_event_buffer(int bytes);
+    void vcd_routine();
+    void flush();
+
+    vector<char *> event_buffers;
+    vector<char *> ready_event_buffers;
+    char *current_buffer;
+    int current_buffer_size;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    int end = 0;
+    std::thread *thread;
 
   };
 

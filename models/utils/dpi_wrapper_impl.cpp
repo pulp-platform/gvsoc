@@ -30,14 +30,19 @@
 #include <thread>
 #include <unistd.h>
 
+typedef struct {
+  void *handle;
+  vp::trace tx_trace;
+} uart_handle_t;
+
 static thread_local vp::clock_event *wait_evt;
 static thread_local bool is_waiting = false;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t dpi_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 static vector<vp::qspim_slave *> qspim_slaves;
 static vector<vp::jtag_master *> jtag_masters;
-static vector<void *> uart_handles;
+static vector<uart_handle_t *> uart_handles;
 
 class dpi_wrapper : public vp::component
 {
@@ -79,10 +84,10 @@ dpi_wrapper::dpi_wrapper(const char *config)
 void dpi_wrapper::wait_handler(void *__this, vp::clock_event *event)
 {
   dpi_wrapper *_this = (dpi_wrapper *)__this;
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&dpi_mutex);
   *(bool *)(event->get_args()[0]) = false;
   pthread_cond_broadcast(&cond);
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(&dpi_mutex);
 }
 
 void dpi_wrapper::task_thread_routine(void *arg1, void *arg2)
@@ -103,10 +108,10 @@ int dpi_wrapper::wait(int64_t t)
   is_waiting = true;
   get_clock()->get_engine()->unlock();
 
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&dpi_mutex);
   while(is_waiting)
-    pthread_cond_wait(&cond, &mutex);
-  pthread_mutex_unlock(&mutex);
+    pthread_cond_wait(&cond, &dpi_mutex);
+  pthread_mutex_unlock(&dpi_mutex);
 
   get_clock()->get_engine()->lock();
   return 0;
@@ -120,10 +125,10 @@ int dpi_wrapper::wait_ps(int64_t t)
   is_waiting = true;
   get_clock()->get_engine()->unlock();
 
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&dpi_mutex);
   while(is_waiting)
-    pthread_cond_wait(&cond, &mutex);
-  pthread_mutex_unlock(&mutex);
+    pthread_cond_wait(&cond, &dpi_mutex);
+  pthread_mutex_unlock(&dpi_mutex);
 
   get_clock()->get_engine()->lock();
   return 0;
@@ -132,20 +137,20 @@ int dpi_wrapper::wait_ps(int64_t t)
 void dpi_wrapper::wait_event()
 {
   get_clock()->get_engine()->unlock();
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&dpi_mutex);
   while(!event_raised)
-    pthread_cond_wait(&cond, &mutex);
+    pthread_cond_wait(&cond, &dpi_mutex);
   event_raised = false;
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(&dpi_mutex);
   get_clock()->get_engine()->lock();
 }
 
 void dpi_wrapper::raise_event()
 {
-  pthread_mutex_lock(&mutex);
+  pthread_mutex_lock(&dpi_mutex);
   event_raised = true;
   pthread_cond_broadcast(&cond);
-  pthread_mutex_unlock(&mutex);
+  pthread_mutex_unlock(&dpi_mutex);
 }
 
 void dpi_wrapper::create_task(void *arg1, void *arg2)
@@ -162,7 +167,8 @@ void dpi_wrapper::jtag_sync(void *__this, int tdo, int id)
 void dpi_wrapper::uart_sync(void *__this, int data, int id)
 {
   dpi_wrapper *_this = (dpi_wrapper *)__this;
-  dpi_uart_edge(uart_handles[id], _this->get_clock()->get_time(), data);
+  uart_handles[id]->tx_trace.event((uint8_t *)&data);
+  dpi_uart_edge(uart_handles[id]->handle, _this->get_clock()->get_time(), data);
 }
 
 void dpi_wrapper::build()
@@ -225,8 +231,11 @@ void dpi_wrapper::build()
           vp::uart_slave *itf = new vp::uart_slave();
           itf->set_sync_meth_muxed(&dpi_wrapper::uart_sync, itf_id);
           new_slave_port(itf_name + std::to_string(itf_id), itf);
-          void *handle = dpi_uart_bind(dpi_model, itf_name, uart_handles.size());
+          uart_handle_t *handle = new uart_handle_t;
+          handle->handle = dpi_uart_bind(dpi_model, itf_name, uart_handles.size());
           uart_handles.push_back(handle);
+          traces.new_trace_event(itf_name + std::to_string(itf_id) + "/tx", &handle->tx_trace, 1);
+
         }
         else if (strcmp(itf_type, "CTRL") == 0)
         {
