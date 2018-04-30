@@ -45,6 +45,12 @@ void Uart_periph_v1::reset()
   Udma_periph::reset();
   this->set_setup_reg(0);
   this->rx_pe = 0;
+  this->tx = 0;
+  this->rx = 0;
+  this->clkdiv = 0;
+  this->parity = 0;
+  this->stop_bits = 1;
+  this->bit_length = 5;
 }
 
 
@@ -243,6 +249,7 @@ void Uart_tx_channel::reset()
   this->state = UART_TX_STATE_START;
   this->next_bit_cycle = -1;
   this->sent_bits = 0;
+  this->pending_bits = 0;
 }
 
 

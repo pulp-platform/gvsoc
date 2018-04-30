@@ -887,6 +887,7 @@ static bool perfCounters_read(iss *iss, int reg, iss_reg_t *value) {
   {
     update_external_pccr(iss, reg - CSR_PCCR(0), iss->cpu.csr.pcer, iss->cpu.csr.pcmr);
     *value = iss->cpu.csr.pccr[reg - CSR_PCCR(0)];
+    iss->perf_counter_trace.msg("Reading PCCR (index: %d, value: 0x%x)\n", reg - CSR_PCCR(0), *value);
   }
   else if (reg == CSR_PCER)
   {
@@ -899,6 +900,7 @@ static bool perfCounters_read(iss *iss, int reg, iss_reg_t *value) {
   else
   {
     *value = iss->cpu.csr.pccr[reg - CSR_PCCR(0)];
+    iss->perf_counter_trace.msg("Reading PCCR (index: %d, value: 0x%x)\n", reg - CSR_PCCR(0), *value);
   }
 
 
@@ -909,10 +911,12 @@ static bool perfCounters_write(iss *iss, int reg, unsigned int value)
 {
   if (reg == CSR_PCER)
   {
+    iss->perf_counter_trace.msg("Setting PCER (value: 0x%x)\n", value);
     return pcer_write(iss, iss->cpu.csr.pcer, value);
   }
   else if (reg == CSR_PCMR)
   {
+    iss->perf_counter_trace.msg("Setting PCMR (value: 0x%x)\n", value);
     return pcmr_write(iss, iss->cpu.csr.pcmr, value);
   }
   // In case of counters connected to external signals, we need to synchronize the external one
@@ -925,6 +929,8 @@ static bool perfCounters_write(iss *iss, int reg, unsigned int value)
   }
   else if (reg == CSR_PCCR(CSR_NB_PCCR)) 
   {
+    iss->perf_counter_trace.msg("Setting value to all PCCR (value: 0x%x)\n", value);
+
     int i;
     for (i=0; i<CSR_PCER_NB_EVENTS; i++)
     {
@@ -937,6 +943,7 @@ static bool perfCounters_write(iss *iss, int reg, unsigned int value)
   }
   else
   {
+    iss->perf_counter_trace.msg("Setting PCCR value (pccr: %d, value: 0x%x)\n", reg - CSR_PCCR(0), value);
     iss->cpu.csr.pccr[reg - CSR_PCCR(0)] = value;
   }
   return false;
@@ -957,6 +964,10 @@ static bool checkCsrAccess(iss *iss, int reg, bool isWrite) {
 
 bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value)
 {
+  bool status;
+
+  iss->csr_trace.msg("Reading CSR (reg: 0x%x)\n", reg);
+
   #if 0
   // First check permissions
   if (checkCsrAccess(iss, reg, 0)) return true;
@@ -977,65 +988,65 @@ bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value)
   switch (reg) {
 
     // User trap setup
-    case 0x000: return ustatus_read   (iss, value);
-    case 0x004: return uie_read       (iss, value);
-    case 0x005: return utvec_read     (iss, value);
+    case 0x000: status = ustatus_read   (iss, value); break;
+    case 0x004: status = uie_read       (iss, value); break;
+    case 0x005: status = utvec_read     (iss, value); break;
 
     // User trap handling
-    case 0x040: return uscratch_read  (iss, value);
-    case 0x041: return uepc_read      (iss, value);
-    case 0x042: return ucause_read    (iss, value);
-    case 0x043: return ubadaddr_read  (iss, value);
-    case 0x044: return uip_read       (iss, value);
+    case 0x040: status = uscratch_read  (iss, value); break;
+    case 0x041: status = uepc_read      (iss, value); break;
+    case 0x042: status = ucause_read    (iss, value); break;
+    case 0x043: status = ubadaddr_read  (iss, value); break;
+    case 0x044: status = uip_read       (iss, value); break;
 
     // User floating-point CSRs
-    case 0x001: return fflags_read    (iss, value);
-    case 0x002: return frm_read       (iss, value);
-    case 0x003: return fcsr_read      (iss, value);
+    case 0x001: status = fflags_read    (iss, value); break;
+    case 0x002: status = frm_read       (iss, value); break;
+    case 0x003: status = fcsr_read      (iss, value); break;
 
     // User counter / timers
-    case 0xC00: return cycle_read     (iss, value);
-    case 0xC01: return time_read      (iss, value);
-    case 0xC02: return instret_read   (iss, value);
-    case 0xC80: return cycleh_read    (iss, value);
-    case 0xC81: return timeh_read     (iss, value);
-    case 0xC82: return instreth_read  (iss, value);
+    case 0xC00: status = cycle_read     (iss, value); break;
+    case 0xC01: status = time_read      (iss, value); break;
+    case 0xC02: status = instret_read   (iss, value); break;
+    case 0xC80: status = cycleh_read    (iss, value); break;
+    case 0xC81: status = timeh_read     (iss, value); break;
+    case 0xC82: status = instreth_read  (iss, value); break;
 
 
 
 
     // Supervisor trap setup
-    case 0x100: return sstatus_read   (iss, value);
-    case 0x102: return sedeleg_read   (iss, value);
-    case 0x103: return sideleg_read   (iss, value);
-    case 0x104: return sie_read       (iss, value);
-    case 0x105: return stvec_read     (iss, value);
+    case 0x100: status = sstatus_read   (iss, value); break;
+    case 0x102: status = sedeleg_read   (iss, value); break;
+    case 0x103: status = sideleg_read   (iss, value); break;
+    case 0x104: status = sie_read       (iss, value); break;
+    case 0x105: status = stvec_read     (iss, value); break;
 
     // Supervisor trap handling
-    case 0x140: return sscratch_read  (iss, value);
-    case 0x141: return sepc_read      (iss, value);
-    case 0x142: return scause_read    (iss, value);
-    case 0x143: return sbadaddr_read  (iss, value);
-    case 0x144: return sip_read       (iss, value);
+    case 0x140: status = sscratch_read  (iss, value); break;
+    case 0x141: status = sepc_read      (iss, value); break;
+    case 0x142: status = scause_read    (iss, value); break;
+    case 0x143: status = sbadaddr_read  (iss, value); break;
+    case 0x144: status = sip_read       (iss, value); break;
 
     // Supervisor protection and translation
-    case 0x180: return sptbr_read     (iss, value);
+    case 0x180: status = sptbr_read     (iss, value); break;
 
 
 
 
     // Hypervisor trap setup
-    case 0x200: return hstatus_read   (iss, value);
-    case 0x202: return hedeleg_read   (iss, value);
-    case 0x203: return hideleg_read   (iss, value);
-    case 0x204: return hie_read       (iss, value);
-    case 0x205: return htvec_read     (iss, value);
+    case 0x200: status = hstatus_read   (iss, value); break;
+    case 0x202: status = hedeleg_read   (iss, value); break;
+    case 0x203: status = hideleg_read   (iss, value); break;
+    case 0x204: status = hie_read       (iss, value); break;
+    case 0x205: status = htvec_read     (iss, value); break;
 
     // Hypervisor trap handling
-    case 0x240: return hscratch_read  (iss, value);
-    case 0x241: return hepc_read      (iss, value);
-    case 0x242: return hcause_read    (iss, value);
-    case 0x243: return hbadaddr_read  (iss, value);
+    case 0x240: status = hscratch_read  (iss, value); break;
+    case 0x241: status = hepc_read      (iss, value); break;
+    case 0x242: status = hcause_read    (iss, value); break;
+    case 0x243: status = hbadaddr_read  (iss, value); break;
 
     // Hypervisor protection and translation
 
@@ -1043,70 +1054,84 @@ bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value)
 
 
     // Machine information registers
-    case 0xF11: return mvendorid_read  (iss, value);
-    case 0xF12: return marchid_read    (iss, value);
-    case 0xF13: return mimpid_read     (iss, value);
-    case 0xF14: return mhartid_read    (iss, value);
+    case 0xF11: status = mvendorid_read  (iss, value); break;
+    case 0xF12: status = marchid_read    (iss, value); break;
+    case 0xF13: status = mimpid_read     (iss, value); break;
+    case 0xF14: status = mhartid_read    (iss, value); break;
 
     // Machine trap setup
-    case 0x300: return mstatus_read    (iss, value);
-    case 0x301: return misa_read       (iss, value);
-    case 0x302: return medeleg_read    (iss, value);
-    case 0x303: return mideleg_read    (iss, value);
-    case 0x304: return mie_read        (iss, value);
-    case 0x305: return mtvec_read      (iss, value);
+    case 0x300: status = mstatus_read    (iss, value); break;
+    case 0x301: status = misa_read       (iss, value); break;
+    case 0x302: status = medeleg_read    (iss, value); break;
+    case 0x303: status = mideleg_read    (iss, value); break;
+    case 0x304: status = mie_read        (iss, value); break;
+    case 0x305: status = mtvec_read      (iss, value); break;
 
     // Machine trap handling
-    case 0x340: return mscratch_read   (iss, value);
-    case 0x341: return mepc_read       (iss, value);
-    case 0x342: return mcause_read     (iss, value);
-    case 0x343: return mbadaddr_read   (iss, value);
-    case 0x344: return mip_read        (iss, value);
+    case 0x340: status = mscratch_read   (iss, value); break;
+    case 0x341: status = mepc_read       (iss, value); break;
+    case 0x342: status = mcause_read     (iss, value); break;
+    case 0x343: status = mbadaddr_read   (iss, value); break;
+    case 0x344: status = mip_read        (iss, value); break;
 
     // Machine protection and translation
-    case 0x380: return mbase_read      (iss, value);
-    case 0x381: return mbound_read     (iss, value);
-    case 0x382: return mibase_read     (iss, value);
-    case 0x383: return mibound_read    (iss, value);
-    case 0x384: return mdbase_read     (iss, value);
-    case 0x385: return mdbound_read    (iss, value);
+    case 0x380: status = mbase_read      (iss, value); break;
+    case 0x381: status = mbound_read     (iss, value); break;
+    case 0x382: status = mibase_read     (iss, value); break;
+    case 0x383: status = mibound_read    (iss, value); break;
+    case 0x384: status = mdbase_read     (iss, value); break;
+    case 0x385: status = mdbound_read    (iss, value); break;
 
     // Machine timers and counters
-    case 0xB00: return mcycle_read     (iss, value);
-    case 0xB02: return minstret_read   (iss, value);
-    case 0xB80: return mcycleh_read    (iss, value);
-    case 0xB82: return minstreth_read  (iss, value);
+    case 0xB00: status = mcycle_read     (iss, value); break;
+    case 0xB02: status = minstret_read   (iss, value); break;
+    case 0xB80: status = mcycleh_read    (iss, value); break;
+    case 0xB82: status = minstreth_read  (iss, value); break;
 
     // Machine counter setup
-    case 0x320: return mucounteren_read(iss, value);
-    case 0x321: return mscounteren_read(iss, value);
-    case 0x322: return mhcounteren_read(iss, value);
+    case 0x320: status = mucounteren_read(iss, value); break;
+    case 0x321: status = mscounteren_read(iss, value); break;
+    case 0x322: status = mhcounteren_read(iss, value); break;
 
     // PULP extensions
-    case 0xC10: return umode_read(iss, value);
-    case 0x014: return mhartid_read(iss, value);
+    case 0xC10: status = umode_read(iss, value); break;
+    case 0x014: status = mhartid_read(iss, value); break;
 
-  }
+    default:
 
 #if defined(ISS_HAS_PERF_COUNTERS)
-  if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_read(iss, reg, value);
+    if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR)
+    {
+      status = perfCounters_read(iss, reg, value);
+    }
 #endif
 
-  if (iss->cpu.pulpv2.hwloop)
-  {
-    if (reg >= 0x7B0 && reg <= 0x7B6) return hwloop_read(iss, reg - 0x7B0, value);
+    else if (iss->cpu.pulpv2.hwloop)
+    {
+      if (reg >= 0x7B0 && reg <= 0x7B6)
+      {
+        status = hwloop_read(iss, reg - 0x7B0, value);
+      }
+    }
+
+    else
+    {
+#if 0
+      triggerException_cause(iss, iss->currentPc, EXCEPTION_ILLEGAL_INSTR, ECAUSE_ILL_INSTR);
+#endif
+      return true;
+    }
   }
 
-  #if 0
+  iss->csr_trace.msg("Read CSR (reg: 0x%x, value: 0x%x)\n", reg, value);
 
-  triggerException_cause(iss, iss->currentPc, EXCEPTION_ILLEGAL_INSTR, ECAUSE_ILL_INSTR);
-#endif
-
-  return true;
+  return status;
 }
 
 bool iss_csr_write(iss *iss, iss_reg_t reg, iss_reg_t value)
 {
+  iss->csr_trace.msg("Writing CSR (reg: 0x%x, value: 0x%x)\n", reg, value);
+
 #if 0
   // First check permissions
   if (checkCsrAccess(iss, reg, 0)) return true;

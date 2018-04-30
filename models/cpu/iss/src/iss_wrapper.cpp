@@ -419,6 +419,8 @@ void iss::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
   traces.new_trace("decode_trace", &decode_trace, vp::DEBUG);
   traces.new_trace("insn", &insn_trace, vp::TRACE);
+  traces.new_trace("csr", &csr_trace, vp::TRACE);
+  traces.new_trace("perf", &perf_counter_trace, vp::TRACE);
 
   traces.new_trace_event("pc", &pc_trace_event, 32);
 
