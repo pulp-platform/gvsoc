@@ -31,11 +31,18 @@ include $(VP_MAKEFILE_LIST)
 
 define declare_implementation
 
--include $(VP_BUILD_DIR)/$(1).d
+$(eval $(1)_OBJS = $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/%.o, $($(1)_SRCS)))
 
-$(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT): $($(1)_SRCS) $($(1)_DEPS)
+-include $($(1)_OBJS:.o=.d)
+
+$(VP_BUILD_DIR)/$(1)/%.o: %.cpp $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
-	$(CPP) $($(1)_SRCS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS)
+	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS)
+
+
+$(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT): $($(1)_OBJS) $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CPP) $($(1)_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS)
 
 $(VP_PY_INSTALL_PATH)/$(1)$(VP_COMP_EXT): $(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT)
 	install -D $$^ $$@

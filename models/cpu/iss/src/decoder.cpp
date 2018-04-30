@@ -171,6 +171,9 @@ static int decode_opcode(iss *iss, iss_insn_t *insn, iss_opcode_t opcode)
   return -1;
 }
 
+
+
+
 static iss_insn_t *iss_exec_insn_illegal(iss *iss, iss_insn_t *insn)
 {
   iss->decode_trace.msg("Executing illegal instruction\n");

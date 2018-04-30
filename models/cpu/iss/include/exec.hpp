@@ -50,6 +50,9 @@ static inline iss_insn_t *iss_exec_insn(iss *iss, iss_insn_t *insn)
   return iss_exec_insn_handler(iss, insn, insn->handler);
 }
 
+
+
+
 static inline int iss_exec_step_nofetch(iss_t *iss)
 {
   iss->cpu.state.insn_cycles = 1;
@@ -57,7 +60,7 @@ static inline int iss_exec_step_nofetch(iss_t *iss)
   iss->cpu.prev_insn = insn;
   iss->cpu.current_insn = iss_exec_insn(iss, insn);
 
-  if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE)
+  if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE && iss->cpu.state.insn_cycles >= 0)
   {
     if (iss->cpu.csr.pcer & (1<<CSR_PCER_CYCLES))
     {
