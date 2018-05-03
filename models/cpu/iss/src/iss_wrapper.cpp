@@ -32,43 +32,53 @@
 #define HALT_CAUSE_STEP      15
 
 
+#define EXEC_INSTR_COMMON(_this, event, func) \
+do { \
+  _this->trace.msg("Executing instruction\n"); \
+ \
+  if (_this->pc_trace_event.get_event_active()) \
+  { \
+    _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr); \
+  } \
+ \
+  int cycles = func(_this); \
+  if (cycles >= 0) \
+  { \
+    _this->enqueue_next_instr(cycles); \
+  } \
+  else \
+  { \
+    if (_this->misaligned_access) \
+    { \
+      _this->event_enqueue(_this->misaligned_event, _this->misaligned_latency); \
+    } \
+    else \
+    { \
+      _this->is_active = false; \
+      _this->stalled = true;     \
+    } \
+  } \
+} while(0)
 
 void iss::exec_instr(void *__this, vp::clock_event *event)
 {
   iss *_this = (iss *)__this;
-  _this->trace.msg("Executing instruction\n");
-
-  if (_this->pc_trace_event.get_event_active())
-  {
-    _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr);
-  }
-
-
-  int cycles = iss_exec_step_nofetch(_this);
-  if (cycles >= 0)
-  {
-    _this->enqueue_next_instr(cycles);
-  }
-  else
-  {
-    if (_this->misaligned_access)
-    {
-      _this->event_enqueue(_this->misaligned_event, _this->misaligned_latency);
-    }
-    else
-    {
-      _this->is_active = false;
-      _this->stalled = true;      
-    }
-  }
+  EXEC_INSTR_COMMON(_this, event, iss_exec_step_nofetch);
 }
 
 void iss::exec_instr_check_all(void *__this, vp::clock_event *event)
 {
   iss *_this = (iss *)__this;
-  _this->current_event = _this->instr_event;
+
+  // Switch back to optimize instruction handler only
+  // if HW counters are disabled as they are checked with the slow handler
+  if (!_this->cpu.state.hw_counter_en)
+  {
+    _this->current_event = _this->instr_event;
+  }
+
   iss_irq_check(_this);
-  exec_instr(__this, event);
+  EXEC_INSTR_COMMON(_this, event, iss_exec_step_nofetch_perf);
   if (_this->step_mode)
   {
     _this->do_step = false;
@@ -99,10 +109,12 @@ void iss::data_response(void *__this, vp::io_req *req)
 {
   iss *_this = (iss *)__this;
   _this->stalled = false;
+  _this->wakeup_latency = req->get_latency();
   if (_this->misaligned_access)
     _this->misaligned_access = false;
   else
   {
+    // First call the ISS to finish the instruction
     _this->cpu.state.stall_callback(_this);
     iss_exec_insn_resume(_this);
   }
@@ -199,7 +211,14 @@ void iss::check_state()
       is_active = true;
       if (step_mode)
         do_step = true;
-      enqueue_next_instr(1);
+      enqueue_next_instr(1 + this->wakeup_latency);
+
+      if (this->cpu.csr.pcmr & CSR_PCMR_ACTIVE && this->cpu.csr.pcer & (1<<CSR_PCER_CYCLES))
+      {
+        this->cpu.csr.pccr[CSR_PCER_CYCLES] += 1 + this->wakeup_latency;
+      }
+
+      this->wakeup_latency = 0;
     }
   }
   else
@@ -450,6 +469,11 @@ void iss::build()
 
   new_master_port("halt_status", &halt_status_itf);
 
+  for (int i=0; i<32; i++)
+  {
+    new_master_port("ext_counter[" + std::to_string(i) + "]", &ext_counter[i]);
+  }
+
   current_event = event_new(iss::exec_first_instr);
   instr_event = event_new(iss::exec_instr);
   check_all_event = event_new(iss::exec_instr_check_all);
@@ -477,6 +501,7 @@ void iss::start()
   trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable, is_active, get_config_int("boot_addr"));
 
   irq_req = -1;
+  wakeup_latency = 0;
 
   check_state();
 }

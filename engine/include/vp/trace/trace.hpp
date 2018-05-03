@@ -21,8 +21,6 @@
 #ifndef __VP_TRACE_TRACE_HPP__
 #define __VP_TRACE_TRACE_HPP__
 
-#define VP_TRACE_ACTIVE 1
-
 #include "vp/vp_data.hpp"
 #include "vp/trace/vcd_dumper.hpp"
 #include <stdarg.h>
@@ -53,8 +51,13 @@ namespace vp {
     void set_active(bool active) { is_active = active; }
     void set_event_active(bool active) { is_event_active = active; }
 
-    bool get_active() { return is_active; }
-    bool get_event_active() { return is_event_active; }
+  #ifndef VP_TRACE_ACTIVE
+    inline bool get_active() { return false; }
+    inline bool get_event_active() { return false; }
+  #else
+    inline bool get_active() { return is_active; }
+    inline bool get_event_active() { return is_event_active; }
+  #endif
 
     int width;
     int bytes;

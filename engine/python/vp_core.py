@@ -115,7 +115,7 @@ class impl_slave_port(object):
 
 class default_implementation_class(object):
 
-    def __init__(self, name, config, parent, path=None):
+    def __init__(self, name, config, parent, debug, path=None):
 
         self.parent = parent
         self.instance = None
@@ -123,9 +123,13 @@ class default_implementation_class(object):
         self.master_ports = {}
         self.slave_ports = {}
 
+        if debug:
+            name = 'debug.' + name
+
         for x in name.split('.'):
             if path is not None:
                 path=[path]
+
             file, path, descr = imp.find_module(x, path)
 
         self.module = ctypes.CDLL(path)
@@ -320,7 +324,7 @@ class component(component_trace):
 
     implementation_class = default_implementation_class
 
-    def __init__(self, name, config, parent=None):
+    def __init__(self, name, config, debug, parent=None):
 
         super(component, self).__init__()
 
@@ -333,6 +337,7 @@ class component(component_trace):
         self.impl = None
         self.name = name
         self.ports = {}
+        self.debug = debug
         if name is None:
             self.path = ''
         else:
@@ -346,7 +351,7 @@ class component(component_trace):
                     self.path = parent.get_path() + '/' + name
 
         if hasattr(self, 'implementation'):
-            self.impl = self.implementation_class(getattr(self, 'implementation'), config, parent=self)
+            self.impl = self.implementation_class(getattr(self, 'implementation'), config, parent=self, debug=debug)
 
         component_trace.init(self)
 
@@ -410,7 +415,7 @@ class component(component_trace):
 
         self.trace.msg('New component (name: %s, class: %s)' % (name, component))
 
-        comp = self.get_component(component)(name, config, parent=self)
+        comp = self.get_component(component)(name, config, parent=self, debug=self.debug)
         self.sub_comps.append(comp)
         self.sub_comps_dict[name] = comp
 
@@ -599,7 +604,7 @@ class component(component_trace):
                     raise Exception('Unknown master port in binding: %s' % binding[0])
 
                 if slave_port is None:
-                    raise Exception('Unknown slave port in binding: %s' % slave[0])
+                    raise Exception('Unknown slave port in binding: %s' % binding[1])
 
 
                 master_port.bind_to(slave_port)

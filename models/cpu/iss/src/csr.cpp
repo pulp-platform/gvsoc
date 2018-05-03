@@ -825,6 +825,8 @@ static bool pcer_write(iss *iss, unsigned int prev_val, unsigned int value) {
 
 static bool pcmr_write(iss *iss, unsigned int prev_val, unsigned int value) {
   iss->cpu.csr.pcmr = value;
+  iss->cpu.state.hw_counter_en = iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE;
+
   check_perf_config_change(iss, iss->cpu.csr.pcer, prev_val);
   return false;
 }
@@ -841,19 +843,47 @@ static bool hwloop_write(iss *iss, int reg, unsigned int value) {
 
 #if defined(ISS_HAS_PERF_COUNTERS)
 
+static void iss_csr_ext_counter_set(iss *iss, int id, unsigned int value)
+{
+  if (!iss->ext_counter[id].is_bound())
+  {
+    iss->trace.warning("Trying to access external counter through CSR while it is not connected (id: %d)\n", id);
+  }
+  else
+  {
+    iss->ext_counter[id].sync(value);
+  }
+}
+
+static void iss_csr_ext_counter_get(iss *iss, int id, unsigned int *value)
+{
+  if (!iss->ext_counter[id].is_bound())
+  {
+    iss->trace.warning("Trying to access external counter through CSR while it is not connected (id: %d)\n", id);
+  }
+  else
+  {
+    iss->ext_counter[id].sync_back(value);
+  }
+}
+
 void update_external_pccr(iss *iss, int id, unsigned int pcer, unsigned int pcmr) {
   unsigned int incr = 0;
   // Only update if the counter is active as the external signal may report 
   // a different value whereas the counter must remain the same
   if ((pcer & CSR_PCER_EVENT_MASK(id)) && (pcmr & CSR_PCMR_ACTIVE))
   {
-    //sim_read_external_callback(cpu, id - CSR_PCER_NB_INTERNAL_EVENTS, &incr);
+    iss_csr_ext_counter_get(iss, id, &incr);
     iss->cpu.csr.pccr[id] += incr;
   }
   else {
-    // Just read the value for nothing to reset it
-    //sim_read_external_callback(cpu, id - CSR_PCER_NB_INTERNAL_EVENTS, &incr);
+    // Nothing to do if the counter is inactive, it will get reset so that
+    // we get read events from now if it becomes active
   }
+
+  // Reset the counter
+  iss_csr_ext_counter_set(iss, id, 0);
+
   //if (cpu->traceEvent) sim_trace_event_incr(cpu, id, incr);
 }
 
@@ -1131,6 +1161,10 @@ bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value)
 bool iss_csr_write(iss *iss, iss_reg_t reg, iss_reg_t value)
 {
   iss->csr_trace.msg("Writing CSR (reg: 0x%x, value: 0x%x)\n", reg, value);
+
+  // If there is any write to a CSR, switch to full check instruction handler
+  // in case something special happened (like HW counting become active)
+  iss->trigger_check_all();
 
 #if 0
   // First check permissions

@@ -61,12 +61,16 @@ public:
   void set_halt_mode(bool halted, int cause);
   void check_state();
 
+  inline void trigger_check_all() { current_event = check_all_event; }
+
   vp::io_master data;
   vp::io_master fetch;
   vp::io_slave  dbg_unit;
 
   vp::wire_slave<int>      irq_req_itf;
   vp::wire_master<int>     irq_ack_itf;
+
+  vp::wire_master<uint32_t> ext_counter[32];
 
   vp::io_req     io_req;
   vp::io_req     fetch_req;
@@ -99,6 +103,7 @@ private:
   bool step_mode = false;
   bool do_step = false;
   int halt_cause;
+  int64_t wakeup_latency;
   iss_reg_t hit_reg = 0;
 
   iss_reg_t ppc;
@@ -160,7 +165,10 @@ inline int iss::data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int size, b
   req->set_is_write(is_write);
   req->set_data(data_ptr);
   int err = data.req(req);
-  if (err < vp::IO_REQ_DENIED) return err;
+  if (err == vp::IO_REQ_OK) 
+  {
+    this->cpu.state.insn_cycles += req->get_latency();
+  }
   return err;
 }
 

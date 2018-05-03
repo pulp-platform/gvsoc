@@ -826,7 +826,7 @@ defaultIsaGroup   = IsaGroup('ISA_GROUP_OTHER')
 defaultInstrGroup = InstrGroup(defaultIsaGroup, 'INSTR_GROUP_OTHER')
 
 class Instr(object):
-    def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None):
+    def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None, fast_handler=False):
         global nb_insn
         self.insn_number = nb_insn
         nb_insn += 1
@@ -844,6 +844,11 @@ class Instr(object):
             if N == None: name = self.safeLabel
             else: name = N
         self.execFunc = '%s_exec' % (name)
+        if not fast_handler:
+            self.quick_execFunc = self.execFunc
+        else:
+            self.quick_execFunc = self.execFunc + '_fast'
+
         self.decodeFunc = '%s_decode_gen' % (self.safeLabel)
         index = 0
         while self.decodeFunc in InstrNames:
@@ -912,6 +917,7 @@ class Instr(object):
         self.dump(isaFile, '  .u={\n')
         self.dump(isaFile, '    .insn={\n')
         self.dump(isaFile, '      .handler=%s,\n' % self.execFunc)
+        self.dump(isaFile, '      .fast_handler=%s,\n' % self.quick_execFunc)
         self.dump(isaFile, '      .decode=%s,\n' % ('NULL' if self.decode is None else self.decode))
         self.dump(isaFile, '      .label=(char *)"%s",\n' % (self.getLabel()))
         self.dump(isaFile, '      .size=%d,\n' % (self.len/8))

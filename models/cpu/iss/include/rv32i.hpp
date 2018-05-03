@@ -48,13 +48,29 @@ static inline void auipc_decode(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *jal_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *jal_exec_common(iss *iss, iss_insn_t *insn, int perf)
 {
   unsigned int D = insn->out_regs[0];
   if (D != 0) REG_SET(0, insn->addr + insn->size);
-  //accountJump(cpu);
+  if (perf)
+  {
+    iss_pccr_account_event(iss, CSR_PCER_JUMP, 1);
+  }
+  iss_perf_account_jump(iss);
   return insn->next;
 }
+
+static inline iss_insn_t *jal_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return jal_exec_common(iss, insn, 0);
+}
+
+static inline iss_insn_t *jal_exec(iss *iss, iss_insn_t *insn)
+{
+  return jal_exec_common(iss, insn, 1);
+}
+
+
 
 static inline void jal_decode(iss *iss, iss_insn_t *insn)
 {
@@ -65,13 +81,27 @@ static inline void jal_decode(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *jalr_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *jalr_exec_common(iss *iss, iss_insn_t *insn, int perf)
 {
   iss_insn_t *next_insn = insn_cache_get(iss, insn->sim[0] + iss_get_reg_for_jump(iss, insn->in_regs[0]));
   unsigned int D = insn->out_regs[0];
   if (D != 0) REG_SET(0, insn->addr + insn->size);
-  //accountJumpRegister(cpu);
+  if (perf)
+  {
+    iss_pccr_account_event(iss, CSR_PCER_JUMP, 1);
+  }
+  iss_perf_account_jump(iss);
   return next_insn;
+}
+
+static inline iss_insn_t *jalr_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return jalr_exec_common(iss, insn, 0);
+}
+
+static inline iss_insn_t *jalr_exec(iss *iss, iss_insn_t *insn)
+{
+  return jalr_exec_common(iss, insn, 1);
 }
 
 
@@ -82,72 +112,207 @@ static inline void bxx_decode(iss *iss, iss_insn_t *insn)
   insn->branch = insn_cache_get(iss, next_pc);
 }
 
-static inline iss_insn_t *beq_exec(iss *iss, iss_insn_t *insn)
+
+
+static inline iss_insn_t *beq_exec_common(iss *iss, iss_insn_t *insn, int perf)
 {
-  if (REG_GET(0) == REG_GET(1)) {
-    //accountTakenBranch(cpu);
+  if (REG_GET(0) == REG_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
     return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
     return insn->next;
   }
 }
 
+static inline iss_insn_t *beq_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return beq_exec_common(iss, insn, 0);
+}
 
+static inline iss_insn_t *beq_exec(iss *iss, iss_insn_t *insn)
+{
+  return beq_exec_common(iss, insn, 1);
+}
+
+
+
+static inline iss_insn_t *bne_exec_common(iss *iss, iss_insn_t *insn, int perf)
+{
+  if (REG_GET(0) != REG_GET(1)) {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
+    return insn->branch;
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
+    return insn->next;
+  }
+}
+
+static inline iss_insn_t *bne_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return bne_exec_common(iss, insn, 0);
+}
 
 static inline iss_insn_t *bne_exec(iss *iss, iss_insn_t *insn)
 {
-  if (REG_GET(0) != REG_GET(1)) {
-    //accountTakenBranch(cpu);
+  return bne_exec_common(iss, insn, 1);
+}
+
+
+
+static inline iss_insn_t *blt_exec_common(iss *iss, iss_insn_t *insn, int perf)
+{
+  if ((int32_t)REG_GET(0) < (int32_t)REG_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
     return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
     return insn->next;
   }
+}
+
+static inline iss_insn_t *blt_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return blt_exec_common(iss, insn, 0);
 }
 
 static inline iss_insn_t *blt_exec(iss *iss, iss_insn_t *insn)
 {
-  if ((int32_t)REG_GET(0) < (int32_t)REG_GET(1)) {
-    //accountTakenBranch(cpu);
+  return blt_exec_common(iss, insn, 1);
+}
+
+
+
+static inline iss_insn_t *bge_exec_common(iss *iss, iss_insn_t *insn, int perf)
+{
+  if ((int32_t)REG_GET(0) >= (int32_t)REG_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
     return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
     return insn->next;
   }
+}
+
+static inline iss_insn_t *bge_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return bge_exec_common(iss, insn, 0);
 }
 
 static inline iss_insn_t *bge_exec(iss *iss, iss_insn_t *insn)
 {
-  if ((int32_t)REG_GET(0) >= (int32_t)REG_GET(1)) {
-    //accountTakenBranch(cpu);
+  return bge_exec_common(iss, insn, 1);
+}
+
+
+
+static inline iss_insn_t *bltu_exec_common(iss *iss, iss_insn_t *insn, int perf)
+{
+  if (REG_GET(0) < REG_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
     return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
     return insn->next;
   }
+}
+
+static inline iss_insn_t *bltu_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return bltu_exec_common(iss, insn, 0);
 }
 
 static inline iss_insn_t *bltu_exec(iss *iss, iss_insn_t *insn)
 {
-  if (REG_GET(0) < REG_GET(1)) {
-    //accountTakenBranch(cpu);
+  return bltu_exec_common(iss, insn, 1);
+}
+
+
+
+static inline iss_insn_t *bgeu_exec_common(iss *iss, iss_insn_t *insn, int perf)
+{
+  if (REG_GET(0) >= REG_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
     return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
     return insn->next;
   }
 }
 
+static inline iss_insn_t *bgeu_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return bgeu_exec_common(iss, insn, 0);
+}
+
 static inline iss_insn_t *bgeu_exec(iss *iss, iss_insn_t *insn)
 {
-  if (REG_GET(0) >= REG_GET(1)) {
-    //accountTakenBranch(cpu);
-    return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
-    return insn->next;
-  }
+  return bgeu_exec_common(iss, insn, 1);
 }
 
 

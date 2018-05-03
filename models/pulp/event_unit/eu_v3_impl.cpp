@@ -30,6 +30,16 @@ class Event_unit;
 class Dispatch_unit;
 
 
+// Timing constants
+
+// Cycles required by the core to really wakeup after his clock is back
+// Could actually be moved to core model to differentiate cores
+#define EU_WAKEUP_REQ_LATENCY 5
+
+// Cycles needed by the event unit to send back the clock once
+// a core is waken-up
+#define EU_WAKEUP_LATENCY 2
+
 
 class Dispatch {
 public:
@@ -172,6 +182,7 @@ public:
   vp::io_req_status_e wait_event(vp::io_req *req, Event_unit_core_state_e wait_state=CORE_STATE_WAITING_EVENT);
   Event_unit_core_state_e get_state() { return state; }
   void irq_ack_sync(int irq, int core);
+  static void wakeup_handler(void *__this, vp::clock_event *event);
 
   vp::io_slave demux_in;
 
@@ -193,6 +204,8 @@ private:
 
   vp::wire_master<int>    irq_req_itf;
   vp::wire_slave<int>     irq_ack_itf;
+
+  vp::clock_event *wakeup_event;
 
 };
 
@@ -341,6 +354,8 @@ void Core_event_unit::build(Event_unit *top, int core_id)
   demux_in.set_req_meth_muxed(&Event_unit::demux_req, core_id);
   top->new_slave_port("demux_in_" + std::to_string(core_id), &demux_in);
 
+  wakeup_event = top->event_new((void *)this, Core_event_unit::wakeup_handler);
+
   top->new_master_port("irq_req_" + std::to_string(core_id), &irq_req_itf);
 
   irq_ack_itf.set_sync_meth_muxed(&Event_unit::irq_ack_sync, core_id);
@@ -358,18 +373,15 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
 {
   if (offset == EU_CORE_BUFFER)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = status;
-    //checkCoreState();
-    return vp::IO_REQ_INVALID;
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = status;
+    return vp::IO_REQ_OK;
   }
   else if (offset == EU_CORE_BUFFER_MASKED)
   {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = status & evtMask;
-    return vp::IO_REQ_INVALID;
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = status & evt_mask;
+    return vp::IO_REQ_OK;
   }
   else if (offset == EU_CORE_BUFFER_CLEAR)
   {
@@ -596,6 +608,13 @@ vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core
 {
   top->trace.msg("Wait request (status: 0x%x, evt_mask: 0x%x)\n", status, evt_mask);
 
+  // This takes 2 cycles for the event unit to clock-gate the core with replying
+  // so this is seen as a latency of 2 cycles from the core point of view.
+  // This will be added by the core after it is waken up.
+  // Also if the event is already there it takes 2 cycles just to decide that we don't
+  // go to sleep.
+  req->inc_latency(EU_WAKEUP_REQ_LATENCY);
+
   if (evt_mask & status)
   {
     // Case where the core ask for clock-gating but the event status prevent him from doing so
@@ -745,6 +764,14 @@ void Core_event_unit::reset()
   state = CORE_STATE_ACTIVE;
 }
 
+void Core_event_unit::wakeup_handler(void *__this, vp::clock_event *event)
+{
+  Core_event_unit *_this = (Core_event_unit *)__this;
+  _this->top->trace.msg("Replying to core after wakeup (core: %d)\n", _this->core_id);
+  _this->check_pending_req();
+
+}
+
 void Core_event_unit::check_state()
 {
   //top->trace.msg("Checking core state (coreId: %d, active: %d, waitingEvent: %d, status: 0x%llx, evtMask: 0x%llx, irqMask: 0x%llx)\n", coreId, active, waitingEvent, status, evtMask, irqMask);
@@ -770,7 +797,7 @@ void Core_event_unit::check_state()
       top->trace.msg("Activating clock (core: %d)\n", core_id);
       state = CORE_STATE_ACTIVE;
       check_wait_mask();
-      check_pending_req();
+      top->event_enqueue(wakeup_event, EU_WAKEUP_LATENCY);
     }
     break;
   }
@@ -863,10 +890,10 @@ Dispatch_unit::Dispatch_unit(Event_unit *top)
               dispatch->status_mask &= ~(1<<i);
               dispatch->waiting_mask &= ~(1<<i);
 
-              // Store the dispatch value into the pending request and reply to the
-              // initiator
+              // Store the dispatch value into the pending request
+              // Don't reply now to the initiator, this will be done by the wakeup event
+              // to introduce some delays
               *(uint32_t *)waiting_req->get_data() = dispatch->value;
-              waiting_req->get_resp_port()->resp(waiting_req);
 
               // Update the core fifo
               core[i].tail++;

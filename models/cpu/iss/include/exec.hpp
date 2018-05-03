@@ -47,32 +47,52 @@ static inline iss_insn_t *iss_exec_insn_handler(iss *instance, iss_insn_t *insn,
 
 static inline iss_insn_t *iss_exec_insn(iss *iss, iss_insn_t *insn)
 {
+  return iss_exec_insn_handler(iss, insn, insn->fast_handler);
+}
+
+static inline iss_insn_t *iss_exec_insn_perf(iss *iss, iss_insn_t *insn)
+{
   return iss_exec_insn_handler(iss, insn, insn->handler);
 }
 
 
 
+#define ISS_EXEC_NO_FETCH_COMMON(iss,func) \
+do { \
+  iss->cpu.state.insn_cycles = 1; \
+  iss_insn_t *insn = iss->cpu.current_insn; \
+  iss->cpu.prev_insn = insn; \
+  iss->cpu.current_insn = func(iss, insn); \
+} while(0)
+
 
 static inline int iss_exec_step_nofetch(iss_t *iss)
 {
-  iss->cpu.state.insn_cycles = 1;
-  iss_insn_t *insn = iss->cpu.current_insn;
-  iss->cpu.prev_insn = insn;
-  iss->cpu.current_insn = iss_exec_insn(iss, insn);
+  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn);
 
-  if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE && iss->cpu.state.insn_cycles >= 0)
+  return iss->cpu.state.insn_cycles;
+}
+
+
+static inline int iss_exec_step_nofetch_perf(iss_t *iss)
+{
+  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn_perf);
+  int cycles = iss->cpu.state.insn_cycles;
+
+  if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE)
   {
-    if (iss->cpu.csr.pcer & (1<<CSR_PCER_CYCLES))
+    if (cycles >= 0 && (iss->cpu.csr.pcer & (1<<CSR_PCER_CYCLES)))
     {
-      iss->cpu.csr.pccr[CSR_PCER_CYCLES] += iss->cpu.state.insn_cycles;
+      iss->cpu.csr.pccr[CSR_PCER_CYCLES] += cycles;
     }
 
     if (iss->cpu.csr.pcer & (1<<CSR_PCER_INSTR))
       iss->cpu.csr.pccr[CSR_PCER_INSTR] += 1;
   }
 
-  return iss->cpu.state.insn_cycles;
+  return cycles;
 }
+
 
 static inline int iss_exec_is_stalled(iss *iss)
 {

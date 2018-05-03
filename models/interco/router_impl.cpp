@@ -20,10 +20,36 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
+#include <vp/itf/wire.hpp>
 #include <stdio.h>
 #include <math.h>
 
 class router;
+
+class Perf_counter {
+public:
+  int64_t nb_read;
+  int64_t nb_write;
+  int64_t read_stalls;
+  int64_t write_stalls;
+
+  vp::wire_slave<uint32_t> nb_read_itf;
+  vp::wire_slave<uint32_t> nb_write_itf;
+  vp::wire_slave<uint32_t> read_stalls_itf;
+  vp::wire_slave<uint32_t> write_stalls_itf;
+  vp::wire_slave<uint32_t> stalls_itf;
+
+  static void nb_read_sync_back(void *__this, uint32_t *value);
+  static void nb_read_sync(void *__this, uint32_t value);
+  static void nb_write_sync_back(void *__this, uint32_t *value);
+  static void nb_write_sync(void *__this, uint32_t value);
+  static void read_stalls_sync_back(void *__this, uint32_t *value);
+  static void read_stalls_sync(void *__this, uint32_t value);
+  static void write_stalls_sync_back(void *__this, uint32_t *value);
+  static void write_stalls_sync(void *__this, uint32_t value);
+  static void stalls_sync_back(void *__this, uint32_t *value);
+  static void stalls_sync(void *__this, uint32_t value);
+};
 
 class MapEntry {
 public:
@@ -34,6 +60,7 @@ public:
 
   string target_name;
   MapEntry *next = NULL;
+  int id = -1;
   unsigned long long base = 0;
   unsigned long long lowestBase = 0;
   unsigned long long size = 0;
@@ -85,7 +112,10 @@ private:
   MapEntry *topMapEntry = NULL;
   MapEntry *externalBindingMapEntry = NULL;
 
+  std::map<int, Perf_counter *> counters;
+
   int bandwidth = 0;
+  int latency = 0;
 };
 
 router::router(const char *config)
@@ -169,9 +199,9 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
     _this->trace.msg("Routing to entry (target: %s)\n", entry->target_name.c_str());
   }
   
-#if 0
-  if (_this->bandwidth != 0 and !req->is_debug()) {
+  if (0) { //_this->bandwidth != 0 and !req->is_debug()) {
     
+#if 0
   // Compute the duration from the specified bandwidth
   // Don't forget to compare to the already computed duration, as there might be a slower router
   // on the path
@@ -193,10 +223,10 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
     // Update the bandwidth information
     entry->nextPacketTime = routerTime + req->getLength();
 
-  } else {
-    req->incLatency(entry->latency);
-  }
 #endif
+  } else {
+    req->inc_latency(entry->latency + _this->latency);
+  }
 
   // Forward the request to the target port
   if (entry->remove_offset) req->set_addr(offset - entry->remove_offset);
@@ -209,6 +239,28 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
   else if (entry->itf)
   {
     result = entry->itf->req_forward(req);
+  }
+
+  if (entry->id != -1) 
+  {
+    int64_t latency = req->get_latency();
+    int64_t duration = req->get_duration();
+    if (duration > 1) latency += duration - 1;
+
+    Perf_counter *counter = _this->counters[entry->id];
+  
+    // This counter is counting the number of cycles so it must at least 1 plus
+    // the latency
+    if (isRead)
+      counter->read_stalls += latency + 1;
+    else
+      counter->write_stalls += latency + 1;
+  
+    if (isRead)
+      counter->nb_read++;
+    else
+      counter->nb_write++;
+
   }
 
   return result;
@@ -234,6 +286,7 @@ void router::build()
   new_master_port("out", &out);
 
   bandwidth = get_config_int("bandwidth");
+  latency = get_config_int("latency");
 
   cm::config *mappings = get_config()->get("mappings");
 
@@ -261,6 +314,35 @@ void router::build()
       if (conf) entry->remove_offset = conf->get_int();
       conf = config->get("add_offset");
       if (conf) entry->add_offset = conf->get_int();
+      conf = config->get("id");
+      if (conf) entry->id = conf->get_int();
+
+      if (this->counters.find(entry->id) == this->counters.end())
+      {
+        Perf_counter *counter = new Perf_counter();
+        this->counters[entry->id] = counter;
+
+        counter->nb_read_itf.set_sync_back_meth(&Perf_counter::nb_read_sync_back);
+        counter->nb_read_itf.set_sync_meth(&Perf_counter::nb_read_sync);
+        new_slave_port((void *)counter, "nb_read[" + std::to_string(entry->id) + "]", &counter->nb_read_itf);
+
+        counter->nb_write_itf.set_sync_back_meth(&Perf_counter::nb_read_sync_back);
+        counter->nb_write_itf.set_sync_meth(&Perf_counter::nb_read_sync);
+        new_slave_port((void *)counter, "nb_write[" + std::to_string(entry->id) + "]", &counter->nb_write_itf);
+
+        counter->read_stalls_itf.set_sync_back_meth(&Perf_counter::read_stalls_sync_back);
+        counter->read_stalls_itf.set_sync_meth(&Perf_counter::read_stalls_sync);
+        new_slave_port((void *)counter, "read_stalls[" + std::to_string(entry->id) + "]", &counter->read_stalls_itf);
+
+        counter->write_stalls_itf.set_sync_back_meth(&Perf_counter::write_stalls_sync_back);
+        counter->write_stalls_itf.set_sync_meth(&Perf_counter::write_stalls_sync);
+        new_slave_port((void *)counter, "write_stalls[" + std::to_string(entry->id) + "]", &counter->write_stalls_itf);
+
+        counter->stalls_itf.set_sync_back_meth(&Perf_counter::stalls_sync_back);
+        counter->stalls_itf.set_sync_meth(&Perf_counter::stalls_sync);
+        new_slave_port((void *)counter, "stalls[" + std::to_string(entry->id) + "]", &counter->stalls_itf);
+      }  
+
       entry->insert(this);
     }
   }
@@ -356,4 +438,65 @@ inline void io_master_map::bind_to(cm::port *_port, cm::config *config)
     if (conf) entry->add_offset = conf->get_int();
   }
   entry->insert((router *)get_comp());
+}
+
+void Perf_counter::nb_read_sync_back(void *__this, uint32_t *value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  *value = _this->nb_read;
+}
+
+void Perf_counter::nb_read_sync(void *__this, uint32_t value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  _this->nb_read = value;
+}
+
+void Perf_counter::nb_write_sync_back(void *__this, uint32_t *value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  *value = _this->nb_write;
+}
+
+void Perf_counter::nb_write_sync(void *__this, uint32_t value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  _this->nb_write = value;
+}
+
+void Perf_counter::read_stalls_sync_back(void *__this, uint32_t *value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  *value = _this->read_stalls;
+}
+
+void Perf_counter::read_stalls_sync(void *__this, uint32_t value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  _this->read_stalls = value;
+}
+
+void Perf_counter::write_stalls_sync_back(void *__this, uint32_t *value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  *value = _this->write_stalls;
+}
+
+void Perf_counter::write_stalls_sync(void *__this, uint32_t value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  _this->write_stalls = value;
+}
+
+void Perf_counter::stalls_sync_back(void *__this, uint32_t *value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  *value = _this->read_stalls + _this->write_stalls;
+}
+
+void Perf_counter::stalls_sync(void *__this, uint32_t value)
+{
+  Perf_counter *_this = (Perf_counter *)__this;
+  _this->read_stalls = value;
+  _this->write_stalls = value;
 }

@@ -261,6 +261,12 @@ void cm::component::new_slave_port(std::string name, cm::slave_port *port)
   slave_ports[name] = port;
 }
 
+void cm::component::new_slave_port(void *comp, std::string name, cm::slave_port *port)
+{
+  port->set_comp((cm::component *)comp);
+  slave_ports[name] = port;
+}
+
 void cm::component::new_service(std::string name, void *service)
 {
   services[name] = service;

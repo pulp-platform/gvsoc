@@ -41,7 +41,7 @@ rv32mGroupMulh    = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_MULH')
 rv32mGroupDiv     = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_DIV')
 
 class R5(Instr):
-    def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None):
+    def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None, fast_handler=False):
 
         # Encodings for non-compressed instruction sets
               #   3 3 2 2 2 2 2       2 2 2 2 2       1 1 1 1 1       1 1 1       1 1
@@ -487,7 +487,7 @@ class R5(Instr):
         else:
             raise Exception('Undefined format: %s' % format)
 
-        super(R5, self).__init__(label, type, encoding, decode, N, L, mapTo, group=group)
+        super(R5, self).__init__(label, type, encoding, decode, N, L, mapTo, group=group, fast_handler=fast_handler)
 
 
 
@@ -500,14 +500,14 @@ rv32i = [
 
     R5('lui',   'U',  '------- ----- ----- --- ----- 0110111'),
     R5('auipc', 'U',  '------- ----- ----- --- ----- 0010111', 'auipc_decode'),
-    R5('jal',   'UJ', '------- ----- ----- --- ----- 1101111', 'jal_decode'),
-    R5('jalr',  'I',  '------- ----- ----- 000 ----- 1100111'),
-    R5('beq',   'SB', '------- ----- ----- 000 ----- 1100011', 'bxx_decode'),
-    R5('bne',   'SB', '------- ----- ----- 001 ----- 1100011', 'bxx_decode'),
-    R5('blt',   'SB', '------- ----- ----- 100 ----- 1100011', 'bxx_decode'),
-    R5('bge',   'SB', '------- ----- ----- 101 ----- 1100011', 'bxx_decode'),
-    R5('bltu',  'SB', '------- ----- ----- 110 ----- 1100011', 'bxx_decode'),
-    R5('bgeu',  'SB', '------- ----- ----- 111 ----- 1100011', 'bxx_decode'),
+    R5('jal',   'UJ', '------- ----- ----- --- ----- 1101111', 'jal_decode', fast_handler=True),
+    R5('jalr',  'I',  '------- ----- ----- 000 ----- 1100111', fast_handler=True),
+    R5('beq',   'SB', '------- ----- ----- 000 ----- 1100011', 'bxx_decode', fast_handler=True),
+    R5('bne',   'SB', '------- ----- ----- 001 ----- 1100011', 'bxx_decode', fast_handler=True),
+    R5('blt',   'SB', '------- ----- ----- 100 ----- 1100011', 'bxx_decode', fast_handler=True),
+    R5('bge',   'SB', '------- ----- ----- 101 ----- 1100011', 'bxx_decode', fast_handler=True),
+    R5('bltu',  'SB', '------- ----- ----- 110 ----- 1100011', 'bxx_decode', fast_handler=True),
+    R5('bgeu',  'SB', '------- ----- ----- 111 ----- 1100011', 'bxx_decode', fast_handler=True),
     R5('lb',    'L',  '------- ----- ----- 000 ----- 0000011'),
     R5('lh',    'L',  '------- ----- ----- 001 ----- 0000011'),
     R5('lw',    'L',  '------- ----- ----- 010 ----- 0000011'),
@@ -681,33 +681,33 @@ priv_1_9 = [
 rv32c = [
 
     # Compressed ISA
-    R5('c.addi4spn', 'CIW', '000 --- --- -- --- 00'),
-    R5('c.lw',       'CL',  '010 --- --- -- --- 00'),
-    R5('c.sw',       'CS',  '110 --- --- -- --- 00'),
-    R5('c.nop',      'CI1', '000 000 000 00 000 01'),
-    R5('c.addi',     'CI1', '000 --- --- -- --- 01'),
-    R5('c.jal',      'CJ1', '001 --- --- -- --- 01', 'jal_decode'),
-    R5('c.li',       'CI6', '010 --- --- -- --- 01'),
-    R5('c.addi16sp', 'CI4', '011 -00 010 -- --- 01'),
-    R5('c.lui',      'CI5', '011 --- --- -- --- 01'),
-    R5('c.srli',     'CB2', '100 -00 --- -- --- 01'),
-    R5('c.srai',     'CB2', '100 -01 --- -- --- 01'),
-    R5('c.andi',     'CB2S','100 -10 --- -- --- 01'),
-    R5('c.sub',      'CS2', '100 011 --- 00 --- 01'),
-    R5('c.xor',      'CS2', '100 011 --- 01 --- 01'),
-    R5('c.or',       'CS2', '100 011 --- 10 --- 01'),
-    R5('c.and',      'CS2', '100 011 --- 11 --- 01'),
-    R5('c.j',        'CJ',  '101 --- --- -- --- 01', 'jal_decode'),
-    R5('c.beqz',     'CB1', '110 --- --- -- --- 01', 'bxx_decode'),
-    R5('c.bnez',     'CB1', '111 --- --- -- --- 01', 'bxx_decode'),
-    R5('c.slli',     'CI1U','000 --- --- -- --- 10'),
-    R5('c.lwsp',     'CI3', '010 --- --- -- --- 10'),
-    R5('c.jr',       'CR1', '100 0-- --- 00 000 10'),
-    R5('c.mv',       'CR2', '100 0-- --- -- --- 10'),
+    R5('c.addi4spn', 'CIW', '000 --- --- -- --- 00', fast_handler=True),
+    R5('c.lw',       'CL',  '010 --- --- -- --- 00', fast_handler=True),
+    R5('c.sw',       'CS',  '110 --- --- -- --- 00', fast_handler=True),
+    R5('c.nop',      'CI1', '000 000 000 00 000 01', fast_handler=True),
+    R5('c.addi',     'CI1', '000 --- --- -- --- 01', fast_handler=True),
+    R5('c.jal',      'CJ1', '001 --- --- -- --- 01', fast_handler=True, decode='jal_decode'),
+    R5('c.li',       'CI6', '010 --- --- -- --- 01', fast_handler=True),
+    R5('c.addi16sp', 'CI4', '011 -00 010 -- --- 01', fast_handler=True),
+    R5('c.lui',      'CI5', '011 --- --- -- --- 01', fast_handler=True),
+    R5('c.srli',     'CB2', '100 -00 --- -- --- 01', fast_handler=True),
+    R5('c.srai',     'CB2', '100 -01 --- -- --- 01', fast_handler=True),
+    R5('c.andi',     'CB2S','100 -10 --- -- --- 01', fast_handler=True),
+    R5('c.sub',      'CS2', '100 011 --- 00 --- 01', fast_handler=True),
+    R5('c.xor',      'CS2', '100 011 --- 01 --- 01', fast_handler=True),
+    R5('c.or',       'CS2', '100 011 --- 10 --- 01', fast_handler=True),
+    R5('c.and',      'CS2', '100 011 --- 11 --- 01', fast_handler=True),
+    R5('c.j',        'CJ',  '101 --- --- -- --- 01', fast_handler=True, decode='jal_decode'),
+    R5('c.beqz',     'CB1', '110 --- --- -- --- 01', fast_handler=True, decode='bxx_decode'),
+    R5('c.bnez',     'CB1', '111 --- --- -- --- 01', fast_handler=True, decode='bxx_decode'),
+    R5('c.slli',     'CI1U','000 --- --- -- --- 10', fast_handler=True),
+    R5('c.lwsp',     'CI3', '010 --- --- -- --- 10', fast_handler=True),
+    R5('c.jr',       'CR1', '100 0-- --- 00 000 10', fast_handler=True),
+    R5('c.mv',       'CR2', '100 0-- --- -- --- 10', fast_handler=True),
     R5('c.ebreak',   'CR',  '100 100 000 00 000 10'),
-    R5('c.jalr',     'CR3', '100 1-- --- 00 000 10'),
-    R5('c.add',      'CR',  '100 1-- --- -- --- 10'),
-    R5('c.swsp',     'CSS', '110 --- --- -- --- 10'),
+    R5('c.jalr',     'CR3', '100 1-- --- 00 000 10', fast_handler=True),
+    R5('c.add',      'CR',  '100 1-- --- -- --- 10', fast_handler=True),
+    R5('c.swsp',     'CSS', '110 --- --- -- --- 10', fast_handler=True),
     R5('c.sbreak',   'CI1', '100 000 000 00 000 10'),
 ]
     
@@ -1060,8 +1060,8 @@ pulp_v2 = [
     R5('pv.cmpleu.sc.b',  'R',   '010011- ----- ----- 101 ----- 1010111'),
     R5('pv.cmpleu.sci.b', 'RRU', '010011- ----- ----- 111 ----- 1010111'),
 
-    R5('p.beqimm',        'SB2', '------- ----- ----- 010 ----- 1100011', 'bxx_decode'),
-    R5('p.bneimm',        'SB2', '------- ----- ----- 011 ----- 1100011', 'bxx_decode'),
+    R5('p.beqimm',        'SB2', '------- ----- ----- 010 ----- 1100011', fast_handler=True, decode='bxx_decode'),
+    R5('p.bneimm',        'SB2', '------- ----- ----- 011 ----- 1100011', fast_handler=True, decode='bxx_decode'),
 
     R5('p.mac',           'RRRR', '0100001 ----- ----- 000 ----- 0110011'),
     R5('p.msu',           'RRRR', '0100001 ----- ----- 001 ----- 0110011'),

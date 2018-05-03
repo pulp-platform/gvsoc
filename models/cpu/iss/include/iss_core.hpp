@@ -35,6 +35,7 @@ static inline void iss_exec_insn_resume(iss *iss);
 #include "irq.hpp"
 #include "exceptions.hpp"
 #include "exec.hpp"
+#include "perf.hpp"
 
 
 int iss_open(iss_t *iss);

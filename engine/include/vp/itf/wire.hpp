@@ -44,17 +44,27 @@ namespace vp {
       sync_meth((void *)comp, value);
     }
 
+    inline void sync_back(T *value)
+    {
+      if (next) next->sync_back(value);
+      sync_back_meth((void *)comp, value);
+    }
+
     void bind_to(cm::port *port, cm::config *config);
 
     bool is_bound() { return slave_port != NULL; }
 
   private:
     static inline void sync_muxed(wire_master *_this, T value);
+    static inline void sync_back_muxed(wire_master *_this, T *value);
     void (*sync_meth)(void *, T value);
     void (*sync_meth_mux)(void *, T value, int id);
+    void (*sync_back_meth)(void *, T *value);
+    void (*sync_back_meth_mux)(void *, T *value, int id);
 
     vp::component *comp_mux;
     int sync_mux;
+    int sync_back_mux;
     wire_slave<T> *slave_port = NULL;
     wire_master<T> *next = NULL;
 
@@ -75,6 +85,9 @@ namespace vp {
     void set_sync_meth(void (*)(void *_this, T value));
     void set_sync_meth_muxed(void (*)(void *_this, T value, int), int id);
 
+    void set_sync_back_meth(void (*)(void *_this, T *value));
+    void set_sync_back_meth_muxed(void (*)(void *_this, T *value, int), int id);
+
     inline void bind_to(cm::port *_port, cm::config *config);
 
 
@@ -83,7 +96,12 @@ namespace vp {
     void (*sync)(void *comp, T value);
     void (*sync_mux)(void *comp, T value, int id);
 
+    void (*sync_back)(void *comp, T *value);
+    void (*sync_back_mux)(void *comp, T *value, int id);
+
     int sync_mux_id;
+
+    int sync_back_mux_id;
 
   };
 
@@ -115,6 +133,19 @@ namespace vp {
         comp_mux = (vp::component *)port->get_comp();
         sync_mux = port->sync_mux_id;
       }
+      if (port->sync_back_mux == NULL)
+      {
+        sync_back_meth = port->sync_back;
+        comp = (vp::component *)port->get_comp();
+      }
+      else
+      {
+        sync_back_meth_mux = port->sync_back_mux;
+        sync_back_meth = (void (*)(void *, T *))&wire_master::sync_back_muxed;
+        comp = (vp::component *)this;
+        comp_mux = (vp::component *)port->get_comp();
+        sync_back_mux = port->sync_back_mux_id;
+      }
     }
   }
 
@@ -122,6 +153,12 @@ namespace vp {
   inline void wire_master<T>::sync_muxed(wire_master<T> *_this, T value)
   {
     return _this->sync_meth_mux(_this->comp_mux, value, _this->sync_mux);
+  }
+
+  template<class T>
+  inline void wire_master<T>::sync_back_muxed(wire_master<T> *_this, T *value)
+  {
+    return _this->sync_back_meth_mux(_this->comp_mux, value, _this->sync_back_mux);
   }
 
 
@@ -156,7 +193,22 @@ namespace vp {
   }
 
   template<class T>
-  inline wire_slave<T>::wire_slave() : sync(NULL), sync_mux(NULL) {
+  inline wire_slave<T>::wire_slave() : sync(NULL), sync_mux(NULL), sync_back(NULL), sync_back_mux(NULL) {
+  }
+
+  template<class T>
+  inline void wire_slave<T>::set_sync_back_meth(void (*meth)(void *, T *))
+  {
+    sync_back = meth;
+    sync_back_mux = NULL;
+  }
+
+  template<class T>
+  inline void wire_slave<T>::set_sync_back_meth_muxed(void (*meth)(void *, T *, int), int id)
+  {
+    sync_back = NULL;
+    sync_back_mux = meth;
+    sync_back_mux_id = id;
   }
 
 };

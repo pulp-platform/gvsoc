@@ -51,6 +51,32 @@ VP_INSTALL_TARGETS += $(VP_PY_INSTALL_PATH)/$(1)$(VP_COMP_EXT)
 
 endef
 
+
+
+define declare_debug_implementation
+
+$(eval $(1)_DBG_OBJS = $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/debug/%.o, $($(1)_SRCS)))
+
+-include $($(1)_DBG_OBJS:.o=.d)
+
+$(VP_BUILD_DIR)/$(1)/debug/%.o: %.cpp $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) -DVP_TRACE_ACTIVE=1
+
+
+$(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT): $($(1)_DBG_OBJS) $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CPP) $($(1)_DBG_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS)
+
+$(VP_PY_INSTALL_PATH)/debug/$(1)$(VP_COMP_EXT): $(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT)
+	install -D $$^ $$@
+
+VP_INSTALL_TARGETS += $(VP_PY_INSTALL_PATH)/debug/$(1)$(VP_COMP_EXT)
+
+endef
+
+
+
 define declare_component
 
 $(VP_PY_INSTALL_PATH)/$(1).py: $(1).py
@@ -62,6 +88,8 @@ endef
 
 
 $(foreach implementation, $(IMPLEMENTATIONS), $(eval $(call declare_implementation,$(implementation))))
+
+$(foreach implementation, $(IMPLEMENTATIONS), $(eval $(call declare_debug_implementation,$(implementation))))
 
 $(foreach component, $(COMPONENTS), $(eval $(call declare_component,$(component))))
 

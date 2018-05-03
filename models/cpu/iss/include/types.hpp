@@ -229,6 +229,7 @@ typedef struct iss_decoder_item_s {
   union {
     struct {
       iss_insn_t *(*handler)(iss *, iss_insn_t*);
+      iss_insn_t *(*fast_handler)(iss *, iss_insn_t*);
       void (*decode)(iss *, iss_insn_t*);
       char *label;
       int size;
@@ -265,6 +266,7 @@ typedef struct {
 
 typedef struct iss_insn_s {
   iss_addr_t addr;
+  iss_insn_t *(*fast_handler)(iss *, iss_insn_t*);
   iss_insn_t *(*handler)(iss *, iss_insn_t*);
   iss_insn_t *(*hwloop_handler)(iss *, iss_insn_t*);
   int size;
@@ -307,6 +309,7 @@ typedef struct iss_cpu_state_s {
   void (*stall_callback)(iss *iss);
   int stall_reg;
   int stall_size;
+  int hw_counter_en;
 
   iss_insn_arg_t saved_args[ISS_MAX_DECODE_ARGS];
 

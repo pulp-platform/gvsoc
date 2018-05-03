@@ -416,6 +416,7 @@ static inline void hwloop_set_end(iss *iss, iss_insn_t *insn, int index, iss_reg
   {
     end_insn->hwloop_handler = end_insn->handler;
     end_insn->handler = hwloop_check_exec;
+    end_insn->fast_handler = hwloop_check_exec;
   }
 
   iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPEND(index)] = end;
@@ -985,29 +986,72 @@ PV_OP_RU_EXEC(cmpleu,CMPLEU)
 
 
 
-static inline iss_insn_t *p_bneimm_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *p_bneimm_exec_common(iss *iss, iss_insn_t *insn, int perf)
 {
-  if ((int32_t)REG_GET(0) != SIM_GET(1)) {
-    //accountTakenBranch(cpu);
+  if ((int32_t)REG_GET(0) != SIM_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
     return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
     return insn->next;
   }
 }
 
+static inline iss_insn_t *p_bneimm_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return p_bneimm_exec_common(iss, insn, 0);
+}
 
+static inline iss_insn_t *p_bneimm_exec(iss *iss, iss_insn_t *insn)
+{
+  return p_bneimm_exec_common(iss, insn, 1);
+}
+
+
+
+static inline iss_insn_t *p_beqimm_exec_common(iss *iss, iss_insn_t *insn, int perf)
+{
+  if ((int32_t)REG_GET(0) == SIM_GET(1))
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+      iss_pccr_account_event(iss, CSR_PCER_TAKEN_BRANCH, 1);
+    }
+    iss_perf_account_taken_branch(iss);
+    return insn->branch;
+  }
+  else
+  {
+    if (perf)
+    {
+      iss_pccr_account_event(iss, CSR_PCER_BRANCH, 1);
+    }
+    return insn->next;
+  }
+}
+
+static inline iss_insn_t *p_beqimm_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  return p_beqimm_exec_common(iss, insn, 0);
+}
 
 static inline iss_insn_t *p_beqimm_exec(iss *iss, iss_insn_t *insn)
 {
-  if ((int32_t)REG_GET(0) == SIM_GET(1)) {
-    //accountTakenBranch(cpu);
-    return insn->branch;
-  } else {
-    //accountNotTakenBranch(cpu);
-    return insn->next;
-  }
+  return p_beqimm_exec_common(iss, insn, 1);
 }
+
 
 
 

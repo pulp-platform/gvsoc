@@ -59,6 +59,7 @@ int insn_cache_init(iss *iss)
 
 void insn_init(iss_insn_t *insn, iss_addr_t addr) {
   insn->handler = iss_decode_pc;
+  insn->fast_handler = iss_decode_pc;
   insn->addr = addr;
   insn->next = NULL;
   insn->hwloop_handler = NULL;

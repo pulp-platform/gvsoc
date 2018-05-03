@@ -73,6 +73,7 @@ namespace vp {
 
     inline void set_latency(uint64_t latency) { this->latency = latency; }
     inline uint64_t get_latency() { return this->latency; }
+    inline void inc_latency(uint64_t incr) { this->latency += incr; }
 
     inline void set_duration(uint64_t duration) { this->duration = duration; }
     inline uint64_t get_duration() { return this->duration; }
@@ -99,7 +100,7 @@ namespace vp {
     inline void **arg_get(int index) { return &args[index]; }
     inline void **arg_get_last() { return &args[current_arg]; }
 
-    inline void init() { latency = 0; }
+    inline void init() { latency = 0; duration=0; }
 
     uint64_t addr;
     uint8_t *data;

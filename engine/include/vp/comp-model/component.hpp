@@ -54,6 +54,8 @@ namespace cm {
 
     void new_slave_port(std::string name, slave_port *port);
 
+    void new_slave_port(void *comp, std::string name, slave_port *port);
+
     void new_service(std::string name, void *service);
 
 

@@ -63,7 +63,9 @@ static int decode_info(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
 static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_decoder_item_t *item)
 {
   insn->hwloop_handler = NULL;
+  insn->fast_handler = item->u.insn.fast_handler;
   insn->handler = item->u.insn.handler;
+
   insn->decoder_item = item;
   insn->size = item->u.insn.size;
 
@@ -191,6 +193,7 @@ iss_insn_t *iss_decode_pc_noexec(iss *iss, iss_insn_t *insn)
   if (decode_opcode(iss, insn, opcode) == -1)
   {
     insn->handler = iss_exec_insn_illegal;
+    insn->fast_handler = iss_exec_insn_illegal;
     return insn;
   }
 
@@ -199,6 +202,7 @@ iss_insn_t *iss_decode_pc_noexec(iss *iss, iss_insn_t *insn)
   {
     insn->saved_handler = insn->handler;
     insn->handler = iss_exec_insn_with_trace;
+    insn->fast_handler = iss_exec_insn_with_trace;
   }
 
   return insn;

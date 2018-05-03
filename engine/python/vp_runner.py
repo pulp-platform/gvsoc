@@ -60,8 +60,10 @@ class Runner(Platform):
             raise Exception("The specified configuration does not contain any"
                             " top component")
 
+        config = self.system_tree.get_config('gvsoc')
+        debug_mode = len(config.get('trace')) != 0 or len(config.get('event')) != 0
 
-        trace_engine = vp.trace_engine.component(name=None, config=self.system_tree.get_config('gvsoc'))
+        trace_engine = vp.trace_engine.component(name=None, config=config, debug=debug_mode)
 
         time_engine = trace_engine.new(
             name=None,
