@@ -68,6 +68,14 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
 
   insn->decoder_item = item;
   insn->size = item->u.insn.size;
+  insn->nb_out_reg = 0;
+  insn->nb_in_reg = 0;
+
+  for (int i=0; i<item->u.insn.nb_args; i++)
+  {
+    insn->out_regs[i] = -1;
+    insn->in_regs[i] = -1;
+  }
 
   for (int i=0; i<item->u.insn.nb_args; i++)
   {
@@ -89,11 +97,36 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
           arg->u.reg.index += ISS_NB_REGS;
 
         if (darg->type == ISS_DECODER_ARG_TYPE_IN_REG) {
+          if (darg->u.reg.id >= insn->nb_in_reg)
+            insn->nb_in_reg = darg->u.reg.id + 1;
+
           insn->in_regs[darg->u.reg.id] = arg->u.reg.index;
         }
         else {
-         insn->out_regs[darg->u.reg.id] = arg->u.reg.index;
+          if (darg->u.reg.id >= insn->nb_out_reg)
+            insn->nb_out_reg = darg->u.reg.id + 1;
+
+          insn->out_regs[darg->u.reg.id] = arg->u.reg.index;
         }
+
+        if (darg->type == ISS_DECODER_ARG_TYPE_OUT_REG && darg->u.reg.latency != 0)
+        {
+          iss_insn_t *next = insn_cache_get_decoded(iss, insn->addr + insn->size);
+
+          for (int j=0; j<next->nb_in_reg; j++)
+          {
+            if (next->in_regs[j] == arg->u.reg.index)
+            {
+              next->stall_handler = next->handler;
+              next->stall_fast_handler = next->fast_handler;
+              next->handler = iss_exec_stalled_insn;
+              next->fast_handler = iss_exec_stalled_insn_fast;
+            }
+          }
+
+        }
+
+
         break;
 
       case ISS_DECODER_ARG_TYPE_UIMM:

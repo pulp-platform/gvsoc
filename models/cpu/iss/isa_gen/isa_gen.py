@@ -87,9 +87,13 @@ class OpcodeField(object):
         self.isImm = False
         self.dumpName = dumpName
         self.flags = ['ISS_DECODER_ARG_FLAG_NONE'] + flags
+        self.latency = 0
 
     def is_reg(self):
         return False
+
+    def set_latency(self, latency):
+        self.latency = latency
 
 class Indirect(OpcodeField):
     def __init__(self, base, offset=None, postInc=False, preInc=False):
@@ -228,7 +232,7 @@ class OutReg(OpcodeField):
         return True
 
     def gen_info(self, isaFile):
-        dump(isaFile, '{ .id=%d, .flags=(iss_decoder_arg_flag_e)(%s), .dump_name=%d, .info= ' % (self.id, ' | '.join(self.flags), 1 if self.dumpName else 0))
+        dump(isaFile, '{ .id=%d, .flags=(iss_decoder_arg_flag_e)(%s), .dump_name=%d, .latency=%d, .info= ' % (self.id, ' | '.join(self.flags), 1 if self.dumpName else 0, self.latency))
         self.ranges.gen_info(isaFile)
         dump(isaFile, '}, ')
 
@@ -280,7 +284,7 @@ class InReg(OpcodeField):
         return True
 
     def gen_info(self, isaFile):
-        dump(isaFile, '{ .id=%d, .flags=(iss_decoder_arg_flag_e)(%s), .dump_name=%d, .info= ' % (self.id, ' | '.join(self.flags), 1 if self.dumpName else 0))
+        dump(isaFile, '{ .id=%d, .flags=(iss_decoder_arg_flag_e)(%s), .dump_name=%d, .latency=%d, .info= ' % (self.id, ' | '.join(self.flags), 1 if self.dumpName else 0, self.latency))
         self.ranges.gen_info(isaFile)
         dump(isaFile, '}, ')
 
@@ -580,6 +584,14 @@ class Isa(object):
             self.optionsDict.update(subset.getOptions())
 
 
+    def get_insns(self):
+        result = []
+        for subset in self.subsets:
+            result += subset.instrs
+
+        return result
+
+
     def dump(self, str):
         for i in range(0, self.level):
             self.isaFile.write('  ')
@@ -826,9 +838,11 @@ defaultIsaGroup   = IsaGroup('ISA_GROUP_OTHER')
 defaultInstrGroup = InstrGroup(defaultIsaGroup, 'INSTR_GROUP_OTHER')
 
 class Instr(object):
-    def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None, fast_handler=False):
+    def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None, fast_handler=False, tags=[]):
         global nb_insn
         self.insn_number = nb_insn
+        self.tags = tags
+        self.out_reg_latencies = []
         nb_insn += 1
 
         encoding = encoding[::-1].replace(' ', '')
@@ -870,6 +884,15 @@ class Instr(object):
         self.id = instrLabels[self.traceLabel]
 
 
+    def get_out_reg(self, reg):
+        index = 0
+        for arg in self.args:
+            if arg.is_reg() and arg.is_out():
+                if index == reg:
+                    return arg
+                index += 1
+        return None
+
     def get_full_name(self):
         return ('insn_%d_%s_%s' % (self.insn_number, self.isa.name, self.getLabel())).replace('.', '_')
 
@@ -904,12 +927,6 @@ class Instr(object):
 
         name = self.get_full_name()
 
-        #self.dump(isaFile, 'iss_decoder_arg_t %s = {\n' % (name))
-        #for arg in self.args:
-        #    arg.gen(isaFile, name)
-        #self.dump(isaFile, '}\n')
-        #self.dump(isaFile, '\n')
-
         self.dump(isaFile, 'static iss_decoder_item_t %s = {\n' % (name))
         self.dump(isaFile, '  .is_insn=true,\n')
         self.dump(isaFile, '  .opcode_others=%d,\n' % (1 if others else 0))
@@ -932,46 +949,6 @@ class Instr(object):
         self.dump(isaFile, '};\n')
         self.dump(isaFile, '\n')
 
-        return;
-
-
-        self.dump(isaFile, 'static void %s(cpu_t *cpu, pc_t *pc)\n' % self.decodeFunc, level)
-        self.dump(isaFile, '{\n', level)
-        self.dump(isaFile, 'trace_t *t = &pc->trace;\n', level+1)
-        self.genArgsExtract(isaFile, level)
-        self.dump(isaFile, '  pc->group = %s;\n' % self.group.name, level)
-        self.dump(isaFile, '  pc->instrId = %d;\n' % self.id, level)
-        timing = self.group.getTiming()
-        if timing != None:
-            self.dump(isaFile, '  pc->latency = getTiming_latency(cpu, &%s, pc->group);\n' % (timing), level)
-            self.dump(isaFile, '  pc->bandwidth = getTiming_bandwidth(cpu, &%s, pc->group);\n' % (timing), level)
-
-        if self.offload != None:
-            self.dump(isaFile, '  if (%s) {\n' % (self.offload[1].replace('-', '_')), level)
-            self.dump(isaFile, '    pc->execFunc = %s;\n' % (self.execFunc), level)
-            self.dump(isaFile, '    pc->offload = 1;\n', level)
-            self.dump(isaFile, '    setHandler(pc, %s);\n' % (self.offload[0]), level)
-            self.dump(isaFile, '  } else {\n', level)
-            self.dump(isaFile, '    setHandler(pc, %s);\n' % (self.execFunc), level)
-            self.dump(isaFile, '    pc->offload = 0;\n', level)
-            self.dump(isaFile, '  }\n', level)
-        else:
-            self.dump(isaFile, '  setHandler(pc, %s);\n' % (self.execFunc), level)
-
-        if self.power != None:
-            self.dump(isaFile, '  if (cpu->cache->powerEn) setPowerTrace(cpu, pc, (char *)"%s");\n' % (self.power), level)
-
-        self.dump(isaFile, '  pc->size = %d;\n' % (self.len/8), level)
-        self.dump(isaFile, '  if (pc->next == NULL) pc->next = getPc(cpu, pc->addr + %d);\n' % (self.len / 8), level)
-        self.dump(isaFile, '\n', level)
-        self.dump(isaFile, '  t->opcode = "%s";\n' % (self.traceLabel), level)
-        for arg in self.args:
-            arg.genTrace(isaFile, level)
-        if self.decode:
-            self.dump(isaFile, '\n', level)
-            self.dump(isaFile, '%s(cpu, pc);\n' % (self.decode), level+1)
-        self.dump(isaFile, '}\n', level)
-        self.dump(isaFile, '\n', level)
 
     def getOptions(self):
         if self.group != None: return self.group.getOptions()

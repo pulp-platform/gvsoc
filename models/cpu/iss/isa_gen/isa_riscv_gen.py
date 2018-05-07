@@ -41,7 +41,7 @@ rv32mGroupMulh    = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_MULH')
 rv32mGroupDiv     = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_DIV')
 
 class R5(Instr):
-    def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None, fast_handler=False):
+    def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None, fast_handler=False, tags=[]):
 
         # Encodings for non-compressed instruction sets
               #   3 3 2 2 2 2 2       2 2 2 2 2       1 1 1 1 1       1 1 1       1 1
@@ -487,7 +487,7 @@ class R5(Instr):
         else:
             raise Exception('Undefined format: %s' % format)
 
-        super(R5, self).__init__(label, type, encoding, decode, N, L, mapTo, group=group, fast_handler=fast_handler)
+        super(R5, self).__init__(label, type, encoding, decode, N, L, mapTo, group=group, fast_handler=fast_handler, tags=tags)
 
 
 
@@ -508,14 +508,14 @@ rv32i = [
     R5('bge',   'SB', '------- ----- ----- 101 ----- 1100011', 'bxx_decode', fast_handler=True),
     R5('bltu',  'SB', '------- ----- ----- 110 ----- 1100011', 'bxx_decode', fast_handler=True),
     R5('bgeu',  'SB', '------- ----- ----- 111 ----- 1100011', 'bxx_decode', fast_handler=True),
-    R5('lb',    'L',  '------- ----- ----- 000 ----- 0000011', fast_handler=True),
-    R5('lh',    'L',  '------- ----- ----- 001 ----- 0000011', fast_handler=True),
-    R5('lw',    'L',  '------- ----- ----- 010 ----- 0000011', fast_handler=True),
-    R5('lbu',   'L',  '------- ----- ----- 100 ----- 0000011', fast_handler=True),
-    R5('lhu',   'L',  '------- ----- ----- 101 ----- 0000011', fast_handler=True),
-    R5('sb',    'S',  '------- ----- ----- 000 ----- 0100011', fast_handler=True),
-    R5('sh',    'S',  '------- ----- ----- 001 ----- 0100011', fast_handler=True),
-    R5('sw',    'S',  '------- ----- ----- 010 ----- 0100011', fast_handler=True),
+    R5('lb',    'L',  '------- ----- ----- 000 ----- 0000011', fast_handler=True, tags=["load"]),
+    R5('lh',    'L',  '------- ----- ----- 001 ----- 0000011', fast_handler=True, tags=["load"]),
+    R5('lw',    'L',  '------- ----- ----- 010 ----- 0000011', fast_handler=True, tags=["load"]),
+    R5('lbu',   'L',  '------- ----- ----- 100 ----- 0000011', fast_handler=True, tags=["load"]),
+    R5('lhu',   'L',  '------- ----- ----- 101 ----- 0000011', fast_handler=True, tags=["load"]),
+    R5('sb',    'S',  '------- ----- ----- 000 ----- 0100011', fast_handler=True, tags=["store"]),
+    R5('sh',    'S',  '------- ----- ----- 001 ----- 0100011', fast_handler=True, tags=["store"]),
+    R5('sw',    'S',  '------- ----- ----- 010 ----- 0100011', fast_handler=True, tags=["store"]),
     R5('addi',  'I',  '------- ----- ----- 000 ----- 0010011'),
     R5('addi',  'Z',  '0000000 00000 00000 000 00000 0010011', mapTo="nop", L='nop'),
     R5('slti',  'I',  '------- ----- ----- 010 ----- 0010011'),
@@ -582,7 +582,7 @@ rv32d = [
 
 rv32f = [
 
-    R5('flw',       'FL', '------- ----- ----- 010 ----- 0000111'),
+    R5('flw',       'FL', '------- ----- ----- 010 ----- 0000111', tags=["load"]),
     R5('fsw',       'FS', '------- ----- ----- 010 ----- 0100111'),
     R5('fmadd.s',   'R4U','-----00 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
     R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
@@ -620,8 +620,8 @@ rv32f = [
     
     R5('c.fsw',      'FCS',  '111 --- --- -- --- 00'),
     R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10'),
-    R5('c.flw',      'FCL',  '011 --- --- -- --- 00'),
-    R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10'),
+    R5('c.flw',      'FCL',  '011 --- --- -- --- 00', tags=["load"]),
+    R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10', tags=["load"]),
 
 ]
 
@@ -682,7 +682,7 @@ rv32c = [
 
     # Compressed ISA
     R5('c.addi4spn', 'CIW', '000 --- --- -- --- 00', fast_handler=True),
-    R5('c.lw',       'CL',  '010 --- --- -- --- 00', fast_handler=True),
+    R5('c.lw',       'CL',  '010 --- --- -- --- 00', fast_handler=True, tags=["load"]),
     R5('c.sw',       'CS',  '110 --- --- -- --- 00', fast_handler=True),
     R5('c.nop',      'CI1', '000 000 000 00 000 01', fast_handler=True),
     R5('c.addi',     'CI1', '000 --- --- -- --- 01', fast_handler=True),
@@ -701,7 +701,7 @@ rv32c = [
     R5('c.beqz',     'CB1', '110 --- --- -- --- 01', fast_handler=True, decode='bxx_decode'),
     R5('c.bnez',     'CB1', '111 --- --- -- --- 01', fast_handler=True, decode='bxx_decode'),
     R5('c.slli',     'CI1U','000 --- --- -- --- 10', fast_handler=True),
-    R5('c.lwsp',     'CI3', '010 --- --- -- --- 10', fast_handler=True),
+    R5('c.lwsp',     'CI3', '010 --- --- -- --- 10', fast_handler=True, tags=["load"]),
     R5('c.jr',       'CR1', '100 0-- --- 00 000 10', fast_handler=True),
     R5('c.mv',       'CR2', '100 0-- --- -- --- 10', fast_handler=True),
     R5('c.ebreak',   'CR',  '100 100 000 00 000 10'),
@@ -719,28 +719,28 @@ rv32c = [
 pulp = [
 
     # Reg-reg LD/ST
-    R5('LB_RR',    'LR', '0000000 ----- ----- 111 ----- 0000011', L='p.lb' , fast_handler=True),
-    R5('LH_RR',    'LR', '0001000 ----- ----- 111 ----- 0000011', L='p.lh' , fast_handler=True),
-    R5('LW_RR',    'LR', '0010000 ----- ----- 111 ----- 0000011', L='p.lw' , fast_handler=True),
-    R5('LBU_RR',   'LR', '0100000 ----- ----- 111 ----- 0000011', L='p.lbu', fast_handler=True),
-    R5('LHU_RR',   'LR', '0101000 ----- ----- 111 ----- 0000011', L='p.lhu', fast_handler=True),    
+    R5('LB_RR',    'LR', '0000000 ----- ----- 111 ----- 0000011', L='p.lb' , fast_handler=True, tags=["load"]),
+    R5('LH_RR',    'LR', '0001000 ----- ----- 111 ----- 0000011', L='p.lh' , fast_handler=True, tags=["load"]),
+    R5('LW_RR',    'LR', '0010000 ----- ----- 111 ----- 0000011', L='p.lw' , fast_handler=True, tags=["load"]),
+    R5('LBU_RR',   'LR', '0100000 ----- ----- 111 ----- 0000011', L='p.lbu', fast_handler=True, tags=["load"]),
+    R5('LHU_RR',   'LR', '0101000 ----- ----- 111 ----- 0000011', L='p.lhu', fast_handler=True, tags=["load"]),    
 
     # Regular post-inc LD/ST
-    R5('LB_POSTINC',    'LPOST', '------- ----- ----- 000 ----- 0001011', L='p.lb' , fast_handler=True),
-    R5('LH_POSTINC',    'LPOST', '------- ----- ----- 001 ----- 0001011', L='p.lh' , fast_handler=True),
-    R5('LW_POSTINC',    'LPOST', '------- ----- ----- 010 ----- 0001011', L='p.lw' , fast_handler=True),
-    R5('LBU_POSTINC',   'LPOST', '------- ----- ----- 100 ----- 0001011', L='p.lbu', fast_handler=True),
-    R5('LHU_POSTINC',   'LPOST', '------- ----- ----- 101 ----- 0001011', L='p.lhu', fast_handler=True), 
+    R5('LB_POSTINC',    'LPOST', '------- ----- ----- 000 ----- 0001011', L='p.lb' , fast_handler=True, tags=["load"]),
+    R5('LH_POSTINC',    'LPOST', '------- ----- ----- 001 ----- 0001011', L='p.lh' , fast_handler=True, tags=["load"]),
+    R5('LW_POSTINC',    'LPOST', '------- ----- ----- 010 ----- 0001011', L='p.lw' , fast_handler=True, tags=["load"]),
+    R5('LBU_POSTINC',   'LPOST', '------- ----- ----- 100 ----- 0001011', L='p.lbu', fast_handler=True, tags=["load"]),
+    R5('LHU_POSTINC',   'LPOST', '------- ----- ----- 101 ----- 0001011', L='p.lhu', fast_handler=True, tags=["load"]), 
     R5('SB_POSTINC',    'SPOST', '------- ----- ----- 000 ----- 0101011', L='p.sb' , fast_handler=True),
     R5('SH_POSTINC',    'SPOST', '------- ----- ----- 001 ----- 0101011', L='p.sh' , fast_handler=True),
     R5('SW_POSTINC',    'SPOST', '------- ----- ----- 010 ----- 0101011', L='p.sw' , fast_handler=True),
 
     # Reg-reg post-inc LD/ST
-    R5('LB_RR_POSTINC',   'LRPOST',  '0000000 ----- ----- 111 ----- 0001011', L='p.lb' , fast_handler=True),
-    R5('LH_RR_POSTINC',   'LRPOST',  '0001000 ----- ----- 111 ----- 0001011', L='p.lh' , fast_handler=True),
-    R5('LW_RR_POSTINC',   'LRPOST',  '0010000 ----- ----- 111 ----- 0001011', L='p.lw' , fast_handler=True),
-    R5('LBU_RR_POSTINC',  'LRPOST',  '0100000 ----- ----- 111 ----- 0001011', L='p.lbu', fast_handler=True),
-    R5('LHU_RR_POSTINC',  'LRPOST',  '0101000 ----- ----- 111 ----- 0001011', L='p.lhu', fast_handler=True),
+    R5('LB_RR_POSTINC',   'LRPOST',  '0000000 ----- ----- 111 ----- 0001011', L='p.lb' , fast_handler=True, tags=["load"]),
+    R5('LH_RR_POSTINC',   'LRPOST',  '0001000 ----- ----- 111 ----- 0001011', L='p.lh' , fast_handler=True, tags=["load"]),
+    R5('LW_RR_POSTINC',   'LRPOST',  '0010000 ----- ----- 111 ----- 0001011', L='p.lw' , fast_handler=True, tags=["load"]),
+    R5('LBU_RR_POSTINC',  'LRPOST',  '0100000 ----- ----- 111 ----- 0001011', L='p.lbu', fast_handler=True, tags=["load"]),
+    R5('LHU_RR_POSTINC',  'LRPOST',  '0101000 ----- ----- 111 ----- 0001011', L='p.lhu', fast_handler=True, tags=["load"]),
     R5('SB_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 100 ----- 0101011',  L='p.sb' , fast_handler=True),
     R5('SH_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 101 ----- 0101011',  L='p.sh' , fast_handler=True),
     R5('SW_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 110 ----- 0101011',  L='p.sw' , fast_handler=True),    
@@ -803,7 +803,7 @@ pulp_v1 = [
 
 
 pulp_zeroriscy = [
-    R5('p.elw',           'L',   '------- ----- ----- 110 ----- 0000011', mapTo="lib_LW"),
+    R5('p.elw',           'L',   '------- ----- ----- 110 ----- 0000011', mapTo="lib_LW", tags=["load"]),
 ]
 
 pulp_v2 = [
@@ -814,7 +814,7 @@ pulp_v2 = [
     R5('SH_RR',    'SR', '0000000 ----- ----- 101 ----- 0100011', L='p.sh', fast_handler=True),
     R5('SW_RR',    'SR', '0000000 ----- ----- 110 ----- 0100011', L='p.sw', fast_handler=True),
 
-    R5('p.elw',           'L',   '------- ----- ----- 110 ----- 0000011'),
+    R5('p.elw',           'L',   '------- ----- ----- 110 ----- 0000011', tags=["load"]),
 
     R5('pv.add.h',        'R',   '000000- ----- ----- 000 ----- 1010111'),
     R5('pv.add.sc.h',     'R',   '000000- ----- ----- 100 ----- 1010111'),
@@ -1222,4 +1222,9 @@ except Exception:
 
 with open(args.header_file, 'w') as isaFileHeader:
     with open(args.source_file, 'w') as isaFile:
+
+        for insn in isa.get_insns():
+            if "load" in insn.tags:
+                insn.get_out_reg(0).set_latency(2)
+
         isa.gen(isaFile, isaFileHeader)

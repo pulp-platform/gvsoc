@@ -188,6 +188,7 @@ typedef struct iss_decoder_arg_s {
       int id;
       iss_decoder_arg_flag_e flags;
       bool dump_name;
+      int latency;
       iss_decoder_arg_info_t info;
     } reg;
     struct {
@@ -195,6 +196,7 @@ typedef struct iss_decoder_arg_s {
         int id;
         iss_decoder_arg_flag_e flags;
         bool dump_name;
+      int latency;
         iss_decoder_arg_info_t info;
       } reg;
       struct {
@@ -208,12 +210,14 @@ typedef struct iss_decoder_arg_s {
         int id;
         iss_decoder_arg_flag_e flags;
         bool dump_name;
+        int latency;
         iss_decoder_arg_info_t info;
       } base_reg;
       struct {
         int id;
         iss_decoder_arg_flag_e flags;
         bool dump_name;
+        int latency;
         iss_decoder_arg_info_t info;
       } offset_reg;
     } indirect_reg;
@@ -269,6 +273,8 @@ typedef struct iss_insn_s {
   iss_insn_t *(*fast_handler)(iss *, iss_insn_t*);
   iss_insn_t *(*handler)(iss *, iss_insn_t*);
   iss_insn_t *(*hwloop_handler)(iss *, iss_insn_t*);
+  iss_insn_t *(*stall_handler)(iss *, iss_insn_t*);
+  iss_insn_t *(*stall_fast_handler)(iss *, iss_insn_t*);
   int size;
   int nb_out_reg;
   int nb_in_reg;

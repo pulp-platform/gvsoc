@@ -37,6 +37,11 @@ static inline void iss_perf_account_taken_branch(iss *iss)
   iss->cpu.state.insn_cycles += 2;  
 }
 
+static inline void iss_perf_account_ld_stall(iss *iss)
+{
+  iss->cpu.state.insn_cycles += 1;  
+}
+
 static inline void iss_perf_account_jump(iss *iss)
 {
   iss->cpu.state.insn_cycles += 1;  
