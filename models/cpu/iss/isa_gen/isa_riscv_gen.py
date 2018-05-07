@@ -508,14 +508,14 @@ rv32i = [
     R5('bge',   'SB', '------- ----- ----- 101 ----- 1100011', 'bxx_decode', fast_handler=True),
     R5('bltu',  'SB', '------- ----- ----- 110 ----- 1100011', 'bxx_decode', fast_handler=True),
     R5('bgeu',  'SB', '------- ----- ----- 111 ----- 1100011', 'bxx_decode', fast_handler=True),
-    R5('lb',    'L',  '------- ----- ----- 000 ----- 0000011'),
-    R5('lh',    'L',  '------- ----- ----- 001 ----- 0000011'),
-    R5('lw',    'L',  '------- ----- ----- 010 ----- 0000011'),
-    R5('lbu',   'L',  '------- ----- ----- 100 ----- 0000011'),
-    R5('lhu',   'L',  '------- ----- ----- 101 ----- 0000011'),
-    R5('sb',    'S',  '------- ----- ----- 000 ----- 0100011'),
-    R5('sh',    'S',  '------- ----- ----- 001 ----- 0100011'),
-    R5('sw',    'S',  '------- ----- ----- 010 ----- 0100011'),
+    R5('lb',    'L',  '------- ----- ----- 000 ----- 0000011', fast_handler=True),
+    R5('lh',    'L',  '------- ----- ----- 001 ----- 0000011', fast_handler=True),
+    R5('lw',    'L',  '------- ----- ----- 010 ----- 0000011', fast_handler=True),
+    R5('lbu',   'L',  '------- ----- ----- 100 ----- 0000011', fast_handler=True),
+    R5('lhu',   'L',  '------- ----- ----- 101 ----- 0000011', fast_handler=True),
+    R5('sb',    'S',  '------- ----- ----- 000 ----- 0100011', fast_handler=True),
+    R5('sh',    'S',  '------- ----- ----- 001 ----- 0100011', fast_handler=True),
+    R5('sw',    'S',  '------- ----- ----- 010 ----- 0100011', fast_handler=True),
     R5('addi',  'I',  '------- ----- ----- 000 ----- 0010011'),
     R5('addi',  'Z',  '0000000 00000 00000 000 00000 0010011', mapTo="nop", L='nop'),
     R5('slti',  'I',  '------- ----- ----- 010 ----- 0010011'),
@@ -710,7 +710,7 @@ rv32c = [
     R5('c.swsp',     'CSS', '110 --- --- -- --- 10', fast_handler=True),
     R5('c.sbreak',   'CI1', '100 000 000 00 000 10'),
 ]
-    
+
 
 
 #
@@ -719,31 +719,31 @@ rv32c = [
 pulp = [
 
     # Reg-reg LD/ST
-    R5('LB_RR',    'LR', '0000000 ----- ----- 111 ----- 0000011', L='p.lb'),
-    R5('LH_RR',    'LR', '0001000 ----- ----- 111 ----- 0000011', L='p.lh'),
-    R5('LW_RR',    'LR', '0010000 ----- ----- 111 ----- 0000011', L='p.lw'),
-    R5('LBU_RR',   'LR', '0100000 ----- ----- 111 ----- 0000011', L='p.lbu'),
-    R5('LHU_RR',   'LR', '0101000 ----- ----- 111 ----- 0000011', L='p.lhu'),    
+    R5('LB_RR',    'LR', '0000000 ----- ----- 111 ----- 0000011', L='p.lb' , fast_handler=True),
+    R5('LH_RR',    'LR', '0001000 ----- ----- 111 ----- 0000011', L='p.lh' , fast_handler=True),
+    R5('LW_RR',    'LR', '0010000 ----- ----- 111 ----- 0000011', L='p.lw' , fast_handler=True),
+    R5('LBU_RR',   'LR', '0100000 ----- ----- 111 ----- 0000011', L='p.lbu', fast_handler=True),
+    R5('LHU_RR',   'LR', '0101000 ----- ----- 111 ----- 0000011', L='p.lhu', fast_handler=True),    
 
     # Regular post-inc LD/ST
-    R5('LB_POSTINC',    'LPOST', '------- ----- ----- 000 ----- 0001011', L='p.lb'),
-    R5('LH_POSTINC',    'LPOST', '------- ----- ----- 001 ----- 0001011', L='p.lh'),
-    R5('LW_POSTINC',    'LPOST', '------- ----- ----- 010 ----- 0001011', L='p.lw'),
-    R5('LBU_POSTINC',   'LPOST', '------- ----- ----- 100 ----- 0001011', L='p.lbu'),
-    R5('LHU_POSTINC',   'LPOST', '------- ----- ----- 101 ----- 0001011', L='p.lhu'), 
-    R5('SB_POSTINC',    'SPOST', '------- ----- ----- 000 ----- 0101011', L='p.sb'),
-    R5('SH_POSTINC',    'SPOST', '------- ----- ----- 001 ----- 0101011', L='p.sh'),
-    R5('SW_POSTINC',    'SPOST', '------- ----- ----- 010 ----- 0101011', L='p.sw'),
+    R5('LB_POSTINC',    'LPOST', '------- ----- ----- 000 ----- 0001011', L='p.lb' , fast_handler=True),
+    R5('LH_POSTINC',    'LPOST', '------- ----- ----- 001 ----- 0001011', L='p.lh' , fast_handler=True),
+    R5('LW_POSTINC',    'LPOST', '------- ----- ----- 010 ----- 0001011', L='p.lw' , fast_handler=True),
+    R5('LBU_POSTINC',   'LPOST', '------- ----- ----- 100 ----- 0001011', L='p.lbu', fast_handler=True),
+    R5('LHU_POSTINC',   'LPOST', '------- ----- ----- 101 ----- 0001011', L='p.lhu', fast_handler=True), 
+    R5('SB_POSTINC',    'SPOST', '------- ----- ----- 000 ----- 0101011', L='p.sb' , fast_handler=True),
+    R5('SH_POSTINC',    'SPOST', '------- ----- ----- 001 ----- 0101011', L='p.sh' , fast_handler=True),
+    R5('SW_POSTINC',    'SPOST', '------- ----- ----- 010 ----- 0101011', L='p.sw' , fast_handler=True),
 
     # Reg-reg post-inc LD/ST
-    R5('LB_RR_POSTINC',   'LRPOST',  '0000000 ----- ----- 111 ----- 0001011', L='p.lb'),
-    R5('LH_RR_POSTINC',   'LRPOST',  '0001000 ----- ----- 111 ----- 0001011', L='p.lh'),
-    R5('LW_RR_POSTINC',   'LRPOST',  '0010000 ----- ----- 111 ----- 0001011', L='p.lw'),
-    R5('LBU_RR_POSTINC',  'LRPOST',  '0100000 ----- ----- 111 ----- 0001011', L='p.lbu'),
-    R5('LHU_RR_POSTINC',  'LRPOST',  '0101000 ----- ----- 111 ----- 0001011', L='p.lhu'),
-    R5('SB_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 100 ----- 0101011',  L='p.sb'),
-    R5('SH_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 101 ----- 0101011',  L='p.sh'),
-    R5('SW_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 110 ----- 0101011',  L='p.sw'),    
+    R5('LB_RR_POSTINC',   'LRPOST',  '0000000 ----- ----- 111 ----- 0001011', L='p.lb' , fast_handler=True),
+    R5('LH_RR_POSTINC',   'LRPOST',  '0001000 ----- ----- 111 ----- 0001011', L='p.lh' , fast_handler=True),
+    R5('LW_RR_POSTINC',   'LRPOST',  '0010000 ----- ----- 111 ----- 0001011', L='p.lw' , fast_handler=True),
+    R5('LBU_RR_POSTINC',  'LRPOST',  '0100000 ----- ----- 111 ----- 0001011', L='p.lbu', fast_handler=True),
+    R5('LHU_RR_POSTINC',  'LRPOST',  '0101000 ----- ----- 111 ----- 0001011', L='p.lhu', fast_handler=True),
+    R5('SB_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 100 ----- 0101011',  L='p.sb' , fast_handler=True),
+    R5('SH_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 101 ----- 0101011',  L='p.sh' , fast_handler=True),
+    R5('SW_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 110 ----- 0101011',  L='p.sw' , fast_handler=True),    
 
     # Additional ALU operations
     R5('p.avgu','R',  '0000010 ----- ----- 001 ----- 0110011'),
@@ -810,9 +810,9 @@ pulp_v2 = [
 
     R5('p.abs',  'R1', '0000010 00000 ----- 000 ----- 0110011'),
 
-    R5('SB_RR',    'SR', '0000000 ----- ----- 100 ----- 0100011', L='p.sb'),
-    R5('SH_RR',    'SR', '0000000 ----- ----- 101 ----- 0100011', L='p.sh'),
-    R5('SW_RR',    'SR', '0000000 ----- ----- 110 ----- 0100011', L='p.sw'),
+    R5('SB_RR',    'SR', '0000000 ----- ----- 100 ----- 0100011', L='p.sb', fast_handler=True),
+    R5('SH_RR',    'SR', '0000000 ----- ----- 101 ----- 0100011', L='p.sh', fast_handler=True),
+    R5('SW_RR',    'SR', '0000000 ----- ----- 110 ----- 0100011', L='p.sw', fast_handler=True),
 
     R5('p.elw',           'L',   '------- ----- ----- 110 ----- 0000011'),
 

@@ -45,12 +45,12 @@ static inline iss_insn_t *iss_exec_insn_handler(iss *instance, iss_insn_t *insn,
 }
 
 
-static inline iss_insn_t *iss_exec_insn(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *iss_exec_insn_fast(iss *iss, iss_insn_t *insn)
 {
   return iss_exec_insn_handler(iss, insn, insn->fast_handler);
 }
 
-static inline iss_insn_t *iss_exec_insn_perf(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *iss_exec_insn(iss *iss, iss_insn_t *insn)
 {
   return iss_exec_insn_handler(iss, insn, insn->handler);
 }
@@ -68,7 +68,7 @@ do { \
 
 static inline int iss_exec_step_nofetch(iss_t *iss)
 {
-  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn);
+  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn_fast);
 
   return iss->cpu.state.insn_cycles;
 }
@@ -76,7 +76,7 @@ static inline int iss_exec_step_nofetch(iss_t *iss)
 
 static inline int iss_exec_step_nofetch_perf(iss_t *iss)
 {
-  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn_perf);
+  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn);
   int cycles = iss->cpu.state.insn_cycles;
 
   if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE)

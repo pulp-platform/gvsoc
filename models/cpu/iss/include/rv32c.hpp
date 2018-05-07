@@ -42,7 +42,7 @@ static inline iss_insn_t *c_addi4spn_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *c_lw_exec_fast(iss *iss, iss_insn_t *insn)
 {
-  return lw_exec(iss, insn);
+  return lw_exec_fast(iss, insn);
 }
 
 static inline iss_insn_t *c_lw_exec(iss *iss, iss_insn_t *insn)
@@ -55,7 +55,7 @@ static inline iss_insn_t *c_lw_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *c_sw_exec_fast(iss *iss, iss_insn_t *insn)
 {
-  return sw_exec(iss, insn);
+  return sw_exec_fast(iss, insn);
 }
 
 static inline iss_insn_t *c_sw_exec(iss *iss, iss_insn_t *insn)
@@ -68,7 +68,7 @@ static inline iss_insn_t *c_sw_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *c_swsp_exec_fast(iss *iss, iss_insn_t *insn)
 {
-  return sw_exec(iss, insn);
+  return sw_exec_fast(iss, insn);
 }
 
 static inline iss_insn_t *c_swsp_exec(iss *iss, iss_insn_t *insn)
@@ -315,7 +315,7 @@ static inline iss_insn_t *c_slli_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *c_lwsp_exec_fast(iss *iss, iss_insn_t *insn)
 {
-  return lw_exec(iss, insn);
+  return lw_exec_fast(iss, insn);
 }
 
 static inline iss_insn_t *c_lwsp_exec(iss *iss, iss_insn_t *insn)

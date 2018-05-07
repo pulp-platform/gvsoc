@@ -63,6 +63,7 @@ do { \
 void iss::exec_instr(void *__this, vp::clock_event *event)
 {
   iss *_this = (iss *)__this;
+
   EXEC_INSTR_COMMON(_this, event, iss_exec_step_nofetch);
 }
 
