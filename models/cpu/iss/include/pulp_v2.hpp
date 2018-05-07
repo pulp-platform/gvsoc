@@ -33,199 +33,327 @@
 #define PULPV2_HWLOOP_LPEND(x) (PULPV2_HWLOOP_LPEND0 + (x)*3)
 #define PULPV2_HWLOOP_LPCOUNT(x) (PULPV2_HWLOOP_LPCOUNT0 + (x)*3)
 
-static inline iss_insn_t *LB_RR_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *LB_RR_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_load_async_signed(iss, insn, REG_GET(0) + REG_GET(1), 1, REG_OUT(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  return insn->next;
+}
+
+static inline iss_insn_t *LB_RR_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0) + REG_GET(1), 1, REG_OUT(0));
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LH_RR_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed(iss, insn, REG_GET(0) + REG_GET(1), 2, REG_OUT(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LH_RR_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async_signed(iss, insn, REG_GET(0) + REG_GET(1), 2, REG_OUT(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0) + REG_GET(1), 2, REG_OUT(0));
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LW_RR_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async(iss, insn, REG_GET(0) + REG_GET(1), 4, REG_OUT(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LW_RR_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async(iss, insn, REG_GET(0) + REG_GET(1), 4, REG_OUT(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0) + REG_GET(1), 4, REG_OUT(0));
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LBU_RR_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async(iss, insn, REG_GET(0) + REG_GET(1), 1, REG_OUT(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LBU_RR_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async(iss, insn, REG_GET(0) + REG_GET(1), 1, REG_OUT(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0) + REG_GET(1), 1, REG_OUT(0));
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LHU_RR_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async(iss, insn, REG_GET(0) + REG_GET(1), 2, REG_OUT(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LHU_RR_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async(iss, insn, REG_GET(0) + REG_GET(1), 2, REG_OUT(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0) + REG_GET(1), 2, REG_OUT(0));
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LB_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed(iss, insn, REG_GET(0), 1, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LB_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async_signed(iss, insn, REG_GET(0), 1, REG_OUT(0));
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0), 1, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LH_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed(iss, insn, REG_GET(0), 2, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LH_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async_signed(iss, insn, REG_GET(0), 2, REG_OUT(0));
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0), 2, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LW_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed(iss, insn, REG_GET(0), 4, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LW_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async_signed(iss, insn, REG_GET(0), 4, REG_OUT(0));
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0), 4, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *LBU_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async(iss, insn, REG_GET(0), 1, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LBU_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async(iss, insn, REG_GET(0), 1, REG_OUT(0));
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0), 1, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
 
 
+
+
+static inline iss_insn_t *LHU_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async(iss, insn, REG_GET(0), 2, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *LHU_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_load_async(iss, insn, REG_GET(0), 2, REG_OUT(0));
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0), 2, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *SB_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async(iss, insn, REG_GET(0), 1, REG_IN(1));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *SB_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_store_async(iss, insn, REG_GET(0), 1, REG_IN(1));
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0), 1, REG_IN(1));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
   return insn->next;
 }
 
 
+
+static inline iss_insn_t *SH_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async(iss, insn, REG_GET(0), 2, REG_IN(1));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 static inline iss_insn_t *SH_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_store_async(iss, insn, REG_GET(0), 2, REG_IN(1));
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0), 2, REG_IN(1));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *SW_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SW_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_store_async(iss, insn, REG_GET(0), 4, REG_IN(1));
   IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
   return insn->next;
 }
 
+static inline iss_insn_t *SW_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0), 4, REG_IN(1));
+  IN_REG_SET(0, REG_GET(0) + SIM_GET(0));
+  return insn->next;
+}
 
 
-static inline iss_insn_t *LB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+
+static inline iss_insn_t *LB_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_load_async_signed(iss, insn, REG_GET(0), 1, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  return insn->next;
+}
+
+static inline iss_insn_t *LB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0), 1, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *LH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *LH_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_load_async_signed(iss, insn, REG_GET(0), 2, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  return insn->next;
+}
+
+static inline iss_insn_t *LH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0), 2, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *LW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *LW_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_load_async_signed(iss, insn, REG_GET(0), 4, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  return insn->next;
+}
+
+static inline iss_insn_t *LW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_signed_perf(iss, insn, REG_GET(0), 4, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *LBU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *LBU_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_load_async(iss, insn, REG_GET(0), 1, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  return insn->next;
+}
+
+static inline iss_insn_t *LBU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0), 1, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *LHU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *LHU_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_load_async(iss, insn, REG_GET(0), 2, REG_OUT(0));
   IN_REG_SET(0, REG_GET(0) + REG_GET(1));
-  //setRegDelayed(cpu, pc->outReg[0], value, 2);
+  return insn->next;
+}
+
+static inline iss_insn_t *LHU_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0), 2, REG_OUT(0));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(1));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *SB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SB_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_store_async(iss, insn, REG_GET(0), 1, REG_IN(1));
   IN_REG_SET(0, REG_GET(0) + REG_GET(2));
   return insn->next;
 }
 
-
-
-static inline iss_insn_t *SH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SB_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_store_async(iss, insn, REG_GET(0), 2, REG_IN(1));
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0), 1, REG_IN(1));
   IN_REG_SET(0, REG_GET(0) + REG_GET(2));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *SW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SH_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async(iss, insn, REG_GET(0), 2, REG_IN(1));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(2));
+  return insn->next;
+}
+
+static inline iss_insn_t *SH_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0), 2, REG_IN(1));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(2));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *SW_RR_POSTINC_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_store_async(iss, insn, REG_GET(0), 4, REG_IN(1));
+  IN_REG_SET(0, REG_GET(0) + REG_GET(2));
+  return insn->next;
+}
+
+static inline iss_insn_t *SW_RR_POSTINC_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0), 4, REG_IN(1));
   IN_REG_SET(0, REG_GET(0) + REG_GET(2));
   return insn->next;
 }
@@ -509,26 +637,45 @@ static inline iss_insn_t *p_abs_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *SB_RR_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SB_RR_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_lsu_store_async(iss, insn, REG_GET(0) + REG_GET(2), 1, REG_IN(1));
   return insn->next;
 }
 
-
-
-static inline iss_insn_t *SH_RR_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SB_RR_exec(iss *iss, iss_insn_t *insn)
 {
-  iss_lsu_store_async(iss, insn, REG_GET(0) + REG_GET(2), 2, REG_IN(1));
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0) + REG_GET(2), 1, REG_IN(1));
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *SW_RR_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *SH_RR_exec_fast(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async(iss, insn, REG_GET(0) + REG_GET(2), 2, REG_IN(1));
+  return insn->next;
+}
+
+static inline iss_insn_t *SH_RR_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0) + REG_GET(2), 2, REG_IN(1));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *SW_RR_exec_fast(iss *iss, iss_insn_t *insn)
 {
   iss_reg_t value = REG_GET(1);
   iss_lsu_store_async(iss, insn, REG_GET(0) + REG_GET(2), 4, REG_IN(1));
+  return insn->next;
+}
+
+static inline iss_insn_t *SW_RR_exec(iss *iss, iss_insn_t *insn)
+{
+  iss_reg_t value = REG_GET(1);
+  iss_lsu_store_async_perf(iss, insn, REG_GET(0) + REG_GET(2), 4, REG_IN(1));
   return insn->next;
 }
 
@@ -537,7 +684,7 @@ static inline iss_insn_t *SW_RR_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *p_elw_exec(iss *iss, iss_insn_t *insn)
 {
   uint32_t value = 0;
-  iss_lsu_load_async(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
+  iss_lsu_load_async_perf(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
   return insn->next;
 }
 

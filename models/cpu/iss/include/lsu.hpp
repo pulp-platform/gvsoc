@@ -51,6 +51,12 @@ static inline void iss_lsu_load_async(iss *iss, iss_insn_t *insn, iss_addr_t add
   }
 }
 
+static inline void iss_lsu_load_async_perf(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+  iss_pccr_account_event(iss, CSR_PCER_LD, 1);
+  iss_lsu_load_async(iss, insn, addr, size, reg);
+}
+
 static inline void iss_lsu_load_async_signed(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
   if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, false))
@@ -64,6 +70,12 @@ static inline void iss_lsu_load_async_signed(iss *iss, iss_insn_t *insn, iss_add
     iss->cpu.state.stall_size = size;
     iss_exec_insn_stall(iss);
   }
+}
+
+static inline void iss_lsu_load_async_signed_perf(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+  iss_pccr_account_event(iss, CSR_PCER_LD, 1);
+  iss_lsu_load_async_signed(iss, insn, addr, size, reg);
 }
 
 static inline void iss_lsu_store_resume(iss *iss)
@@ -87,6 +99,11 @@ static inline void iss_lsu_store_async(iss *iss, iss_insn_t *insn, iss_addr_t ad
   }
 }
 
+static inline void iss_lsu_store_async_perf(iss *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+  iss_pccr_account_event(iss, CSR_PCER_ST, 1);
+  iss_lsu_store_async(iss, insn, addr, size, reg);
+}
 
 #if 0
 static inline int ldAccessAligned(cpu_t *cpu, unsigned int addr, uint8_t *value, int size, int lock)

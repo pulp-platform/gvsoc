@@ -29,13 +29,13 @@ static inline void iss_exec_insn_resume(iss *iss);
 #include "utils.hpp"
 #include "platform_wrapper.hpp"
 #include "regs.hpp"
+#include "perf.hpp"
 #include "lsu.hpp"
 #include "prefetcher.hpp"
 #include "insn_cache.hpp"
 #include "irq.hpp"
 #include "exceptions.hpp"
 #include "exec.hpp"
-#include "perf.hpp"
 
 
 int iss_open(iss_t *iss);
