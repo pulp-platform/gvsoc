@@ -33,8 +33,11 @@ class Dispatch_unit;
 // Timing constants
 
 // Cycles required by the core to really wakeup after his clock is back
-// Could actually be moved to core model to differentiate cores
-#define EU_WAKEUP_REQ_LATENCY 5
+// Could actually be split into 2 latencies:
+//   - THe one required by the event unit to grant the access.
+//   - The one required by the core to continue after the grant is back.
+//     This one should be 2 or 3 cycles and should be moved to the core.
+#define EU_WAKEUP_REQ_LATENCY 6
 
 // Cycles needed by the event unit to send back the clock once
 // a core is waken-up
@@ -615,10 +618,35 @@ vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core
   // go to sleep.
   req->inc_latency(EU_WAKEUP_REQ_LATENCY);
 
+#if 1
+  // Experimental model where the core always go to sleep even if the event is there
+  // This gives much better tming results on barrier.
+  // Check if it is also the case for other features and check in the RTL how it is
+  // handled.
   if (evt_mask & status)
   {
     // Case where the core ask for clock-gating but the event status prevent him from doing so
-    // In this case, don't forget to clear the status in case of wait and clear
+    // In this case, don't forget to clear the status in case of wait and clear.
+    // Still apply the latency as to core will go to sleep before continuing.
+    top->trace.msg("Activating clock (core: %d)\n", core_id);
+    check_wait_mask();
+    pending_req = req;
+    top->event_enqueue(wakeup_event, EU_WAKEUP_LATENCY);
+    return vp::IO_REQ_PENDING;
+  }
+  else
+  {
+    state = wait_state;
+    pending_req = req;
+    return vp::IO_REQ_PENDING;
+  }
+#else
+  if (evt_mask & status)
+  {
+    // Case where the core ask for clock-gating but the event status prevent him from doing so
+    // In this case, don't forget to clear the status in case of wait and clear.
+    // Still apply the latency as to core will go to sleep before continuing.
+    req->inc_latency(EU_WAKEUP_LATENCY);
     check_wait_mask();
     return vp::IO_REQ_OK;
   }
@@ -628,6 +656,7 @@ vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core
     pending_req = req;
     return vp::IO_REQ_PENDING;
   }
+#endif
 }
 
 vp::io_req_status_e Core_event_unit::req(void *__this, vp::io_req *req)
