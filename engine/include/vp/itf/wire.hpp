@@ -120,32 +120,24 @@ namespace vp {
     else
     {
       wire_slave<T> *port = (wire_slave<T> *)_port;
-      if (port->sync_mux == NULL)
+      if (port->sync_mux == NULL && port->sync_back_mux == NULL)
       {
+        sync_back_meth = port->sync_back;
         sync_meth = port->sync;
         comp = (vp::component *)port->get_comp();
       }
       else
       {
         sync_meth_mux = port->sync_mux;
+        sync_back_meth_mux = port->sync_back_mux;
         sync_meth = (void (*)(void *, T))&wire_master::sync_muxed;
-        comp = (vp::component *)this;
+        sync_back_meth = (void (*)(void *, T *))&wire_master::sync_back_muxed;
+        comp = (vp::component *)(void *)this;
         comp_mux = (vp::component *)port->get_comp();
         sync_mux = port->sync_mux_id;
-      }
-      if (port->sync_back_mux == NULL)
-      {
-        sync_back_meth = port->sync_back;
-        comp = (vp::component *)port->get_comp();
-      }
-      else
-      {
-        sync_back_meth_mux = port->sync_back_mux;
-        sync_back_meth = (void (*)(void *, T *))&wire_master::sync_back_muxed;
-        comp = (vp::component *)this;
-        comp_mux = (vp::component *)port->get_comp();
         sync_back_mux = port->sync_back_mux_id;
       }
+
     }
   }
 
