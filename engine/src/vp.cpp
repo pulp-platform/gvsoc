@@ -42,11 +42,18 @@ void vp::component_clock::clk_reg(component *_this, component *clock) {
   _this->clock = (clock_engine *)clock;
 }
 
+void vp::component_clock::reset_sync(void *_this, bool active)
+{
+  printf("RESET SYNC\n");
+}
 
 
 void vp::component_clock::pre_build(component *comp) {
   clock_port.set_reg_meth((vp::clk_reg_meth_t *)&component_clock::clk_reg);
   comp->new_slave_port("clock", &clock_port);
+
+  reset_port.set_sync_meth(&component_clock::reset_sync);
+  comp->new_slave_port("reset", &reset_port);
 }
 
 void vp::time_engine::enqueue(time_engine_client *client, int64_t time)

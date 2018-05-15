@@ -33,11 +33,10 @@ public:
   converter(const char *config);
 
   void build();
-  void start();
+  void reset();
+
 
 private:
-
-  void reset();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -238,9 +237,4 @@ void converter::reset()
   ongoing_req = NULL;
   ongoing_size = 0;
   stalled_req = NULL;
-}
-
-void converter::start()
-{
-  reset();
 }

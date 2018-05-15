@@ -117,5 +117,7 @@ iss_insn_t *insn_cache_get(iss *iss, iss_addr_t pc)
 
 iss_insn_t *insn_cache_get_decoded(iss *iss, iss_addr_t pc)
 {
-  return iss_decode_pc_noexec(iss, insn_cache_get(iss, pc));
+  iss_insn_t *insn = insn_cache_get(iss, pc);
+  if (insn->handler != iss_decode_pc) return insn;
+  return iss_decode_pc_noexec(iss, insn);
 }

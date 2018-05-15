@@ -139,6 +139,12 @@ class default_implementation_class(object):
         self.implem_pre_start = self.module.vp_pre_start
         self.module.vp_pre_start.argtypes = [ctypes.c_void_p]
 
+        self.implem_reset = self.module.vp_reset
+        self.module.vp_reset.argtypes = [ctypes.c_void_p]
+
+        self.implem_load = self.module.vp_load
+        self.module.vp_load.argtypes = [ctypes.c_void_p]
+
         self.implem_post_post_build = self.module.vp_post_post_build
         self.module.vp_post_post_build.argtypes = [ctypes.c_void_p]
 
@@ -193,6 +199,12 @@ class default_implementation_class(object):
 
     def start(self):
         return self.implem_start(self.instance)
+
+    def reset(self):
+        return self.implem_reset(self.instance)
+
+    def load(self):
+        return self.implem_load(self.instance)
 
     def stop(self):
         return self.implem_stop(self.instance)
@@ -451,10 +463,19 @@ class component(component_trace):
     def start(self):
         pass
 
+    def reset(self):
+        pass
+
+    def load(self):
+        pass
+
     def stop(self):
         pass
 
     def pre_start(self):
+        pass
+
+    def post_start(self):
         pass
 
     def post_post_build(self):
@@ -481,6 +502,13 @@ class component(component_trace):
         if self.impl is not None:
             self.impl.pre_start()
 
+    def post_start_all(self):
+
+        for build in self.sub_comps:
+            build.post_start_all()
+
+        self.post_start()
+
     def post_post_build_all(self):
 
         if self.impl is not None:
@@ -505,6 +533,34 @@ class component(component_trace):
 
         if self.impl is not None:
             self.impl.start()
+
+        return 0
+
+    def reset_all(self):
+
+        for build in self.sub_comps:
+            build.reset_all()
+
+        self.trace.msg('Resetting component')
+
+        self.reset()
+
+        if self.impl is not None:
+            self.impl.reset()
+
+        return 0
+
+    def load_all(self):
+
+        for build in self.sub_comps:
+            build.load_all()
+
+        self.trace.msg('Load step')
+
+        self.load()
+
+        if self.impl is not None:
+            self.impl.load()
 
         return 0
 

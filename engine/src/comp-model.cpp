@@ -337,9 +337,19 @@ extern "C" void vp_pre_start(void *comp)
   ((cm::component *)comp)->pre_start();
 }
 
+extern "C" void vp_load(void *comp)
+{
+  ((cm::component *)comp)->load();
+}
+
 extern "C" void vp_start(void *comp)
 {
   ((cm::component *)comp)->start();
+}
+
+extern "C" void vp_reset(void *comp)
+{
+  ((cm::component *)comp)->reset();
 }
 
 extern "C" void vp_stop(void *comp)

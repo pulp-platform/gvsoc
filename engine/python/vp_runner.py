@@ -87,6 +87,12 @@ class Runner(Platform):
 
         trace_engine.start_all()
 
+        trace_engine.post_start_all()
+
+        trace_engine.reset_all()
+
+        trace_engine.load_all()
+
         status = time_engine.run()
 
         trace_engine.stop_all()

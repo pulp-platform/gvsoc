@@ -47,6 +47,8 @@ namespace cm {
     virtual void pre_start() {}
     virtual void start() {}
     virtual void stop() {}
+    virtual void reset() {}
+    virtual void load() {}
     virtual string run() { return "error"; }
     virtual int run_status() { return 0; }
 

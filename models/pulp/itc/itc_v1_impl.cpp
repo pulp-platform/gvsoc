@@ -33,7 +33,6 @@ public:
   itc(const char *config);
 
   void build();
-  void start();
 
 private:
 
@@ -325,11 +324,6 @@ void itc::build()
     new_slave_port("in_event_" + std::to_string(i), &in_event_itf[i]);
   }
 
-}
-
-void itc::start()
-{
-  reset();
 }
 
 

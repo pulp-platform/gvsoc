@@ -24,6 +24,7 @@
 #include "vp/component.hpp"
 #include "vp/itf/clk.hpp"
 #include "vp/clock/clock_event.hpp"
+#include "vp/itf/wire.hpp"
 
 using namespace std;
 
@@ -40,6 +41,7 @@ namespace vp {
   public:
 
     static void clk_reg(component *_this, component *clock);
+    static void reset_sync(void *_this, bool active);
 
     inline void event_enqueue(clock_event *event, int64_t cycles);
 
@@ -75,7 +77,8 @@ namespace vp {
   protected:
     clock_engine *clock;
 
-    clk_slave        clock_port;
+    clk_slave            clock_port;
+    vp::wire_slave<bool> reset_port;
 
   };
 

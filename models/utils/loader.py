@@ -23,7 +23,7 @@ class component(vp.component):
 
     implementation = 'utils.loader_impl'
 
-    def start(self):
+    def load(self):
 
         binaries = self.get_config().get('binaries')
         if binaries is not None:

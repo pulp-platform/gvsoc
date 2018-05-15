@@ -91,7 +91,6 @@ public:
   router(const char *config);
 
   void build();
-  void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -105,7 +104,9 @@ private:
 
   io_master_map out;
   vp::io_slave in;
+  bool init = false;
 
+  void init_entries();
   MapEntry *firstMapEntry = NULL;
   MapEntry *defaultMapEntry = NULL;
   MapEntry *errorMapEntry = NULL;
@@ -159,6 +160,13 @@ void MapEntry::insert(router *router)
 vp::io_req_status_e router::req(void *__this, vp::io_req *req)
 {
   router *_this = (router *)__this;
+  
+  if (!_this->init)
+  {
+    _this->init = true;
+    _this->init_entries();
+  }
+
   MapEntry *entry = _this->topMapEntry;
   uint64_t offset = req->get_addr();
   bool isRead = !req->get_is_write();
@@ -358,7 +366,7 @@ extern "C" void *vp_constructor(const char *config)
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-void router::start() {
+void router::init_entries() {
 
   MapEntry *current = firstMapEntry;
   trace.msg("Building router table\n");

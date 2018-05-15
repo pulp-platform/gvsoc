@@ -33,7 +33,7 @@
 #define IDCODE_INSTR 1
 #define USER_INSTR   4
 
-#define INSTR_LENGTH 8
+#define INSTR_LENGTH 4
 
 #define ADBG_CRC_POLY 0xedb88320
 
