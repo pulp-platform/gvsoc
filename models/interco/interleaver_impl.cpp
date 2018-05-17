@@ -129,7 +129,7 @@ void interleaver::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   in.set_req_meth(&interleaver::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   nb_slaves = get_config_int("nb_slaves");
   nb_masters = get_config_int("nb_masters");

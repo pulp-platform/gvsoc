@@ -102,7 +102,7 @@ void apb_soc_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&apb_soc_ctrl::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   core_status = 0;
 }

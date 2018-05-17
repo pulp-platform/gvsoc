@@ -287,7 +287,7 @@ void router::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   in.set_req_meth(&router::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   out.set_resp_meth(&router::response);
   out.set_grant_meth(&router::grant);

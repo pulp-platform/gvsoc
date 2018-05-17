@@ -517,7 +517,7 @@ void udma::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&udma::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   nb_periphs = get_config_int("nb_periphs");
   periphs.reserve(nb_periphs);

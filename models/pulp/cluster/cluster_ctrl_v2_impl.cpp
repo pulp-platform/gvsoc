@@ -241,7 +241,7 @@ void cluster_ctrl::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   in.set_req_meth(&cluster_ctrl::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   for (int i; i<nb_core; i++)
   {

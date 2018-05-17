@@ -23,5 +23,5 @@ class component(vp.component):
 
     def build(self):
         self.create_comps('vp_comps', 'vp_class', 'utils/composite')
-
+        self.create_ports('vp_ports')
         self.create_bindings('vp_bindings')

@@ -92,7 +92,7 @@ void Stdout::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&Stdout::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   nb_cluster = get_config_int("max_cluster");
   nb_core = get_config_int("max_core_per_cluster");

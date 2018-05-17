@@ -335,12 +335,13 @@ vp::io_req_status_e timer::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
+
 void timer::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   in.set_req_meth(&timer::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   event = event_new(timer::event_handler);
 

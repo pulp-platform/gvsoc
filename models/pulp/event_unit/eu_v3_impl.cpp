@@ -549,7 +549,7 @@ void Event_unit::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   in.set_req_meth(&Event_unit::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   core_eu = (Core_event_unit *)new Core_event_unit[nb_core];
   dispatch = new Dispatch_unit(this);

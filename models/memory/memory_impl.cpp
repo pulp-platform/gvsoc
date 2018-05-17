@@ -95,7 +95,7 @@ void memory::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&memory::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 }
 
 void memory::start()

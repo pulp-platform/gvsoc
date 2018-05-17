@@ -186,7 +186,7 @@ void soc_eu::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&soc_eu::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   event_in_itf.set_sync_meth(&soc_eu::event_in_sync);
   new_slave_port("event_in", &event_in_itf);

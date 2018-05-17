@@ -303,7 +303,7 @@ void itc::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   in.set_req_meth(&itc::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   new_master_port("irq_req", &irq_req_itf);
 

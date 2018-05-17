@@ -169,7 +169,7 @@ void fll_v1::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&fll_v1::req);
-  new_slave_port("in", &in);
+  new_slave_port("input", &in);
 
   mult_factor = 0x5f5;
   div_factor = 1;
