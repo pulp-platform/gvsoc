@@ -628,13 +628,15 @@ class component(component_trace):
 
     def create_comps(self, comps_tag, class_tag, default_class_name):
         config = self.get_config()
-        for comp_name in config.get(comps_tag):
-            comp_config = config.get_config(comp_name)
-            component = comp_config.get(class_tag)
-            if component is None:
-                component = default_class_name
+        comps = config.get(comps_tag)
+        if comps is not None:
+            for comp_name in config.get(comps_tag):
+                comp_config = config.get_config(comp_name)
+                component = comp_config.get(class_tag)
+                if component is None:
+                    component = default_class_name
 
-            self.new(comp_name, component=component, config=comp_config)
+                self.new(comp_name, component=component, config=comp_config)
 
 
     def create_ports(self, port_tag):
