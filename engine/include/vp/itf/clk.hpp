@@ -40,7 +40,7 @@ namespace vp {
 
     void reg(component *clock);
 
-    void bind_to(cm::port *port, cm::config *config);
+    void bind_to(vp::port *port, vp::config *config);
 
   private:
     void (*reg_meth)(component *, component *clock);

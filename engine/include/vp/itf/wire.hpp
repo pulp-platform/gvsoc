@@ -50,7 +50,7 @@ namespace vp {
       sync_back_meth((void *)comp, value);
     }
 
-    void bind_to(cm::port *port, cm::config *config);
+    void bind_to(vp::port *port, vp::config *config);
 
     bool is_bound() { return slave_port != NULL; }
 
@@ -88,7 +88,7 @@ namespace vp {
     void set_sync_back_meth(void (*)(void *_this, T *value));
     void set_sync_back_meth_muxed(void (*)(void *_this, T *value, int), int id);
 
-    inline void bind_to(cm::port *_port, cm::config *config);
+    inline void bind_to(vp::port *_port, vp::config *config);
 
 
   private:
@@ -108,7 +108,7 @@ namespace vp {
 
 
   template<class T>
-  inline void wire_master<T>::bind_to(cm::port *_port, cm::config *config)
+  inline void wire_master<T>::bind_to(vp::port *_port, vp::config *config)
   {
     if (slave_port != NULL)
     {
@@ -157,7 +157,7 @@ namespace vp {
 
 
   template<class T>
-  inline void wire_slave<T>::bind_to(cm::port *_port, cm::config *config)
+  inline void wire_slave<T>::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     wire_master<T> *port = (wire_master<T> *)_port;

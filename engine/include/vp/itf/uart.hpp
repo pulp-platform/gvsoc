@@ -49,7 +49,7 @@ namespace vp {
       return sync_meth((void *)comp, data);
     }
 
-    void bind_to(cm::port *port, cm::config *config);
+    void bind_to(vp::port *port, vp::config *config);
 
     inline void set_sync_meth(uart_sync_meth_t *meth);
     inline void set_sync_meth_muxed(uart_sync_meth_muxed_t *meth, int id);
@@ -94,7 +94,7 @@ namespace vp {
     inline void set_sync_meth(uart_sync_meth_t *meth);
     inline void set_sync_meth_muxed(uart_sync_meth_muxed_t *meth, int id);
 
-    inline void bind_to(cm::port *_port, cm::config *config);
+    inline void bind_to(vp::port *_port, vp::config *config);
 
   private:
 
@@ -123,7 +123,7 @@ namespace vp {
     return _this->sync_meth_mux(_this->comp_mux, data, _this->sync_mux);
   }
 
-  inline void uart_master::bind_to(cm::port *_port, cm::config *config)
+  inline void uart_master::bind_to(vp::port *_port, vp::config *config)
   {
     uart_slave *port = (uart_slave *)_port;
     if (port->sync_mux_meth == NULL)
@@ -158,7 +158,7 @@ namespace vp {
   {
   }
 
-  inline void uart_slave::bind_to(cm::port *_port, cm::config *config)
+  inline void uart_slave::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     uart_master *port = (uart_master *)_port;

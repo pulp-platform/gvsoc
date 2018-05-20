@@ -13,7 +13,7 @@ CFLAGS +=  -MMD -MP -O2 -g -fpic -Isrc -std=c++11 -Werror -Wall -I$(PULP_SDK_WS_
 
 LDFLAGS += -O2 -g -shared -Werror -Wall
 
-VP_SRCS = src/vp.cpp src/jsmn.c src/comp-model.cpp src/trace/trace.cpp src/clock/clock.cpp src/trace/vcd.cpp
+VP_SRCS = src/vp.cpp src/jsmn.c src/trace/trace.cpp src/clock/clock.cpp src/trace/vcd.cpp
 VP_OBJS = $(patsubst src/%.cpp,$(BUILD_DIR)/%.o,$(patsubst src/%.c,$(BUILD_DIR)/%.o,$(VP_SRCS)))
 
 VP_HEADERS += $(shell find include -name *.hpp)

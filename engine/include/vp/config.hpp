@@ -23,13 +23,13 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
-#include "vp/comp-model/jsmn.h"
-#include "vp/comp-model/cm.hpp"
+#include "vp/jsmn.h"
 
 using namespace std;
 
-namespace cm {
+namespace vp {
 
   class config
   {
@@ -45,7 +45,7 @@ namespace cm {
     virtual std::map<std::string, config *> get_childs() {
       return std::map<std::string, config *>();
     }
-    virtual cm::config *get_from_list(std::vector<std::string> name_list) {
+    virtual vp::config *get_from_list(std::vector<std::string> name_list) {
       return NULL;
     }
     config *create_config(jsmntok_t *tokens, int *_size);
@@ -59,7 +59,7 @@ namespace cm {
     config_object(jsmntok_t *tokens, int *size=NULL);
 
     config *get(std::string name);
-    cm::config *get_from_list(std::vector<std::string> name_list);
+    vp::config *get_from_list(std::vector<std::string> name_list);
     std::map<std::string, config *> get_childs() { return childs; }
 
   private:
@@ -72,7 +72,7 @@ namespace cm {
 
   public:
     config_array(jsmntok_t *tokens, int *size=NULL);
-    cm::config *get_from_list(std::vector<std::string> name_list);
+    vp::config *get_from_list(std::vector<std::string> name_list);
 
     int get_nb_elem() { return elems.size(); }
     config *get_elem(int index) {
@@ -88,7 +88,7 @@ namespace cm {
 
   public:
     config_string(jsmntok_t *tokens);
-    cm::config *get_from_list(std::vector<std::string> name_list);
+    vp::config *get_from_list(std::vector<std::string> name_list);
     std::string get_str() { return value; }
     int get_int() { return strtoll(value.c_str(), NULL, 0); }
 
@@ -103,7 +103,7 @@ namespace cm {
   public:
     config_number(jsmntok_t *tokens);
     int get_int() { return (int)value; }
-    cm::config *get_from_list(std::vector<std::string> name_list);
+    vp::config *get_from_list(std::vector<std::string> name_list);
 
   private:
     double value;
@@ -115,7 +115,7 @@ namespace cm {
 
   public:
     config_bool(jsmntok_t *tokens);
-    cm::config *get_from_list(std::vector<std::string> name_list);
+    vp::config *get_from_list(std::vector<std::string> name_list);
     bool get_bool() { return (bool)value; }
 
   private:

@@ -210,12 +210,12 @@ void padframe::build()
 
 
 
-  cm::config *groups = get_config()->get("groups");
+  vp::config *groups = get_config()->get("groups");
 
   for (auto& group: groups->get_childs())
   {
     std::string name = group.first;
-    cm::config *config = group.second;
+    vp::config *config = group.second;
     std::string type = config->get("type")->get_str();
 
     trace.msg("Found pad group (group: %s, type: %s)\n",

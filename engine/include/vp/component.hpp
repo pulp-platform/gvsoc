@@ -28,12 +28,15 @@
 #include <vector>
 #include <functional>
 #include "vp/ports.hpp"
-#include "vp/comp-model/config.hpp"
+#include "vp/config.hpp"
 #include "vp/clock/clock_event.hpp"
 #include "vp/itf/clk.hpp"
-#include "vp/comp-model/cm.hpp"
 #include "vp/clock/component_clock.hpp"
 #include "vp/trace/component_trace.hpp"
+
+
+#define   likely(x) __builtin_expect(x, 1)
+#define unlikely(x) __builtin_expect(x, 0)
 
 using namespace std;
 
@@ -43,11 +46,42 @@ namespace vp {
 
   class clock_engine;
 
-  class component : public cm::component, public component_clock
+  class component : public component_clock
   {
 
   public:
     component(const char *config);
+
+    virtual void build() {}
+    virtual void pre_start() {}
+    virtual void start() {}
+    virtual void stop() {}
+    virtual void reset() {}
+    virtual void load() {}
+    virtual string run() { return "error"; }
+    virtual int run_status() { return 0; }
+
+
+    inline config *get_config();
+
+    inline config *get_config(std::string name);
+
+
+    inline int get_config_int(std::string name, int index);
+
+    inline int get_config_int(std::string name);
+
+    inline bool get_config_bool(std::string name);
+
+    inline std::string get_config_str(std::string name);
+
+    string get_path() { return path; }
+
+
+    void conf(string path) { this->path = path; }
+
+    config *import_config(const char *config_string);
+
 
     void post_post_build();
 
@@ -55,9 +89,44 @@ namespace vp {
       component_clock::pre_build(this);
     }
 
+    void new_master_port(std::string name, master_port *port);
+
+    void new_slave_port(std::string name, slave_port *port);
+
+    void new_slave_port(void *comp, std::string name, slave_port *port);
+
+    void new_service(std::string name, void *service);
+
+
+    int get_ports(bool master, int size, const char *names[], void *ports[]);
+
+    int get_services(int size, const char *names[], void *services[]);
+
+    void *get_service(string name);
+
+    void set_services(int nb_services, const char *name[], void *services[]);
+
 
     component_trace traces;
 
+
+  protected:
+    template<typename P> int get_ports(std::map<std::string, P *> ports_map,
+      int size, const char *names[], void *ports[]);
+
+    std::map<std::string, master_port *> master_ports;
+    std::map<std::string, slave_port *> slave_ports;
+    std::map<std::string, void *> services;
+    std::map<std::string, void *> all_services;
+ 
+  private:
+    inline config *get_config(std::string name, int index);
+
+    config *comp_config;
+
+    string path;
+
+    component *parent = NULL;
 
   };
 

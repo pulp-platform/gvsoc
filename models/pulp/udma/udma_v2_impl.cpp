@@ -551,15 +551,15 @@ void udma::build()
 
   trace.msg("Instantiating udma channels (nb_periphs: %d)\n", nb_periphs);
 
-  cm::config *interfaces = get_config()->get("interfaces");
+  vp::config *interfaces = get_config()->get("interfaces");
 
   for (int i=0; i<interfaces->get_nb_elem(); i++)
   {
     std::string name = interfaces->get_elem(i)->get_str();
-    cm::config *interface = get_config()->get(name);
+    vp::config *interface = get_config()->get(name);
     int nb_channels = interface->get("nb_channels")->get_int();
-    cm::config *ids = interface->get("ids");
-    cm::config *offsets = interface->get("offsets");
+    vp::config *ids = interface->get("ids");
+    vp::config *offsets = interface->get("offsets");
     int version = interface->get("version")->get_int();
 
     trace.msg("Instantiating interface (type: %s, nb_channels: %d, version: %d)\n", name.c_str(), nb_channels, version);

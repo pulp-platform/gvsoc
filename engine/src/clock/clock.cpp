@@ -20,7 +20,7 @@
 
 #include "vp/vp.hpp"
 
-void vp::clk_master::bind_to(cm::port *_port, cm::config *config)
+void vp::clk_master::bind_to(vp::port *_port, vp::config *config)
 {
   clk_slave *port = (clk_slave *)_port;
 

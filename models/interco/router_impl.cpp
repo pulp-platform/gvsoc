@@ -77,7 +77,7 @@ public:
 class io_master_map : public vp::io_master
 {
 
-  inline void bind_to(cm::port *port, cm::config *config);
+  inline void bind_to(vp::port *port, vp::config *config);
 
 };
 
@@ -296,13 +296,13 @@ void router::build()
   bandwidth = get_config_int("bandwidth");
   latency = get_config_int("latency");
 
-  cm::config *mappings = get_config()->get("mappings");
+  vp::config *mappings = get_config()->get("mappings");
 
   if (mappings != NULL)
   {
     for (auto& mapping: mappings->get_childs())
     {
-      cm::config *config = mapping.second;
+      vp::config *config = mapping.second;
 
       MapEntry *entry = new MapEntry();
 
@@ -313,7 +313,7 @@ void router::build()
       new_master_port(mapping.first, itf);
       entry->itf = itf;
 
-      cm::config *conf;
+      vp::config *conf;
       conf = config->get("base");
       if (conf) entry->base = conf->get_int();
       conf = config->get("size");
@@ -429,10 +429,10 @@ void router::init_entries() {
   topMapEntry = firstInLevel;
 }
 
-inline void io_master_map::bind_to(cm::port *_port, cm::config *config)
+inline void io_master_map::bind_to(vp::port *_port, vp::config *config)
 {
   MapEntry *entry = new MapEntry();
-  cm::config *conf;
+  vp::config *conf;
   entry->port = (vp::io_slave *)_port;
   if (config)
   {

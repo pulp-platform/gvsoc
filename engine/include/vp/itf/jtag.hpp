@@ -60,7 +60,7 @@ namespace vp {
       return sync_cycle_meth((void *)comp, tdi, tms, trst);
     }
 
-    void bind_to(cm::port *port, cm::config *config);
+    void bind_to(vp::port *port, vp::config *config);
 
     inline void set_sync_meth(jtag_slave_sync_meth_t *meth);
     inline void set_sync_meth_muxed(jtag_slave_sync_meth_muxed_t *meth, int id);
@@ -113,7 +113,7 @@ namespace vp {
     inline void set_sync_cycle_meth(jtag_sync_cycle_meth_t *meth);
     inline void set_sync_cycle_meth_muxed(jtag_sync_cycle_meth_muxed_t *meth, int id);
 
-    inline void bind_to(cm::port *_port, cm::config *config);
+    inline void bind_to(vp::port *_port, vp::config *config);
 
   private:
 
@@ -160,7 +160,7 @@ namespace vp {
 
 
 
-  inline void jtag_master::bind_to(cm::port *_port, cm::config *config)
+  inline void jtag_master::bind_to(vp::port *_port, vp::config *config)
   {
     jtag_slave *port = (jtag_slave *)_port;
     if (port->sync_mux_meth == NULL)
@@ -205,7 +205,7 @@ namespace vp {
     return _this->slave_sync_mux_meth(_this->comp_mux, tdo, _this->sync_mux);
   }
 
-  inline void jtag_slave::bind_to(cm::port *_port, cm::config *config)
+  inline void jtag_slave::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     jtag_master *port = (jtag_master *)_port;

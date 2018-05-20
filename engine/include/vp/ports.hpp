@@ -22,19 +22,43 @@
 #define __VP_PORTS_HPP__
 
 #include "vp/vp_data.hpp"
-#include "vp/comp-model/cm.hpp"
+#include "vp/config.hpp"
 
 
 namespace vp {
 
-  class master_port : public cm::master_port
+  class component;
+
+  class port
+  {
+
+  public:
+
+    virtual void bind_to(port *port, vp::config *config);
+
+    void set_comp(component *comp) { this->owner = comp; }
+    component *get_comp() { return owner; }
+
+  protected:
+    component *comp;
+
+    component *owner;
+
+  };
+
+  class master_port : public port
   {
 
   };
 
-  class slave_port : public cm::slave_port
+  class slave_port : public port
   {
   };
+
+  inline void port::bind_to(port *port, vp::config *config)
+  {
+    comp = (component *)port->get_comp();
+  }
 
 };  
 

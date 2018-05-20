@@ -140,7 +140,7 @@ namespace vp {
 
     inline io_req_status_e req(io_req *req, io_slave *slave_port);
 
-    virtual inline void bind_to(cm::port *port, cm::config *config);
+    virtual inline void bind_to(vp::port *port, vp::config *config);
 
     inline void set_resp_meth(io_resp_meth_t *meth);
     inline void set_grant_meth(io_grant_meth_t *meth);
@@ -183,7 +183,7 @@ namespace vp {
     inline void set_req_meth(io_req_meth_t *meth);
     inline void set_req_meth_muxed(io_req_meth_muxed_t *meth, int id);
 
-    inline void bind_to(cm::port *_port, cm::config *config);
+    inline void bind_to(vp::port *_port, vp::config *config);
 
   private:
 
@@ -205,7 +205,7 @@ namespace vp {
   }
 
 
-  inline void io_slave::bind_to(cm::port *_port, cm::config *config)
+  inline void io_slave::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     io_master *port = (io_master *)_port;
@@ -238,7 +238,7 @@ namespace vp {
   }
 
 
-  inline void io_master::bind_to(cm::port *_port, cm::config *config)
+  inline void io_master::bind_to(vp::port *_port, vp::config *config)
   {
     io_slave *port = (io_slave *)_port;
     if (port->req_mux == NULL)
