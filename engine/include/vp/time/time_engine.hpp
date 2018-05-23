@@ -105,6 +105,7 @@ namespace vp {
     int64_t next_event_time = 0;
     vp::time_engine *engine;
     bool running = false;
+    bool is_enqueued = false;
   };
 
 

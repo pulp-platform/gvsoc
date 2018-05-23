@@ -125,43 +125,151 @@ namespace vp {
 
   public:
 
-    inline io_master();
 
-    inline io_req_status_e req(io_req *req)
-    {
-      req->resp_port = slave_port;
-      return req_meth((void *)comp, req);
-    }
 
-    inline io_req_status_e req_forward(io_req *req)
-    {
-      return req_meth((void *)comp, req);
-    }
 
-    inline io_req_status_e req(io_req *req, io_slave *slave_port);
+    // TODO
 
-    virtual inline void bind_to(vp::port *port, vp::config *config);
 
-    inline void set_resp_meth(io_resp_meth_t *meth);
-    inline void set_grant_meth(io_grant_meth_t *meth);
 
+    
+
+
+
+    // TODO
+
+
+
+
+
+
+
+
+
+
+
+    /*
+     * Master binding methods
+     */
+
+    // Can be called to allocate an IO request.
     inline io_req *req_new(uint64_t addr, uint8_t *data, uint64_t size, bool is_write);
+
+    // Can be called to deallocate an IO request.
     inline void req_del(io_req *req);
 
-    bool is_bound() { return slave_port != NULL; }
+    // Return if this master port is bound.
+    bool is_bound();
+
+    // Can be called by master component to send an IO request.  
+    inline io_req_status_e req(io_req *req);
+
+    // Can be called by master component to forward an IO request.
+    // Compared to the req method, this one will not redefined the response
+    // port and thus responses sent back by the slave will be send to our
+    // caller, not to us.
+    inline io_req_status_e req_forward(io_req *req);
+
+    // Can be called by master component to forward an IO request.
+    // Compared to other req methods, with this one, the caller can define
+    // on which port the response will be sent back by the slave.
+    inline io_req_status_e req(io_req *req, io_slave *slave_port);
+
+
+
+    /*
+     * Master binding methods declaration
+     */
+
+    // Set the callback on master side called when the slave is sending back
+    // an IO request grant. Before being set, a default empty callback is active.
+    inline void set_grant_meth(io_grant_meth_t *meth);
+
+    // Set the callback on master side called when the slave is sending back
+    // an IO request response. Before being set, a default empty callback is active.
+    inline void set_resp_meth(io_resp_meth_t *meth);
+
+
+
+    /*
+     * Reserved for framework
+     */
+
+    // Constructor
+    inline io_master();
+
+    // Called by the framework to bind the master port to a slave port.
+    virtual inline void bind_to(vp::port *port, vp::config *config);
+
+    // Called by the framework to finalize the binding, for example in order
+    // to take into account cross-domains bindings
+    void finalize();
+
+
 
   private:
 
-    static inline io_req_status_e req_muxed(io_master *_this, io_req *req);
-    void (*resp)(void *comp, io_req *req);
-    void (*grant)(void *comp, io_req *req);
-    io_req_status_e (*req_meth)(void *, io_req *);
-    io_req_status_e (*req_meth_mux)(void *, io_req *, int mux);
-    static inline void resp_default(void *, io_req *);
+    /*
+     * Master callbacks
+     */
+
+    // Grant callback set by the user.
+    // This gets called anytime the slave is granting an IO request.
+    // This is set to an empty callback by default.
+    void (*grant)(void *context, io_req *req);
+
+    // Default grant callback, just do nothing.
     static inline void grant_default(void *, io_req *);
 
+    // Response callback set by the user.
+    // This gets called anytime the slave is sending back a response.
+    // This is set to an empty callback by default.
+    void (*resp)(void *context, io_req *req);
 
-    vp::component *comp_mux;
+    // Default response callback, just do nothing.
+    static inline void resp_default(void *, io_req *);
+
+
+    /*
+     * Slave callbacks
+     */
+
+    io_req_status_e (*req_meth)(void *, io_req *);
+    io_req_status_e (*req_meth_mux)(void *, io_req *, int mux);
+    io_req_status_e (*req_meth_freq_cross)(void *, io_req *);
+
+
+    /*
+     * Stubs
+     */
+
+    // This is a stub setup when the slave is multiplexing the port so that we
+    // can capture the master call and transform it into the slave call with the
+    // right mux ID.
+    static inline io_req_status_e req_muxed_stub(io_master *_this, io_req *req);
+
+    // This is a stub setup when the binding is crossing 2 different clock
+    // domains so that we can capture the master call and resynchronize the slave
+    // domain before we call it.
+    static inline io_req_status_e req_freq_cross_stub(io_master *_this, io_req *req);
+
+
+    /*
+     * Internal data
+     */
+
+    // Slave context when slave port is multiplexed.
+    // We keep here a copy of the slave context when the slave port is multiplexed
+    // as the normal variable for this context is used to store ourself so that
+    // the stub is working well.
+    void *slave_context_for_mux;
+
+
+    // Slave context when the binding is crossing frequency domains.
+    // We keep here a copy of the slave context when the binding is crossing frequency
+    // domains as the normal variable for this context is used to store ourself
+    // so that the stub is working well.
+    void *slave_context_for_freq_cross;
     int req_mux;
     io_slave *slave_port = NULL;
   };
@@ -177,8 +285,8 @@ namespace vp {
 
     inline io_slave();
 
-    inline void resp(io_req *req) { resp_meth((void *)comp, req); }
-    inline void grant(io_req *req) { grant_meth((void *)comp, req); }
+    inline void resp(io_req *req) { resp_meth(this->get_remote_context(), req); }
+    inline void grant(io_req *req) { grant_meth(this->get_remote_context(), req); }
 
     inline void set_req_meth(io_req_meth_t *meth);
     inline void set_req_meth_muxed(io_req_meth_muxed_t *meth, int id);
@@ -189,8 +297,8 @@ namespace vp {
 
     void (*resp_meth)(void *, io_req *);
     void (*grant_meth)(void *, io_req *);
-    io_req_status_e (*req)(void *comp, io_req *);
-    io_req_status_e (*req_mux)(void *comp, io_req *, int mux);
+    io_req_status_e (*req)(void *context, io_req *);
+    io_req_status_e (*req_mux)(void *context, io_req *, int mux);
     static inline io_req_status_e req_default(io_slave *, io_req *);
 
     int req_mux_id;
@@ -201,7 +309,7 @@ namespace vp {
   inline io_req_status_e io_master::req(io_req *req, io_slave *port)
   {
     req->resp_port = port;
-    return port->req((void *)port->get_comp(), req);
+    return port->req((void *)port->get_remote_context(), req);
   }
 
 
@@ -212,8 +320,8 @@ namespace vp {
     port->slave_port = new io_slave();
     port->slave_port->resp_meth = port->resp;
     port->slave_port->grant_meth = port->grant;
-    port->slave_port->set_comp(port->get_comp());
-    port->slave_port->comp = port->get_comp();
+    port->slave_port->set_context(port->get_context());
+    port->slave_port->set_remote_context(port->get_context());
   }
 
 
@@ -232,26 +340,47 @@ namespace vp {
     delete req;
   }
 
-  inline io_req_status_e io_master::req_muxed(io_master *_this, io_req *req)
+  inline io_req_status_e io_master::req_muxed_stub(io_master *_this, io_req *req)
   {
-    return _this->req_meth_mux(_this->comp_mux, req, _this->req_mux);
+    return _this->req_meth_mux((component *)_this->slave_context_for_mux, req, _this->req_mux);
   }
 
+  inline io_req_status_e io_master::req_freq_cross_stub(io_master *_this, io_req *req)
+  {
+    _this->remote_port->get_owner()->get_clock()->sync();
+    io_req_status_e status = _this->req_meth_freq_cross((component *)_this->slave_context_for_freq_cross, req);
+    return status;
+  }
+
+
+  inline void io_master::finalize()
+  {
+    if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
+    {
+      req_meth_freq_cross = req_meth;
+      req_meth = (io_req_meth_t *)&io_master::req_freq_cross_stub;
+      slave_context_for_freq_cross = this->get_remote_context();
+      this->set_remote_context(this);
+    }
+
+  }
 
   inline void io_master::bind_to(vp::port *_port, vp::config *config)
   {
     io_slave *port = (io_slave *)_port;
+    remote_port = port;
+
     if (port->req_mux == NULL)
     {
       req_meth = port->req;
-      comp = (vp::component *)port->get_comp();
+      this->set_remote_context(port->get_context());
     }
     else
     {
       req_meth_mux = port->req_mux;
-      req_meth = (io_req_meth_t *)&io_master::req_muxed;
-      comp = (vp::component *)this;
-      comp_mux = (vp::component *)port->get_comp();
+      req_meth = (io_req_meth_t *)&io_master::req_muxed_stub;
+      this->set_remote_context(this);
+      slave_context_for_mux = port->get_context();
       req_mux = port->req_mux_id;
     }
   }
@@ -274,7 +403,18 @@ namespace vp {
   {
   }
 
+  inline io_req_status_e io_master::req(io_req *req)
+  {
+    req->resp_port = slave_port;
+    return req_meth(this->get_remote_context(), req);
+  }
 
+  inline io_req_status_e io_master::req_forward(io_req *req)
+  {
+    return req_meth(this->get_remote_context(), req);
+  }
+
+  inline bool io_master::is_bound() { return slave_port != NULL; }
 
   inline io_slave::io_slave() : req(NULL), req_mux(NULL) {
     req = (io_req_meth_t *)&io_slave::req_default;

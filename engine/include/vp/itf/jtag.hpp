@@ -52,12 +52,12 @@ namespace vp {
 
     inline void sync(int tck, int tdi, int tms, int trst)
     {
-      return sync_meth((void *)comp, tck, tdi, tms, trst);
+      return sync_meth(this->get_remote_context(), tck, tdi, tms, trst);
     }
 
     inline void sync_cycle(int tdi, int tms, int trst)
     {
-      return sync_cycle_meth((void *)comp, tdi, tms, trst);
+      return sync_cycle_meth(this->get_remote_context(), tdi, tms, trst);
     }
 
     void bind_to(vp::port *port, vp::config *config);
@@ -104,7 +104,7 @@ namespace vp {
 
     inline void sync(int tdo)
     {
-      slave_sync_meth((void *)comp, tdo);
+      slave_sync_meth(this->get_remote_context(), tdo);
     }
 
     inline void set_sync_meth(jtag_sync_meth_t *meth);
@@ -167,7 +167,7 @@ namespace vp {
     {
       sync_meth = port->sync_meth;
       sync_cycle_meth = port->sync_cycle_meth;
-      comp = (vp::component *)port->get_comp();
+      this->set_remote_context(port->get_context());
     }
     else
     {
@@ -177,8 +177,8 @@ namespace vp {
       sync_cycle_meth_mux = port->sync_cycle_mux_meth;
       sync_cycle_meth = (jtag_sync_cycle_meth_t *)&jtag_master::sync_cycle_muxed_stub;
 
-      comp = (vp::component *)this;
-      comp_mux = (vp::component *)port->get_comp();
+      this->set_remote_context(this);
+      comp_mux = (vp::component *)port->get_context();
       sync_mux = port->mux_id;
     }
   }
@@ -210,18 +210,17 @@ namespace vp {
     slave_port::bind_to(_port, config);
     jtag_master *port = (jtag_master *)_port;
     port->slave_port = this;
-    this->set_comp(port->get_comp());
     if (port->slave_sync_muxed == NULL)
     {
       this->slave_sync_meth = port->slave_sync;
-      this->comp = port->get_comp();
+      this->set_remote_context(port->get_context());
     }
     else
     {
       this->slave_sync_mux_meth = port->slave_sync_muxed;  
       this->slave_sync_meth = (jtag_slave_sync_meth_t *)&jtag_slave::sync_muxed_stub;
-      this->comp = (vp::component *)this;
-      comp_mux = (vp::component *)port->get_comp();
+      this->set_remote_context(this);
+      comp_mux = (vp::component *)port->get_context();
       sync_mux = port->mux_id;
     }
   }

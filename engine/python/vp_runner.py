@@ -53,7 +53,6 @@ class Runner(Platform):
 
         os.environ['PULP_CONFIG_FILE'] = self.config.getOption('configFile')
 
-
         top = system.get('vp_class')
 
         if top is None:
@@ -88,6 +87,8 @@ class Runner(Platform):
         trace_engine.start_all()
 
         trace_engine.post_start_all()
+
+        trace_engine.final_bind()
 
         trace_engine.reset_all()
 

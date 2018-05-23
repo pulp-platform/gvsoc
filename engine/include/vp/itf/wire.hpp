@@ -41,13 +41,13 @@ namespace vp {
     inline void sync(T value)
     {
       if (next) next->sync(value);
-      sync_meth((void *)comp, value);
+      sync_meth(this->get_remote_context(), value);
     }
 
     inline void sync_back(T *value)
     {
       if (next) next->sync_back(value);
-      sync_back_meth((void *)comp, value);
+      sync_back_meth(this->get_remote_context(), value);
     }
 
     void bind_to(vp::port *port, vp::config *config);
@@ -124,7 +124,7 @@ namespace vp {
       {
         sync_back_meth = port->sync_back;
         sync_meth = port->sync;
-        comp = (vp::component *)port->get_comp();
+        set_remote_context(port->get_context());
       }
       else
       {
@@ -132,8 +132,8 @@ namespace vp {
         sync_back_meth_mux = port->sync_back_mux;
         sync_meth = (void (*)(void *, T))&wire_master::sync_muxed;
         sync_back_meth = (void (*)(void *, T *))&wire_master::sync_back_muxed;
-        comp = (vp::component *)(void *)this;
-        comp_mux = (vp::component *)port->get_comp();
+        set_remote_context(this);
+        comp_mux = (vp::component *)port->get_context();
         sync_mux = port->sync_mux_id;
         sync_back_mux = port->sync_back_mux_id;
       }
@@ -165,8 +165,8 @@ namespace vp {
     if (port->next) port = port->next;
 
     port->slave_port = new wire_slave();
-    port->slave_port->set_comp(port->get_comp());
-    port->slave_port->comp = port->get_comp();
+    port->slave_port->set_context(port->get_context());
+    port->slave_port->set_remote_context(port->get_context());
   }
 
   template<class T>

@@ -78,6 +78,10 @@ namespace vp {
 
     int64_t exec();
 
+    inline void sync();
+
+    void update();
+
     void set_time_engine(vp::time_engine *engine) { this->engine = engine; }
 
     vp::time_engine *get_engine() { return engine; }
@@ -108,6 +112,11 @@ namespace vp {
     int64_t freq;
     int64_t cycles = 0;
     int nb_enqueued_to_cycle = 0;
+
+    // This time is relevant only when no event is enqueued into the circular
+    // buffer of event so that the number of cycles can be resynchronized when something happen
+    // (an event is pushed or the frequency is changed).
+    int64_t stop_time = 0;
   };    
 
 };

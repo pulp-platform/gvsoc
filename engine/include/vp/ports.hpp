@@ -35,14 +35,33 @@ namespace vp {
   public:
 
     virtual void bind_to(port *port, vp::config *config);
+    virtual void finalize() {}
 
     void set_comp(component *comp) { this->owner = comp; }
     component *get_comp() { return owner; }
 
-  protected:
-    component *comp;
+    inline void *get_context() { return this->context; }
+    inline void set_context(void *comp) { this->context = comp; }
 
+    inline void *get_remote_context() { return this->remote_context; }
+    inline void set_remote_context(void *comp) { this->remote_context = comp; }
+
+    inline void set_owner(component *comp) { this->owner = comp; }
+    inline component *get_owner() { return this->owner; }
+
+  protected:
+
+    // Slave context.
+    // This pointer must be the first argument of any binding call to the slave.
+    // The slave is free to set it to what it wants, depending if the remote method
+    // is within the top component or an internal class.
     component *owner;
+
+    void *context;
+
+    void *remote_context;
+
+    port *remote_port;
 
   };
 
@@ -57,7 +76,8 @@ namespace vp {
 
   inline void port::bind_to(port *port, vp::config *config)
   {
-    comp = (component *)port->get_comp();
+    this->set_remote_context(port->get_context());
+    remote_port = port;
   }
 
 };  

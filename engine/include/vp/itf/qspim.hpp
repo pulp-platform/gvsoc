@@ -53,17 +53,17 @@ namespace vp {
 
     inline void sync(int sck, int data_0, int data_1, int data_2, int data_3)
     {
-      return sync_meth((void *)comp, sck, data_0, data_1, data_2, data_3);
+      return sync_meth(this->get_remote_context(), sck, data_0, data_1, data_2, data_3);
     }
 
     inline void sync_cycle(int data_0, int data_1, int data_2, int data_3)
     {
-      return sync_cycle_meth((void *)comp, data_0, data_1, data_2, data_3);
+      return sync_cycle_meth(this->get_remote_context(), data_0, data_1, data_2, data_3);
     }
 
     inline void cs_sync(int cs, int active)
     {
-      return cs_sync_meth((void *)comp, cs, active);
+      return cs_sync_meth(this->get_remote_context(), cs, active);
     }
 
     void bind_to(vp::port *port, vp::config *config);
@@ -108,7 +108,7 @@ namespace vp {
 
     inline void sync(int data_0, int data_1, int data_2, int data_3)
     {
-      slave_sync_meth((void *)comp, data_0, data_1, data_2, data_3);
+      slave_sync_meth(this->get_remote_context(), data_0, data_1, data_2, data_3);
     }
 
     inline void set_sync_meth(qspim_sync_meth_t *meth);
@@ -179,7 +179,7 @@ namespace vp {
       sync_meth = port->sync_meth;
       sync_cycle_meth = port->sync_cycle_meth;
       cs_sync_meth = port->cs_sync;
-      comp = (vp::component *)port->get_comp();
+      this->set_remote_context(port->get_context());
     }
     else
     {
@@ -192,8 +192,8 @@ namespace vp {
       cs_sync_meth_mux = port->cs_sync_mux;
       cs_sync_meth = (qspim_cs_sync_meth_t *)&qspim_master::cs_sync_muxed_stub;
 
-      comp = (vp::component *)this;
-      comp_mux = (vp::component *)port->get_comp();
+      this->set_remote_context(this);
+      comp_mux = (vp::component *)port->get_context();
       sync_mux = port->mux_id;
     }
   }
@@ -213,8 +213,7 @@ namespace vp {
     qspim_master *port = (qspim_master *)_port;
     port->slave_port = this;
     this->slave_sync_meth = port->slave_sync;
-    this->set_comp(port->get_comp());
-    this->comp = port->get_comp();
+    this->set_remote_context(port->get_context());
   }
 
   inline qspim_slave::qspim_slave() : sync_meth(NULL), sync_mux_meth(NULL) {

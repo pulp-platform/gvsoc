@@ -35,7 +35,7 @@ void vp::clk_master::reg(component *clock)
   clk_slave *port = ports;
   while (port)
   {
-    port->req((component *)port->owner, clock);
+    port->req((component *)port->get_context(), clock);
     port = port->next;
   }
 }

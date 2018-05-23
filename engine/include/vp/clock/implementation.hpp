@@ -76,5 +76,13 @@ inline vp::time_engine *vp::component_clock::get_engine()
   return get_clock()->get_engine();
 }
 
+inline void vp::clock_engine::sync()
+{
+  if (!is_running() && !nb_enqueued_to_cycle)
+  {
+    this->update();
+  }
+}
+
 
 #endif

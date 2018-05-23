@@ -75,7 +75,7 @@ namespace vp {
     inline time_engine *get_engine();
 
   protected:
-    clock_engine *clock;
+    clock_engine *clock = NULL;
 
     clk_slave            clock_port;
     vp::wire_slave<bool> reset_port;

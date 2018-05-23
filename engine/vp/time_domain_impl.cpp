@@ -213,6 +213,7 @@ void vp::time_engine::run_loop()
       // We can optimize a bit the operation as we already know
       // who to schedule next.
       first_client = next;
+      current->is_enqueued = false;
 
       if (time != -1)
       {

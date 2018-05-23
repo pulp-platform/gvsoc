@@ -39,6 +39,7 @@ class port(object):
         self.slaves = []
         self.is_a_slave = is_slave
         self.comp = comp
+        self.is_bound = False
 
     def get_ports(self):
         ports = []
@@ -54,7 +55,8 @@ class port(object):
     def bind_to(self, port, config=None):
         if port is not None:
             self.comp.trace.msg('Creating binding (master: %s->%s, slave: %s->%s)' % (self.get_comp().name, self.name, port.get_comp().name, port.name))
-        self.slaves.append(port)
+            self.slaves.append(port)
+            port.is_bound = True
 
     def is_master(self):
         return True
@@ -69,9 +71,12 @@ class impl_master_port(object):
         self.ref = ref
         self.implem = implem
         self.slaves = []
+        self.is_bound = False
 
     def bind_to(self, port, config=None):
         self.slaves.append([port, config])
+        port.is_bound = True
+        self.is_bound = True
 
     def is_master(self):
         return True
@@ -89,6 +94,10 @@ class impl_master_port(object):
                     config = str(config).replace('\'', '"').encode('utf-8')
                 self.implem.implem_bind_to(self.ref, port.ref, config)
 
+    def final_bind(self):
+        if len(self.slaves) != 0:
+            self.implem.implem_finalize(self.ref)
+
 
 class impl_slave_port(object):
 
@@ -96,6 +105,7 @@ class impl_slave_port(object):
         self.name = name
         self.ref = ref
         self.implem = implem
+        self.is_bound = False
 
     def get_comp(self):
         return self.implem.parent
@@ -163,6 +173,9 @@ class default_implementation_class(object):
 
         self.implem_bind_to = self.module.vp_port_bind_to
         self.module.vp_port_bind_to.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p]
+
+        self.implem_finalize = self.module.vp_port_finalize
+        self.module.vp_port_finalize.argtypes = [ctypes.c_void_p]
 
         self.implem_get_ports = self.module.vp_comp_get_ports
         self.module.vp_comp_get_ports.argtypes = \
@@ -457,6 +470,8 @@ class component(component_trace):
             for comp in self.sub_comps:
                 slave_port = comp.get_port(port)
                 master_port = self.get_port(port)
+                if slave_port.is_bound:
+                    continue
                 if master_port.is_master() and slave_port.is_slave():
                     self.get_port(port).bind_to(slave_port)
 
@@ -625,6 +640,15 @@ class component(component_trace):
         if  self.impl is not None:
             for port in self.impl.master_ports.values():
                 port.bind()
+
+    def final_bind(self):
+
+        for comp in self.sub_comps:
+            comp.final_bind()
+
+        if  self.impl is not None:
+            for port in self.impl.master_ports.values():
+                port.final_bind()
 
     def create_comps(self, comps_tag, class_tag, default_class_name):
         config = self.get_config()

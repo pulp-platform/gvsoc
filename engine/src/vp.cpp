@@ -43,7 +43,8 @@ void vp::component::post_post_build()
 
 
 
-void vp::component_clock::clk_reg(component *_this, component *clock) {
+void vp::component_clock::clk_reg(component *_this, component *clock)
+{
   _this->clock = (clock_engine *)clock;
 }
 
@@ -63,6 +64,10 @@ void vp::component_clock::pre_build(component *comp) {
 
 void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
 {
+  if (client->is_enqueued) return;
+
+  client->is_enqueued = true;
+
   time_engine_client *current = first_client, *prev = NULL;
   client->next_event_time = get_time() + time;
   while (current && current->next_event_time < client->next_event_time)
@@ -75,8 +80,22 @@ void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
   client->next = current;
 }
 
+void vp::clock_engine::update()
+{
+  int64_t diff = this->get_time() - this->stop_time;
+
+  if (diff > 0)
+  {
+    int64_t cycles = (diff + this->period - 1) / this->period;
+    this->stop_time += cycles * this->period;
+    this->cycles += cycles;
+  }
+}
+
 vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t cycle)
 {
+  // Slow case where the engine is not running and we have to first
+  // enqueue it to the global time engine.
   enqueue_to_engine(cycle*period);
 
   if (cycle < CLOCK_EVENT_QUEUE_SIZE)
@@ -134,6 +153,11 @@ void vp::clock_engine::cancel(vp::clock_event *event)
 
 int64_t vp::clock_engine::exec()
 {
+  // The clock engine has a circular buffer of events to be executed.
+  // Events longer than the buffer as put temporarly in a queue.
+  // Everytime we start again at the beginning of the buffer, we need
+  // to check if events must be enqueued from the queue to the buffer
+  // in case they fit the window.
   if (unlikely(current_cycle == 0))
   {
     clock_event *event = delayed_queue;
@@ -153,6 +177,8 @@ int64_t vp::clock_engine::exec()
     }
   }
 
+  // Now take all events available at the current cycle and execute them all without returning
+  // to the main engine to execute them faster. 
   clock_event *current = event_queue[current_cycle];
 
   //printf("[%ld] %p ENGINE EXEC CYCLE %d first %p %d\n", get_time(), this, current_cycle, current, nb_enqueued_to_cycle);
@@ -169,6 +195,11 @@ int64_t vp::clock_engine::exec()
   }
   event_queue[current_cycle] = NULL;
 
+  // Now we need to tell the time engine when is the next event.
+  // The most likely is that there is an event in the circular buffer, 
+  // in which case we just return the clock period, as we will go through
+  // each element of the circular buffer, even if the next event if further in
+  // the buffer.
   if (likely(nb_enqueued_to_cycle))
   {
     cycles++;
@@ -177,13 +208,24 @@ int64_t vp::clock_engine::exec()
   }
   else
   {
+    // Otherwise if there is an event in the delayed queue, return the time
+    // to this event.
+    // In both cases, reset the current cycle so that the next event to be
+    // executed is moved to the circular buffer.
     current_cycle = 0;
+
+    // Also remember the current time in order to resynchronize the clock engine
+    // in case we enqueue and event from another engine.
+    this->stop_time = this->get_time();
+
     if (delayed_queue)
     {
       return (delayed_queue->cycle - get_cycles()) * period;
     }
     else
     {
+      // In case there is no more event to execute, returns -1 to tell the time
+      // engine we are done.
       return -1;
     }
   }
@@ -198,19 +240,22 @@ vp::clock_event::clock_event(component_clock *comp, clock_event_meth_t *meth)
 
 void vp::component::new_master_port(std::string name, vp::master_port *port)
 {
-  port->set_comp(this);
+  port->set_owner(this);
+  port->set_context(this);
   master_ports[name] = port;
 }
 
 void vp::component::new_slave_port(std::string name, vp::slave_port *port)
 {
-  port->set_comp(this);
+  port->set_owner(this);
+  port->set_context(this);
   slave_ports[name] = port;
 }
 
 void vp::component::new_slave_port(void *comp, std::string name, vp::slave_port *port)
 {
-  port->set_comp((vp::component *)comp);
+  port->set_owner(this);
+  port->set_context(comp);
   slave_ports[name] = port;
 }
 
@@ -517,6 +562,12 @@ extern "C" void vp_port_bind_to(void *_master, void *_slave, const char *config_
 
   master->bind_to(slave, config);
   slave->bind_to(master, config);
+}
+
+extern "C" void vp_port_finalize(void *_master)
+{
+  vp::master_port *master = (vp::master_port *)_master;
+  master->finalize();
 }
 
 extern "C" void vp_comp_conf(void *comp, const char *path)
