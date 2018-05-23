@@ -119,34 +119,15 @@ namespace vp {
     int current_arg = 0;
   };
 
+
+  /*
+   * Class for IO master ports
+   */
   class io_master : public vp::master_port
   {
     friend class io_slave;
 
   public:
-
-
-
-
-    // TODO
-
-
-
-    
-
-
-
-    // TODO
-
-
-
-
-
-
-
-
-
-
 
     /*
      * Master binding methods
@@ -216,7 +197,7 @@ namespace vp {
     // Grant callback set by the user.
     // This gets called anytime the slave is granting an IO request.
     // This is set to an empty callback by default.
-    void (*grant)(void *context, io_req *req);
+    void (*grant_meth)(void *context, io_req *req);
 
     // Default grant callback, just do nothing.
     static inline void grant_default(void *, io_req *);
@@ -224,7 +205,7 @@ namespace vp {
     // Response callback set by the user.
     // This gets called anytime the slave is sending back a response.
     // This is set to an empty callback by default.
-    void (*resp)(void *context, io_req *req);
+    void (*resp_meth)(void *context, io_req *req);
 
     // Default response callback, just do nothing.
     static inline void resp_default(void *, io_req *);
@@ -234,8 +215,14 @@ namespace vp {
      * Slave callbacks
      */
 
+    // Callback set by the user on slave port and retrieved during binding
     io_req_status_e (*req_meth)(void *, io_req *);
+
+    // req_meth saved when the slave port is multiplexed as a stub is setup instead
     io_req_status_e (*req_meth_mux)(void *, io_req *, int mux);
+
+    // req_meth when the binding is crossing frequency domains as a stub is 
+    // setup instead
     io_req_status_e (*req_meth_freq_cross)(void *, io_req *);
 
 
@@ -270,12 +257,24 @@ namespace vp {
     // domains as the normal variable for this context is used to store ourself
     // so that the stub is working well.
     void *slave_context_for_freq_cross;
-    int req_mux;
+
+    // This data is the multiplex ID that we need to send to the slave when the slave port
+    // is multiplexed.
+    int slave_req_mux_id;
+
+
+    // Several IO master ports are often connected to the same slave port
+    // while the slave will need to reply to the master.
+    // For that, a slave port is associated to each master port and can
+    // be used by the real slave port to reply to a specific master port.
     io_slave *slave_port = NULL;
   };
 
 
 
+  /*
+   * Class for IO slave ports
+   */
   class io_slave : public vp::slave_port
   {
 
@@ -283,155 +282,276 @@ namespace vp {
 
   public:
 
-    inline io_slave();
+    /*
+     * Slave binding methods
+     */
 
-    inline void resp(io_req *req) { resp_meth(this->get_remote_context(), req); }
-    inline void grant(io_req *req) { grant_meth(this->get_remote_context(), req); }
+    // Can be called to grant an IO request.
+    // Granting a request means that the request is accepted and owned by the slave
+    // and that the master can consider the request gone and then proceeed with 
+    // the rest.
+    inline void grant(io_req *req) { this->master_grant_meth(this->get_remote_context(), req); }
 
+    // Can be called to reply to an IO request.
+    // Replying means that the slave has finished handing the request and it is now
+    // owned back by the master which can then proceed with the request.
+    inline void resp(io_req *req) { this->master_resp_meth(this->get_remote_context(), req); }
+
+
+
+    /*
+     * Master binding methods declaration
+     */
+
+    // Set the callback on slave side called when the master is sending an IO
+    // request.
     inline void set_req_meth(io_req_meth_t *meth);
+
+    // Set the callback on slave side called when the master is sending an IO
+    // request and associate a data to it. The data is providedas the last argument
+    // when calling the callback, and can be used to multiplex a slave port
     inline void set_req_meth_muxed(io_req_meth_muxed_t *meth, int id);
 
+
+
+    /*
+     * Reserved for framework
+     */
+
+    // Constructor
+    inline io_slave();
+
+    // Called by the framework to bind the slave port to a master port.
     inline void bind_to(vp::port *_port, vp::config *config);
 
   private:
 
-    void (*resp_meth)(void *, io_req *);
-    void (*grant_meth)(void *, io_req *);
-    io_req_status_e (*req)(void *context, io_req *);
-    io_req_status_e (*req_mux)(void *context, io_req *, int mux);
+    /*
+     * Slave callbacks
+     */
+
+    // Request callback set by the user.
+    // This gets called anytime the master is sending a request.
+    // This is set to an empty callback by default.    
+    io_req_status_e (*req_meth)(void *context, io_req *);
+
+    // Default request callback, just do nothing.
     static inline io_req_status_e req_default(io_slave *, io_req *);
 
+    // Multiplexed request callback set by the user.
+    // Similar to the req callback but with an associated data.
+    // This one gets called instead of the normal once in case it is not NULL
+    io_req_status_e (*req_meth_mux)(void *context, io_req *, int mux);
+
+
+
+    /*
+     * Master callbacks
+     */
+
+    // Response callback set by the user on master port and retrived during binding
+    void (*master_resp_meth)(void *, io_req *);
+
+    // Grant callback set by the user on master port and retrived during binding
+    void (*master_grant_meth)(void *, io_req *);
+
+
+    /*
+     * Internal data
+     */
+
+    // Multiplexed ID set by the slave when port is multiplxed
     int req_mux_id;
 
 
   };
 
-  inline io_req_status_e io_master::req(io_req *req, io_slave *port)
-  {
-    req->resp_port = port;
-    return port->req((void *)port->get_remote_context(), req);
-  }
-
-
-  inline void io_slave::bind_to(vp::port *_port, vp::config *config)
-  {
-    slave_port::bind_to(_port, config);
-    io_master *port = (io_master *)_port;
-    port->slave_port = new io_slave();
-    port->slave_port->resp_meth = port->resp;
-    port->slave_port->grant_meth = port->grant;
-    port->slave_port->set_context(port->get_context());
-    port->slave_port->set_remote_context(port->get_context());
-  }
 
 
   inline io_master::io_master() {
-    resp = &io_master::resp_default;
-    grant = &io_master::grant_default;
+    // Set default callbacks in case the user does not set them
+    this->resp_meth = &io_master::resp_default;
+    this->grant_meth = &io_master::grant_default;
   }
+
+
+
+  inline io_req_status_e io_master::req(io_req *req)
+  {
+    // We need to store our response port in the request
+    // as the slave port is serving several master ports and need
+    // to reply to us.
+    req->resp_port = slave_port;
+    return this->req_meth(this->get_remote_context(), req);
+  }
+
+
+
+  inline io_req_status_e io_master::req_forward(io_req *req)
+  {
+    // We don't redefine the slave port, as the request must be forwarded,
+    // this way the slave will reply directly to the previous initiator
+    return this->req_meth(this->get_remote_context(), req);
+  }
+
+
+
+  inline io_req_status_e io_master::req(io_req *req, io_slave *port)
+  {
+    // Case where the response port is given by the called
+    req->resp_port = port;
+    return port->req_meth((void *)port->get_remote_context(), req);
+  }
+
+
+
 
   inline io_req *io_master::req_new(uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
   {
+    // For now we allocate new requests but this would be better to manage a pool of requests
     return new io_req(addr, data, size, is_write);
   }
+
+
 
   inline void io_master::req_del(io_req *req)
   {
     delete req;
   }
 
-  inline io_req_status_e io_master::req_muxed_stub(io_master *_this, io_req *req)
-  {
-    return _this->req_meth_mux((component *)_this->slave_context_for_mux, req, _this->req_mux);
-  }
 
-  inline io_req_status_e io_master::req_freq_cross_stub(io_master *_this, io_req *req)
-  {
-    _this->remote_port->get_owner()->get_clock()->sync();
-    io_req_status_e status = _this->req_meth_freq_cross((component *)_this->slave_context_for_freq_cross, req);
-    return status;
-  }
-
-
-  inline void io_master::finalize()
-  {
-    if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
-    {
-      req_meth_freq_cross = req_meth;
-      req_meth = (io_req_meth_t *)&io_master::req_freq_cross_stub;
-      slave_context_for_freq_cross = this->get_remote_context();
-      this->set_remote_context(this);
-    }
-
-  }
-
-  inline void io_master::bind_to(vp::port *_port, vp::config *config)
-  {
-    io_slave *port = (io_slave *)_port;
-    remote_port = port;
-
-    if (port->req_mux == NULL)
-    {
-      req_meth = port->req;
-      this->set_remote_context(port->get_context());
-    }
-    else
-    {
-      req_meth_mux = port->req_mux;
-      req_meth = (io_req_meth_t *)&io_master::req_muxed_stub;
-      this->set_remote_context(this);
-      slave_context_for_mux = port->get_context();
-      req_mux = port->req_mux_id;
-    }
-  }
 
   inline void io_master::set_resp_meth(io_resp_meth_t *meth)
   {
-    resp = meth;
+    resp_meth = meth;
   }
+
+
 
   inline void io_master::set_grant_meth(io_grant_meth_t *meth)
   {
-    grant = meth;
+    grant_meth = meth;
   }
+
+
 
   inline void io_master::resp_default(void *, io_req *)
   {
   }
 
+
+
   inline void io_master::grant_default(void *, io_req *)
   {
   }
 
-  inline io_req_status_e io_master::req(io_req *req)
+
+
+  inline void io_master::bind_to(vp::port *_port, vp::config *config)
   {
-    req->resp_port = slave_port;
-    return req_meth(this->get_remote_context(), req);
+    io_slave *port = (io_slave *)_port;
+    this->remote_port = port;
+
+    if (port->req_meth_mux == NULL)
+    {
+      // Normal binding, just register the method and context into the master
+      // port for fast access
+      this->req_meth = port->req_meth;
+      this->set_remote_context(port->get_context());
+    }
+    else
+    {
+      // Multiplexed binding, tweak the normal callback so that we enter
+      // the stub to insert the multiplex ID.
+      this->req_meth_mux = port->req_meth_mux;
+      this->req_meth = (io_req_meth_t *)&io_master::req_muxed_stub;
+      this->set_remote_context(this);
+      this->slave_context_for_mux = port->get_context();
+      this->slave_req_mux_id = port->req_mux_id;
+    }
   }
 
-  inline io_req_status_e io_master::req_forward(io_req *req)
+
+  inline bool io_master::is_bound()
   {
-    return req_meth(this->get_remote_context(), req);
+    return this->slave_port != NULL;
   }
 
-  inline bool io_master::is_bound() { return slave_port != NULL; }
 
-  inline io_slave::io_slave() : req(NULL), req_mux(NULL) {
-    req = (io_req_meth_t *)&io_slave::req_default;
+
+  inline io_req_status_e io_master::req_muxed_stub(io_master *_this, io_req *req)
+  {
+    // The normal callback was tweaked in order to get there when the master is sending a
+    // request. Now generate the normal call with the mux ID using the saved handler
+    return _this->req_meth_mux((component *)_this->slave_context_for_mux, req, _this->slave_req_mux_id);
   }
+
+
+
+  inline io_req_status_e io_master::req_freq_cross_stub(io_master *_this, io_req *req)
+  {
+    // The normal callback was tweaked in order to get there when the master is sending a
+    // request. 
+    // First synchronize the target engine in case it was left behind,
+    // and then generate the normal call with the mux ID using the saved handler
+    _this->remote_port->get_owner()->get_clock()->sync();
+    return _this->req_meth_freq_cross((component *)_this->slave_context_for_freq_cross, req);
+  }
+
+
+
+  inline void io_master::finalize()
+  {
+    // We have to instantiate a stub in case the binding is crossing different
+    // frequency domains in order to resynchronize the target engine.
+    if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
+    {
+      // Just save the normal handler and tweak it to enter the stub when the
+      // master is pushing the request.
+      this->req_meth_freq_cross = this->req_meth;
+      this->req_meth = (io_req_meth_t *)&io_master::req_freq_cross_stub;
+      this->slave_context_for_freq_cross = this->get_remote_context();
+      this->set_remote_context(this);
+    }
+
+  }
+
+
+
+  inline io_slave::io_slave() : req_meth(NULL), req_meth_mux(NULL) {
+    req_meth = (io_req_meth_t *)&io_slave::req_default;
+  }
+
+
+  inline void io_slave::bind_to(vp::port *_port, vp::config *config)
+  {
+    // Instantiate a new slave port which is just used as a reference to reply
+    // to the correct master port
+    slave_port::bind_to(_port, config);
+    io_master *port = (io_master *)_port;
+    port->slave_port = new io_slave();
+    port->slave_port->master_resp_meth = port->resp_meth;
+    port->slave_port->master_grant_meth = port->grant_meth;
+    port->slave_port->set_remote_context(port->get_context());
+  }
+
 
   inline void io_slave::set_req_meth(io_req_meth_t *meth)
   {
-    req = meth;
-    req_mux = NULL;
+    this->req_meth = meth;
+    this->req_meth_mux = NULL;
   }
+
+
 
   inline void io_slave::set_req_meth_muxed(io_req_meth_muxed_t *meth, int id)
   {
-    req_mux = meth;
-    req = NULL;
-    req_mux_id = id;
+    this->req_meth_mux = meth;
+    this->req_meth = NULL;
+    this->req_mux_id = id;
   }
+
+
 
   inline io_req_status_e io_slave::req_default(io_slave *, io_req *)
   {

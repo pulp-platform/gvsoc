@@ -51,16 +51,19 @@ namespace vp {
 
   protected:
 
-    // Slave context.
-    // This pointer must be the first argument of any binding call to the slave.
-    // The slave is free to set it to what it wants, depending if the remote method
-    // is within the top component or an internal class.
+    // Component owner of this port.
+    // The port is considered in the same domains as the owner component.
     component *owner;
 
+    // Local context.
+    // This pointer must be the first argument of any binding call to this port.
     void *context;
 
+    // Remote context.
+    // This pointer must be the first argument of any binding call to a remote port.
     void *remote_context;
 
+    // Remote port connected to this port
     port *remote_port;
 
   };

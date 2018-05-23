@@ -54,13 +54,20 @@ namespace vp {
 
     bool is_bound() { return slave_port != NULL; }
 
+    void finalize();
+
   private:
     static inline void sync_muxed(wire_master *_this, T value);
+    static inline void sync_freq_cross_stub(wire_master *_this, T value);
+    static inline void sync_back_freq_cross_stub(wire_master *_this, T *value);
     static inline void sync_back_muxed(wire_master *_this, T *value);
     void (*sync_meth)(void *, T value);
     void (*sync_meth_mux)(void *, T value, int id);
     void (*sync_back_meth)(void *, T *value);
     void (*sync_back_meth_mux)(void *, T *value, int id);
+
+    void (*sync_meth_freq_cross)(void *, T value);
+    void (*sync_back_meth_freq_cross)(void *, T *value);
 
     vp::component *comp_mux;
     int sync_mux;
@@ -68,6 +75,7 @@ namespace vp {
     wire_slave<T> *slave_port = NULL;
     wire_master<T> *next = NULL;
 
+    void *slave_context_for_freq_cross;
   };
 
 
@@ -110,6 +118,8 @@ namespace vp {
   template<class T>
   inline void wire_master<T>::bind_to(vp::port *_port, vp::config *config)
   {
+    this->remote_port = _port;
+
     if (slave_port != NULL)
     {
       wire_master<T> *master = new wire_master<T>;
@@ -153,6 +163,48 @@ namespace vp {
     return _this->sync_back_meth_mux(_this->comp_mux, value, _this->sync_back_mux);
   }
 
+  template<class T>
+  inline void wire_master<T>::sync_freq_cross_stub(wire_master<T> *_this, T value)
+  {
+    // The normal callback was tweaked in order to get there when the master is sending a
+    // request. 
+    // First synchronize the target engine in case it was left behind,
+    // and then generate the normal call with the mux ID using the saved handler
+    _this->remote_port->get_owner()->get_clock()->sync();
+    return _this->sync_meth_freq_cross((component *)_this->slave_context_for_freq_cross, value);
+  }
+
+  template<class T>
+  inline void wire_master<T>::sync_back_freq_cross_stub(wire_master<T> *_this, T *value)
+  {
+    // The normal callback was tweaked in order to get there when the master is sending a
+    // request. 
+    // First synchronize the target engine in case it was left behind,
+    // and then generate the normal call with the mux ID using the saved handler
+    _this->remote_port->get_owner()->get_clock()->sync();
+    return _this->sync_back_meth_freq_cross((component *)_this->slave_context_for_freq_cross, value);
+  }
+
+  template<class T>
+  inline void wire_master<T>::finalize()
+  {
+    // We have to instantiate a stub in case the binding is crossing different
+    // frequency domains in order to resynchronize the target engine.
+    if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
+    {
+      // Just save the normal handler and tweak it to enter the stub when the
+      // master is pushing the request.
+      this->sync_meth_freq_cross = this->sync_meth;
+      this->sync_meth = (void (*)(void *, T))&wire_master<T>::sync_freq_cross_stub;
+
+      this->sync_back_meth_freq_cross = this->sync_back_meth;
+      this->sync_back_meth = (void (*)(void *, T *))&wire_master<T>::sync_back_freq_cross_stub;
+
+      this->slave_context_for_freq_cross = this->get_remote_context();
+      this->set_remote_context(this);
+    }
+
+  }
 
 
 
