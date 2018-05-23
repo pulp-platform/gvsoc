@@ -122,6 +122,10 @@ class impl_slave_port(object):
     def is_slave(self):
         return True
 
+    def final_bind(self):
+        if self.is_bound:
+            self.implem.implem_finalize(self.ref)
+
 
 class default_implementation_class(object):
 
@@ -648,6 +652,8 @@ class component(component_trace):
 
         if  self.impl is not None:
             for port in self.impl.master_ports.values():
+                port.final_bind()
+            for port in self.impl.slave_ports.values():
                 port.final_bind()
 
     def create_comps(self, comps_tag, class_tag, default_class_name):

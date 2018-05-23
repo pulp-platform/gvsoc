@@ -324,6 +324,10 @@ namespace vp {
     // Called by the framework to bind the slave port to a master port.
     inline void bind_to(vp::port *_port, vp::config *config);
 
+    // Called by the framework to finalize the binding, for example in order
+    // to take into account cross-domains bindings
+    void finalize();
+
   private:
 
     /*
@@ -355,6 +359,30 @@ namespace vp {
     // Grant callback set by the user on master port and retrived during binding
     void (*master_grant_meth)(void *, io_req *);
 
+    // master_resp_meth when the binding is crossing frequency domains as a stub is 
+    // setup instead
+    void (*master_resp_meth_freq_cross)(void *, io_req *);
+
+    // master_grant_meth when the binding is crossing frequency domains as a stub is 
+    // setup instead
+    void (*master_grant_meth_freq_cross)(void *, io_req *);
+
+
+    /*
+     * Stubs
+     */
+
+    // This is a stub setup when the binding is crossing 2 different clock
+    // domains so that we can capture the slave call and resynchronize the master
+    // domain before we call it.
+    static inline void grant_freq_cross_stub(io_slave *_this, io_req *req);
+
+    // This is a stub setup when the binding is crossing 2 different clock
+    // domains so that we can capture the slave call and resynchronize the master
+    // domain before we call it.
+    static inline void resp_freq_cross_stub(io_slave *_this, io_req *req);
+
+
 
     /*
      * Internal data
@@ -363,6 +391,12 @@ namespace vp {
     // Multiplexed ID set by the slave when port is multiplxed
     int req_mux_id;
 
+
+    // Master context when the binding is crossing frequency domains.
+    // We keep here a copy of the master context when the binding is crossing frequency
+    // domains as the normal variable for this context is used to store ourself
+    // so that the stub is working well.
+    void *master_context_for_freq_cross;
 
   };
 
@@ -558,6 +592,49 @@ namespace vp {
   }
 
 
+
+  inline void io_slave::grant_freq_cross_stub(io_slave *_this, io_req *req)
+  {
+    // The normal callback was tweaked in order to get there when the master is sending a
+    // request. 
+    // First synchronize the target engine in case it was left behind,
+    // and then generate the normal call with the mux ID using the saved handler
+    _this->remote_port->get_owner()->get_clock()->sync();
+    _this->master_grant_meth_freq_cross((component *)_this->master_context_for_freq_cross, req);
+  }
+
+
+
+  inline void io_slave::resp_freq_cross_stub(io_slave *_this, io_req *req)
+  {
+    // The normal callback was tweaked in order to get there when the master is sending a
+    // request. 
+    // First synchronize the target engine in case it was left behind,
+    // and then generate the normal call with the mux ID using the saved handler
+    _this->remote_port->get_owner()->get_clock()->sync();
+    _this->master_resp_meth_freq_cross((component *)_this->master_context_for_freq_cross, req);
+  }
+
+
+
+  inline void io_slave::finalize()
+  {
+    // We have to instantiate a stub in case the binding is crossing different
+    // frequency domains in order to resynchronize the target engine.
+    if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
+    {
+      // Just save the normal handler and tweak it to enter the stub when the
+      // master is pushing the request.
+      this->master_grant_meth_freq_cross = this->master_grant_meth;
+      this->master_grant_meth = (void (*)(void *, io_req *))&io_slave::grant_freq_cross_stub;
+
+      this->master_resp_meth_freq_cross = this->master_resp_meth;
+      this->master_resp_meth = (void (*)(void *, io_req *))&io_slave::resp_freq_cross_stub;
+      
+      this->master_context_for_freq_cross = this->get_remote_context();
+      this->set_remote_context(this);
+    }
+  }
 
 };
 
