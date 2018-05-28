@@ -35,7 +35,7 @@ public:
 
   fll_v1(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -165,7 +165,7 @@ vp::io_req_status_e fll_v1::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void fll_v1::build()
+int fll_v1::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&fll_v1::req);
@@ -179,6 +179,7 @@ void fll_v1::build()
 
   conf2_reg = 0;
 
+  return 0;
 }
 
 void fll_v1::start()

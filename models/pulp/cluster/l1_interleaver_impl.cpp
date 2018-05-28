@@ -30,7 +30,7 @@ public:
 
   interleaver(const char *config);
 
-  void build();
+  int build();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -89,7 +89,7 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
   }
 }
 
-void interleaver::build()
+int interleaver::build()
 {
 
   traces.new_trace("trace", &trace, vp::DEBUG);

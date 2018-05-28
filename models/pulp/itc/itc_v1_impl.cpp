@@ -32,7 +32,7 @@ public:
 
   itc(const char *config);
 
-  void build();
+  int build();
 
 private:
 
@@ -298,7 +298,7 @@ void itc::in_event_sync(void *__this, bool active, int id)
   _this->check_state();
 }
 
-void itc::build()
+int itc::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -324,6 +324,7 @@ void itc::build()
     new_slave_port("in_event_" + std::to_string(i), &in_event_itf[i]);
   }
 
+  return 0;
 }
 
 

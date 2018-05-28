@@ -157,7 +157,7 @@ public:
 
   mchan(const char *config);
 
-  void build();
+  int build();
   void start();
 
 protected:
@@ -1115,7 +1115,7 @@ void mchan::check_queue()
   }
 }
 
-void mchan::build()
+int mchan::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -1123,6 +1123,8 @@ void mchan::build()
   {
     channels.push_back(new Mchan_channel(i, this));
   }
+
+  return 0;
 }
 
 void mchan::start()

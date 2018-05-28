@@ -30,7 +30,7 @@ public:
 
   memory(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -91,11 +91,12 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void memory::build()
+int memory::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&memory::req);
   new_slave_port("input", &in);
+  return 0;
 }
 
 void memory::start()

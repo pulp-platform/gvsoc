@@ -31,7 +31,7 @@ public:
 
   fll_ctrl(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -62,11 +62,13 @@ vp::io_req_status_e fll_ctrl::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void fll_ctrl::build()
+int fll_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&fll_ctrl::req);
   new_slave_port("in", &in);
+
+  return 0;
 }
 
 void fll_ctrl::start()

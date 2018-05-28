@@ -32,7 +32,7 @@ public:
 
   iss(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static void data_grant(void *_this, vp::io_req *req);

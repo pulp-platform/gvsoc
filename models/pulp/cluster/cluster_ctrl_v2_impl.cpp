@@ -43,7 +43,7 @@ public:
 
   cluster_ctrl(const char *config);
 
-  void build();
+  int build();
   void start();
   void reset();
 
@@ -234,7 +234,7 @@ void cluster_ctrl::halt_status_sync(void *__this, bool status, int id)
 
 
 
-void cluster_ctrl::build()
+int cluster_ctrl::build()
 {
   cores = (Core_cluster_ctrl *)new Core_cluster_ctrl[nb_core];
 
@@ -253,6 +253,8 @@ void cluster_ctrl::build()
     new_slave_port("core_halt_" + std::to_string(i), &cores[i].halt_status_itf);
 
   }
+
+  return 0;
 }
 
 void cluster_ctrl::start()

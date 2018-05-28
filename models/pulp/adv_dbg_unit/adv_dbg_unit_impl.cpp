@@ -90,7 +90,7 @@ public:
 
   adv_dbg_unit(const char *config);
 
-  void build();
+  int build();
   void start();
 
 private:
@@ -518,7 +518,7 @@ void adv_dbg_unit::sync_cycle(void *__this, int tdi, int tms, int trst)
   _this->tck_edge(0, tdi, tms, trst);
 }
 
-void adv_dbg_unit::build()
+int adv_dbg_unit::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -529,6 +529,7 @@ void adv_dbg_unit::build()
   new_master_port("io", &io_itf);
 
   tap_init();
+  return 0;
 }
 
 void adv_dbg_unit::start()

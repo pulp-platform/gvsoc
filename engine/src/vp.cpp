@@ -617,8 +617,8 @@ extern "C" void vp_post_post_build(void *comp)
   ((vp::component *)comp)->post_post_build();
 }
 
-extern "C" void vp_build(void *comp)
+extern "C" int vp_build(void *comp)
 {
   ((vp::component *)comp)->pre_build();
-  ((vp::component *)comp)->build();
+  return ((vp::component *)comp)->build();
 }

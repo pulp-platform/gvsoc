@@ -90,7 +90,7 @@ public:
 
   router(const char *config);
 
-  void build();
+  int build();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -282,7 +282,7 @@ void router::response(void *_this, vp::io_req *req)
 {
 }
 
-void router::build()
+int router::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -354,6 +354,7 @@ void router::build()
       entry->insert(this);
     }
   }
+  return 0;
 }
 
 extern "C" void *vp_constructor(const char *config)

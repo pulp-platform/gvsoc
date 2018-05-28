@@ -33,7 +33,7 @@ public:
 
   timer(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -336,7 +336,7 @@ vp::io_req_status_e timer::req(void *__this, vp::io_req *req)
 }
 
 
-void timer::build()
+int timer::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -347,6 +347,8 @@ void timer::build()
 
   new_master_port("irq_itf_0", &irq_itf[0]);
   new_master_port("irq_itf_1", &irq_itf[1]);
+
+  return 0;
 }
 
 void timer::reset()

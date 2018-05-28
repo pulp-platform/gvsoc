@@ -340,7 +340,7 @@ public:
 
   udma(const char *config);
 
-  void build();
+  int build();
   void start();
 
   void enqueue_ready(Udma_channel *channel);

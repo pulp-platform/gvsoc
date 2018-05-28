@@ -513,7 +513,7 @@ void udma::l2_response(void *__this, vp::io_req *req)
   _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
 }
 
-void udma::build()
+int udma::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&udma::req);
@@ -602,6 +602,8 @@ void udma::build()
       }
     }
   }
+  
+  return 0;
 }
 
 void udma::start()

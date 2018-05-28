@@ -30,7 +30,7 @@ public:
 
   xne(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -62,12 +62,14 @@ vp::io_req_status_e xne::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void xne::build()
+int xne::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&xne::req);
   new_slave_port("in", &in);
   new_master_port("out", &out);
+
+  return 0;
 }
 
 void xne::start()

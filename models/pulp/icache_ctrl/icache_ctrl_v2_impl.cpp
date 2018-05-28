@@ -30,7 +30,7 @@ public:
 
   icache_ctrl(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -61,11 +61,13 @@ vp::io_req_status_e icache_ctrl::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void icache_ctrl::build()
+int icache_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&icache_ctrl::req);
   new_slave_port("input", &in);
+
+  return 0;
 }
 
 void icache_ctrl::start()

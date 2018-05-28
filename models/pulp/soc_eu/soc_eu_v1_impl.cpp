@@ -32,7 +32,7 @@ public:
 
   soc_eu(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -182,7 +182,7 @@ void soc_eu::event_in_sync(void *__this, int event)
   _this->trigger_event(event);
 }
 
-void soc_eu::build()
+int soc_eu::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&soc_eu::req);
@@ -198,6 +198,7 @@ void soc_eu::build()
   new_master_port("pr_event_itf", &pr_event_itf);
   new_master_port("cl_event_itf", &cl_event_itf);
 
+  return 0;
 }
 
 void soc_eu::reset()

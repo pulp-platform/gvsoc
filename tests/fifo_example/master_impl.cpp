@@ -42,7 +42,7 @@ public:
 
   master(const char *config);
 
-  void build();
+  int build();
 
   void start();
 
@@ -238,7 +238,7 @@ void master::resp(void *__this, vp::io_req *req)
 
 
 
-void master::build()
+int master::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -256,6 +256,8 @@ void master::build()
   delay = get_config_int("delay");
   max_pending_reqs = get_config_int("max_pending_reqs");
   nb_requests = get_config_int("nb_requests");
+
+  return 0;
 }
 
 

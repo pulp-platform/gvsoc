@@ -51,7 +51,7 @@ public:
 
   dpi_wrapper(const char *config);
 
-  void build();
+  int build();
   void start();
   void create_task(void *arg1, void *arg2);
   int wait(int64_t t);
@@ -171,13 +171,13 @@ void dpi_wrapper::uart_sync(void *__this, int data, int id)
   dpi_uart_edge(uart_handles[id]->handle, _this->get_clock()->get_time(), data);
 }
 
-void dpi_wrapper::build()
+int dpi_wrapper::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   void *config_handle = dpi_config_get_from_file(getenv("PULP_CONFIG_FILE"));
 
-  if (config_handle == NULL) return;
+  if (config_handle == NULL) return 0;
 
   void *driver_handle = dpi_driver_set_config(config_handle);
   int nb_comp = dpi_driver_get_nb_comp(driver_handle);
@@ -244,6 +244,8 @@ void dpi_wrapper::build()
       }
     }
   }
+
+  return 0;
 }
 
 void dpi_wrapper::start()

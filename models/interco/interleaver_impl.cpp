@@ -30,7 +30,7 @@ public:
 
   interleaver(const char *config);
 
-  void build();
+  int build();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -124,7 +124,7 @@ void interleaver::response(void *_this, vp::io_req *req)
 {
 }
 
-void interleaver::build()
+int interleaver::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -156,6 +156,7 @@ void interleaver::build()
     masters_in[i]->set_req_meth(&interleaver::req);
     new_slave_port("in_" + std::to_string(i), masters_in[i]);
   }
+  return 0;
 }
 
 extern "C" void *vp_constructor(const char *config)

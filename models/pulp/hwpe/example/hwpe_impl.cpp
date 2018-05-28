@@ -32,7 +32,7 @@ public:
 
   hwpe(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -163,7 +163,7 @@ void hwpe::response(void *__this, vp::io_req *req)
   _this->check_requests();
 }
 
-void hwpe::build()
+int hwpe::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&hwpe::req);
@@ -174,6 +174,8 @@ void hwpe::build()
   new_master_port("out", &out);
 
   event = event_new(hwpe::event_handler);
+
+  return 0;
 }
 
 void hwpe::start()

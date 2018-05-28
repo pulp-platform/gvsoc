@@ -29,7 +29,7 @@ public:
 
   clock_domain(const char *config);
 
-  void build();
+  int build();
 
   void pre_start();
 
@@ -51,9 +51,10 @@ clock_domain::clock_domain(const char *config)
   
 }
 
-void clock_domain::build()
+int clock_domain::build()
 {
   new_master_port("out", &out);
+  return 0;
 }
 
 void clock_domain::pre_start()

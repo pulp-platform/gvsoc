@@ -54,7 +54,7 @@ namespace vp {
   public:
     component(const char *config);
 
-    virtual void build() {}
+    virtual int build() { return 0; }
     virtual void pre_start() {}
     virtual void start() {}
     virtual void stop() {}

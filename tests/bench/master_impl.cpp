@@ -33,7 +33,7 @@ public:
 
   master(const char *config);
 
-  void build();
+  int build();
 
   void start();
 
@@ -324,7 +324,7 @@ void master::resp(void *_this, vp::io_req *req)
 {
 }
 
-void master::build()
+int master::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -332,6 +332,8 @@ void master::build()
   out.set_resp_meth(&master::resp);
 
   new_master_port("out", &out);
+
+  return 0;
 }
 
 void master::start()

@@ -141,7 +141,7 @@ public:
 
   Event_unit(const char *config);
 
-  void build();
+  int build();
   void start();
   void reset();
 
@@ -544,7 +544,7 @@ void Event_unit::in_event_sync(void *__this, bool active, int id)
   eu->check_state();
 }
 
-void Event_unit::build()
+int Event_unit::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -561,6 +561,8 @@ void Event_unit::build()
   }
 
   reset();
+
+  return 0;
 }
 
 void Event_unit::start()

@@ -32,7 +32,7 @@ public:
 
   converter(const char *config);
 
-  void build();
+  int build();
   void reset();
 
 
@@ -207,7 +207,7 @@ void converter::response(void *_this, vp::io_req *req)
 {
 }
 
-void converter::build()
+int converter::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -222,6 +222,7 @@ void converter::build()
   output_align = get_config_int("output_align");
 
   event = event_new(converter::event_handler);
+  return 0;
 }
 
 extern "C" void *vp_constructor(const char *config)

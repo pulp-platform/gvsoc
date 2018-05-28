@@ -30,7 +30,7 @@ public:
 
   loader(const char *config);
 
-  void build();
+  int build();
   void start();
 
   void io_req(uint64_t addr, uint64_t size, bool is_write, uint8_t *data);
@@ -62,14 +62,15 @@ void loader::response(void *_this, vp::io_req *req)
 {
 }
 
-void loader::build()
+int loader::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
   out.set_resp_meth(&loader::response);
   out.set_grant_meth(&loader::grant);
   new_master_port("out", &out);
-
+  
+  return 0;
 }
 
 void loader::start()

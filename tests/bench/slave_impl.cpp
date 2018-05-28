@@ -31,7 +31,7 @@ public:
 
   slave(const char *config);
 
-  void build();
+  int build();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -46,11 +46,13 @@ vp::io_req_status_e slave::req(void *__this, vp::io_req *req)
   //resp_port->resp(req);
 }
 
-void slave::build()
+int slave::build()
 {
   in.set_req_meth(&slave::req);
 
   new_slave_port("in", &in);
+
+  return 0;
 }
 
 slave::slave(const char *config)

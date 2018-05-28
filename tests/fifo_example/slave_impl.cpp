@@ -32,7 +32,7 @@ public:
 
   slave(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req, int id);
@@ -166,7 +166,7 @@ vp::io_req_status_e slave::req(void *__this, vp::io_req *req, int id)
   }
 }
 
-void slave::build()
+int slave::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
@@ -188,6 +188,8 @@ void slave::build()
   next_cycles = -1;
 
   grant_event = event_new(slave::grant_request);
+
+  return 0;
 }
 
 void slave::start()

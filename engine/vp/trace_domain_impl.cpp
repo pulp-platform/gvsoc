@@ -37,7 +37,7 @@ public:
   void add_path(int events, const char *path);
   void reg_trace(vp::trace *trace, int event, string path, string name);
 
-  void build();
+  int build();
 
   int get_max_path_len() { return max_path_len; }
 
@@ -104,9 +104,10 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
   }
 }
 
-void trace_domain::build()
+int trace_domain::build()
 {
   new_service("trace", static_cast<trace_engine *>(this));
+  return 0;
 }
 
 void trace_domain::add_path(int events, const char *path)

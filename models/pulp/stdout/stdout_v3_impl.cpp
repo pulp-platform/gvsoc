@@ -33,7 +33,7 @@ public:
 
   Stdout(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -88,7 +88,7 @@ vp::io_req_status_e Stdout::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void Stdout::build()
+int Stdout::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&Stdout::req);
@@ -104,6 +104,8 @@ void Stdout::build()
       putc_buffer_pos[j*nb_core+i] = 0;
     }
   }
+
+  return 0;
 }
 
 void Stdout::start()

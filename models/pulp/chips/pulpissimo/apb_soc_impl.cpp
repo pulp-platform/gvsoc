@@ -32,7 +32,7 @@ public:
 
   apb_soc_ctrl(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -97,13 +97,15 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void apb_soc_ctrl::build()
+int apb_soc_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&apb_soc_ctrl::req);
   new_slave_port("input", &in);
 
   core_status = 0;
+
+  return 0;
 }
 
 void apb_soc_ctrl::start()

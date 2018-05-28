@@ -434,7 +434,7 @@ vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
 }
 
 
-void iss::build()
+int iss::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   traces.new_trace("decode_trace", &decode_trace, vp::DEBUG);
@@ -490,7 +490,7 @@ void iss::build()
   transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
   this->cpu.config.isa = strdup(isa.c_str());
 
-
+  return 0;
 }
 
 

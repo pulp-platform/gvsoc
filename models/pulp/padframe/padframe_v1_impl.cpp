@@ -75,7 +75,7 @@ public:
 
   padframe(const char *config);
 
-  void build();
+  int build();
   void start();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -201,7 +201,7 @@ vp::io_req_status_e padframe::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void padframe::build()
+int padframe::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&padframe::req);
@@ -265,6 +265,8 @@ void padframe::build()
         name.c_str(), type.c_str());
     }
   }
+
+  return 0;
 }
 
 void padframe::start()
