@@ -33,6 +33,8 @@
 #include "vp/itf/clk.hpp"
 #include "vp/clock/component_clock.hpp"
 #include "vp/trace/component_trace.hpp"
+#include "vp/power/component_power.hpp"
+#include "json.hpp"
 
 
 #define   likely(x) __builtin_expect(x, 1)
@@ -63,6 +65,8 @@ namespace vp {
 
 
     inline config *get_config();
+
+    inline js::config *get_js_config() { return comp_js_config; }
 
     inline config *get_config(std::string name);
 
@@ -108,6 +112,7 @@ namespace vp {
 
 
     component_trace traces;
+    component_power power;
 
 
   protected:
@@ -123,6 +128,7 @@ namespace vp {
     inline config *get_config(std::string name, int index);
 
     config *comp_config;
+    js::config *comp_js_config;
 
     string path;
 

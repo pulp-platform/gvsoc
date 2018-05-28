@@ -18,14 +18,19 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
-
-#ifndef __VP_VP_HPP__
-#define __VP_VP_HPP__
+#ifndef __VP_POWER_POWER_HPP__
+#define __VP_POWER_POWER_HPP__
 
 #include "vp/vp_data.hpp"
-#include "vp/implementation.hpp"
-#include "vp/trace/implementation.hpp"
-#include "vp/clock/implementation.hpp"
-#include "vp/itf/implem/wire.hpp"
+
+namespace vp {
+
+  class power_trace
+  {
+  public:
+    void account() {}
+  };
+
+};
 
 #endif

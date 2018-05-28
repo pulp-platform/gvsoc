@@ -18,14 +18,35 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
+#ifndef __VP_TRACE_COMPONENT_POWER_HPP__
+#define __VP_TRACE_COMPONENT_POWER_HPP__
 
-#ifndef __VP_VP_HPP__
-#define __VP_VP_HPP__
+#include "vp/component.hpp"
+#include "json.hpp"
 
-#include "vp/vp_data.hpp"
-#include "vp/implementation.hpp"
-#include "vp/trace/implementation.hpp"
-#include "vp/clock/implementation.hpp"
-#include "vp/itf/implem/wire.hpp"
+using namespace std;
+
+namespace vp {
+
+  class power_trace;
+
+  class component_power
+  {
+
+  public:
+
+    component_power(component &top);
+
+    void new_event(std::string name, power_trace *trace, js::config *config);
+
+  protected:
+
+  private:
+    component &top;
+
+  };
+
+};  
+
 
 #endif

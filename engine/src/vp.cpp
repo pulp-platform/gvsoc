@@ -29,17 +29,19 @@
 #include <sstream>
 #include <string>
 
-vp::component::component(const char *config_string) : traces(*this)
+
+vp::component::component(const char *config_string) : traces(*this), power(*this)
 {
-  comp_config = import_config(config_string);
+  comp_config = import_config(strdup(config_string));
+
+  comp_js_config = js::import_config_from_string(strdup(config_string));
 }
+
 
 void vp::component::post_post_build()
 {
   traces.post_post_build();
 }
-
-
 
 
 
@@ -311,7 +313,7 @@ int vp::component::get_services(int size, const char *names[], void *res_service
   return services.size();
 }
 
-std::vector<std::string> split(const std::string& s, char delimiter)
+std::vector<std::string> split_name(const std::string& s, char delimiter)
 {
    std::vector<std::string> tokens;
    std::string token;
@@ -438,7 +440,7 @@ vp::config *vp::config_object::get_from_list(std::vector<std::string> name_list)
 
 vp::config *vp::config_object::get(std::string name)
 {
-  return get_from_list(split(name, '/'));
+  return get_from_list(split_name(name, '/'));
 }
 
 vp::config_string::config_string(jsmntok_t *tokens)

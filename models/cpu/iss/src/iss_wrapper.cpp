@@ -444,8 +444,8 @@ void iss::build()
 
   traces.new_trace_event("pc", &pc_trace_event, 32);
 
-  //power.new_event(&insn_power, get_config("insn"));
-  //power.new_event(&clock_gated_power, get_config("clock_gated"));
+  //power.new_event("insn", &insn_power, this->get_js_config()->get("**/insn"));
+  //power.new_event("clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gater"));
 
   data.set_resp_meth(&iss::data_response);
   data.set_grant_meth(&iss::data_grant);

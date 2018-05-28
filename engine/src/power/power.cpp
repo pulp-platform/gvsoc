@@ -18,14 +18,20 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
+#include "vp/vp.hpp"
+#include "vp/trace/trace.hpp"
 
-#ifndef __VP_VP_HPP__
-#define __VP_VP_HPP__
+vp::component_power::component_power(vp::component &top)
+: top(top)
+{
+}
 
-#include "vp/vp_data.hpp"
-#include "vp/implementation.hpp"
-#include "vp/trace/implementation.hpp"
-#include "vp/clock/implementation.hpp"
-#include "vp/itf/implem/wire.hpp"
+void vp::component_power::new_event(std::string name, power_trace *trace, js::config *config)
+{
+  if (config == NULL)
+    throw logic_error("Didn't find power trace (name: " + name + ")");
 
-#endif
+  js::config *type_cfg = config->get("type");
+  if (type_cfg == NULL)
+    throw logic_error("Didn't find power trace type (name: " + name + ")");
+}
