@@ -199,6 +199,11 @@ int dpi_wrapper::build()
 //      $display("[TB] %t - Instantiating DPI component", $realtime, i);
 
       void *dpi_model = dpi_model_load(comp_config, (void *)this);
+      if (dpi_model == NULL)
+      {
+        snprintf(vp_error, VP_ERROR_SIZE, "Failed to instantiate DPI model\n");
+        return -1;
+      }
 //      err = i_comp.load_model(comp_config);
 //      if (err != 0) $fatal(1, "[TB] %t - Failed to instantiate periph model", $realtime);
 //
@@ -276,6 +281,17 @@ extern "C" void dpi_print(void *data, const char *msg)
   buff[len] = '\n';
   buff[len + 1] = 0;
   _this->get_trace()->msg(buff);
+}
+
+extern "C" void dpi_fatal(void *data, const char *msg)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)data;
+  int len = strlen(msg);
+  char buff[len + 2];
+  strcpy(buff, msg);
+  buff[len] = '\n';
+  buff[len + 1] = 0;
+  _this->get_trace()->fatal(buff);
 }
 
 extern "C" void dpi_wait_event(void *handle)

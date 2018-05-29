@@ -64,6 +64,15 @@ namespace vp {
     #endif
   }
 
+  inline void vp::trace::fatal(const char *fmt, ...)
+  {
+    dump_fatal_header();
+    va_list ap;
+    va_start(ap, fmt);
+    if (vfprintf(stdout, fmt, ap) < 0) {}
+    va_end(ap);
+  }
+
   inline void vp::trace::warning(const char *fmt, ...) {
   #ifdef VP_TRACE_ACTIVE
     dump_warning_header();

@@ -41,6 +41,7 @@ namespace vp {
     inline void msg(const char *fmt, ...);
     inline void user_msg(const char *fmt, ...);
     inline void warning(const char *fmt, ...);
+    inline void fatal(const char *fmt, ...);
 
     inline void event(uint8_t *value);
     inline void event_string(uint8_t *value, int size);
@@ -48,6 +49,7 @@ namespace vp {
 
     void dump_header();
     void dump_warning_header();
+    void dump_fatal_header();
 
     void set_active(bool active) { is_active = active; }
     void set_event_active(bool active) { is_event_active = active; }

@@ -90,6 +90,11 @@ void vp::trace::dump_warning_header()
   fprintf(stdout, "%ld: %ld: [\033[31m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, name.c_str());
 }
 
+void vp::trace::dump_fatal_header()
+{
+  fprintf(stdout, "[\033[31m%s\033[0m] ", name.c_str());
+}
+
 
 
 char *vp::trace_engine::get_event_buffer(int bytes)
