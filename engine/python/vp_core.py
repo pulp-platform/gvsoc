@@ -181,6 +181,8 @@ class default_implementation_class(object):
         self.implem_finalize = self.module.vp_port_finalize
         self.module.vp_port_finalize.argtypes = [ctypes.c_void_p]
 
+        self.module.vp_get_error.restype = ctypes.c_char_p
+
         self.implem_get_ports = self.module.vp_comp_get_ports
         self.module.vp_comp_get_ports.argtypes = \
             [ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.POINTER(ctypes.c_char_p),
@@ -302,11 +304,16 @@ class default_implementation_class(object):
             return port
         return self.__get_port(False, name)
 
+    def get_error(self):
+        return self.module.vp_get_error().decode('utf-8')
 
     def build(self):
         self.parent.trace.msg('Building implementation')
         # First execute the C build method, this will mainly declare ports
-        self.implem_build(self.instance)
+        retval = self.implem_build(self.instance)
+        if retval != 0:
+            self.parent.trace.error(self.get_error(), path=self.get_path())
+            raise Exception("Caught error while building component (path: %s)" % self.get_path())
 
         # Retrieve ports information from C world and register them in the
         # python class
@@ -328,10 +335,18 @@ class trace(object):
             self.is_active = self.engine.is_active(path)
             self.engine.reg_path(self.path)
 
-    def msg(self, str):
+    def msg(self, str, path=None):
+        if path is None:
+            path = self.path
 
         if self.is_active:
-            self.engine.dump_msg(self.path, str)
+            self.engine.dump_msg(path, str)
+
+    def error(self, str, path=None):
+        if path is None:
+            path = self.path
+            
+        self.engine.dump_error(path, str)
 
 
 

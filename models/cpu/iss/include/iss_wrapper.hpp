@@ -83,8 +83,10 @@ public:
   vp::trace     csr_trace;
   vp::trace     perf_counter_trace;
 
-  vp::power_trace insn_power;
-  vp::power_trace clock_gated_power;
+  vp::power_trace power_trace;
+
+  vp::power_source insn_power;
+  vp::power_source clock_gated_power;
 
   vp::trace     pc_trace_event;
   

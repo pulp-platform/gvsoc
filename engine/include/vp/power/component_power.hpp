@@ -29,6 +29,7 @@ using namespace std;
 namespace vp {
 
   class power_trace;
+  class power_source;
 
   class component_power
   {
@@ -37,7 +38,8 @@ namespace vp {
 
     component_power(component &top);
 
-    void new_event(std::string name, power_trace *trace, js::config *config);
+    int new_event(std::string name, power_source *source, js::config *config, power_trace *trace);
+    int new_trace(std::string name, power_trace *trace);
 
   protected:
 

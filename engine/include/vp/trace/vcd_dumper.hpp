@@ -31,9 +31,9 @@ namespace vp {
   {
   public:
     Vcd_file(Vcd_dumper *dumper, string path);
-    void dump(int64_t timestamp, int id, uint8_t *event, int width);
+    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real);
     void close();
-    void add_trace(string name, int id, int width);
+    void add_trace(string name, int id, int width, bool is_real);
 
   private:
     string parse_path(string path, bool begin);
@@ -46,8 +46,9 @@ namespace vp {
   class Vcd_trace
   {
   public:
-    Vcd_trace(string trace_name, Vcd_file *file, int width);
-    inline void dump(int64_t timestamp, uint8_t *event, int width) { file->dump(timestamp, id, event, width); }
+    Vcd_trace(string trace_name, Vcd_file *file, int width, bool is_real);
+    inline void dump(int64_t timestamp, uint8_t *event, int width) { file->dump(timestamp, id, event, width, this->is_real); }
+    bool is_real = false;
 
   private:
     Vcd_file *file;
@@ -59,7 +60,8 @@ namespace vp {
   {
   public:
     Vcd_dumper(vp::component *comp) : comp(comp) {}
-    Vcd_trace *get_trace(string trace_name, string file_name, int width);
+    Vcd_trace *get_trace(string trace_name, string file_name, int width, bool is_real=false);
+    Vcd_trace *get_trace_real(string trace_name, string file_name);
     void close();
 
     vp::component *comp;

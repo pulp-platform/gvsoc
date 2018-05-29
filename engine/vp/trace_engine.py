@@ -37,6 +37,11 @@ class component(vp.component):
             path = '/'
         print ('0: 0: [' + vp.bcolors.OKBLUE + path.ljust(self.max_path_len, ' ') + vp.bcolors.ENDC + '] ' + str)
 
+    def dump_error(self, path, str):
+        if path == '':
+            path = '/'
+        print ('0: 0: [' + vp.bcolors.FAIL + path.ljust(self.max_path_len, ' ') + vp.bcolors.ENDC + '] ' + str)
+
     def reg_traces(self, traces, event):
 
         if event == 0:

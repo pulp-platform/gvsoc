@@ -44,6 +44,7 @@ namespace vp {
 
     inline void event(uint8_t *value);
     inline void event_string(uint8_t *value, int size);
+    inline void event_real(double value);
 
     void dump_header();
     void dump_warning_header();
@@ -62,6 +63,7 @@ namespace vp {
     int width;
     int bytes;
     Vcd_trace *vcd_trace = NULL;
+    bool is_real = false;
 
   protected:
     int level;

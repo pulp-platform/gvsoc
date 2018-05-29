@@ -48,6 +48,16 @@ void vp::component_trace::new_trace_event(std::string name, trace *trace, int wi
   trace->name = top.get_path() + "/" + name;
 }
 
+void vp::component_trace::new_trace_event_real(std::string name, trace *trace)
+{
+  trace_events[name] = trace;
+  trace->width = 64;
+  trace->bytes = 8;
+  trace->is_real = true;
+  trace->comp = static_cast<vp::component *>(&top);
+  trace->name = top.get_path() + "/" + name;
+}
+
 void vp::component_trace::new_trace_event_string(std::string name, trace *trace)
 {
   trace_events[name] = trace;

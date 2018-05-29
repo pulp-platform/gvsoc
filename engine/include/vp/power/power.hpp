@@ -25,10 +25,41 @@
 
 namespace vp {
 
+  #define VP_POWER_DEFAULT_TEMP  25
+  #define VP_POWER_DEFAULT_VOLT  1.2
+  #define VP_POWER_DEFAULT_FREQ  50
+
+  class Linear_table;
+
   class power_trace
   {
   public:
-    void account() {}
+    int init(component *top, std::string name);
+
+    inline bool get_active() { return trace.get_event_active(); }
+
+    vp::trace     trace;
+
+  private:
+    component *top;
+  };
+
+  class power_source
+  {
+    friend class component_power;
+
+  public:
+    inline void account() { this->trace->trace.event_real(this->quantum); }
+
+  protected:
+    int init(component *top, std::string name, js::config *config, power_trace *trace);
+    void setup(double temp, double volt, double freq);
+
+  private:
+    Linear_table *table = NULL;
+    double quantum;
+    component *top;
+    power_trace *trace;
   };
 
 };

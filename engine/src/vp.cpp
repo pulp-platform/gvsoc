@@ -30,6 +30,8 @@
 #include <string>
 
 
+char vp_error[VP_ERROR_SIZE];
+
 vp::component::component(const char *config_string) : traces(*this), power(*this)
 {
   comp_config = import_config(strdup(config_string));
@@ -539,6 +541,11 @@ void vp::component::set_services(int nb_services, const char *names[], void *ser
 extern "C" int vp_comp_get_ports(void *comp, bool master, int size, const char *names[], void *ports[])
 {
   return ((vp::component *)comp)->get_ports(master, size, names, ports);
+}
+
+extern "C" char *vp_get_error()
+{
+  return vp_error;
 }
 
 extern "C" int vp_comp_get_services(void *comp, int size, const char *names[], void *services[])

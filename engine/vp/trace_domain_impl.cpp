@@ -93,7 +93,11 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
     {
       if (event)
       {
-        vp::Vcd_trace *vcd_trace = vcd_dumper.get_trace(full_path, this->events_file[index], trace->width);
+        vp::Vcd_trace *vcd_trace;
+        if (!trace->is_real)
+          vcd_trace = vcd_dumper.get_trace(full_path, this->events_file[index], trace->width);
+        else
+          vcd_trace = vcd_dumper.get_trace_real(full_path, this->events_file[index]);
         trace->set_event_active(true);
         trace->vcd_trace = vcd_trace;
       }

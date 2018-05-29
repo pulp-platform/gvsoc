@@ -54,6 +54,8 @@ namespace vp {
 
     void new_trace_event_string(std::string name, trace *trace);
 
+    void new_trace_event_real(std::string name, trace *trace);
+
     trace_engine *get_trace_manager() { return trace_manager; }
 
   protected:

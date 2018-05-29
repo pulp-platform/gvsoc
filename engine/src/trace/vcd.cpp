@@ -57,11 +57,14 @@ string vp::Vcd_file::parse_path(string path, bool begin)
   return path.substr(start, end);
 }
 
-void vp::Vcd_file::add_trace(string path, int id, int width)
+void vp::Vcd_file::add_trace(string path, int id, int width, bool is_real)
 {
   string name = parse_path(path, true);
   
-  fprintf(file, "$var wire %d %d %s $end\n", width, id, name.c_str());
+  if (is_real)
+  	fprintf(file, "$var real 64 %d %s $end\n", id, name.c_str());
+  else
+  	fprintf(file, "$var wire %d %d %s $end\n", width, id, name.c_str());
 
   parse_path(string(path), false);
 
@@ -69,10 +72,10 @@ void vp::Vcd_file::add_trace(string path, int id, int width)
   
 }
 
-vp::Vcd_trace::Vcd_trace(string trace_name, Vcd_file *file, int width) : file(file)
+vp::Vcd_trace::Vcd_trace(string trace_name, Vcd_file *file, int width, bool is_real) : is_real(is_real), file(file)
 {
   id = vcd_id++;
-  file->add_trace(trace_name, id, width);
+  file->add_trace(trace_name, id, width, is_real);
 }
 
 
@@ -86,7 +89,7 @@ static unsigned int get_bit(uint8_t *value, int i) {
   return (value[i/8] >> (i%8)) & 1;
 }
 
-void vp::Vcd_file::dump(int64_t timestamp, int id, uint8_t *event, int width)
+void vp::Vcd_file::dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real)
 {
   if (!header_dumped)
   {
@@ -102,7 +105,11 @@ void vp::Vcd_file::dump(int64_t timestamp, int id, uint8_t *event, int width)
     fprintf(file, "#%ld\n", timestamp);
   }
 
-  if (width > 1) {
+  if (is_real)
+  {
+    fprintf(file, "r%f %d\n", *(double *)event, id);
+  }
+  else if (width > 1) {
     int i;
     char str[width+1+1];
     char *str_ptr = str;
@@ -135,7 +142,7 @@ void vp::Vcd_file::dump(int64_t timestamp, int id, uint8_t *event, int width)
 
 
 
-vp::Vcd_trace *vp::Vcd_dumper::get_trace(string trace_name, string file_name, int width)
+vp::Vcd_trace *vp::Vcd_dumper::get_trace(string trace_name, string file_name, int width, bool is_real)
 {
   vp::Vcd_trace *trace = vcd_traces[trace_name];
   if (trace == NULL)
@@ -148,12 +155,17 @@ vp::Vcd_trace *vp::Vcd_dumper::get_trace(string trace_name, string file_name, in
       vcd_files[file_name] = vcd_file;
     }
 
-    trace = new Vcd_trace(trace_name, vcd_file, width);
+    trace = new Vcd_trace(trace_name, vcd_file, width, is_real);
   }
 
   return trace;
 }
 
+vp::Vcd_trace *vp::Vcd_dumper::get_trace_real(string trace_name, string file_name)
+{
+  vp::Vcd_trace *trace = this->get_trace(trace_name, file_name, 8, true);
+  return trace;
+}
 
 void vp::Vcd_dumper::close()
 {

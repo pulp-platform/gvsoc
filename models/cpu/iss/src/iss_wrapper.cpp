@@ -40,6 +40,10 @@ do { \
   { \
     _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr); \
   } \
+  if (_this->power_trace.get_active()) \
+  { \
+  _this->insn_power.account(); \
+ } \
  \
   int cycles = func(_this); \
   if (cycles >= 0) \
@@ -444,8 +448,9 @@ int iss::build()
 
   traces.new_trace_event("pc", &pc_trace_event, 32);
 
-  //power.new_event("insn", &insn_power, this->get_js_config()->get("**/insn"));
-  //power.new_event("clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gater"));
+  if (power.new_trace("power_trace", &power_trace)) return -1;
+  if (power.new_event("power_insn", &insn_power, this->get_js_config()->get("**/insn"), &power_trace)) return -1;
+  if (power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace)) return -1;
 
   data.set_resp_meth(&iss::data_response);
   data.set_grant_meth(&iss::data_grant);

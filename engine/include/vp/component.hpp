@@ -42,6 +42,9 @@
 
 using namespace std;
 
+#define VP_ERROR_SIZE (1<<16)
+extern char vp_error[];
+
 namespace vp {
 
   class config;
