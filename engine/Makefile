@@ -13,6 +13,11 @@ CFLAGS +=  -MMD -MP -O2 -g -fpic -Isrc -std=c++11 -Werror -Wall -I$(PULP_SDK_WS_
 
 LDFLAGS += -O2 -g -shared -Werror -Wall -L$(PULP_SDK_HOME)/install/ws/lib -Wl,--whole-archive -ljson -Wl,--no-whole-archive
 
+ifdef VP_USE_SYSTEMC
+CFLAGS += -D__VP_USE_SYSTEMC -I$(SYSTEMC_HOME)/include
+#LDFLAGS += -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc
+endif
+
 VP_SRCS = src/vp.cpp src/trace/trace.cpp src/clock/clock.cpp src/trace/vcd.cpp src/power/power.cpp
 VP_OBJS = $(patsubst src/%.cpp,$(BUILD_DIR)/%.o,$(patsubst src/%.c,$(BUILD_DIR)/%.o,$(VP_SRCS)))
 
@@ -44,7 +49,7 @@ $(BUILD_DIR)/%.o: src/%.cpp
 
 $(BUILD_DIR)/libpulpvp.so: $(VP_OBJS)
 	@mkdir -p $(basename $@)
-	$(CC) $(LDFLAGS) $^ -o $@
+	$(CC) $^ -o $@ $(LDFLAGS)
 
 
 

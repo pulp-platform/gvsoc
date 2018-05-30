@@ -39,7 +39,7 @@ namespace vp {
 
     void stop();
 
-    virtual void reg_trace(trace *trace, int event, string path, string name) = 0;
+    virtual void reg_trace(vp::trace *trace, int event, string path, string name) = 0;
 
     virtual int get_max_path_len() = 0;
 

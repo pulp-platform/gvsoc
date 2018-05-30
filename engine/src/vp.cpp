@@ -29,6 +29,9 @@
 #include <sstream>
 #include <string>
 
+#ifdef __VP_USE_SYSTEMC
+#include <systemc.h>
+#endif
 
 char vp_error[VP_ERROR_SIZE];
 
@@ -68,6 +71,12 @@ void vp::component_clock::pre_build(component *comp) {
 
 void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
 {
+#ifdef __VP_USE_SYSTEMC
+  // Notify to the engine that something has been pushed in case it is done
+  // by an external systemC component and the engine needs to be waken up
+  if (started) sync_event.notify();
+#endif
+
   if (client->is_enqueued) return;
 
   client->is_enqueued = true;
@@ -624,8 +633,15 @@ extern "C" void vp_post_post_build(void *comp)
   ((vp::component *)comp)->post_post_build();
 }
 
+
 extern "C" int vp_build(void *comp)
 {
   ((vp::component *)comp)->pre_build();
   return ((vp::component *)comp)->build();
 }
+
+#ifdef __VP_USE_SYSTEMC
+int sc_main(int argc, char* argv[]) {
+ return 0;
+}
+#endif

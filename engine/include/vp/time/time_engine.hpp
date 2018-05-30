@@ -24,6 +24,10 @@
 #include "vp/vp_data.hpp"
 #include "vp/component.hpp"
 
+#ifdef __VP_USE_SYSTEMC
+#include <systemc.h>
+#endif
+
 
 namespace vp {
 
@@ -77,6 +81,11 @@ namespace vp {
     int64_t time = 0;
     int stop_status = -1;
     int retain_count = 0;
+
+#ifdef __VP_USE_SYSTEMC
+    sc_event sync_event;
+    bool started = false;
+#endif
   };
 
   class time_engine_client : public component {
@@ -122,6 +131,9 @@ namespace vp {
   inline void vp::time_engine::stop_engine(int status)
   {
     stop_status = status;
+#ifdef __VP_USE_SYSTEMC
+    sync_event.notify();
+#endif
     stop_engine();
   }
 
