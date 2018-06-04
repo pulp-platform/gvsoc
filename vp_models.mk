@@ -17,7 +17,6 @@ VP_COMP_LDFLAGS += -Werror -Wfatal-errors
 
 ifdef VP_USE_SYSTEMC
 VP_COMP_CFLAGS += -D__VP_USE_SYSTEMC -I$(SYSTEMC_HOME)/include
-LDFLAGS += -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc
 endif
 
 export PYTHONPATH := $(VP_INSTALL_PATH):$(PULP_SDK_WS_INSTALL)/lib:$(PYTHONPATH)

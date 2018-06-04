@@ -67,6 +67,9 @@ void vp::component_clock::pre_build(component *comp) {
 
   reset_port.set_sync_meth(&component_clock::reset_sync);
   comp->new_slave_port("reset", &reset_port);
+
+  comp->traces.new_trace("comp", comp->get_trace(), vp::DEBUG);
+  comp->traces.new_trace("warning", &comp->warning, vp::WARNING);
 }
 
 void vp::time_engine::enqueue(time_engine_client *client, int64_t time)

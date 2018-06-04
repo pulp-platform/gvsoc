@@ -114,9 +114,12 @@ namespace vp {
     void set_services(int nb_services, const char *name[], void *services[]);
 
 
+    trace *get_trace() { return &this->root_trace; }
+
     component_trace traces;
     component_power power;
 
+    trace warning;
 
   protected:
     template<typename P> int get_ports(std::map<std::string, P *> ports_map,
@@ -132,6 +135,8 @@ namespace vp {
 
     config *comp_config;
     js::config *comp_js_config;
+    trace root_trace;
+
 
     string path;
 

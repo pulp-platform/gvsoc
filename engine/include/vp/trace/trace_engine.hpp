@@ -42,6 +42,7 @@ namespace vp {
     virtual void reg_trace(vp::trace *trace, int event, string path, string name) = 0;
 
     virtual int get_max_path_len() = 0;
+    virtual int get_trace_level() = 0;
 
     void dump_event(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 

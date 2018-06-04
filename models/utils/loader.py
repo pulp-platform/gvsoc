@@ -18,6 +18,7 @@
  
 import vp_core as vp
 from elftools.elf.elffile import ELFFile
+import os
 
 class component(vp.component):
 
@@ -25,7 +26,14 @@ class component(vp.component):
 
     def load(self):
 
-        binaries = self.get_config().get('binaries')
+
+        binaries = self.get_config().get('load-binary_eval')
+        if binaries is not None:
+            binaries = [eval(binaries)]
+        else:
+            binaries = self.get_config().get('binaries')
+
+
         if binaries is not None:
             for binary in binaries:
                 with open(binary, 'rb') as file:

@@ -71,6 +71,7 @@ namespace vp {
     va_start(ap, fmt);
     if (vfprintf(stdout, fmt, ap) < 0) {}
     va_end(ap);
+    abort();
   }
 
   inline void vp::trace::warning(const char *fmt, ...) {
@@ -91,6 +92,21 @@ namespace vp {
     comp->get_clock()->stop(vp::CLOCK_ENGINE_WARNING);
     #endif
   }
+
+  inline void vp::trace::msg(const char *fmt, ...) 
+  {
+  #ifdef VP_TRACE_ACTIVE
+  	if (is_active) // && comp->traces.get_trace_manager()->get_trace_level() >= this->level)
+    {
+      dump_header();
+      va_list ap;
+      va_start(ap, fmt);
+      if (vfprintf(stdout, fmt, ap) < 0) {}
+      va_end(ap);  
+    }
+  #endif
+  }
+
 
 };
 

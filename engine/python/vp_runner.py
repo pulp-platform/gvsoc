@@ -51,6 +51,12 @@ class Runner(Platform):
         if self.system_tree.get_config('system') is not None:
           system = self.system_tree.get_config('system_tree')
 
+        for config_opt in self.config.getOption('configOpt'):
+            key, value = config_opt.split(':')
+            self.system_tree.set(key, value)
+
+
+
         os.environ['PULP_CONFIG_FILE'] = self.config.getOption('configFile')
 
         top = system.get('vp_class')

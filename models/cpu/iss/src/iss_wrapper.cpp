@@ -488,7 +488,8 @@ int iss::build()
   check_all_event = event_new(iss::exec_instr_check_all);
   misaligned_event = event_new(iss::exec_misaligned);
 
-  fetch_enable = get_config_bool("fetch_enable");
+  this->fetch_enable = get_config_bool("fetch_enable");
+  this->bootaddr = get_config_int("boot_addr");
 
   this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
   string isa = get_config_str("isa");

@@ -249,18 +249,18 @@ namespace vp {
     // We keep here a copy of the slave context when the slave port is multiplexed
     // as the normal variable for this context is used to store ourself so that
     // the stub is working well.
-    void *slave_context_for_mux;
+    void *slave_context_for_mux = NULL;
 
 
     // Slave context when the binding is crossing frequency domains.
     // We keep here a copy of the slave context when the binding is crossing frequency
     // domains as the normal variable for this context is used to store ourself
     // so that the stub is working well.
-    void *slave_context_for_freq_cross;
+    void *slave_context_for_freq_cross = NULL;
 
     // This data is the multiplex ID that we need to send to the slave when the slave port
     // is multiplexed.
-    int slave_req_mux_id;
+    int slave_req_mux_id = -1;
 
 
     // Several IO master ports are often connected to the same slave port
@@ -486,6 +486,9 @@ namespace vp {
     io_slave *port = (io_slave *)_port;
     this->remote_port = port;
 
+    vp_assert(port != NULL, this->get_owner()->get_trace(),
+      "Binding to NULL slave port\n");
+
     if (port->req_meth_mux == NULL)
     {
       // Normal binding, just register the method and context into the master
@@ -536,6 +539,19 @@ namespace vp {
 
   inline void io_master::finalize()
   {
+    vp_assert(this->get_owner() != NULL, NULL,
+      "No master port owner found when finalizing master binding\n");
+    vp_assert(this->get_owner()->get_clock() != NULL, NULL,
+      "No master port owner clock found when finalizing master binding\n");
+    vp_assert(this->remote_port != NULL, this->get_owner()->get_trace(),
+      "No remote port found when finalizing master binding\n");
+    vp_assert(this->remote_port != NULL, this->get_owner()->get_trace(),
+      "No remote port found when finalizing master binding\n");
+    vp_assert(this->remote_port->get_owner() != NULL, this->get_comp()->get_trace(),
+      "No remote port owner found when finalizing master binding\n");
+    vp_assert(this->remote_port->get_owner()->get_clock() != NULL, this->get_comp()->get_trace(),
+      "No remote port owner clock found when finalizing master binding\n");
+
     // We have to instantiate a stub in case the binding is crossing different
     // frequency domains in order to resynchronize the target engine.
     if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
@@ -547,7 +563,6 @@ namespace vp {
       this->slave_context_for_freq_cross = this->get_remote_context();
       this->set_remote_context(this);
     }
-
   }
 
 
@@ -589,6 +604,7 @@ namespace vp {
 
   inline io_req_status_e io_slave::req_default(io_slave *, io_req *)
   {
+    return IO_REQ_OK;
   }
 
 

@@ -189,8 +189,6 @@ void vp::time_engine::start()
 
 void vp::time_engine::run_loop()
 {
-  bool init = false;
-
 #ifdef __VP_USE_SYSTEMC
   started = true;
 #endif
@@ -213,6 +211,7 @@ void vp::time_engine::run_loop()
     if (!init)
     {
       init = true;
+      pthread_cond_broadcast(&cond);
       // Now that the engine is starting, we can register the final sigint handler
       // and create the sigint thread so that we can properly close simulation
       // in case ctrl C is hit.
@@ -233,30 +232,33 @@ void vp::time_engine::run_loop()
 
 #ifdef __VP_USE_SYSTEMC
 
-      time_engine_client *engine = current;
+      // Update the global engine time with the current event time
+      this->time = current->next_event_time;
 
-      this->time = engine->next_event_time;
-      int64_t time = engine->exec();
+      // Execute the events for the next engine
+      int64_t time = current->exec();
 
-      current = current->next;
-      engine->is_enqueued = false;
-      engine->running = false;
+      // Dequeue the engine we have just executed
+      first_client = current->next;
+      current->is_enqueued = false;
+      current->running = false;
 
+      // And reenqueue it in case it has events in the future
       if (time != -1)
       {
-        engine->next_event_time = time + this->time;
-        time_engine_client *client = current, *prev = NULL;
+        current->next_event_time = time + this->time;
+        time_engine_client *client = first_client, *prev = NULL;
         while (client && client->next_event_time < time)
         {
           prev = client;
           client = client->next;
         }
         if (prev)
-          prev->next = engine;
+          prev->next = current;
         else
-          current = engine;
+          first_client = current;
 
-        engine->next = client;
+        current->next = client;
       }
 
       // Now loop until the systemC times reaches the time of out next event.
@@ -264,25 +266,28 @@ void vp::time_engine::run_loop()
       // enqueues a new event.
       while(1)
       {
-        if (!current)
+        if (!first_client)
         {
-          if (stop_req) break;
+          if (stop_req || locked) {
+            break;
+          }
 
           // In case we don't have any event to schedule, just wait until the systemc part
           // enqueues something on our side
-          wait(sync_event);
+          wait(SC_ZERO_TIME);
         }
         else
         {
           // Otherwise, either wait until we can schedule our event
           // or wait unil the systemC part enqueues something before
-          wait(current->next_event_time - (int64_t)sc_time_stamp().to_double(), SC_PS, sync_event);
-        }
+          wait(first_client->next_event_time - (int64_t)sc_time_stamp().to_double(), SC_PS, sync_event);
 
-        int64_t current_sc_time = (int64_t)sc_time_stamp().to_double();
-        if (current_sc_time == current->next_event_time) break;
+          int64_t current_sc_time = (int64_t)sc_time_stamp().to_double();
+          if (current_sc_time == first_client->next_event_time) break;
+        }
       }
 
+      current = first_client;
 
 #else
   
@@ -333,7 +338,13 @@ void vp::time_engine::run_loop()
 
     while(!first_client && retain_count && !locked)
     {
+#ifdef __VP_USE_SYSTEMC
+      pthread_mutex_unlock(&mutex);
+      wait(SC_ZERO_TIME);
+      pthread_mutex_lock(&mutex);
+#else
       pthread_cond_wait(&cond, &mutex);
+#endif
     }
 
     current = first_client;

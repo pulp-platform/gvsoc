@@ -29,6 +29,7 @@
 #endif
 
 
+
 namespace vp {
 
   class time_engine_client;
@@ -46,6 +47,8 @@ namespace vp {
     int run_status() { return stop_status; }
 
     inline void lock();
+
+    inline void wait_running();
 
     inline void unlock();
 
@@ -69,6 +72,8 @@ namespace vp {
     bool run_req;
     bool stop_req;
     bool finished = false;
+    bool init = false;
+
 
 
 
@@ -135,6 +140,13 @@ namespace vp {
     sync_event.notify();
 #endif
     stop_engine();
+  }
+
+  inline void vp::time_engine::wait_running()
+  {
+    pthread_mutex_lock(&mutex);
+    while (!init) pthread_cond_wait(&cond, &mutex);
+    pthread_mutex_unlock(&mutex);
   }
 
   inline void vp::time_engine::lock()

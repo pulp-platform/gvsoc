@@ -72,8 +72,13 @@ class impl_master_port(object):
         self.implem = implem
         self.slaves = []
         self.is_bound = False
+        self.is_bound_to_port = False
 
     def bind_to(self, port, config=None):
+
+        if port is None:
+            raise Exception("SLAVE IS NONE")
+
         self.slaves.append([port, config])
         port.is_bound = True
         self.is_bound = True
@@ -88,15 +93,20 @@ class impl_master_port(object):
         for slave_desc in self.slaves:
             slave = slave_desc[0]
             config = slave_desc[1]
+
             for port in slave.get_ports():
                 self.implem.parent.trace.msg('Creating implementation binding (master: %s->%s, slave: %s->%s)' % (self.implem.parent.name, self.name, port.implem.parent.name, port.name))
                 if config is not None:
                     config = str(config).replace('\'', '"').encode('utf-8')
+
+                self.is_bound_to_port = True
+
                 self.implem.implem_bind_to(self.ref, port.ref, config)
 
     def final_bind(self):
         if len(self.slaves) != 0:
-            self.implem.implem_finalize(self.ref)
+            if self.is_bound_to_port:
+                self.implem.implem_finalize(self.ref)
 
 
 class impl_slave_port(object):

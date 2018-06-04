@@ -61,6 +61,7 @@ class component(vp.component):
 
         config = self.get_config()
         if config is not None:
+          self.impl.module.vp_trace_level(self.impl.instance, config.get('trace-level').encode('utf-8'))
           self.reg_traces(config.get('trace'), 0)
           self.reg_traces(config.get('event'), 1)
 

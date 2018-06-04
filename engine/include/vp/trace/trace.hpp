@@ -83,19 +83,23 @@ namespace vp {
 
   };    
 
-  inline void vp::trace::msg(const char *fmt, ...) 
-  {
-  #ifdef VP_TRACE_ACTIVE
-    if (is_active)
-    {
-      dump_header();
-      va_list ap;
-      va_start(ap, fmt);
-      if (vfprintf(stdout, fmt, ap) < 0) {}
-      va_end(ap);  
-    }
-  #endif
+
+#ifndef VP_TRACE_ACTIVE
+#define vp_assert(cond, trace, msg...)
+#else
+#define vp_assert(cond, trace_ptr, msg...)           \
+  if (!(cond)) {                                 \
+    if (trace_ptr)                                   \
+      ((vp::trace *)(trace_ptr))->fatal(msg);                         \
+    else                                         \
+    {                                            \
+      fprintf(stderr, "ASSERT FAILED: %s", msg); \
+      abort();                                   \
+    }                                            \
   }
+#endif
+
+
 
 
   void fatal(const char *fmt, ...) ;

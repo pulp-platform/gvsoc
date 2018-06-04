@@ -33,6 +33,7 @@ public:
 
   trace_domain(const char *config);
 
+  void set_trace_level(const char *trace_level);
   void add_paths(int events, int nb_path, const char **paths);
   void add_path(int events, const char *path);
   void reg_trace(vp::trace *trace, int event, string path, string name);
@@ -46,12 +47,15 @@ public:
     return max_path_len;
   }
 
+  int get_trace_level() { return this->trace_level; }
+
 private:
 
   std::vector<regex_t *> path_regex;
   std::vector<regex_t *> events_path_regex;
   std::vector<string> events_file;
   int max_path_len = 0;
+  vp::trace_level_e trace_level = vp::TRACE;
 };
 
 
@@ -142,9 +146,38 @@ void trace_domain::add_paths(int events, int nb_path, const char **paths)
   }
 }
 
+void trace_domain::set_trace_level(const char *trace_level)
+{
+  if (strcmp(trace_level, "error") == 0)
+  {
+    this->trace_level = vp::ERROR;
+  }
+  else if (strcmp(trace_level, "warning") == 0)
+  {
+    this->trace_level = vp::WARNING;
+  }
+  else if (strcmp(trace_level, "info") == 0)
+  {
+    this->trace_level = vp::INFO;
+  }
+  else if (strcmp(trace_level, "debug") == 0)
+  {
+    this->trace_level = vp::DEBUG;
+  }
+  else if (strcmp(trace_level, "trace") == 0)
+  {
+    this->trace_level = vp::TRACE;
+  }
+}
+
 extern "C" void vp_trace_add_paths(void *comp, int events, int nb_path, const char **paths)
 {
   ((trace_domain *)comp)->add_paths(events, nb_path, paths);
+}
+
+extern "C" void vp_trace_level(void *comp, const char *level)
+{
+  ((trace_domain *)comp)->set_trace_level(level);
 }
 
 extern "C" int vp_trace_exchange_max_path_len(void *comp, int max_len)

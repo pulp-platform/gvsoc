@@ -15,7 +15,7 @@ LDFLAGS += -O2 -g -shared -Werror -Wall -L$(PULP_SDK_HOME)/install/ws/lib -Wl,--
 
 ifdef VP_USE_SYSTEMC
 CFLAGS += -D__VP_USE_SYSTEMC -I$(SYSTEMC_HOME)/include
-#LDFLAGS += -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc
+LDFLAGS += -L$(SYSTEMC_HOME)/lib-linux64 -lsystemc
 endif
 
 VP_SRCS = src/vp.cpp src/trace/trace.cpp src/clock/clock.cpp src/trace/vcd.cpp src/power/power.cpp

@@ -53,18 +53,18 @@ namespace vp {
 
     // Component owner of this port.
     // The port is considered in the same domains as the owner component.
-    component *owner;
+    component *owner = NULL;
 
     // Local context.
     // This pointer must be the first argument of any binding call to this port.
-    void *context;
+    void *context = NULL;
 
     // Remote context.
     // This pointer must be the first argument of any binding call to a remote port.
-    void *remote_context;
+    void *remote_context = NULL;
 
     // Remote port connected to this port
-    port *remote_port;
+    port *remote_port = NULL;
 
   };
 

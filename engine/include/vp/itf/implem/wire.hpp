@@ -111,7 +111,6 @@ namespace vp {
       this->slave_context_for_freq_cross = this->get_remote_context();
       this->set_remote_context(this);
     }
-
   }
 
 
