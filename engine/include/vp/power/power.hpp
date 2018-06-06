@@ -38,10 +38,21 @@ namespace vp {
 
     inline bool get_active() { return trace.get_event_active(); }
 
+    inline void account(double quantum);
+
+    inline void incr(double quantum);
+
+    void collect();
+
+    void reg_top_trace(vp::power_trace *trace);
+
     vp::trace     trace;
 
   private:
     component *top;
+    std::vector<power_trace *> top_traces;
+    double value;
+    int64_t timestamp;
   };
 
   class power_source
@@ -49,7 +60,7 @@ namespace vp {
     friend class component_power;
 
   public:
-    inline void account() { this->trace->trace.event_real(this->quantum); }
+    inline void account() { this->trace->account(this->quantum); }
 
   protected:
     int init(component *top, std::string name, js::config *config, power_trace *trace);

@@ -17,9 +17,10 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 import vp_core as vp
-from elftools.elf.elffile import ELFFile
 
 class component(vp.component):
+
+    implementation = 'utils.composite_impl'
 
     def build(self):
         self.create_comps('vp_comps', 'vp_class', 'utils/composite')

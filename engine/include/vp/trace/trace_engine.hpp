@@ -46,12 +46,16 @@ namespace vp {
 
     void dump_event(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 
+    void dump_event_delayed(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
+
     Vcd_dumper vcd_dumper;
 
   private:
     char *get_event_buffer(int bytes);
     void vcd_routine();
     void flush();
+    void check_pending_events(int64_t timestamp);
+    void dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes);
 
     vector<char *> event_buffers;
     vector<char *> ready_event_buffers;
@@ -61,7 +65,7 @@ namespace vp {
     pthread_cond_t cond;
     int end = 0;
     std::thread *thread;
-
+    trace *first_pending_event;
   };
 
 };

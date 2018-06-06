@@ -41,10 +41,14 @@ namespace vp {
     int new_event(std::string name, power_source *source, js::config *config, power_trace *trace);
     int new_trace(std::string name, power_trace *trace);
 
+    void reg_top_trace(vp::power_trace *trace);
+
   protected:
 
   private:
     component &top;
+
+    std::vector<power_trace *> traces;
 
   };
 

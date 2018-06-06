@@ -53,6 +53,16 @@ namespace vp {
   #endif
   }
 
+  inline void vp::trace::event_real_delayed(double value)
+  {
+  #ifdef VP_TRACE_ACTIVE
+    if (is_event_active)
+    {
+      trace_manager->dump_event_delayed(this, comp->get_clock()->get_time(), (uint8_t *)&value, 8);
+    }   
+  #endif
+  }
+
 
   inline void vp::trace::user_msg(const char *fmt, ...) {
     #if 0

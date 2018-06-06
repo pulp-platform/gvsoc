@@ -25,6 +25,33 @@
 
 #include "vp/vp_data.hpp"
 
-namespace vp {
 
-};
+inline void vp::power_trace::account(double quantum)
+{
+  this->trace.event_real(quantum);
+
+  for (auto &x: top_traces)
+  {
+    x->incr(quantum);
+  }
+}
+
+inline void vp::power_trace::incr(double quantum)
+{
+  if (this->timestamp < this->top->get_time())
+  {
+    this->timestamp = this->top->get_time();
+    this->value = 0;
+  }
+
+  this->value += quantum;
+
+  for (auto &x: top_traces)
+  {
+    x->incr(quantum);
+  }
+
+  this->trace.event_real_delayed(this->value);
+}
+
+#endif

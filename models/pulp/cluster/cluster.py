@@ -17,15 +17,13 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 import vp_core as vp
+import utils.composite
 
 
 
+class component(utils.composite.component):
 
-class component(vp.component):
-
+    implementation = 'pulp.cluster.cluster_impl'
 
     def build(self):
-
-        self.create_comps('vp_comps', 'vp_class', 'utils/composite')
-        self.create_ports('vp_ports')
-        self.create_bindings('vp_bindings')
+        super(component, self).build()

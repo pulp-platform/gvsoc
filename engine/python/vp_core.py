@@ -214,8 +214,9 @@ class default_implementation_class(object):
             config_str = None
         self.instance = self.module.vp_constructor(config_str)
 
-        self.module.vp_comp_conf.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-        self.module.vp_comp_conf(self.instance, self.get_path().encode('utf-8'))
+        self.module.vp_comp_conf.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_void_p]
+
+        self.module.vp_comp_conf(self.instance, self.get_path().encode('utf-8'), self.parent.get_parent_implem_class())
 
     def get_path(self):
         return self.parent.get_path()
@@ -412,6 +413,18 @@ class component(component_trace):
         self.trace = self.new_trace('py_comp')
 
         self.build_all()
+
+    def get_implem_class(self):
+        if self.impl is not None:
+            return self.impl.instance
+        else:
+            return None
+
+    def get_parent_implem_class(self):
+        if self.parent is None:
+            return None
+        else:
+            return self.parent.get_implem_class()
 
     def set_implem_service(self, name, service):
         if self.parent is None:

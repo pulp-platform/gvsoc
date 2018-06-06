@@ -53,6 +53,10 @@ void vp::component::post_post_build()
 void vp::component_clock::clk_reg(component *_this, component *clock)
 {
   _this->clock = (clock_engine *)clock;
+  for (auto& x: _this->childs)
+  {
+    x->clk_reg(x, clock);
+  }
 }
 
 void vp::component_clock::reset_sync(void *_this, bool active)
@@ -550,6 +554,22 @@ void vp::component::set_services(int nb_services, const char *names[], void *ser
   }
 }
 
+void vp::component::conf(string path, vp::component *parent)
+{
+  this->parent = parent;
+  this->path = path;
+  if (parent != NULL)
+  {
+    parent->add_child(this);
+  }
+}
+
+void vp::component::add_child(vp::component *child)
+{
+  this->childs.push_back(child);
+}
+
+
 extern "C" int vp_comp_get_ports(void *comp, bool master, int size, const char *names[], void *ports[])
 {
   return ((vp::component *)comp)->get_ports(master, size, names, ports);
@@ -591,9 +611,9 @@ extern "C" void vp_port_finalize(void *_master)
   master->finalize();
 }
 
-extern "C" void vp_comp_conf(void *comp, const char *path)
+extern "C" void vp_comp_conf(void *comp, const char *path, void *parent)
 {
-  ((vp::component *)comp)->conf(path);
+  ((vp::component *)comp)->conf(path, (vp::component *)parent);
 }
 
 extern "C" void vp_pre_start(void *comp)

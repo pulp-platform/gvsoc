@@ -209,6 +209,8 @@ int vp::component_power::new_trace(std::string name, power_trace *trace)
   if (trace->init(&top, name))
     return -1;
 
+  this->traces.push_back(trace);
+
   return 0;
 }
 
@@ -228,7 +230,20 @@ int vp::power_trace::init(component *top, std::string name)
 {
   this->top = top;
   top->traces.new_trace_event_real(name, &this->trace);
+  this->value = 0;
+  this->timestamp = 0;
   return 0;
+}
+
+
+void vp::power_trace::collect()
+{
+  this->top->power.reg_top_trace(this);
+}
+
+void vp::power_trace::reg_top_trace(vp::power_trace *trace)
+{
+  this->top_traces.push_back(trace);
 }
 
 
@@ -236,6 +251,7 @@ void vp::power_source::setup(double temp, double volt, double freq)
 {
   this->quantum = this->table->get(temp, volt, freq);
 }
+
 
 
 int vp::power_source::init(component *top, std::string name, js::config *config, vp::power_trace *trace)
@@ -283,4 +299,20 @@ int vp::power_source::init(component *top, std::string name, js::config *config,
   }
 
   return 0;  
+}
+
+
+void vp::component_power::reg_top_trace(vp::power_trace *trace)
+{
+  for (auto& x: this->top.get_childs())
+  {
+    x->power.reg_top_trace(trace);
+  }
+
+  for (auto& x: this->traces)
+  {
+    if (x != trace)
+      x->reg_top_trace(trace);
+  }
+
 }

@@ -54,6 +54,8 @@ namespace vp {
   class component : public component_clock
   {
 
+    friend class component_clock;
+
   public:
     component(const char *config);
 
@@ -85,7 +87,9 @@ namespace vp {
     string get_path() { return path; }
 
 
-    void conf(string path) { this->path = path; }
+    void conf(string path, vp::component *parent);
+
+    void add_child(vp::component *child);
 
     config *import_config(const char *config_string);
 
@@ -116,6 +120,8 @@ namespace vp {
 
     trace *get_trace() { return &this->root_trace; }
 
+    std::vector<vp::component *> get_childs() { return childs; }
+
     component_trace traces;
     component_power power;
 
@@ -130,6 +136,8 @@ namespace vp {
     std::map<std::string, void *> services;
     std::map<std::string, void *> all_services;
  
+    std::vector<component *> childs;
+
   private:
     inline config *get_config(std::string name, int index);
 

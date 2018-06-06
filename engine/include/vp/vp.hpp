@@ -26,6 +26,7 @@
 #include "vp/implementation.hpp"
 #include "vp/trace/implementation.hpp"
 #include "vp/clock/implementation.hpp"
+#include "vp/power/implementation.hpp"
 #include "vp/itf/implem/wire.hpp"
 
 #endif

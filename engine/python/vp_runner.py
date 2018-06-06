@@ -26,10 +26,10 @@ from plp_platform import *
 
 class Runner(Platform):
 
-    def __init__(self, config):
+    def __init__(self, config, tree):
 
         self.config = config
-        super(Runner, self).__init__(self.config)
+        super(Runner, self).__init__(self.config, tree)
 
         systemConfig = self.config.args.config
         if systemConfig is not None:

@@ -73,7 +73,8 @@ vp::trace_engine::trace_engine(const char *config)
   current_buffer = event_buffers[0];
   event_buffers.erase(event_buffers.begin());
   current_buffer_size = 0;
-
+  this->first_pending_event = NULL;
+  
   thread = new std::thread(&trace_engine::vcd_routine, this);
 }
 

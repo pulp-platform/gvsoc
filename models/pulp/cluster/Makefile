@@ -10,6 +10,8 @@ IMPLEMENTATIONS += pulp/cluster/l1_interleaver_impl
 COMPONENTS += pulp/cluster/l1_interleaver
 pulp/cluster/l1_interleaver_impl_SRCS = pulp/cluster/l1_interleaver_impl.cpp
 
+IMPLEMENTATIONS += pulp/cluster/cluster_impl
 COMPONENTS += pulp/cluster/cluster
+pulp/cluster/cluster_impl_SRCS = pulp/cluster/cluster_impl.cpp
 
 endif
