@@ -19,6 +19,7 @@
 import imp
 import ctypes
 import ctypes.util
+import json_tools as js
 
 
 class bcolors:
@@ -450,6 +451,9 @@ class component(component_trace):
         else:
             return self.config.get_config(name)
 
+    def get_json(self):
+        return js.import_config(self.get_config().get_dict())
+
     def get_module(self, name, path=None):
         for x in name.split('.'):
             if path is not None:
@@ -695,10 +699,11 @@ class component(component_trace):
                 port.final_bind()
 
     def create_comps(self, comps_tag, class_tag, default_class_name):
+        js_config = self.get_json()
         config = self.get_config()
-        comps = config.get(comps_tag)
+        comps = js_config.get(comps_tag)
         if comps is not None:
-            for comp_name in config.get(comps_tag):
+            for comp_name in comps.get_dict():
                 comp_config = config.get_config(comp_name)
                 component = comp_config.get(class_tag)
                 if component is None:
@@ -708,16 +713,17 @@ class component(component_trace):
 
 
     def create_ports(self, port_tag):
-        ports = self.get_config().get(port_tag)
+        ports = self.get_json().get(port_tag)
         if ports is not None:
-            for port in ports:
+            for port in ports.get_dict():
                 self.new_port(port)
 
 
     def create_bindings(self, bindings_tag):
-        bindings = self.get_config().get(bindings_tag)
+
+        bindings = self.get_json().get(bindings_tag)
         if bindings is not None:
-            for binding in bindings:
+            for binding in bindings.get_dict():
                 master_comp_name, master_port_name = binding[0].split('->')
                 slave_comp_name, slave_port_name = binding[1].split('->')
                 self.trace.msg('Creating json binding (master: %s, slave: %s)' % (binding[0], binding[1]))

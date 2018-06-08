@@ -117,6 +117,8 @@ int interleaver::build()
     masters_in[i]->set_req_meth(&interleaver::req);
     new_slave_port("in_" + std::to_string(i), masters_in[i]);
   }
+
+  return 0;
 }
 
 extern "C" void *vp_constructor(const char *config)

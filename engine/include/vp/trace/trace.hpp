@@ -84,19 +84,21 @@ namespace vp {
   };    
 
 
+#define vp_assert_always(cond, trace_ptr, msg...)  \
+  if (!(cond)) {                                   \
+    if (trace_ptr)                                 \
+      ((vp::trace *)(trace_ptr))->fatal(msg);      \
+    else                                           \
+    {                                              \
+      fprintf(stderr, "ASSERT FAILED: %s", msg);   \
+      abort();                                     \
+    }                                              \
+  }
+
 #ifndef VP_TRACE_ACTIVE
 #define vp_assert(cond, trace, msg...)
 #else
-#define vp_assert(cond, trace_ptr, msg...)           \
-  if (!(cond)) {                                 \
-    if (trace_ptr)                                   \
-      ((vp::trace *)(trace_ptr))->fatal(msg);                         \
-    else                                         \
-    {                                            \
-      fprintf(stderr, "ASSERT FAILED: %s", msg); \
-      abort();                                   \
-    }                                            \
-  }
+#define vp_assert(cond, trace_ptr, msg...) vp_assert_always(cond, trace_ptr, msg)
 #endif
 
 
