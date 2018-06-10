@@ -17,12 +17,7 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 import vp_core as vp
+import utils.composite
 
-
-class component(vp.component):
-
-    def build(self):
-
-        self.create_comps('vp_comps', 'vp_class', 'utils/composite')
-
-        self.create_bindings('vp_bindings')
+class component(utils.composite.component):
+    pass

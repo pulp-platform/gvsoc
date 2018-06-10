@@ -56,8 +56,23 @@ class Runner(Platform):
             self.system_tree.set(key, value)
 
 
+        if self.get_json().get('**/gdb/active').get_bool():
+            self.get_json().get('**/jtag_proxy').set('active', True)
 
-        os.environ['PULP_CONFIG_FILE'] = self.config.getOption('configFile')
+        binaries = self.get_json().get('**/loader/binaries').get_dict()
+        for binary in binaries:
+            self.get_json().get('**/plt_loader').set('binaries', binary)
+
+
+
+
+        system = plptree.get_config_tree_from_dict(self.get_json().get_dict())
+
+        with open('vp_config.json', 'w') as file:
+            file.write(self.get_json().dump_to_string())
+
+
+        os.environ['PULP_CONFIG_FILE'] = os.path.join(os.getcwd(), 'vp_config.json')
 
         top = system.get('vp_class')
 
@@ -65,10 +80,10 @@ class Runner(Platform):
             raise Exception("The specified configuration does not contain any"
                             " top component")
 
-        config = self.system_tree.get_config('gvsoc')
-        debug_mode = len(config.get('trace')) != 0 or len(config.get('event')) != 0
+        gvsoc_config = self.system_tree.get_config('gvsoc')
+        debug_mode = len(gvsoc_config.get('trace')) != 0 or len(gvsoc_config.get('event')) != 0
 
-        trace_engine = vp.trace_engine.component(name=None, config=config, debug=debug_mode)
+        trace_engine = vp.trace_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
         time_engine = trace_engine.new(
             name=None,

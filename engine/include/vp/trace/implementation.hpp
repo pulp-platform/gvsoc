@@ -106,7 +106,7 @@ namespace vp {
   inline void vp::trace::msg(const char *fmt, ...) 
   {
   #ifdef VP_TRACE_ACTIVE
-  	if (is_active) // && comp->traces.get_trace_manager()->get_trace_level() >= this->level)
+  	if (is_active && comp->traces.get_trace_manager()->get_trace_level() >= this->level)
     {
       dump_header();
       va_list ap;

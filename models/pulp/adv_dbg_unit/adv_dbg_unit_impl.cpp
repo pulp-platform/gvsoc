@@ -108,6 +108,7 @@ private:
   void shift_dr();
 
   vp::trace     trace;
+  vp::trace     debug;
   vp::jtag_slave jtag_itf;
 
   vp::io_req req;
@@ -132,7 +133,7 @@ void adv_dbg_unit::tap_init() {
   tap.id_reg = 1;
   tap.instr = IDCODE_INSTR;
   dev.do_burst = 0;
-  trace.msg("Updating instruction (newInstr: IDCODE)\n");
+  debug.msg("Updating instruction (newInstr: IDCODE)\n");
 }
 
 static string get_instr_name(uint32_t instr) {
@@ -144,7 +145,7 @@ static string get_instr_name(uint32_t instr) {
 void adv_dbg_unit::select_module() {
   uint32_t command = dev.command >> (64 - 6);
   uint32_t module_id = command & 0x1f;
-  trace.msg("Selecting new module (module: %d)\n", module_id);
+  debug.msg("Selecting new module (module: %d)\n", module_id);
   tap.module = module_id;
 }
 
@@ -156,13 +157,13 @@ void adv_dbg_unit::burst_cmd(int word_bytes, int is_read, uint64_t command) {
   dev.burst_count = (command & 0xffff);
   dev.burst_word_count = 0;
   dev.reg_burst = 0;
-  trace.msg("Handling Burst Setup command (isRead: %d, addr: 0x%x, count: 0x%x, wordBytes: %d)\n", is_read, dev.burst_addr, dev.burst_count, word_bytes);
+  debug.msg("Handling Burst Setup command (isRead: %d, addr: 0x%x, count: 0x%x, wordBytes: %d)\n", is_read, dev.burst_addr, dev.burst_count, word_bytes);
 }
 
 void adv_dbg_unit::module_cmd()
 {
   uint32_t opcode = (dev.command >> (64 - 5)) & 0xf;
-  trace.msg("Handling module command (module: %d, opcode: %d)\n", tap.module, opcode);
+  debug.msg("Handling module command (module: %d, opcode: %d)\n", tap.module, opcode);
 
   if (tap.module == 1) {
 
@@ -171,7 +172,7 @@ void adv_dbg_unit::module_cmd()
 
     switch (opcode) {
     case 0: {
-      trace.msg("Received NOP command\n");
+      debug.msg("Received NOP command\n");
       break;
     }
     case 3: {
@@ -182,7 +183,7 @@ void adv_dbg_unit::module_cmd()
       dev.burst_count = (command & 0xffff);
       dev.burst_word_count = 0;
       dev.burst_word_bytes = 4;
-      trace.msg("Received Burst Setup Write command (addr: 0x%x, count: 0x%x)\n", dev.burst_addr, dev.burst_count);
+      debug.msg("Received Burst Setup Write command (addr: 0x%x, count: 0x%x)\n", dev.burst_addr, dev.burst_count);
       break;
     }
     case 7: {
@@ -193,25 +194,25 @@ void adv_dbg_unit::module_cmd()
       dev.burst_count = (command & 0xffff);
       dev.burst_word_count = 0;
       dev.burst_word_bytes = 4;
-      trace.msg("Received Burst Setup Read command (addr: 0x%x, count: 0x%x)\n", dev.burst_addr, dev.burst_count);
+      debug.msg("Received Burst Setup Read command (addr: 0x%x, count: 0x%x)\n", dev.burst_addr, dev.burst_count);
       break;
     }   
     case 9: {
       uint32_t data = (dev.command >> (64 - 12)) & (0x3);
-      trace.msg("Received Internal Register Write command (data: %x)\n", data);
+      debug.msg("Received Internal Register Write command (data: %x)\n", data);
       // TODO support all cluster cores
       //cpuCtrl[0]->regAccess(-1, 0, &data);
       break;
     }  
     case 13: {
-      trace.msg("Received Internal Register Select command (addr: 0x%x, count: 0x%x)\n");
+      debug.msg("Received Internal Register Select command (addr: 0x%x, count: 0x%x)\n");
       break;
     } 
     }
   } else if (tap.module == 0) {
     switch (opcode) {
     case 0: {
-      trace.msg("Received NOP command\n");
+      debug.msg("Received NOP command\n");
       break;
     }
     case 1:
@@ -233,7 +234,7 @@ void adv_dbg_unit::module_cmd()
       burst_cmd(4, 1, dev.command >> (64 - 53));
       break;
     case 13:
-      trace.msg("Received Internal Register Select command (addr: 0x%x, count: 0x%x)\n");
+      debug.msg("Received Internal Register Select command (addr: 0x%x, count: 0x%x)\n");
       break;
     }
   }
@@ -294,6 +295,7 @@ void adv_dbg_unit::shift_dr()
           crc_calc = 0xffffffff;
         } else if (dev.do_burst == 2) {
           if (dev.burst_word_count == 0) {
+            debug.msg("Sending burst word (value: %x)\n", dev.burst_word);
             if (tap.module == 0) { 
               req.init();
               req.set_data((uint8_t *)&dev.burst_word);
@@ -303,13 +305,12 @@ void adv_dbg_unit::shift_dr()
               int err = io_itf.req(&req);
               if (err != vp::IO_REQ_OK)
               {
-                trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+                warning.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
               }
             } else {
         // TODO support all cluster cores
         //cpuCtrl[0]->regAccess(dev.burst_addr, 1, &dev.burst_word);
             }
-            trace.msg("Sending burst word (value: %x)\n", dev.burst_word);
             crc_calc = adbg_compute_crc(crc_calc, dev.burst_word, dev.burst_word_bytes*8);
             dev.burst_word_count = dev.burst_word_bytes*8;
           }
@@ -325,7 +326,7 @@ void adv_dbg_unit::shift_dr()
               dev.do_burst = 3;
               dev.burst_word_count = 32;
               dev.burst_word = crc_calc;
-              trace.msg("Sending burst CRC (value: %x)\n", crc_calc);
+              debug.msg("Sending burst CRC (value: %x)\n", crc_calc);
             }
           }
         } else if (dev.do_burst == 3) {
@@ -353,7 +354,7 @@ void adv_dbg_unit::shift_dr()
           dev.burst_word |= tdi << (dev.burst_word_bytes*8-1);
           dev.burst_word_count--;
           if (dev.burst_word_count == 0) {
-            trace.msg("Received burst word (value: %x)\n", dev.burst_word);
+            debug.msg("Received burst word (value: %x)\n", dev.burst_word);
             if (tap.module == 0) {
               req.init();
               req.set_data((uint8_t *)&dev.burst_word);
@@ -383,11 +384,11 @@ void adv_dbg_unit::shift_dr()
           dev.burst_word_count--;
           if (dev.burst_word_count == 0) {
             dev.do_burst = 4;
-            tdo = crc_calc == dev.burst_word;
-            trace.msg("Received burst CRC (value: %x)\n", dev.burst_word);
+            debug.msg("Received burst CRC (value: 0x%x, computed: 0x%x)\n", dev.burst_word, crc_calc);
           }
         } else if (dev.do_burst == 4) {
           dev.do_burst = 0;
+          tdo = crc_calc == dev.burst_word;
         }
       }
     } else {
@@ -472,7 +473,7 @@ void adv_dbg_unit::tap_update(int tms, int tclk) {
       break;
     case TAP_STATE_UPDATE_IR:
       tap.instr = tap.capture_instr;
-      trace.msg("Updating instruction (newInstr: %s)\n", get_instr_name(tap.instr).c_str());
+      debug.msg("Updating instruction (newInstr: %s)\n", get_instr_name(tap.instr).c_str());
       if (tms) tap.state = TAP_STATE_SELECT_DR_SCAN;
       else tap.state = TAP_STATE_RUN_TEST_IDLE;
       break;
@@ -520,7 +521,8 @@ void adv_dbg_unit::sync_cycle(void *__this, int tdi, int tms, int trst)
 
 int adv_dbg_unit::build()
 {
-  traces.new_trace("trace", &trace, vp::DEBUG);
+  traces.new_trace("trace", &trace, vp::TRACE);
+  traces.new_trace("debug", &debug, vp::DEBUG);
 
   jtag_itf.set_sync_meth(&adv_dbg_unit::sync);
   jtag_itf.set_sync_cycle_meth(&adv_dbg_unit::sync_cycle);

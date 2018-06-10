@@ -268,8 +268,11 @@ extern "C" void dpi_ctrl_reset_edge(void *handle, int reset)
 extern "C" void dpi_jtag_tck_edge(void *handle, int tck, int tdi, int tms, int trst, int *tdo)
 {
   vp::jtag_master *itf = jtag_masters[(int)(long)handle];
-  itf->sync(tck, tdi, tms, trst);
-  *tdo = itf->tdo;
+  if (itf->is_bound())
+  {
+    itf->sync(tck, tdi, tms, trst);
+    *tdo = itf->tdo;
+  }
 }
 
 extern "C" void dpi_print(void *data, const char *msg)
