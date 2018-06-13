@@ -52,7 +52,7 @@ namespace vp {
 
     inline void unlock();
 
-    inline void stop_engine();
+    inline void stop_engine(bool force=false);
 
     inline void stop_engine(int status);
 
@@ -86,6 +86,7 @@ namespace vp {
     int64_t time = 0;
     int stop_status = -1;
     int retain_count = 0;
+    bool use_external_bridge;
 
 #ifdef __VP_USE_SYSTEMC
     sc_event sync_event;
@@ -125,12 +126,17 @@ namespace vp {
 
   // This can be called from anywhere so just propagate the stop request
   // to the main python thread which will take care of stopping the engine.
-  inline void vp::time_engine::stop_engine()
+  inline void vp::time_engine::stop_engine(bool force)
   {
-    pthread_mutex_lock(&mutex);
-    stop_req = true;
-    pthread_cond_broadcast(&cond);
-    pthread_mutex_unlock(&mutex);
+    if (force || !this->use_external_bridge)
+    {
+      // In case the vp is connected to an external bridge, prevent the platform
+      // from exiting unless a ctrl-c is hit
+      pthread_mutex_lock(&mutex);
+      stop_req = true;
+      pthread_cond_broadcast(&cond);
+      pthread_mutex_unlock(&mutex);
+    }
   }
 
   inline void vp::time_engine::stop_engine(int status)

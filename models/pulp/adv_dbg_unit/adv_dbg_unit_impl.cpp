@@ -385,10 +385,10 @@ void adv_dbg_unit::shift_dr()
           if (dev.burst_word_count == 0) {
             dev.do_burst = 4;
             debug.msg("Received burst CRC (value: 0x%x, computed: 0x%x)\n", dev.burst_word, crc_calc);
+            tdo = crc_calc == dev.burst_word;
           }
         } else if (dev.do_burst == 4) {
           dev.do_burst = 0;
-          tdo = crc_calc == dev.burst_word;
         }
       }
     } else {

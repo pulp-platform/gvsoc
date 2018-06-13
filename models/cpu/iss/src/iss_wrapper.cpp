@@ -353,7 +353,13 @@ vp::io_req_status_e iss::dbg_unit_req(void *__this, vp::io_req *req)
     {
       if (req->get_is_write())
       {
+        // Writing NPC will force the core to jump to the written PC
+        // even if the core is sleeping
         iss_cache_flush(_this);
+        _this->npc = *(iss_reg_t *)data;
+        iss_pc_set(_this, _this->npc);
+        _this->wfi = false;
+        _this->check_state();
       }
       else
         *(iss_reg_t *)data = _this->npc;

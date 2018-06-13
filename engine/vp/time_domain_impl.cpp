@@ -83,7 +83,7 @@ static void *signal_routine(void *arg) {
   sigaddset(&sigs_to_catch, SIGINT);
   do {
     sigwait(&sigs_to_catch, &caught);
-    engine->stop_engine();
+    engine->stop_engine(true);
   } while (1);
   return NULL;
 }
@@ -184,6 +184,16 @@ string vp::time_engine::run()
 
 void vp::time_engine::start()
 {
+
+  js::config *item_conf = this->get_js_config()->get("**/gvsoc/use_external_bridge");
+  this->use_external_bridge = item_conf != NULL && item_conf->get_bool();
+
+  if (this->use_external_bridge)
+  {
+    // In case the vp is connected to an external bridge, prevent the platform
+    // from exiting in case there is no more events.
+    retain_count++;
+  }
   pthread_create(&run_thread, NULL, engine_routine, (void *)this);
 }
 

@@ -46,6 +46,9 @@ class Runner(Platform):
 
     def run(self):
 
+        autorun_conf = self.tree.get('**/debug_bridge/autorun')
+        if autorun_conf is not None and autorun_conf.get_bool() and not self.config.getOption('reentrant'):
+            os.execlp('pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s' % self.config.getOption('configFile'))
 
         system = self.system_tree
         if self.system_tree.get_config('system') is not None:
@@ -56,23 +59,32 @@ class Runner(Platform):
             self.system_tree.set(key, value)
 
 
-        if self.get_json().get('**/gdb/active').get_bool():
-            self.get_json().get('**/jtag_proxy').set('active', True)
+        autorun = self.tree.get('**/debug_bridge/autorun')
+        bridge_active = self.tree.get('**/debug_bridge/active')
 
-        binaries = self.get_json().get('**/loader/binaries').get_dict()
-        for binary in binaries:
-            self.get_json().get('**/plt_loader').set('binaries', binary)
+        bridge = autorun is not None and autorun.get_bool() or \
+          self.get_json().get('**/gdb/active').get_bool() or \
+          bridge_active is not None and bridge_active.get_bool()
+        
+        if bridge:
+            self.get_json().get('**/jtag_proxy').set('active', True)
+            self.get_json().get('gvsoc').set('use_external_bridge', True)
+
+        if (autorun is None or not autorun.get()) and (bridge_active is None or not bridge_active.get()):
+            binaries = self.get_json().get('**/loader/binaries').get_dict()
+            for binary in binaries:
+                self.get_json().get('**/plt_loader').set('binaries', binary)
 
 
 
 
         system = plptree.get_config_tree_from_dict(self.get_json().get_dict())
 
-        with open('vp_config.json', 'w') as file:
+        with open('plt_config.json', 'w') as file:
             file.write(self.get_json().dump_to_string())
 
 
-        os.environ['PULP_CONFIG_FILE'] = os.path.join(os.getcwd(), 'vp_config.json')
+        os.environ['PULP_CONFIG_FILE'] = os.path.join(os.getcwd(), 'plt_config.json')
 
         top = system.get('vp_class')
 
