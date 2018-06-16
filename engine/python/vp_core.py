@@ -161,6 +161,8 @@ class default_implementation_class(object):
 
         self.module.vp_constructor.argtypes = [ctypes.c_char_p]
 
+        self.module.vp_comp_set_config.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+
         self.implem_pre_start = self.module.vp_pre_start
         self.module.vp_pre_start.argtypes = [ctypes.c_void_p]
 
@@ -321,6 +323,9 @@ class default_implementation_class(object):
 
     def build(self):
         self.parent.trace.msg('Building implementation')
+
+        self.module.vp_comp_set_config(self.instance, self.parent.json_config.dump_to_string().encode('utf-8'))
+
         # First execute the C build method, this will mainly declare ports
         retval = self.implem_build(self.instance)
         if retval != 0:
@@ -406,6 +411,8 @@ class component(component_trace):
                 else:
                     self.path = parent.get_path() + '/' + name
 
+        self.json_config = js.import_config(config.get_dict())
+
         if hasattr(self, 'implementation'):
             self.impl = self.implementation_class(getattr(self, 'implementation'), config, parent=self, debug=debug)
 
@@ -452,7 +459,7 @@ class component(component_trace):
             return self.config.get_config(name)
 
     def get_json(self):
-        return js.import_config(self.get_config().get_dict())
+        return self.json_config
 
     def get_module(self, name, path=None):
         for x in name.split('.'):

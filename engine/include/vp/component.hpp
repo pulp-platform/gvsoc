@@ -69,6 +69,8 @@ namespace vp {
     virtual int run_status() { return 0; }
 
 
+    void set_config(const char *config);
+
     inline config *get_config();
 
     inline js::config *get_js_config() { return comp_js_config; }

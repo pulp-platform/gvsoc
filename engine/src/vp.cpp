@@ -37,6 +37,12 @@ char vp_error[VP_ERROR_SIZE];
 
 vp::component::component(const char *config_string) : traces(*this), power(*this)
 {
+  this->set_config(config_string);
+}
+
+
+void vp::component::set_config(const char *config_string)
+{
   comp_config = import_config(strdup(config_string));
 
   comp_js_config = js::import_config_from_string(strdup(config_string));
@@ -609,6 +615,11 @@ extern "C" void vp_port_finalize(void *_master)
 {
   vp::master_port *master = (vp::master_port *)_master;
   master->finalize();
+}
+
+extern "C" void vp_comp_set_config(void *comp, const char *config)
+{
+  ((vp::component *)comp)->set_config(config);
 }
 
 extern "C" void vp_comp_conf(void *comp, const char *path, void *parent)

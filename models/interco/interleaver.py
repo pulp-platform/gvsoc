@@ -17,7 +17,13 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 import vp_core as vp
+import math as m
 
 class component(vp.component):
 
     implementation = 'interco.interleaver_impl'
+
+    def build(self):
+      if self.get_json().get_child_int('stage_bits') == 0:
+        nb_slaves = self.get_json().get_child_int('nb_slaves')
+        self.get_json().set('stage_bits', m.ceil(m.log2(nb_slaves)))
