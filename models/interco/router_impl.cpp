@@ -246,6 +246,8 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
   }
   else if (entry->itf)
   {
+    if (!entry->itf->is_bound())
+      return vp::IO_REQ_INVALID;
     result = entry->itf->req_forward(req);
   }
 

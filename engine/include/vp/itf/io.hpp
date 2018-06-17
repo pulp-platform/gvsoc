@@ -637,7 +637,7 @@ namespace vp {
   {
     // We have to instantiate a stub in case the binding is crossing different
     // frequency domains in order to resynchronize the target engine.
-    if (this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
+    if (this->remote_port && this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
     {
       // Just save the normal handler and tweak it to enter the stub when the
       // master is pushing the request.
