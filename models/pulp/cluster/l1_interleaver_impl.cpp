@@ -33,6 +33,7 @@ public:
   int build();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
+  static vp::io_req_status_e req_ts(void *__this, vp::io_req *req);
 
 
 private:
@@ -40,7 +41,9 @@ private:
 
   vp::io_master **out;
   vp::io_slave **masters_in;
+  vp::io_slave **masters_ts_in;
   vp::io_slave in;
+  vp::io_slave ts_in;
 
   int nb_slaves;
   int nb_masters;
@@ -68,9 +71,27 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
   int bank_id = (offset >> 2) & _this->bank_mask;
   uint64_t bank_offset = ((offset >> (_this->stage_bits + 2)) << 2) + (offset & 0x3);
 
-  if ((offset >> 20) & 1)
+  req->set_addr(bank_offset);
+  return _this->out[bank_id]->req_forward(req);
+}
+
+vp::io_req_status_e interleaver::req_ts(void *__this, vp::io_req *req)
+{
+  interleaver *_this = (interleaver *)__this;
+  uint64_t offset = req->get_addr();
+  bool is_write = req->get_is_write();
+  uint64_t size = req->get_size();
+  uint8_t *data = req->get_data();
+
+  _this->trace.msg("Received TS IO req (offset: 0x%llx, size: 0x%llx, is_write: %d)\n", offset, size, is_write);
+ 
+  int bank_id = (offset >> 2) & _this->bank_mask;
+  uint64_t bank_offset = ((offset >> (_this->stage_bits + 2)) << 2) + (offset & 0x3);
+
+  bank_offset &= ~(1<<(20 - _this->stage_bits));
+
+  if (!is_write)
   {
-    bank_offset &= ~(1<<(20 - _this->stage_bits));
     req->set_addr(bank_offset);
     vp::io_req_status_e err = _this->out[bank_id]->req_forward(req);
     if (err != vp::IO_REQ_OK) return err;
@@ -82,11 +103,9 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
     _this->ts_req.set_data((uint8_t *)&ts_data);
     return _this->out[bank_id]->req(&_this->ts_req);
   }
-  else
-  {
-    req->set_addr(bank_offset);
-    return _this->out[bank_id]->req_forward(req);
-  }
+
+  req->set_addr(bank_offset);
+  return _this->out[bank_id]->req_forward(req);
 }
 
 int interleaver::build()
@@ -111,11 +130,16 @@ int interleaver::build()
   }
 
   masters_in = new vp::io_slave *[nb_masters];
+  masters_ts_in = new vp::io_slave *[nb_masters];
   for (int i=0; i<nb_masters; i++)
   {
     masters_in[i] = new vp::io_slave();
     masters_in[i]->set_req_meth(&interleaver::req);
     new_slave_port("in_" + std::to_string(i), masters_in[i]);
+
+    masters_ts_in[i] = new vp::io_slave();
+    masters_ts_in[i]->set_req_meth(&interleaver::req_ts);
+    new_slave_port("ts_in_" + std::to_string(i), masters_ts_in[i]);
   }
 
   return 0;
