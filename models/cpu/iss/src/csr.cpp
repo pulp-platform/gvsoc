@@ -139,12 +139,12 @@ static bool fflags_write(iss *iss, unsigned int value) {
 
 
 static bool frm_read(iss *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: frm\n");
+  //printf("WARNING UNIMPLEMENTED CSR: frm\n");
   return false;
 }
 
 static bool frm_write(iss *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: frm\n");
+  //printf("WARNING UNIMPLEMENTED CSR: frm\n");
   return false;
 }
 

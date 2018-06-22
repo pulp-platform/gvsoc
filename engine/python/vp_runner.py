@@ -57,6 +57,7 @@ class Runner(Platform):
         for config_opt in self.config.getOption('configOpt'):
             key, value = config_opt.split(':')
             self.system_tree.set(key, value)
+            self.get_json().user_set(key, value)
 
 
         autorun = self.tree.get('**/debug_bridge/autorun')
@@ -76,6 +77,15 @@ class Runner(Platform):
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
 
+        set_pc_addr = self.get_json().get_child_int('**/loader/set_pc_addr')
+        if set_pc_addr != None:
+            self.get_json().get('**/plt_loader').set('set_pc_addr', '0x%x' % set_pc_addr)
+        start_addr = self.get_json().get_child_int('**/loader/start_addr')
+        if start_addr != None:
+            self.get_json().get('**/plt_loader').set('start_addr', '0x%x' % start_addr)
+        start_value = self.get_json().get_child_int('**/loader/start_value')
+        if start_value != None:
+            self.get_json().get('**/plt_loader').set('start_value', '0x%x' % start_value)
 
 
         system = plptree.get_config_tree_from_dict(self.get_json().get_dict())

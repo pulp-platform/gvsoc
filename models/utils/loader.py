@@ -55,8 +55,24 @@ class component(vp.component):
                                     0
                                 )
 
+            set_pc_addr = self.get_json().get_child_int('set_pc_addr')
+            start_addr = self.get_json().get_child_int('start_addr')
+            start_value = self.get_json().get_child_int('start_value')
 
+            if set_pc_addr is not None:
+                self.get_impl().module.loader_io_req(
+                    self.get_impl().instance,
+                    set_pc_addr,
+                    4,
+                    True,
+                    (elffile.header['e_entry']).to_bytes(4, byteorder='little')
+                )
 
-
-                            #self.segments.append(BinarySegment(segment['p_paddr'], segment.data()))
-
+            if start_addr is not None:
+                self.get_impl().module.loader_io_req(
+                    self.get_impl().instance,
+                    start_addr,
+                    4,
+                    True,
+                    (start_value).to_bytes(4, byteorder='little')
+                )

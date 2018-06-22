@@ -155,6 +155,9 @@ int injector::build()
 
   int snd_fd = this->get_config_int("snd_fd");
   int rcv_fd = this->get_config_int("rcv_fd");
+
+  printf("Got descriptors %d %d\n", snd_fd, rcv_fd);
+
   this->binding_context = (void *)(long)this->get_config_int("context");
 
   snd_file = fdopen(snd_fd, "w");

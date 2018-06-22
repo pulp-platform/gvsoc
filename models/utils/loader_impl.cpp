@@ -35,6 +35,7 @@ public:
 
   void io_req(uint64_t addr, uint64_t size, bool is_write, uint8_t *data);
   void memset(uint64_t addr, uint64_t size, uint8_t value);
+  bool send_req(vp::io_req *req);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -43,23 +44,48 @@ public:
 
 private:
 
+  void do_io_req(uint64_t addr, uint64_t size, bool is_write, uint8_t *data);
+  std::list<vp::io_req *> pending_reqs;
   vp::trace     trace;
   vp::io_master out;
-  vp::io_req    io_request;
 };
 
 loader::loader(const char *config)
 : vp::component(config)
 {
-
 }
 
 void loader::grant(void *_this, vp::io_req *req)
 {
 }
 
-void loader::response(void *_this, vp::io_req *req)
+bool loader::send_req(vp::io_req *req)
+{  
+  vp::io_req_status_e err = out.req(req);
+  if (err == vp::IO_REQ_OK) return false;
+  else if (err == vp::IO_REQ_INVALID)
+  {
+    warning.warning("Invalid access while loading binary (addr: 0x%x, size: 0x%x, is_write: %d)\n", req->get_addr(), req->get_size(), true);
+    return false;
+  }
+  return true;
+}
+
+void loader::response(void *__this, vp::io_req *req)
 {
+  loader *_this = (loader *)__this;
+  _this->pending_reqs.pop_front();
+  delete req->get_data();
+  _this->out.req_del(req);
+
+  while(1)
+  {
+    if (_this->pending_reqs.empty()) break;
+
+    if (_this->send_req(_this->pending_reqs.front())) break;
+
+    _this->pending_reqs.pop_front();
+  }
 }
 
 int loader::build()
@@ -77,16 +103,32 @@ void loader::start()
 {
 }
 
+void loader::do_io_req(uint64_t addr, uint64_t size, bool is_write, uint8_t *data)
+{
+
+  void *req_data = new uint8_t[size];
+  memcpy(req_data, data, size);
+
+  vp::io_req *req = out.req_new(addr, (uint8_t *)req_data, size, is_write);
+
+  if (!this->pending_reqs.empty())
+  {
+    this->pending_reqs.push_back(req);
+  }
+  else
+  {
+    if (send_req(req))
+    {
+      this->pending_reqs.push_back(req);
+    }
+  }
+}
+
 void loader::io_req(uint64_t addr, uint64_t size, bool is_write, uint8_t *data)
 {
   trace.msg("Loading section (base: 0x%x, size: 0x%x, is_write: %d)\n", addr, size, is_write);
 
-  vp::io_req *req = &io_request;
-  req->set_addr(addr);
-  req->set_size(size);
-  req->set_is_write(is_write);
-  req->set_data(data);
-  out.req(req);
+  this->do_io_req(addr, size, is_write, data);
 }
 
 void loader::memset(uint64_t addr, uint64_t size, uint8_t value)
@@ -95,12 +137,8 @@ void loader::memset(uint64_t addr, uint64_t size, uint8_t value)
 
   uint8_t data[size];
   ::memset((void *)data, value, size);
-  vp::io_req *req = &io_request;
-  req->set_addr(addr);
-  req->set_size(size);
-  req->set_is_write(true);
-  req->set_data(data);
-  out.req(req);
+
+  this->do_io_req(addr, size, true, data);
 }
 
 extern "C" void loader_io_req(void *__this, uint64_t addr, uint64_t size, bool is_write, uint8_t *data)
