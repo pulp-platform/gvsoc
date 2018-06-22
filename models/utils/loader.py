@@ -56,16 +56,20 @@ class component(vp.component):
                                 )
 
             set_pc_addr = self.get_json().get_child_int('set_pc_addr')
+            set_pc_offset = self.get_json().get_child_int('set_pc_offset')
             start_addr = self.get_json().get_child_int('start_addr')
             start_value = self.get_json().get_child_int('start_value')
 
             if set_pc_addr is not None:
+                entry = elffile.header['e_entry']
+                if set_pc_offset is not None:
+                    entry += set_pc_offset
                 self.get_impl().module.loader_io_req(
                     self.get_impl().instance,
                     set_pc_addr,
                     4,
                     True,
-                    (elffile.header['e_entry']).to_bytes(4, byteorder='little')
+                    (entry).to_bytes(4, byteorder='little')
                 )
 
             if start_addr is not None:
