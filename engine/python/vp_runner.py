@@ -80,6 +80,9 @@ class Runner(Platform):
         set_pc_addr = self.get_json().get_child_int('**/loader/set_pc_addr')
         if set_pc_addr != None:
             self.get_json().get('**/plt_loader').set('set_pc_addr', '0x%x' % set_pc_addr)
+        set_pc_offset = self.get_json().get_child_str('**/loader/set_pc_offset')
+        if set_pc_offset != None:
+            self.get_json().get('**/plt_loader').set('set_pc_offset', set_pc_offset)
         start_addr = self.get_json().get_child_int('**/loader/start_addr')
         if start_addr != None:
             self.get_json().get('**/plt_loader').set('start_addr', '0x%x' % start_addr)
