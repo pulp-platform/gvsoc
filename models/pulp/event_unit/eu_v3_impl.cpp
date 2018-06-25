@@ -28,6 +28,7 @@
 class Core_event_unit;
 class Event_unit;
 class Dispatch_unit;
+class Mutex_unit;
 
 
 // Timing constants
@@ -42,6 +43,40 @@ class Dispatch_unit;
 // Cycles needed by the event unit to send back the clock once
 // a core is waken-up
 #define EU_WAKEUP_LATENCY 2
+
+
+class Mutex {
+public:
+  void reset();
+
+  //Plp3_ckg *top;
+  bool locked;
+  uint32_t waiting_mask;
+  uint32_t value;
+  vp::io_req *waiting_reqs[32];
+  //void sleepCancel(int coreId);
+  //function<void (int)> sleepCancelCallback;
+};
+
+class Mutex_unit {
+public:
+  Mutex_unit(Event_unit *top);
+
+  void reset();
+
+  //Plp3_ckg *top;
+  //gv::trace trace;
+  Mutex *mutexes;
+  vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core);
+
+private:
+  vp::io_req_status_e enqueue_sleep(Mutex *mutex, vp::io_req *req, int core_id) ;
+  Event_unit *top;
+  vp::trace     trace;
+  int nb_mutexes;
+  int mutex_event;
+};
+
 
 
 class Dispatch {
@@ -136,6 +171,7 @@ class Event_unit : public vp::component
   friend class Core_event_unit;
   friend class Dispatch_unit;
   friend class Barrier_unit;
+  friend class Mutex_unit;
 
 public:
 
@@ -155,6 +191,7 @@ protected:
 
   vp::io_slave in;
 
+  Mutex_unit *mutex;
   Core_event_unit *core_eu;
   Dispatch_unit *dispatch;
   Barrier_unit *barrier_unit;
@@ -228,6 +265,7 @@ void Event_unit::reset()
   }
   dispatch->reset();
   barrier_unit->reset();
+  mutex->reset();
 }
 
 vp::io_req_status_e Event_unit::req(void *__this, vp::io_req *req)
@@ -509,8 +547,7 @@ vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int cor
   }
   else if (offset >= EU_MUTEX_DEMUX_OFFSET && offset < EU_MUTEX_DEMUX_OFFSET + EU_MUTEX_DEMUX_SIZE)
   {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //return mutexUnit.ioReq(req, offset - EU_MUTEX_DEMUX_OFFSET, isRead, data, coreId);
+    return _this->mutex->req(req, offset - EU_MUTEX_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
   }
   else if (offset >= EU_DISPATCH_DEMUX_OFFSET && offset < EU_DISPATCH_DEMUX_OFFSET + EU_DISPATCH_DEMUX_SIZE)
   {
@@ -552,6 +589,7 @@ int Event_unit::build()
   new_slave_port("input", &in);
 
   core_eu = (Core_event_unit *)new Core_event_unit[nb_core];
+  mutex = new Mutex_unit(this);
   dispatch = new Dispatch_unit(this);
   barrier_unit = new Barrier_unit(this);
 
@@ -836,6 +874,131 @@ void Core_event_unit::check_state()
 }
 
 
+
+
+/****************
+ * MUTEX UNIT
+ ****************/
+
+Mutex_unit::Mutex_unit(Event_unit *top)
+: top(top)
+{
+  top->traces.new_trace("mutex/trace", &trace, vp::DEBUG);
+  nb_mutexes = top->get_config_int("**/properties/mutex/nb_mutexes");
+  mutex_event = top->get_config_int("**/properties/events/mutex");
+  mutexes = new Mutex[nb_mutexes];
+}
+
+
+vp::io_req_status_e Mutex_unit::enqueue_sleep(Mutex *mutex, vp::io_req *req, int core_id) {
+  Core_event_unit *core_eu = &top->core_eu[core_id];
+
+  // Enqueue the request so that the core can be unstalled when a value is pushed
+  mutex->waiting_reqs[core_id] = req;
+  mutex->waiting_mask |= 1<<core_id;
+
+  // Don't forget to remember to clear the event after wake-up by the dispatch event
+  core_eu->clear_evt_mask = 1<<mutex_event;
+
+  return core_eu->wait_event(req);
+}
+
+
+void Mutex_unit::reset()
+{
+  for (int i=0; i<nb_mutexes; i++)
+  {
+    mutexes[i].reset();
+  }
+}
+
+void Mutex::reset()
+{
+  locked = false;
+  waiting_mask = 0;
+}
+
+
+#if 0
+void Mutex::sleepCancel(int coreId)
+{
+  // The core is being interrupted while waiting on the mutex
+  // Clear the waiting bit so that this core is ignored in case the owner of the lock unlocks it
+  // and the core can redo the access to the mutex later on
+  waitMask &= ~(1<<coreId);
+  top->coreEvt[coreId].pendingSleep = false;
+}
+#endif
+
+vp::io_req_status_e Mutex_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core)
+{
+  unsigned int id = EU_MUTEX_AREA_MUTEXID_GET(offset);
+  offset = offset - (id << 2);
+  if (id >= nb_mutexes) return vp::IO_REQ_INVALID;
+
+  
+  Mutex *mutex = &mutexes[id];
+  Core_event_unit *evtUnit = &top->core_eu[core];
+  top->trace.msg("Received mutex IO access (offset: 0x%x, mutex: %d, is_write: %d)\n", offset, id, is_write);
+  
+  if (!is_write)
+  {
+    if (!mutex->locked)
+    {
+      // The mutex is free, just lock it
+      top->trace.msg("Locking mutex (mutex: %d, coreId: %d)\n", id, core);
+      mutex->locked = 1;
+    }
+    else
+    {
+      // The mutex is locked, put the core to sleep
+      top->trace.msg("Mutex already locked, waiting (mutex: %d, coreId: %d)\n", id, core);
+      return enqueue_sleep(mutex, req, core);
+    }
+  }
+  else
+  {
+    mutex->value = *(uint32_t *)req->get_data();
+
+    // The core is unlocking the mutex, check if we have to wake-up someone
+    unsigned int waiting_mask = mutex->waiting_mask;
+    if (waiting_mask)
+    {
+      // We have to wake-up one core, take the first one
+      for (unsigned int i=0; i<32; i++)
+      {
+        if (waiting_mask & (1<<i))
+        {
+          top->trace.msg("Transfering mutex lock (mutex: %d, fromCore: %d, toCore: %d)\n", id, core, i);
+          // Clear the mask and wake-up the elected core. Don't unlock the mutex, as it is
+          // taken by the new core
+          top->trace.msg("Waking-up core waiting for dispatch value (coreId: %d)\n", i);
+          vp::io_req *waiting_req = mutex->waiting_reqs[i];
+
+          mutex->waiting_mask &= ~(1<<i);
+
+          // Store the mutex value into the pending request
+          // Don't reply now to the initiator, this will be done by the wakeup event
+          // to introduce some delays
+          *(uint32_t *)waiting_req->get_data() = mutex->value;
+
+          // And trigger the event to the core
+          top->trigger_event(1<<mutex_event, 1<<i); 
+
+          break;
+        }
+      }
+    } 
+    else
+    {
+      // No one waiting, just unlock the mutex
+      top->trace.msg("Unlocking mutex (mutex: %d, coreId: %d)\n", id, core);
+      mutex->locked = 0;
+    }
+  }
+
+  return vp::IO_REQ_OK;
+}
 
 
 
