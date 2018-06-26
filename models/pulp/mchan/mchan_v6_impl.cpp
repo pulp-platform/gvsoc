@@ -536,8 +536,8 @@ void mchan::ext_response(void *__this, vp::io_req *req)
   else
   {
     _this->push_req_to_loc(req);
-    _this->check_queue();
   }
+  _this->check_queue();
 }
 
 void mchan::loc_grant(void *_this, vp::io_req *req)

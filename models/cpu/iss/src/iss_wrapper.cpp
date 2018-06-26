@@ -286,7 +286,7 @@ int iss::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool 
   }
   else
   {
-    trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);      
+    trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
   }
 }
 
