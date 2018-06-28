@@ -385,9 +385,9 @@ void adv_dbg_unit::shift_dr()
           if (dev.burst_word_count == 0) {
             dev.do_burst = 4;
             debug.msg("Received burst CRC (value: 0x%x, computed: 0x%x)\n", dev.burst_word, crc_calc);
-            tdo = crc_calc == dev.burst_word;
           }
         } else if (dev.do_burst == 4) {
+          tdo = crc_calc == dev.burst_word;
           dev.do_burst = 0;
         }
       }
@@ -501,12 +501,13 @@ void adv_dbg_unit::tck_edge(int tck, int tdi, int tms, int trst)
   trace.msg("Executing cycle (TMS_BIT: %1d, TDI_BIT: %1d, TRST_BIT: %1d, TCLK_BIT: %d)\n", tms, tdi, trst, tck);
   this->tdi = tdi;
   tap_update(tms, tck);
+  if (tck)
+    this->jtag_itf.sync(this->tdo);
 }
 
 void adv_dbg_unit::sync(void *__this, int tck, int tdi, int tms, int trst)
 {
   adv_dbg_unit *_this = (adv_dbg_unit *)__this;
-  _this->jtag_itf.sync(_this->tdo);
   _this->tck_edge(tck, tdi, tms, trst);
 }
 
@@ -514,7 +515,6 @@ void adv_dbg_unit::sync(void *__this, int tck, int tdi, int tms, int trst)
 void adv_dbg_unit::sync_cycle(void *__this, int tdi, int tms, int trst)
 {
   adv_dbg_unit *_this = (adv_dbg_unit *)__this;
-  _this->jtag_itf.sync(_this->tdo);
   _this->tck_edge(1, tdi, tms, trst);
   _this->tck_edge(0, tdi, tms, trst);
 }
