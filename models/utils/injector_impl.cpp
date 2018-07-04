@@ -158,18 +158,32 @@ int injector::build()
 
   this->binding_context = (void *)(long)this->get_config_int("context");
 
-  snd_file = fdopen(snd_fd, "w");
-  if (snd_file == NULL)
+  if (snd_fd != -1)
   {
-    snprintf(vp_error, VP_ERROR_SIZE, "Failed to open pipe: %s",  strerror(errno));
-    return -1;
+    snd_file = fdopen(snd_fd, "w");
+    if (snd_file == NULL)
+    {
+      snprintf(vp_error, VP_ERROR_SIZE, "Failed to open pipe: %s",  strerror(errno));
+      return -1;
+    }
+  }
+  else
+  {
+    snd_file = NULL;
   }
 
-  rcv_file = fdopen(rcv_fd, "r");
-  if (rcv_file == NULL)
+  if (rcv_fd != -1)
   {
-    snprintf(vp_error, VP_ERROR_SIZE, "Failed to open pipe: %s",  strerror(errno));
-    return -1;
+    rcv_file = fdopen(rcv_fd, "r");
+    if (rcv_file == NULL)
+    {
+      snprintf(vp_error, VP_ERROR_SIZE, "Failed to open pipe: %s",  strerror(errno));
+      return -1;
+    }
+  }
+  else
+  {
+    rcv_file = NULL;
   }
 
   return 0;
@@ -177,9 +191,11 @@ int injector::build()
 
 void injector::start()
 {
-
-  this->get_clock()->retain();
-  new std::thread(&injector::binding_routine, this);
+  if (rcv_file)
+  {
+    this->get_clock()->retain();
+    new std::thread(&injector::binding_routine, this);
+  }
 }
 
 extern "C" void *vp_constructor(const char *config)

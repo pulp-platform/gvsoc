@@ -37,7 +37,7 @@ namespace vp {
   } io_req_status_e;
 
   #define IO_REQ_PAYLOAD_SIZE 64
-  #define IO_REQ_NB_ARGS 8
+  #define IO_REQ_NB_ARGS 16
 
   typedef io_req_status_e (io_req_meth_t)(void *, io_req *);
   typedef io_req_status_e (io_req_meth_muxed_t)(void *, io_req *, int id);
@@ -56,6 +56,7 @@ namespace vp {
     io_req(uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
     : addr(addr), data(data), size(size), is_write(is_write)
     {
+      init();
     }
 
     io_slave *get_resp_port() { return resp_port;}
@@ -97,20 +98,24 @@ namespace vp {
     inline int arg_alloc() { return current_arg++; }
     inline void arg_free() { current_arg--; }
 
+    inline void arg_push(void *arg) { this->args[this->current_arg++] = arg; }
+    inline void *arg_pop() { return this->args[--this->current_arg];}
+
+    inline void **arg_get() { return &args[current_arg-1]; }
     inline void **arg_get(int index) { return &args[index]; }
     inline void **arg_get_last() { return &args[current_arg]; }
 
-    inline void init() { latency = 0; duration=0; }
+    inline void init() { latency = 0; duration=0; current_arg=0; }
 
     uint64_t addr;
     uint8_t *data;
     uint64_t size;
     bool is_write;
     io_req_status_e status;
+    io_slave *resp_port;
 
 
   private:
-    io_slave *resp_port;
     io_req *next;
     int64_t latency;
     int64_t duration;
@@ -290,7 +295,9 @@ namespace vp {
     // Granting a request means that the request is accepted and owned by the slave
     // and that the master can consider the request gone and then proceeed with 
     // the rest.
-    inline void grant(io_req *req) { this->master_grant_meth(this->get_remote_context(), req); }
+    inline void grant(io_req *req) { 
+
+      this->master_grant_meth(this->get_remote_context(), req); }
 
     // Can be called to reply to an IO request.
     // Replying means that the slave has finished handing the request and it is now
@@ -382,6 +389,8 @@ namespace vp {
     // domain before we call it.
     static inline void resp_freq_cross_stub(io_slave *_this, io_req *req);
 
+    // Setup stubs for cross frequency domain crossing
+    inline void set_freq_stub();
 
 
     /*
@@ -443,7 +452,9 @@ namespace vp {
   inline io_req *io_master::req_new(uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
   {
     // For now we allocate new requests but this would be better to manage a pool of requests
-    return new io_req(addr, data, size, is_write);
+    io_req *req = new io_req(addr, data, size, is_write);
+
+    return req;
   }
 
 
@@ -579,6 +590,8 @@ namespace vp {
     slave_port::bind_to(_port, config);
     io_master *port = (io_master *)_port;
     port->slave_port = new io_slave();
+    port->slave_port->remote_port = port;
+    port->slave_port->set_owner(this->get_owner());
     port->slave_port->master_resp_meth = port->resp_meth;
     port->slave_port->master_grant_meth = port->grant_meth;
     port->slave_port->set_remote_context(port->get_context());
@@ -633,12 +646,8 @@ namespace vp {
 
 
 
-  inline void io_slave::finalize()
+  inline void io_slave::set_freq_stub()
   {
-    // We have to instantiate a stub in case the binding is crossing different
-    // frequency domains in order to resynchronize the target engine.
-    if (this->remote_port && this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
-    {
       // Just save the normal handler and tweak it to enter the stub when the
       // master is pushing the request.
       this->master_grant_meth_freq_cross = this->master_grant_meth;
@@ -649,6 +658,21 @@ namespace vp {
       
       this->master_context_for_freq_cross = this->get_remote_context();
       this->set_remote_context(this);
+  }
+
+
+  inline void io_slave::finalize()
+  {
+    // We have to instantiate a stub in case the binding is crossing different
+    // frequency domains in order to resynchronize the target engine.
+    if (this->remote_port && this->get_owner()->get_clock() != this->remote_port->get_owner()->get_clock())
+    {
+      this->set_freq_stub();
+
+      if (((io_master *)this->remote_port)->slave_port != NULL)
+      {
+        ((io_master *)this->remote_port)->slave_port->set_freq_stub();
+      }
     }
   }
 

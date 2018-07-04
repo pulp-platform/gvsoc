@@ -17,14 +17,7 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 import vp_core as vp
+import utils.composite
 
-
-class component(vp.component):
-
-    def build(self):
-
-        comps = {}
-
-        for comp_name in self.get_config().get('vp_comps'):            
-            config = self.get_config().get_config(comp_name)
-            comps[comp_name] = self.new(comp_name, component=config.get('vp_class'), config=config)
+class component(utils.composite.component):
+    pass

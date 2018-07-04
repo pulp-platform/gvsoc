@@ -37,7 +37,7 @@ namespace vp {
   public:
 
     virtual std::string get_str() { return ""; }
-    virtual int get_int() { return 0; }
+    virtual long long int get_int() { return 0; }
     virtual bool get_bool() { return false; }
     virtual config *get(std::string name) { return NULL; }
     virtual int get_nb_elem() { return 0; }
@@ -90,7 +90,7 @@ namespace vp {
     config_string(jsmntok_t *tokens);
     vp::config *get_from_list(std::vector<std::string> name_list);
     std::string get_str() { return value; }
-    int get_int() { return strtoll(value.c_str(), NULL, 0); }
+    long long int get_int() { return strtoll(value.c_str(), NULL, 0); }
 
   private:
     std::string value;
@@ -102,7 +102,7 @@ namespace vp {
 
   public:
     config_number(jsmntok_t *tokens);
-    int get_int() { return (int)value; }
+    long long int get_int() { return (int)value; }
     vp::config *get_from_list(std::vector<std::string> name_list);
 
   private:
