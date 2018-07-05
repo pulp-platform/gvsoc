@@ -1165,6 +1165,44 @@ gap8 = [
     R5('pv.pack.h.l',       'R',   '110100- ----- ----- 100 ----- 1010111', mapTo="lib_VEC_PACK_SC_HL_16"),
 ]
 
+f16 = [
+    R5('flh',       'FL', '------- ----- ----- 001 ----- 0000111', tags=["load"]),
+    R5('fsh',       'FS', '------- ----- ----- 001 ----- 0100111'),
+    R5('fmadd.h',   'R4U','-----10 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
+    R5('fmsub.h',   'R4U','-----10 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
+    R5('fnmsub.h',  'R4U','-----10 ----- ----- --- ----- 1001011', group=fpuGroupFmadd),
+    R5('fnmadd.h',  'R4U','-----10 ----- ----- --- ----- 1001111', group=fpuGroupFmadd),
+
+    R5('fadd.h',    'RF', '0000010 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+    R5('fsub.h',    'RF', '0000110 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+    R5('fmul.h',    'RF', '0001010 ----- ----- --- ----- 1010011', group=fpuGroupMul),
+    R5('fdiv.h',    'RF', '0001110 ----- ----- --- ----- 1010011', group=fpuGroupDiv),
+    R5('fsqrt.h',  'R2F3','0101110 00000 ----- --- ----- 1010011', group=fpuGroupDiv),
+
+    R5('fsgnj.h',   'RF', '0010010 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjn.h',  'RF', '0010010 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjx.h',  'RF', '0010010 ----- ----- 010 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmin.h',    'RF', '0010110 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fmax.h',    'RF', '0010110 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
+
+    #R5('fcvt.w.h', 'R2F1','1100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    #R5('fcvt.wu.h','R2F1','1100010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.x.h',   'R3F','1110010 00000 ----- 000 ----- 1010011'),
+
+    R5('feq.h',    'RF2', '1010010 ----- ----- 010 ----- 1010011'),
+    R5('flt.h',    'RF2', '1010010 ----- ----- 001 ----- 1010011'),
+    R5('fle.h',    'RF2', '1010010 ----- ----- 000 ----- 1010011'),
+
+    R5('fclass.h',  'R3F','1110010 00000 ----- 001 ----- 1010011'),
+
+    #R5('fcvt.h.w', 'R2F2','1101010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    #R5('fcvt.h.wu','R2F2','1101010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.h.x',  'R3F2','1111010 00000 ----- 000 ----- 1010011')
+]
+
 parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
 
 parser.add_argument("--version", dest="version", default=1, type=int, metavar="VALUE", help="Specify ISA version")
@@ -1203,6 +1241,7 @@ isa = Isa(
         IsaSubset('pulp_v2', pulp_v2),
         #IsaSubset('pulp_zeroriscy', pulp_zeroriscy),
         IsaSubset('fpu', rv32f),
+        IsaSubset('f16', f16),
         #IsaSubset('fpud', rv32d),
         #IsaSubset('gap8', gap8),
         #IsaSubset('priv_pulp_v2', priv_pulp_v2),

@@ -28,5 +28,6 @@
 #include "rv32f.hpp"
 #include "priv.hpp"
 #include "pulp_v2.hpp"
+#include "f16.hpp"
 
 #endif
