@@ -63,8 +63,6 @@ vp::io_req_status_e ddr::req(void *__this, vp::io_req *req)
 {
   ddr *_this = (ddr *)__this;
 
-    printf("%s %d\n", __FILE__, __LINE__);
-
   uint64_t offset = req->get_addr();
   uint8_t *data = req->get_data();
   uint64_t size = req->get_size();
@@ -83,20 +81,16 @@ vp::io_req_status_e ddr::req(void *__this, vp::io_req *req)
   _this->last_pending_reqs = req;
   req->set_next(NULL);
 
-    printf("%s %d\n", __FILE__, __LINE__);
   _this->current_reqs++;
 
   if (_this->current_reqs > _this->max_reqs)
   {
-    printf("%s %d\n", __FILE__, __LINE__);
     if (_this->first_stalled_req == NULL)
       _this->first_stalled_req = _this->last_pending_reqs;
     return vp::IO_REQ_DENIED;
   }
   else
   {
-    printf("%s %d\n", __FILE__, __LINE__);
-    printf("%s %d\n", __FILE__, __LINE__);
     return vp::IO_REQ_PENDING;
   }
 }
