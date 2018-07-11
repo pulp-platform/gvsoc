@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
@@ -67,7 +67,7 @@ static inline unsigned int add(iss_cpu_state_t *s, unsigned int a, unsigned int 
   uint64_t result = ((uint64_t)(uint32_t)a) + ((uint64_t)(uint32_t)b);
   s->carry = (result & 0x100000000) != 0;
   s->overflow = ((result & 0x80000000) ^ (a & 0x80000000)) != 0;
-  return result; 
+  return result;
 }
 
 static inline unsigned int addWithCarry(iss_cpu_state_t *s, unsigned int a, unsigned int b)
@@ -75,7 +75,7 @@ static inline unsigned int addWithCarry(iss_cpu_state_t *s, unsigned int a, unsi
   uint64_t result = ((uint64_t)(uint32_t)a) + ((uint64_t)(uint32_t)b) + ((uint64_t)(uint32_t)s->carry);
   s->carry = (result & 0x100000000) != 0;
   s->overflow = ((result & 0x80000000) ^ (a & 0x80000000)) != 0;
-  return result; 
+  return result;
 }
 
 static inline unsigned int lib_ADD_C(iss_cpu_state_t *s, unsigned int a, unsigned int b) { return add(s, a, b); }
@@ -138,7 +138,7 @@ static inline unsigned int lib_MAC_ZL_ZL_NR(iss_cpu_state_t *s, unsigned int a, 
 static inline unsigned int lib_MAC_ZH_ZH_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) { return ((uint32_t)(a + ZH(b) * ZH(c))) >> shift; }
 
 static inline unsigned int lib_MAC_SL_SL_NR_R(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift)
-{ 
+{
   int32_t result = (int32_t)(a + SL(b) * SL(c));
   if (shift > 0) result = (result + (1<<(shift-1))) >> shift;
   return result;
@@ -319,11 +319,11 @@ static inline unsigned int lib_FL1_or1k(iss_cpu_state_t *s, unsigned int t) {
   t = (((t & 0xf0f0f0f0) >> 4) | ((t & 0x0f0f0f0f) << 4));
   t = (((t & 0xff00ff00) >> 8) | ((t & 0x00ff00ff) << 8));
   t = ffs ((t >> 16) | (t << 16));
-  
+
   return  (0 == t ? t : 33 - t);
 }
 
-static inline unsigned int lib_FF1(iss_cpu_state_t *s, unsigned int a) { 
+static inline unsigned int lib_FF1(iss_cpu_state_t *s, unsigned int a) {
   unsigned int result = ffs(a);
   if (result == 0) return 32;
   else return result - 1;
@@ -336,14 +336,14 @@ static inline unsigned int lib_FL1(iss_cpu_state_t *s, unsigned int t) {
   t = (((t & 0xf0f0f0f0) >> 4) | ((t & 0x0f0f0f0f) << 4));
   t = (((t & 0xff00ff00) >> 8) | ((t & 0x00ff00ff) << 8));
   t = ffs ((t >> 16) | (t << 16));
-  
+
   return  (0 == t ? 32 : 32 - t);
 }
 
 static inline unsigned int lib_CNT(iss_cpu_state_t *s, unsigned int t) {
 #if 1
   return __builtin_popcount(t);
-#else  
+#else
   unsigned int v = cpu->regs[pc->inReg[0]];
   v = v - ((v >> 1) & 0x55555555);
   v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
@@ -961,7 +961,7 @@ static inline pc_t *handleHwLoopStub(cpu_t *cpu, pc_t *pc, int index)
     return NULL;
   } else {
     return cpu->hwLoopStartPc[index];
-  }  
+  }
 }
 
 static inline pc_t *lib_hwLoopStub0(cpu_t *cpu, pc_t *pc)
@@ -1007,7 +1007,7 @@ static inline void lib_hwLoopSetStart(cpu_t *cpu, pc_t *pc, unsigned int index, 
 
 // Add/Sub with normalization and rounding
 
-static inline unsigned int lib_ADD_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) { 
+static inline unsigned int lib_ADD_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) {
   shift &= 0x1f;
   return ((int32_t)(a + b)) >> shift;
 }
@@ -1062,36 +1062,36 @@ static inline unsigned int lib_SUB_NR_RU(iss_cpu_state_t *s, unsigned int a, uns
 }
 
 // Combined normalization and rounding
-static inline int lib_MULS_NL(iss_cpu_state_t *s, int a, int b, unsigned int shift) { 
+static inline int lib_MULS_NL(iss_cpu_state_t *s, int a, int b, unsigned int shift) {
   return (a * b) << shift;
 }
 
-static inline unsigned int lib_MULU_NL(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) { 
+static inline unsigned int lib_MULU_NL(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) {
   return (a * b) << shift;
 }
 
-static inline unsigned int lib_MULUS_NL(iss_cpu_state_t *s, unsigned int a, int b, unsigned int shift) { 
+static inline unsigned int lib_MULUS_NL(iss_cpu_state_t *s, unsigned int a, int b, unsigned int shift) {
   return (a * b) << shift;
 }
 
-static inline int lib_MULS_NR(iss_cpu_state_t *s, int a, int b, unsigned int shift) { 
+static inline int lib_MULS_NR(iss_cpu_state_t *s, int a, int b, unsigned int shift) {
   return ((int32_t)(a * b)) >> shift;
 }
 
-static inline unsigned int lib_MULU_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) { 
+static inline unsigned int lib_MULU_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) {
   return ((uint32_t)(a * b)) >> shift;
 }
 
-static inline unsigned int lib_MULUS_NR(iss_cpu_state_t *s, unsigned int a, int b, unsigned int shift) { 
+static inline unsigned int lib_MULUS_NR(iss_cpu_state_t *s, unsigned int a, int b, unsigned int shift) {
   return ((int32_t)(a * b)) >> shift;
 }
 
-static inline int lib_MULS_NR_R(iss_cpu_state_t *s, int a, int b, unsigned int shift) { 
+static inline int lib_MULS_NR_R(iss_cpu_state_t *s, int a, int b, unsigned int shift) {
   if (shift > 0) return ((int32_t)(a * b + (1<<(shift-1)))) >> shift;
   else return (int32_t)(a * b);
 }
 
-static inline unsigned int lib_MULU_NR_R(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) { 
+static inline unsigned int lib_MULU_NR_R(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int shift) {
   if (shift > 0) return ((uint32_t)(a * b + (1<<(shift-1)))) >> shift;
   else return (uint32_t)(a * b);
 }
@@ -1101,41 +1101,41 @@ static inline int lib_MULUS_NR_R(iss_cpu_state_t *s, unsigned int a, int b, unsi
   return ((int32_t)(a * b + roundValue)) >> shift;
 }
 
-static inline int lib_MACS_NL(iss_cpu_state_t *s, int a, int b, int c, unsigned int shift) { 
+static inline int lib_MACS_NL(iss_cpu_state_t *s, int a, int b, int c, unsigned int shift) {
   return (a + (b * c)) << shift;
 }
 
-static inline unsigned int lib_MACU_NL(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) { 
+static inline unsigned int lib_MACU_NL(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) {
   return (a + (b * c)) << shift;
 }
 
-static inline unsigned int lib_MACUS_NL(iss_cpu_state_t *s, int a, unsigned int b, int c, unsigned int shift) { 
+static inline unsigned int lib_MACUS_NL(iss_cpu_state_t *s, int a, unsigned int b, int c, unsigned int shift) {
   return (a + (b * c)) << shift;
 }
 
-static inline int lib_MACS_NR(iss_cpu_state_t *s, int a, int b, int c, unsigned int shift) { 
+static inline int lib_MACS_NR(iss_cpu_state_t *s, int a, int b, int c, unsigned int shift) {
   return ((int32_t)(a + b * c)) >> shift;
 }
 
-static inline unsigned int lib_MACU_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) { 
+static inline unsigned int lib_MACU_NR(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) {
   return ((uint32_t)(a + b * c)) >> shift;
 }
 
-static inline unsigned int lib_MACUS_NR(iss_cpu_state_t *s, int a, unsigned int b, int c, unsigned int shift) { 
+static inline unsigned int lib_MACUS_NR(iss_cpu_state_t *s, int a, unsigned int b, int c, unsigned int shift) {
   return ((int32_t)(a + b * c)) >> shift;
 }
 
-static inline int lib_MACS_NR_R(iss_cpu_state_t *s, int a, int b, int c, unsigned int shift) { 
+static inline int lib_MACS_NR_R(iss_cpu_state_t *s, int a, int b, int c, unsigned int shift) {
   if (shift > 0) return ((int32_t)(a + b * c + (1<<(shift-1)))) >> shift;
   else return (int32_t)(a + b * c);
 }
 
-static inline unsigned int lib_MACU_NR_R(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) { 
+static inline unsigned int lib_MACU_NR_R(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int shift) {
   if (shift > 0) return ((uint32_t)(a + b * c + (1<<(shift-1)))) >> shift;
   else return (uint32_t)(a + b * c);
 }
 
-static inline unsigned int lib_MACUS_NR_R(iss_cpu_state_t *s, int a, unsigned int b, int c, unsigned int shift) { 
+static inline unsigned int lib_MACUS_NR_R(iss_cpu_state_t *s, int a, unsigned int b, int c, unsigned int shift) {
   if (shift > 0) return ((int32_t)(a + b * c + (1<<(shift-1)))) >> shift;
   else return (int32_t)(a + b * c);
 }
@@ -1491,6 +1491,310 @@ static inline unsigned int lib_float_class_s(iss_cpu_state_t *s, unsigned int a)
   }
 }
 
+// smallFloats
+
+#include "flexfloat.h"
+#include <limits.h>
+#include <math.h>
+#include <fenv.h>
+#pragma STDC FENV_ACCESS ON
+
+#define FF_INIT_1(a, e, m) \
+  flexfloat_t ff_a, ff_res; \
+  flexfloat_desc_t env = (flexfloat_desc_t) {e,m}; \
+  ff_init(&ff_a, env); \
+  ff_init(&ff_res, env); \
+  flexfloat_set_bits(&ff_a, a);
+
+#define FF_INIT_2(a, b, e, m) \
+  flexfloat_t ff_a, ff_b, ff_res; \
+  flexfloat_desc_t env = (flexfloat_desc_t) {e,m}; \
+  ff_init(&ff_a, env); \
+  ff_init(&ff_b, env); \
+  ff_init(&ff_res, env); \
+  flexfloat_set_bits(&ff_a, a); \
+  flexfloat_set_bits(&ff_b, b);
+
+#define FF_INIT_3(a, b, c, e, m) \
+  flexfloat_t ff_a, ff_b, ff_c, ff_res; \
+  flexfloat_desc_t env = (flexfloat_desc_t) {e,m}; \
+  ff_init(&ff_a, env); \
+  ff_init(&ff_b, env); \
+  ff_init(&ff_c, env); \
+  ff_init(&ff_res, env); \
+  flexfloat_set_bits(&ff_a, a); \
+  flexfloat_set_bits(&ff_b, b); \
+  flexfloat_set_bits(&ff_c, c);
+
+#define FF_EXEC_1(name, a, e, m) \
+  FF_INIT_(a, e, m) \
+  name(&ff_res, &ff_a); \
+  return flexfloat_get_bits(&ff_res);
+
+#define FF_EXEC_2(name, a, b, e, m) \
+  FF_INIT_2(a, b, e, m) \
+  name(&ff_res, &ff_a, &ff_b); \
+  return flexfloat_get_bits(&ff_res);
+
+static inline unsigned int lib_flexfloat_add(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_EXEC_2(ff_add, a, b, e, m)
+}
+
+static inline unsigned int lib_flexfloat_sub(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_EXEC_2(ff_sub, a, b, e, m)
+}
+
+static inline unsigned int lib_flexfloat_mul(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_EXEC_2(ff_mul, a, b, e, m)
+}
+
+static inline unsigned int lib_flexfloat_div(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_EXEC_2(ff_div, a, b, e, m)
+}
+
+static inline unsigned int lib_flexfloat_itof(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
+  flexfloat_t ff_a;
+  ff_init_int(&ff_a, a, (flexfloat_desc_t) {e,m});
+  return flexfloat_get_bits(&ff_a);
+}
+
+static inline unsigned int lib_flexfloat_ftoi(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
+  FF_INIT_1(a, e, m)
+  return (int) ff_a.value;
+}
+
+// static inline unsigned int lib_flexfloat_rem(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+//   FF_INIT_2(a, b, e, m)
+// }
+
+static inline unsigned int lib_flexfloat_madd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
+  FF_INIT_3(a, b, c, e, m)
+  ff_mul(&ff_res, &ff_a, &ff_b);
+  ff_add(&ff_res, &ff_res, &ff_c);
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_msub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
+  FF_INIT_3(a, b, c, e, m)
+  ff_mul(&ff_res, &ff_a, &ff_b);
+  ff_sub(&ff_res, &ff_res, &ff_c);
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_nmsub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
+  FF_INIT_3(a, b, c, e, m)
+  ff_mul(&ff_res, &ff_a, &ff_b);
+  ff_sub(&ff_res, &ff_c, &ff_res);
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_nmadd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
+  FF_INIT_3(a, b, c, e, m)
+  ff_mul(&ff_res, &ff_a, &ff_b);
+  ff_add(&ff_res, &ff_res, &ff_c);
+  ff_inverse(&ff_res, &ff_res);
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int setFFRoundingMode(unsigned int mode)
+{
+  int old = fegetround();
+  switch (mode) {
+    case 0: fesetround(FE_TONEAREST); break;
+    case 1: fesetround(FE_TOWARDZERO); break;
+    case 2: fesetround(FE_DOWNWARD); break;
+    case 3: fesetround(FE_UPWARD); break;
+    case 4: printf("Unimplemented roudning mode nearest ties to max magnitude"); exit(-1); break;
+  }
+  return old;
+}
+
+static inline void restoreFFRoundingMode(unsigned int mode)
+{
+  fesetround(mode);
+}
+
+static inline unsigned int lib_flexfloat_madd_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_madd(s, a, b, c, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_msub_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_msub(s, a, b, c, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_nmadd_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_nmadd(s, a, b, c, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_nmsub_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_nmsub(s, a, b, c, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_add_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_add(s, a, b, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_sub_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_sub(s, a, b, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_mul_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_mul(s, a, b, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_div_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_div(s, a, b, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_sqrt_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  ff_init_double(&ff_res, sqrt(ff_get_double(&ff_a)), env);
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_sgnj(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  CAST_TO_INT(ff_res.value) = flexfloat_pack(env, flexfloat_sign(&ff_b), flexfloat_exp(&ff_a), flexfloat_frac(&ff_a));
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_sgnjn(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  CAST_TO_INT(ff_res.value) = flexfloat_pack(env, !flexfloat_sign(&ff_b), flexfloat_exp(&ff_a), flexfloat_frac(&ff_a));
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_sgnjx(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  CAST_TO_INT(ff_res.value) = flexfloat_pack(env, flexfloat_sign(&ff_a)^flexfloat_sign(&ff_b), flexfloat_exp(&ff_a), flexfloat_frac(&ff_a));
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_min(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  return ff_le(&ff_a, &ff_b) ? a : b;
+}
+
+static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  return ff_ge(&ff_a, &ff_b) ? a : b;
+}
+
+static inline int lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  long int result_long = (long int) ff_a.value;
+  restoreFFRoundingMode(old);
+  return result_long < INT_MIN ? INT_MIN : result_long > INT_MAX ? INT_MAX : (int) result_long ;
+}
+
+static inline unsigned int lib_flexfloat_cvt_wu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  long int result_long = (long int) ff_a.value;
+  restoreFFRoundingMode(old);
+  return result_long < 0 ? 0 : result_long > UINT_MAX ? UINT_MAX : (unsigned int) result_long ;
+}
+
+static inline int lib_flexfloat_cvt_ff_w_round(iss_cpu_state_t *s, int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  flexfloat_t ff_a;
+  ff_init_int(&ff_a, a, (flexfloat_desc_t) {e,m});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_a);
+}
+
+static inline unsigned int lib_flexfloat_cvt_ff_wu_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  flexfloat_t ff_a;
+  ff_init_long(&ff_a, (unsigned long) a, (flexfloat_desc_t) {e,m});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_a);
+}
+
+static inline int lib_flexfloat_cvt_ff_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t es, uint8_t ms, uint8_t ed, uint8_t md, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, es, ms)
+  ff_cast(&ff_res, &ff_a, (flexfloat_desc_t) {ed,md});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_res);
+}
+
+static inline unsigned int lib_flexfloat_fmv_x_ff(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
+  return a;
+}
+
+static inline unsigned int lib_flexfloat_fmv_ff_x(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
+  return a;
+}
+
+static inline unsigned int lib_flexfloat_eq(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  return ff_eq(&ff_a, &ff_b);
+}
+
+static inline unsigned int lib_flexfloat_lt(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  return ff_lt(&ff_a, &ff_b);
+}
+
+static inline unsigned int lib_flexfloat_le(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  return ff_le(&ff_a, &ff_b);
+}
+
+static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
+  FF_INIT_1(a, e, m)
+  unsigned int frac = flexfloat_frac(&ff_a);
+  unsigned int exp = flexfloat_exp(&ff_a);
+  bool sign = flexfloat_sign(&ff_a);
+
+  if (exp == flexfloat_inf_exp(env)) {
+    if (frac == 0) {
+      if (sign) return 0; // - infinity
+      else return 7; // + infinity
+    } else {
+      return 9; // quiet NaN
+    }
+  } else if (exp == 0 && frac == 0) {
+    if (sign) return 3; // - 0
+    else return 4; // + 0
+  } else if (exp == 0 && frac != 0) {
+    if (sign) return 2; // negative subnormal
+    else return 5; // positive subnormal
+  } else {
+    if (sign) return 1; // negative number
+    else return 6; // positive number
+  }
+}
+
+/////
 
 #if 0
 // Taken from spike

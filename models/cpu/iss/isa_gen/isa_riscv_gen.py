@@ -622,7 +622,139 @@ rv32f = [
     R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10'),
     R5('c.flw',      'FCL',  '011 --- --- -- --- 00', tags=["load"]),
     R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10', tags=["load"]),
+]
 
+rv32Xf16alt = [
+
+    R5('fmadd.ah',   'R4U','-----10 ----- ----- 101 ----- 1000011', group=fpuGroupFmadd),
+    R5('fmsub.ah',   'R4U','-----10 ----- ----- 101 ----- 1000111', group=fpuGroupFmadd),
+    R5('fnmsub.ah',  'R4U','-----10 ----- ----- 101 ----- 1001011', group=fpuGroupFmadd),
+    R5('fnmadd.ah',  'R4U','-----10 ----- ----- 101 ----- 1001111', group=fpuGroupFmadd),
+
+    R5('fadd.ah',    'RF', '0000010 ----- ----- 101 ----- 1010011', group=fpuGroupAdd),
+    R5('fsub.ah',    'RF', '0000110 ----- ----- 101 ----- 1010011', group=fpuGroupAdd),
+    R5('fmul.ah',    'RF', '0001010 ----- ----- 101 ----- 1010011', group=fpuGroupMul),
+    R5('fdiv.ah',    'RF', '0001110 ----- ----- 101 ----- 1010011', group=fpuGroupDiv),
+    R5('fsqrt.ah',  'R2F3','0101110 00000 ----- 101 ----- 1010011', group=fpuGroupDiv),
+
+    R5('fsgnj.ah',   'RF', '0010010 ----- ----- 100 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjn.ah',  'RF', '0010010 ----- ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjx.ah',  'RF', '0010010 ----- ----- 110 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmin.ah',    'RF', '0010110 ----- ----- 100 ----- 1010011', group=fpuGroupConv),
+    R5('fmax.ah',    'RF', '0010110 ----- ----- 101 ----- 1010011', group=fpuGroupConv),
+
+    R5('fcvt.w.ah', 'R2F1','1100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.ah','R2F1','1100010 00001 ----- 101 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.x.ah',   'R3F','1110010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
+
+    R5('feq.ah',    'RF2', '1010010 ----- ----- 110 ----- 1010011', group=fpuGroupOther),
+    R5('flt.ah',    'RF2', '1010010 ----- ----- 101 ----- 1010011', group=fpuGroupOther),
+    R5('fle.ah',    'RF2', '1010010 ----- ----- 100 ----- 1010011', group=fpuGroupOther),
+
+    R5('fclass.ah',  'R3F','1110010 00000 ----- 101 ----- 1010011', group=fpuGroupOther),
+
+    R5('fcvt.ah.w', 'R2F2','1101010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.wu','R2F2','1101010 00001 ----- 101 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.ah.x',  'R3F2','1111010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
+        
+    R5('fcvt.s.ah', 'R2F2','0100000 00110 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.s', 'R2F2','0100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
+    
+    R5('fcvt.h.ah', 'R2F2','0100010 00110 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.h', 'R2F2','0100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv),
+]
+
+rv32Xf16 = [
+
+    R5('flh',       'FL', '------- ----- ----- 001 ----- 0000111', tags=["load"]),
+    R5('fsh',       'FS', '------- ----- ----- 001 ----- 0100111'),
+    R5('fmadd.h',   'R4U','-----10 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
+    R5('fmsub.h',   'R4U','-----10 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
+    R5('fnmsub.h',  'R4U','-----10 ----- ----- --- ----- 1001011', group=fpuGroupFmadd),
+    R5('fnmadd.h',  'R4U','-----10 ----- ----- --- ----- 1001111', group=fpuGroupFmadd),
+
+    R5('fadd.h',    'RF', '0000010 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+    R5('fsub.h',    'RF', '0000110 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+    R5('fmul.h',    'RF', '0001010 ----- ----- --- ----- 1010011', group=fpuGroupMul),
+    R5('fdiv.h',    'RF', '0001110 ----- ----- --- ----- 1010011', group=fpuGroupDiv),
+    R5('fsqrt.h',  'R2F3','0101110 00000 ----- --- ----- 1010011', group=fpuGroupDiv),
+
+    R5('fsgnj.h',   'RF', '0010010 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjn.h',  'RF', '0010010 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjx.h',  'RF', '0010010 ----- ----- 010 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmin.h',    'RF', '0010110 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fmax.h',    'RF', '0010110 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
+
+    R5('fcvt.w.h', 'R2F1','1100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.h','R2F1','1100010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.x.h',   'R3F','1110010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
+
+    R5('feq.h',    'RF2', '1010010 ----- ----- 010 ----- 1010011', group=fpuGroupOther),
+    R5('flt.h',    'RF2', '1010010 ----- ----- 001 ----- 1010011', group=fpuGroupOther),
+    R5('fle.h',    'RF2', '1010010 ----- ----- 000 ----- 1010011', group=fpuGroupOther),
+
+    R5('fclass.h',  'R3F','1110010 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
+
+    R5('fcvt.h.w', 'R2F2','1101010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.h.wu','R2F2','1101010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.h.x',  'R3F2','1111010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
+
+    R5('fcvt.s.h', 'R2F2','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.h.s', 'R2F2','0100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+]
+
+rv32Xf8 = [
+
+    R5('flb',       'FL', '------- ----- ----- 000 ----- 0000111', tags=["load"]),
+    R5('fsb',       'FS', '------- ----- ----- 000 ----- 0100111'),
+    R5('fmadd.b',   'R4U','-----11 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
+    R5('fmsub.b',   'R4U','-----11 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
+    R5('fnmsub.b',  'R4U','-----11 ----- ----- --- ----- 1001011', group=fpuGroupFmadd),
+    R5('fnmadd.b',  'R4U','-----11 ----- ----- --- ----- 1001111', group=fpuGroupFmadd),
+
+    R5('fadd.b',    'RF', '0000011 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+    R5('fsub.b',    'RF', '0000111 ----- ----- --- ----- 1010011', group=fpuGroupAdd),
+    R5('fmul.b',    'RF', '0001011 ----- ----- --- ----- 1010011', group=fpuGroupMul),
+    R5('fdiv.b',    'RF', '0001111 ----- ----- --- ----- 1010011', group=fpuGroupDiv),
+    R5('fsqrt.b',  'R2F3','0101111 00000 ----- --- ----- 1010011', group=fpuGroupDiv),
+
+    R5('fsgnj.b',   'RF', '0010011 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjn.b',  'RF', '0010011 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjx.b',  'RF', '0010011 ----- ----- 010 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmin.b',    'RF', '0010111 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fmax.b',    'RF', '0010111 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
+
+    R5('fcvt.w.b', 'R2F1','1100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.b','R2F1','1100011 00001 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.x.b',   'R3F','1110011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
+
+    R5('feq.b',    'RF2', '1010011 ----- ----- 010 ----- 1010011', group=fpuGroupOther),
+    R5('flt.b',    'RF2', '1010011 ----- ----- 001 ----- 1010011', group=fpuGroupOther),
+    R5('fle.b',    'RF2', '1010011 ----- ----- 000 ----- 1010011', group=fpuGroupOther),
+
+    R5('fclass.b',  'R3F','1110011 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
+
+    R5('fcvt.b.w', 'R2F2','1101011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.wu','R2F2','1101011 00001 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.b.x',  'R3F2','1111011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
+
+    R5('fcvt.s.b', 'R2F2','0100000 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.s', 'R2F2','0100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fcvt.h.b', 'R2F2','0100010 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.h', 'R2F2','0100011 00010 ----- --- ----- 1010011', group=fpuGroupConv),
+
+    R5('fcvt.ah.b','R2F2','0100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.ah','R2F2','0100011 00110 ----- --- ----- 1010011', group=fpuGroupConv),
 ]
 
 
@@ -1203,6 +1335,9 @@ isa = Isa(
         IsaSubset('pulp_v2', pulp_v2),
         #IsaSubset('pulp_zeroriscy', pulp_zeroriscy),
         IsaSubset('fpu', rv32f),
+        IsaSubset('f16', rv32Xf16),
+        IsaSubset('f16alt', rv32Xf16alt),
+        IsaSubset('f8', rv32Xf8),
         #IsaSubset('fpud', rv32d),
         #IsaSubset('gap8', gap8),
         #IsaSubset('priv_pulp_v2', priv_pulp_v2),
