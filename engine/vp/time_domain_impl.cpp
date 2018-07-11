@@ -26,6 +26,7 @@
 static pthread_t sigint_thread;
 
 
+
 #ifdef __VP_USE_SYSTEMC
 
 SC_MODULE(my_module)
@@ -88,13 +89,28 @@ static void *signal_routine(void *arg) {
   return NULL;
 }
 
+#ifdef __VP_USE_SYSTEMC
+static void *engine_routine_sc_stub(void *arg) {
+  vp::time_engine *engine = (vp::time_engine *)arg;
+  my_module module("Hello", engine);  engine->elab();
+  while(1){
+    sc_start();
+    engine->wait_ready();
+  }
+  return NULL;
+}
+#endif
+
 // Routine executed by the thread running the global time engine.
 // Just switch to C++ world.
+
+void set_sc_main_entry(void *(*entry)(void *), void *arg);
+
 static void *engine_routine(void *arg) {
   vp::time_engine *engine = (vp::time_engine *)arg;
 #ifdef __VP_USE_SYSTEMC
-  my_module module("Hello", engine);
-  sc_start();
+  set_sc_main_entry(&engine_routine_sc_stub, arg);
+  sc_core::sc_elab_and_sim(0, NULL);
 #else
   engine->run_loop();
 #endif
@@ -104,10 +120,6 @@ static void *engine_routine(void *arg) {
 vp::time_engine::time_engine(const char *config)
   : vp::component(config), first_client(NULL)
 {
-#ifdef __VP_USE_SYSTEMC
-  sc_core::sc_elab_and_sim(0, NULL);
-#endif
-
   pthread_mutex_init(&mutex, NULL);
   pthread_cond_init(&cond, NULL);
   pthread_mutex_lock(&mutex);
@@ -197,6 +209,13 @@ void vp::time_engine::start()
   pthread_create(&run_thread, NULL, engine_routine, (void *)this);
 }
 
+void vp::time_engine::wait_ready()
+{
+  while (!first_client)
+  {
+  }
+}
+
 void vp::time_engine::run_loop()
 {
 #ifdef __VP_USE_SYSTEMC
@@ -250,6 +269,7 @@ void vp::time_engine::run_loop()
 
       // Dequeue the engine we have just executed
       first_client = current->next;
+
       current->is_enqueued = false;
       current->running = false;
 
@@ -269,6 +289,7 @@ void vp::time_engine::run_loop()
           first_client = current;
 
         current->next = client;
+        current->is_enqueued = true;
       }
 
       // Now loop until the systemC times reaches the time of out next event.
@@ -284,12 +305,14 @@ void vp::time_engine::run_loop()
 
           // In case we don't have any event to schedule, just wait until the systemc part
           // enqueues something on our side
-          wait(SC_ZERO_TIME);
+          wait(sync_event);
         }
         else
         {
           // Otherwise, either wait until we can schedule our event
           // or wait unil the systemC part enqueues something before
+
+          vp_assert(first_client->next_event_time >= (int64_t)sc_time_stamp().to_double(), NULL, "SystemC time is after vp time\n");
           wait(first_client->next_event_time - (int64_t)sc_time_stamp().to_double(), SC_PS, sync_event);
 
           int64_t current_sc_time = (int64_t)sc_time_stamp().to_double();
@@ -333,6 +356,7 @@ void vp::time_engine::run_loop()
         }
         current->next = client;
         prev->next = current;
+        current->is_enqueued = true;
       }
 
       current->running = false;

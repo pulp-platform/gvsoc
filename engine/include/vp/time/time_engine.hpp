@@ -64,6 +64,10 @@ namespace vp {
     inline void release() { retain_count--; }
 
     inline void fatal(const char *fmt, ...);
+
+    inline void update(int64_t time);
+
+    void wait_ready();
     
   private:
     time_engine_client *first_client = NULL;
@@ -183,6 +187,13 @@ namespace vp {
     if (vfprintf(stdout, fmt, ap) < 0) {}
     va_end(ap);
     stop_engine(-1);
+  }
+
+
+  inline void vp::time_engine::update(int64_t time)
+  {
+    if (time > this->time)
+      this->time = time;
   }
 
 

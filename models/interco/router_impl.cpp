@@ -242,13 +242,22 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
   vp::io_req_status_e result = vp::IO_REQ_OK;
   if (entry->port)
   {
+    req->arg_push(NULL);
     result = _this->out.req(req, entry->port);
+    if (result == vp::IO_REQ_OK)
+      req->arg_pop();
   }
   else if (entry->itf)
   {
     if (!entry->itf->is_bound())
+    {
+      _this->warning.msg("Invalid access, trying to route to non-connected interface (offset: 0x%llx, size: 0x%llx, is_write: %d)\n", offset, size, !isRead);
       return vp::IO_REQ_INVALID;
-    result = entry->itf->req_forward(req);
+    }
+    req->arg_push(req->resp_port);
+    result = entry->itf->req(req);
+    if (result == vp::IO_REQ_OK)
+      req->arg_pop();
   }
 
   if (entry->id != -1) 
@@ -276,12 +285,24 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
   return result;
 }
 
-void router::grant(void *_this, vp::io_req *req)
+void router::grant(void *__this, vp::io_req *req)
 {
+  router *_this = (router *)__this;
+
+  vp::io_slave *port = (vp::io_slave *)req->arg_pop();
+  if (port != NULL)
+  {
+    port->grant(req);
+  }
+
+  req->arg_push(port);
 }
 
 void router::response(void *_this, vp::io_req *req)
 {
+  vp::io_slave *port = (vp::io_slave *)req->arg_pop();
+  if (port != NULL)
+    port->resp(req);
 }
 
 int router::build()
@@ -307,6 +328,7 @@ int router::build()
       vp::config *config = mapping.second;
 
       MapEntry *entry = new MapEntry();
+      entry->target_name = mapping.first;
 
       vp::io_master *itf = new vp::io_master();
 

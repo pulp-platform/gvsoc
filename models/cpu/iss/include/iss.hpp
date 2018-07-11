@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
@@ -26,6 +26,9 @@
 #include "rv32c.hpp"
 #include "rv32m.hpp"
 #include "rv32f.hpp"
+#include "rv32Xf16.hpp"
+#include "rv32Xf16alt.hpp"
+#include "rv32Xf8.hpp"
 #include "priv.hpp"
 #include "pulp_v2.hpp"
 

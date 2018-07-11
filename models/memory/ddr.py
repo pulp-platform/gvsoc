@@ -17,7 +17,7 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 import vp_core as vp
-import utils.composite
 
-class component(utils.composite.component):
-    pass
+class component(vp.component):
+
+    implementation = 'memory.ddr_impl'

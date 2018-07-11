@@ -77,18 +77,19 @@ class Runner(Platform):
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
 
-        set_pc_addr = self.get_json().get_child_int('**/loader/set_pc_addr')
-        if set_pc_addr != None:
-            self.get_json().get('**/plt_loader').set('set_pc_addr', '0x%x' % set_pc_addr)
-        set_pc_offset = self.get_json().get_child_str('**/loader/set_pc_offset')
-        if set_pc_offset != None:
-            self.get_json().get('**/plt_loader').set('set_pc_offset', set_pc_offset)
-        start_addr = self.get_json().get_child_int('**/loader/start_addr')
-        if start_addr != None:
-            self.get_json().get('**/plt_loader').set('start_addr', '0x%x' % start_addr)
-        start_value = self.get_json().get_child_int('**/loader/start_value')
-        if start_value != None:
-            self.get_json().get('**/plt_loader').set('start_value', '0x%x' % start_value)
+        if self.get_json().get_child_str('**/loader/boot/mode') != 'rom':
+            set_pc_addr = self.get_json().get_child_int('**/loader/set_pc_addr')
+            if set_pc_addr != None:
+                self.get_json().get('**/plt_loader').set('set_pc_addr', '0x%x' % set_pc_addr)
+            set_pc_offset = self.get_json().get_child_str('**/loader/set_pc_offset')
+            if set_pc_offset != None:
+                self.get_json().get('**/plt_loader').set('set_pc_offset', set_pc_offset)
+            start_addr = self.get_json().get_child_int('**/loader/start_addr')
+            if start_addr != None:
+                self.get_json().get('**/plt_loader').set('start_addr', '0x%x' % start_addr)
+            start_value = self.get_json().get_child_int('**/loader/start_value')
+            if start_value != None:
+                self.get_json().get('**/plt_loader').set('start_value', '0x%x' % start_value)
 
 
         system = plptree.get_config_tree_from_dict(self.get_json().get_dict())
@@ -119,7 +120,7 @@ class Runner(Platform):
         top_comp = time_engine.new(
             name='sys',
             component=top,
-            config=system
+            config=system.get_config('system_tree')
         )
 
         trace_engine.get_port('out').bind_to(top_comp.get_port('trace'))

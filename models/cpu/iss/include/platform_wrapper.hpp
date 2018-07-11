@@ -33,6 +33,7 @@ static inline int iss_io_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_
 static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
 {
   vp::io_req *req = &_this->fetch_req;
+  req->init();
   req->set_addr(addr);
   req->set_size(size);
   req->set_is_write(is_write);

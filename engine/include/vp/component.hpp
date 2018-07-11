@@ -65,6 +65,7 @@ namespace vp {
     virtual void stop() {}
     virtual void reset() {}
     virtual void load() {}
+    virtual void elab();
     virtual string run() { return "error"; }
     virtual int run_status() { return 0; }
 

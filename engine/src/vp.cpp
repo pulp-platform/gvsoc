@@ -110,6 +110,13 @@ void vp::clock_engine::update()
 {
   int64_t diff = this->get_time() - this->stop_time;
 
+#ifdef __VP_USE_SYSTEMC
+  if ((int64_t)sc_time_stamp().to_double() > this->get_time())
+    diff = (int64_t)sc_time_stamp().to_double() - this->stop_time;
+
+  engine->update((int64_t)sc_time_stamp().to_double());
+#endif
+
   if (diff > 0)
   {
     int64_t cycles = (diff + this->period - 1) / this->period;
@@ -576,6 +583,15 @@ void vp::component::add_child(vp::component *child)
 }
 
 
+void vp::component::elab()
+{
+  for (auto& x: this->childs)
+  {
+    x->elab();
+  }
+}
+
+
 extern "C" int vp_comp_get_ports(void *comp, bool master, int size, const char *names[], void *ports[])
 {
   return ((vp::component *)comp)->get_ports(master, size, names, ports);
@@ -675,7 +691,19 @@ extern "C" int vp_build(void *comp)
 }
 
 #ifdef __VP_USE_SYSTEMC
-int sc_main(int argc, char* argv[]) {
- return 0;
+
+static void *(*sc_entry)(void *);
+static void *sc_entry_arg;
+
+void set_sc_main_entry(void *(*entry)(void *), void *arg)
+{
+  sc_entry = entry;
+  sc_entry_arg = arg;
+}
+
+int sc_main(int argc, char* argv[])
+{
+  sc_entry(sc_entry_arg);
+  return 0;
 }
 #endif
