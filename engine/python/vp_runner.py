@@ -77,7 +77,7 @@ class Runner(Platform):
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
 
-        if self.get_json().get_child_str('**/loader/boot/mode') != 'rom':
+        if self.get_json().get_child_str('**/loader/boot/mode') != 'rom' and not bridge:
             set_pc_addr = self.get_json().get_child_int('**/loader/set_pc_addr')
             if set_pc_addr != None:
                 self.get_json().get('**/plt_loader').set('set_pc_addr', '0x%x' % set_pc_addr)

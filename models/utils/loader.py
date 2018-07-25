@@ -34,6 +34,8 @@ class component(vp.component):
             binaries = self.get_config().get('binaries')
 
 
+        elffile = None
+
         if binaries is not None:
             for binary in binaries:
                 with open(binary, 'rb') as file:
@@ -60,7 +62,7 @@ class component(vp.component):
             start_addr = self.get_json().get_child_int('start_addr')
             start_value = self.get_json().get_child_int('start_value')
 
-            if set_pc_addr is not None:
+            if set_pc_addr is not None and elffile is not None:
                 entry = elffile.header['e_entry']
                 if set_pc_offset is not None:
                     entry += set_pc_offset

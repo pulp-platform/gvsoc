@@ -153,6 +153,7 @@ void adv_dbg_unit::burst_cmd(int word_bytes, int is_read, uint64_t command) {
   dev.do_burst = 1;
   dev.burst_is_read = is_read;
   dev.burst_word_bytes = word_bytes;
+  dev.burst_word = 0;
   dev.burst_addr = (command >> 16) & 0xffffffff;
   dev.burst_count = (command & 0xffff);
   dev.burst_word_count = 0;
