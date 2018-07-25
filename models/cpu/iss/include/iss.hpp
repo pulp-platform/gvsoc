@@ -29,6 +29,7 @@
 #include "rv32Xf16.hpp"
 #include "rv32Xf16alt.hpp"
 #include "rv32Xf8.hpp"
+#include "rv32Xfvec.hpp"
 #include "priv.hpp"
 #include "pulp_v2.hpp"
 

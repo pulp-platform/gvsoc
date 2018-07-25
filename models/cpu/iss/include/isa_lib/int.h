@@ -1567,6 +1567,7 @@ static inline unsigned int lib_flexfloat_ftoi(iss_cpu_state_t *s, unsigned int a
 //   FF_INIT_2(a, b, e, m)
 // }
 
+// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_madd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
   ff_mul(&ff_res, &ff_a, &ff_b);
@@ -1574,6 +1575,7 @@ static inline unsigned int lib_flexfloat_madd(iss_cpu_state_t *s, unsigned int a
   return flexfloat_get_bits(&ff_res);
 }
 
+// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_msub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
   ff_mul(&ff_res, &ff_a, &ff_b);
@@ -1581,6 +1583,7 @@ static inline unsigned int lib_flexfloat_msub(iss_cpu_state_t *s, unsigned int a
   return flexfloat_get_bits(&ff_res);
 }
 
+// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_nmsub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
   ff_mul(&ff_res, &ff_a, &ff_b);
@@ -1588,6 +1591,7 @@ static inline unsigned int lib_flexfloat_nmsub(iss_cpu_state_t *s, unsigned int 
   return flexfloat_get_bits(&ff_res);
 }
 
+// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_nmadd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
   ff_mul(&ff_res, &ff_a, &ff_b);
@@ -1793,6 +1797,74 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
     else return 6; // positive number
   }
 }
+
+static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int a, unsigned int vlen, uint8_t e, uint8_t m) {
+  unsigned int result = 0;
+
+  for (int i = 0; i < vlen; i++) {
+    FF_INIT_1(a, e, m)
+    unsigned int frac = flexfloat_frac(&ff_a);
+    unsigned int exp = flexfloat_exp(&ff_a);
+    bool sign = flexfloat_sign(&ff_a);
+
+    unsigned char cblock = ((char) sign << 7) | ((char) !sign << 6);
+
+    if (exp == flexfloat_inf_exp(env)) {
+      if (frac == 0) {
+        cblock |= 0x1; // infinity
+      } else if (frac & (0x1 << m-1)) {
+        cblock |= (0x1 << 5); // quiet NaN
+      } else {
+        cblock |= (0x1 << 4); // signalling NaN
+      }
+    } else if (exp == 0 && frac == 0) {
+      cblock |= (0x1 << 3); // zero
+    } else if (exp == 0 && frac != 0) {
+      cblock |= (0x1 << 2); // subnormal
+    } else {
+      cblock |= (0x1 << 1); // normal
+    }
+
+    result |= cblock << 8*i;
+  }
+  return result;
+}
+
+static inline int lib_flexfloat_cvt_x_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  long int result_long = (long int) ff_a.value;
+  restoreFFRoundingMode(old);
+  return result_long < -(0x1 << e+m) ? -(0x1 << e+m) : result_long > (0x1 << e+m)-1 ? (0x1 << e+m)-1 : (int) result_long ;
+}
+
+static inline unsigned int lib_flexfloat_cvt_xu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  long int result_long = (long int) ff_a.value;
+  restoreFFRoundingMode(old);
+  return result_long < 0 ? 0 : result_long > (0x1 << e+m+1)-1 ? (0x1 << e+m+1)-1 : (unsigned int) result_long ;
+}
+
+static inline int lib_flexfloat_cvt_ff_x_round(iss_cpu_state_t *s, int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  flexfloat_t ff_a;
+  a &= (0x1 << (e+m+1))-1;
+  ff_init_int(&ff_a, a, (flexfloat_desc_t) {e,m});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_a);
+}
+
+static inline unsigned int lib_flexfloat_cvt_ff_xu_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  flexfloat_t ff_a;
+  a &= (0x1 << (e+m+1))-1;
+  ff_init_long(&ff_a, (unsigned long) a, (flexfloat_desc_t) {e,m});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_a);
+}
+
+
 
 /////
 
