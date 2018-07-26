@@ -47,6 +47,31 @@ static int iss_parse_isa(iss_t *iss)
           current += 6;
           len -= 6;
         }
+        else if (strncmp(current, "xf8", 3) == 0)
+        {
+          current += 2;
+          len -= 2;
+        }
+        else if (strncmp(current, "xf16alt", 7) == 0)
+        {
+          current += 6;
+          len -= 6;
+        }
+        else if (strncmp(current, "xf16", 4) == 0)
+        {
+          current += 3;
+          len -= 3;
+        }
+        else if (strncmp(current, "xfvec", 5) == 0)
+        {
+          current += 4;
+          len -= 4;
+        }
+        else if (strncmp(current, "xfaux", 5) == 0)
+        {
+          current += 4;
+          len -= 4;
+        }
         break;
       case 'i':
       case 'm':
