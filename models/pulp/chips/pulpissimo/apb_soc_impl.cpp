@@ -20,6 +20,7 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
+#include <vp/itf/wire.hpp>
 #include <stdio.h>
 #include <string.h>
 
@@ -45,6 +46,7 @@ private:
   vp::trace     trace;
   vp::io_slave in;
 
+  vp::wire_master<uint32_t> bootaddr_itf;
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
@@ -86,13 +88,21 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
   {
-    if (is_write) _this->bootaddr = *(uint32_t *)data;
+    if (is_write)
+    {
+      _this->trace.msg("Setting boot address (addr: 0x%x)\n", *(uint32_t *)data);
+      if (_this->bootaddr_itf.is_bound())
+        _this->bootaddr_itf.sync(*(uint32_t *)data);
+      
+      _this->bootaddr = *(uint32_t *)data;
+    }
     else *(uint32_t *)data = _this->bootaddr;
   }
   else
   {
 
   }
+
 
   return vp::IO_REQ_OK;
 }
@@ -102,6 +112,8 @@ int apb_soc_ctrl::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&apb_soc_ctrl::req);
   new_slave_port("input", &in);
+
+  new_master_port("bootaddr", &this->bootaddr_itf);
 
   core_status = 0;
 
