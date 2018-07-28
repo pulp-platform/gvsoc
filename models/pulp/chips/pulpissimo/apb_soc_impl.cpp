@@ -38,15 +38,17 @@ public:
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
-  uint32_t core_status;
-  uint32_t bootaddr;
-
 private:
 
   vp::trace     trace;
   vp::io_slave in;
 
   vp::wire_master<uint32_t> bootaddr_itf;
+  vp::wire_master<int>  event_itf;
+  
+  uint32_t core_status;
+  uint32_t bootaddr;
+
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
@@ -114,6 +116,8 @@ int apb_soc_ctrl::build()
   new_slave_port("input", &in);
 
   new_master_port("bootaddr", &this->bootaddr_itf);
+
+  new_master_port("event", &event_itf);
 
   core_status = 0;
 
