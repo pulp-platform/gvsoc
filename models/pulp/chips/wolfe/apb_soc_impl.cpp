@@ -38,15 +38,27 @@ public:
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
-  uint32_t core_status;
-  uint32_t bootaddr;
-
 private:
+
+  void reset();
 
   vp::trace     trace;
   vp::io_slave in;
 
   vp::wire_master<uint32_t> bootaddr_itf;
+  vp::wire_master<bool> cluster_power_itf;
+  vp::wire_master<bool> cluster_power_irq_itf;
+  vp::wire_master<bool> cluster_clock_gate_irq_itf;
+  vp::wire_master<int>  event_itf;
+
+  int cluster_power_event;
+  int cluster_clock_gate_event;
+
+  uint32_t core_status;
+  uint32_t bootaddr;
+  uint32_t pmu_bypass;
+  bool cluster_power;
+  bool cluster_clock_gate;
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
@@ -98,6 +110,55 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
     }
     else *(uint32_t *)data = _this->bootaddr;
   }
+  else if (offset == APB_SOC_BYPASS_OFFSET)
+  {
+    if (is_write)
+    {
+      _this->trace.msg("Setting PMU bypass (addr: 0x%x)\n", *(uint32_t *)data);
+
+      _this->pmu_bypass = *(uint32_t *)data;
+
+      bool new_cluster_power = (_this->pmu_bypass >> ARCHI_APB_SOC_BYPASS_CLUSTER_POWER_BIT) & 1;
+      bool new_cluster_clock_gate = (_this->pmu_bypass >> ARCHI_APB_SOC_BYPASS_CLUSTER_CLOCK_BIT) & 1;
+
+      if (_this->cluster_power != new_cluster_power)
+      {
+        _this->trace.msg("Setting cluster power (power: 0x%d)\n", new_cluster_power);
+
+        if (_this->cluster_power_itf.is_bound())
+        {
+          _this->cluster_power_itf.sync(new_cluster_power);
+        }
+
+        _this->trace.msg("Triggering soc event (event: 0x%d)\n", _this->cluster_power_event);
+        _this->event_itf.sync(_this->cluster_power_event);
+
+        if (_this->cluster_power_irq_itf.is_bound())
+        {
+          _this->cluster_power_irq_itf.sync(true);
+        }
+      }
+
+      if (_this->cluster_clock_gate != new_cluster_clock_gate)
+      {
+        _this->trace.msg("Triggering soc event (event: 0x%d)\n", _this->cluster_clock_gate_event);
+        _this->event_itf.sync(_this->cluster_clock_gate_event);
+
+        if (_this->cluster_clock_gate_irq_itf.is_bound())
+        {
+          _this->cluster_clock_gate_irq_itf.sync(true);
+        }
+      }
+
+      _this->cluster_power = new_cluster_power;
+      _this->cluster_clock_gate = new_cluster_clock_gate;
+
+    }
+    else
+    {
+      *(uint32_t *)data = _this->pmu_bypass;
+    }
+  }
   else
   {
 
@@ -115,13 +176,32 @@ int apb_soc_ctrl::build()
 
   new_master_port("bootaddr", &this->bootaddr_itf);
 
+  new_master_port("event", &event_itf);
+
+  new_master_port("cluster_power", &cluster_power_itf);
+
+  new_master_port("cluster_power_irq", &cluster_power_irq_itf);
+
+  new_master_port("cluster_clock_gate_irq", &cluster_clock_gate_irq_itf);
+
+  cluster_power_event = this->get_js_config()->get("cluster_power_event")->get_int();
+  cluster_clock_gate_event = this->get_js_config()->get("cluster_clock_gate_event")->get_int();
+
   core_status = 0;
 
   return 0;
 }
 
+void apb_soc_ctrl::reset()
+{
+  pmu_bypass = 0;
+  cluster_power = false;
+  cluster_clock_gate = false;
+}
+
 void apb_soc_ctrl::start()
 {
+  this->reset();
 }
 
 extern "C" void *vp_constructor(const char *config)
