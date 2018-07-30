@@ -97,61 +97,61 @@ class R5(Instr):
             self.args = [   InReg (0, Range(15, 5)),
                             ]
         elif format == 'RF': 
-            self.args = [   OutFReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
-                            InFReg (1, Range(20, 5)),
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
+                            InReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
         elif format == 'RF2': 
             self.args = [   OutReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
-                            InFReg (1, Range(20, 5)),
+                            InReg (0, Range(15, 5)),
+                            InReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
         elif format == 'R2F1': 
             self.args = [   OutReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
+                            InReg (0, Range(15, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
         elif format == 'R2F2': 
-            self.args = [   OutFReg(0, Range(7,  5)),
+            self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
         elif format == 'R2F3': 
-            self.args = [   OutFReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
         elif format == 'R3F': 
             self.args = [   OutReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
+                            InReg (0, Range(15, 5)),
                             ]
         elif format == 'R3F2': 
-            self.args = [   OutFReg(0, Range(7,  5)),
+            self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             ]
         elif format == 'R4U': 
-            self.args = [   OutFReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
-                            InFReg (1, Range(20, 5)),
-                            InFReg (2, Range(27, 5)),
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
+                            InReg (1, Range(20, 5)),
+                            InReg (2, Range(27, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
         elif format == 'RVF': 
-            self.args = [   OutFReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
-                            InFReg (1, Range(20, 5)),
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
+                            InReg (1, Range(20, 5)),
                             ]
         elif format == 'RVF2': 
-            self.args = [   OutFReg(0, Range(7,  5)),
-                            InFReg (0, Range(15, 5)),
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
                             ]
         elif format == 'RVF4': 
-            self.args = [   OutFReg(0, Range(7,  5)),
-                            InFReg (2, Range(7,  5), dumpName=False),
-                            InFReg (0, Range(15, 5)),
-                            InFReg (1, Range(20, 5)),
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (2, Range(7,  5), dumpName=False),
+                            InReg (0, Range(15, 5)),
+                            InReg (1, Range(20, 5)),
                             ]
         elif format == 'RRRR': 
             self.args = [   OutReg(0, Range(7,  5)),
@@ -250,7 +250,7 @@ class R5(Instr):
                             UnsignedImm(1, Range(26, 1)),
                         ]
         elif format == 'FL': 
-            self.args = [   OutFReg(0, Range(7,  5)),
+            self.args = [   OutReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5)), SignedImm(0, Range(20, 12))),
                         ]
         elif format == 'LPOST': 
@@ -314,7 +314,7 @@ class R5(Instr):
                             UnsignedImm(1, Range(26, 1)),
                         ]
         elif format == 'FS':
-            self.args = [   InFReg(1, Range(20, 5)),
+            self.args = [   InReg(1, Range(20, 5)),
                             Indirect(InReg(0, Range(15, 5)), SignedImm(0, Ranges([[7, 5, 0], [25, 7, 5]]))),
                         ]
         elif format == 'SPOST':
@@ -427,7 +427,7 @@ class R5(Instr):
                             Indirect(InReg(0, Const(2)), SignedImm(0, Ranges([[4, 3, 2], [12, 1, 5], [2, 2, 6]]), isSigned=False)),
                         ]
         elif format == 'FCI3':
-            self.args = [   OutFReg(0, Range(7, 5)),
+            self.args = [   OutReg(0, Range(7, 5)),
                             Indirect(InReg(0, Const(2)), SignedImm(0, Ranges([[4, 3, 2], [12, 1, 5], [2, 2, 6]]), isSigned=False)),
                         ]
         elif format == 'CI4':
@@ -450,7 +450,7 @@ class R5(Instr):
                             Indirect(InReg(0, Const(2)), SignedImm(0, Ranges([[9, 4, 2], [7, 2, 6]]), isSigned=False)),
                         ]
         elif format == 'FCSS':
-            self.args = [   InFReg(1, Range(2, 5)),
+            self.args = [   InReg(1, Range(2, 5)),
                             Indirect(InReg(0, Const(2)), SignedImm(0, Ranges([[9, 4, 2], [7, 2, 6]]), isSigned=False)),
                         ]
         elif format == 'CIW':
@@ -463,7 +463,7 @@ class R5(Instr):
                             Indirect(InRegComp(0, Range(7, 3)), SignedImm(0, Ranges([[6, 1, 2], [10, 3, 3], [5, 1, 6]]), isSigned=False)),
                         ]
         elif format == 'FCL':
-            self.args = [   OutFRegComp(0, Range(2, 3)),
+            self.args = [   OutRegComp(0, Range(2, 3)),
                             Indirect(InRegComp(0, Range(7, 3)), SignedImm(0, Ranges([[6, 1, 2], [10, 3, 3], [5, 1, 6]]), isSigned=False)),
                         ]
         elif format == 'CS':
@@ -471,7 +471,7 @@ class R5(Instr):
                             Indirect(InRegComp(0, Range(7, 3)), SignedImm(0, Ranges([[6, 1, 2], [10, 3, 3], [5, 1, 6]]), isSigned=False)),
                         ]
         elif format == 'FCS':
-            self.args = [   InFRegComp(1, Range(2, 3)),
+            self.args = [   InRegComp(1, Range(2, 3)),
                             Indirect(InRegComp(0, Range(7, 3)), SignedImm(0, Ranges([[6, 1, 2], [10, 3, 3], [5, 1, 6]]), isSigned=False)),
                         ]
         elif format == 'CS2':
