@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "archi/chips/oprecompkw_sa/apb_soc.h"
+#include "archi/chips/oprecompkw/apb_soc.h"
 
 class apb_soc_ctrl : public vp::component
 {
