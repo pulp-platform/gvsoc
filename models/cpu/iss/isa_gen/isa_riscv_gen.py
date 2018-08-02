@@ -678,11 +678,11 @@ rv32Xf16alt = [
 
     R5('fmv.ah.x',  'R3F2','1111010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
         
-    R5('fcvt.s.ah', 'R2F2','0100000 00110 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.ah.s', 'R2F2','0100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.s.ah', 'R2F3','0100000 00110 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.s', 'R2F3','0100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
     
-    R5('fcvt.h.ah', 'R2F2','0100010 00110 ----- --- ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.ah.h', 'R2F2','0100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.h.ah', 'R2F3','0100010 00110 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.h', 'R2F3','0100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv),
 ]
 
 rv32Xf16 = [
@@ -723,8 +723,8 @@ rv32Xf16 = [
 
     R5('fmv.h.x',  'R3F2','1111010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    R5('fcvt.s.h', 'R2F2','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.h.s', 'R2F2','0100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.s.h', 'R2F3','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.h.s', 'R2F3','0100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
 ]
 
 rv32Xf8 = [
@@ -765,14 +765,14 @@ rv32Xf8 = [
 
     R5('fmv.b.x',  'R3F2','1111011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    R5('fcvt.s.b', 'R2F2','0100000 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.b.s', 'R2F2','0100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.s.b', 'R2F3','0100000 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.s', 'R2F3','0100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
 
-    R5('fcvt.h.b', 'R2F2','0100010 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.b.h', 'R2F2','0100011 00010 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.h.b', 'R2F3','0100010 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.h', 'R2F3','0100011 00010 ----- --- ----- 1010011', group=fpuGroupConv),
 
-    R5('fcvt.ah.b','R2F2','0100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.b.ah','R2F2','0100011 00110 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.b','R2F3','0100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.b.ah','R2F3','0100011 00110 ----- --- ----- 1010011', group=fpuGroupConv),
 ]
 
 
