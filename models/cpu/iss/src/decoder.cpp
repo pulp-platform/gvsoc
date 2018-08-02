@@ -113,6 +113,9 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
         {
           iss_insn_t *next = insn_cache_get_decoded(iss, insn->addr + insn->size);
 
+          // Go through the registers and set the handler to the stall handler
+          // in case we find a register dependency so that we can properly
+          // handle the stall
           for (int j=0; j<next->nb_in_reg; j++)
           {
             if (next->in_regs[j] == arg->u.reg.index)
@@ -121,6 +124,7 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
               next->stall_fast_handler = next->fast_handler;
               next->handler = iss_exec_stalled_insn;
               next->fast_handler = iss_exec_stalled_insn_fast;
+              break;
             }
           }
 
