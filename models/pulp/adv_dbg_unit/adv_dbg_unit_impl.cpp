@@ -71,6 +71,7 @@ typedef struct {
   uint32_t burst_word;
   int reg_burst;
   uint32_t burst_is_read;
+  int error_reg;
 } device_t;
 
 typedef struct {
@@ -100,9 +101,10 @@ private:
   void tck_edge(int tck, int tdi, int tms, int trst);
   void tap_update(int tms, int tclk);
   void tap_init();
-  void select_module();
+  void tap_reset();
+  void select_module(uint64_t command);
   void update_dr();
-  void module_cmd();
+  void module_cmd(uint64_t dev_command);
   void burst_cmd(int word_bytes, int is_read, uint64_t command);
   void capture_dr();
   void shift_dr();
@@ -127,12 +129,17 @@ adv_dbg_unit::adv_dbg_unit(const char *config)
 
 }
 
+void adv_dbg_unit::tap_reset() {
+  dev.do_burst = 0;
+  dev.error_reg = 0;
+}
+
 void adv_dbg_unit::tap_init() {
   tap.state = TAP_STATE_TEST_LOGIC_RESET;
   tap.tclk = 0;
   tap.id_reg = 1;
   tap.instr = IDCODE_INSTR;
-  dev.do_burst = 0;
+  tap_reset();
   debug.msg("Updating instruction (newInstr: IDCODE)\n");
 }
 
@@ -142,8 +149,8 @@ static string get_instr_name(uint32_t instr) {
   else return "UNKNOWN";
 }
 
-void adv_dbg_unit::select_module() {
-  uint32_t command = dev.command >> (64 - 6);
+void adv_dbg_unit::select_module(uint64_t dev_command) {
+  uint32_t command = dev_command >> (64 - 6);
   uint32_t module_id = command & 0x1f;
   debug.msg("Selecting new module (module: %d)\n", module_id);
   tap.module = module_id;
@@ -161,9 +168,9 @@ void adv_dbg_unit::burst_cmd(int word_bytes, int is_read, uint64_t command) {
   debug.msg("Handling Burst Setup command (isRead: %d, addr: 0x%x, count: 0x%x, wordBytes: %d)\n", is_read, dev.burst_addr, dev.burst_count, word_bytes);
 }
 
-void adv_dbg_unit::module_cmd()
+void adv_dbg_unit::module_cmd(uint64_t dev_command)
 {
-  uint32_t opcode = (dev.command >> (64 - 5)) & 0xf;
+  uint32_t opcode = (dev_command >> (64 - 5)) & 0xf;
   debug.msg("Handling module command (module: %d, opcode: %d)\n", tap.module, opcode);
 
   if (tap.module == 1) {
@@ -177,7 +184,7 @@ void adv_dbg_unit::module_cmd()
       break;
     }
     case 3: {
-      uint32_t command = dev.command >> (64 - 57);
+      uint32_t command = dev_command >> (64 - 57);
       dev.do_burst = 1;
       dev.burst_is_read = 0;
       dev.burst_addr = (command >> 16) & 0xffffffff;
@@ -188,7 +195,7 @@ void adv_dbg_unit::module_cmd()
       break;
     }
     case 7: {
-      uint32_t command = dev.command >> (64 - 57);
+      uint32_t command = dev_command >> (64 - 57);
       dev.do_burst = 1;
       dev.burst_is_read = 1;
       dev.burst_addr = (command >> 16) & 0xffffffff;
@@ -199,14 +206,15 @@ void adv_dbg_unit::module_cmd()
       break;
     }   
     case 9: {
-      uint32_t data = (dev.command >> (64 - 12)) & (0x3);
+      uint32_t data = (dev_command >> (64 - 12)) & (0x3);
       debug.msg("Received Internal Register Write command (data: %x)\n", data);
+      dev.error_reg = 0;
       // TODO support all cluster cores
       //cpuCtrl[0]->regAccess(-1, 0, &data);
       break;
     }  
     case 13: {
-      debug.msg("Received Internal Register Select command (addr: 0x%x, count: 0x%x)\n");
+      debug.msg("Received Internal Register Select command\n");
       break;
     } 
     }
@@ -217,25 +225,31 @@ void adv_dbg_unit::module_cmd()
       break;
     }
     case 1:
-      burst_cmd(1, 0, dev.command >> (64 - 53));
+      burst_cmd(1, 0, dev_command >> (64 - 53));
       break;
     case 2:
-      burst_cmd(2, 0, dev.command >> (64 - 53));
+      burst_cmd(2, 0, dev_command >> (64 - 53));
       break;
     case 3:
-      burst_cmd(4, 0, dev.command >> (64 - 53));
+      burst_cmd(4, 0, dev_command >> (64 - 53));
       break;
     case 5:
-      burst_cmd(1, 1, dev.command >> (64 - 53));
+      burst_cmd(1, 1, dev_command >> (64 - 53));
       break;
     case 6:
-      burst_cmd(2, 1, dev.command >> (64 - 53));
+      burst_cmd(2, 1, dev_command >> (64 - 53));
       break;
     case 7:
-      burst_cmd(4, 1, dev.command >> (64 - 53));
+      burst_cmd(4, 1, dev_command >> (64 - 53));
       break;
+    case 9: {
+      debug.msg("Received Internal Register Write command\n");
+      dev.error_reg = 0;
+      break;
+    }  
     case 13:
-      debug.msg("Received Internal Register Select command (addr: 0x%x, count: 0x%x)\n");
+      debug.msg("Received Internal Register Select command\n");
+      dev.command = dev.error_reg;
       break;
     }
   }
@@ -244,12 +258,13 @@ void adv_dbg_unit::module_cmd()
 void adv_dbg_unit::update_dr()
 {
   if (tap.instr == USER_INSTR) {
-    if (dev.command & (1ULL<<63)) {
-      select_module();
-    } else {
-      module_cmd();
-    }
+    uint64_t command = dev.command;
     dev.command = 0;
+    if (command & (1ULL<<63)) {
+      select_module(command);
+    } else {
+      module_cmd(command);
+    }
   }
 }
 
@@ -306,7 +321,7 @@ void adv_dbg_unit::shift_dr()
               int err = io_itf.req(&req);
               if (err != vp::IO_REQ_OK)
               {
-                warning.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+                dev.error_reg = dev.burst_addr << 1 | 1;
               }
             } else {
         // TODO support all cluster cores
@@ -365,7 +380,7 @@ void adv_dbg_unit::shift_dr()
               int err = io_itf.req(&req);
               if (err != vp::IO_REQ_OK)
               {
-                trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+                dev.error_reg = dev.burst_addr << 1 | 1;
               }
             } else {
         // TODO support all cluster cores
@@ -393,6 +408,7 @@ void adv_dbg_unit::shift_dr()
         }
       }
     } else {
+      tdo = dev.command & 1;
       dev.command >>= 1;
       dev.command |= ((uint64_t)tdi) << 63;
     }
@@ -413,6 +429,7 @@ void adv_dbg_unit::tap_update(int tms, int tclk) {
     
     switch (tap.state) {
     case TAP_STATE_TEST_LOGIC_RESET:
+      tap_reset();
       if (!tms) tap.state = TAP_STATE_RUN_TEST_IDLE;
       break;
     case TAP_STATE_RUN_TEST_IDLE:
@@ -503,7 +520,10 @@ void adv_dbg_unit::tck_edge(int tck, int tdi, int tms, int trst)
   this->tdi = tdi;
   tap_update(tms, tck);
   if (tck)
+  {
+    trace.msg("Syncing TDO (TDO_BIT: %1d)\n", this->tdo);
     this->jtag_itf.sync(this->tdo);
+  }
 }
 
 void adv_dbg_unit::sync(void *__this, int tck, int tdi, int tms, int trst)
