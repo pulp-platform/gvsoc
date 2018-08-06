@@ -28,6 +28,47 @@
 #include "udma_v2_impl.hpp"
 
 
+void Udma_rx_channel::push_data(uint8_t *data, int size)
+{
+  if (current_cmd == NULL)
+  {
+    top->warning.warning("Received data while there is no ready command\n");
+    return;
+  }
+
+  if (size + this->pending_byte_index > 4)
+  {
+    top->warning.warning("Trying to push more than 4 bytes from peripheral to udma core\n");
+    return;
+  }
+
+  memcpy(&(((uint8_t *)&this->pending_word)[this->pending_byte_index]), data, size);
+
+  this->pending_byte_index += size;
+
+  if (this->pending_byte_index >= 4 || this->pending_byte_index >= current_cmd->remaining_size)
+  {
+    trace.msg("Writing 4 bytes to memory\n");
+    this->pending_byte_index = 0;
+    vp::io_req *req = this->top->l2_itf.req_new(0, new uint8_t[4], 4, true);
+    *(uint32_t *)req->get_data() = this->pending_word;
+    bool end = current_cmd->prepare_req(req);
+    this->top->push_l2_write_req(req);
+    if (end)
+    {
+      handle_transfer_end();
+    }
+  }
+}
+
+void Udma_rx_channel::reset()
+{
+  Udma_channel::reset();
+  pending_byte_index = 0;
+}
+
+
+
 void Udma_channel::handle_transfer_end()
 {
   trace.msg("Current transfer is finished\n");
@@ -64,6 +105,7 @@ void Udma_channel::push_ready_req(vp::io_req *req)
 {
   current_cmd->received_size += req->get_size();
 
+  trace.msg("Received\n");
   trace.msg("Received data from L2 (cmd: %p, data_size: 0x%x, transfer_size: 0x%x, received_size: 0x%x)\n",
     current_cmd, req->get_size(), current_cmd->size, current_cmd->received_size);
 
@@ -315,7 +357,7 @@ vp::io_req_status_e Udma_periph::req(vp::io_req *req, uint64_t offset)
 
 bool Udma_transfer::prepare_req(vp::io_req *req)
 {
-  req->init();
+  req->prepare();
   // The UDMA is dropping the address LSB to always have 32 bits aligned
   // requests
   req->set_addr(current_addr & ~0x3);
@@ -344,6 +386,13 @@ udma::udma(const char *config)
 
 
 
+void udma::push_l2_write_req(vp::io_req *req)
+{
+  this->l2_write_reqs->push(req);
+  this->check_state();
+}
+
+
 void udma::channel_handler(void *__this, vp::clock_event *event)
 {
   Udma_channel *channel = (Udma_channel *)event->get_args()[0];
@@ -356,8 +405,6 @@ void udma::enqueue_ready(Udma_channel *channel)
 {
   if (channel->is_tx())
     ready_tx_channels->push(channel);
-  else
-    ready_rx_channels->push(channel);
 
   check_state();
 }
@@ -365,6 +412,21 @@ void udma::enqueue_ready(Udma_channel *channel)
 void udma::event_handler(void *__this, vp::clock_event *event)
 {
   udma *_this = (udma *)__this;
+
+  if (!_this->l2_write_reqs->is_empty())
+  {
+    vp::io_req *req = _this->l2_write_reqs->pop();
+    _this->trace.msg("Sending write request to L2 (addr: 0x%x, size: 0x%x)\n", req->get_addr(), req->get_size());
+    int err = _this->l2_itf.req(req);
+    if (err == vp::IO_REQ_OK)
+    {
+    }
+    else
+    {
+      _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+    }
+
+  }
 
   if (!_this->ready_tx_channels->is_empty() && !_this->l2_read_reqs->is_empty())
   {
@@ -375,7 +437,7 @@ void udma::event_handler(void *__this, vp::clock_event *event)
       _this->ready_tx_channels->push(channel);
     }
 
-    _this->trace.msg("Sending read requests to L2 (addr: 0x%x, size: 0x%x)\n", req->get_addr(), req->get_size());
+    _this->trace.msg("Sending read request to L2 (addr: 0x%x, size: 0x%x)\n", req->get_addr(), req->get_size());
     int err = _this->l2_itf.req(req);
     if (err == vp::IO_REQ_OK)
     {
@@ -413,7 +475,7 @@ void udma::free_read_req(vp::io_req *req)
 
 void udma::check_state()
 {
-  if (!ready_tx_channels->is_empty() && !l2_read_reqs->is_empty())
+  if ((!ready_tx_channels->is_empty() && !l2_read_reqs->is_empty()) || !l2_write_reqs->is_empty())
   {
     event_reenqueue(event, 1);
   }
@@ -533,6 +595,7 @@ int udma::build()
   event = event_new(udma::event_handler);
 
   l2_read_reqs = new Udma_queue<vp::io_req>(l2_read_fifo_size);
+  l2_write_reqs = new Udma_queue<vp::io_req>(0);
   l2_read_waiting_reqs = new Udma_queue<vp::io_req>(l2_read_fifo_size);
   for (int i=0; i<l2_read_fifo_size; i++)
   {

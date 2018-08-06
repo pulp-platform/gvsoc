@@ -95,6 +95,8 @@ protected:
   vp::trace     trace;
   Udma_queue<vp::io_req> *ready_reqs;
   udma *top;
+  Udma_transfer *current_cmd;
+  void handle_transfer_end();
 
 private:
   virtual vp::io_req_status_e saddr_req(vp::io_req *req);
@@ -102,7 +104,6 @@ private:
   virtual vp::io_req_status_e cfg_req(vp::io_req *req); 
   void enqueue_transfer();
   void check_state();
-  void handle_transfer_end();
   virtual void handle_ready_req(vp::io_req *req);
   virtual void handle_ready_reqs();
 
@@ -121,7 +122,6 @@ private:
   Udma_queue<Udma_transfer> *free_reqs;
   Udma_queue<Udma_transfer> *pending_reqs;
 
-  Udma_transfer *current_cmd;
 };
 
 
@@ -131,6 +131,14 @@ class Udma_rx_channel : public Udma_channel
 public:
   Udma_rx_channel(udma *top, int id, string name) : Udma_channel(top, id, name) {}
   bool is_tx() { return false; }
+  void reset();
+
+protected:
+  void push_data(uint8_t *data, int size);
+
+private:
+  int pending_byte_index;
+  uint32_t pending_word;
 };
 
 
@@ -220,14 +228,29 @@ protected:
 
 class Uart_periph_v1;
 
+typedef enum
+{
+  UART_RX_STATE_WAIT_START,
+  UART_RX_STATE_DATA,
+  UART_RX_STATE_PARITY,
+  UART_RX_STATE_WAIT_STOP
+} uart_rx_state_e;
+
 class Uart_rx_channel : public Udma_rx_channel
 {
 public:
-  Uart_rx_channel(udma *top, Uart_periph_v1 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
+  Uart_rx_channel(udma *top, Uart_periph_v1 *periph, int id, string name);
   bool is_busy();
+  void handle_rx_bit(int bit);
 
 private:
+  void reset();
   Uart_periph_v1 *periph;
+  uart_rx_state_e state;
+  int parity;
+  int stop_bits;
+  uint8_t  pending_rx_byte;
+  int nb_received_bits;
 };
 
 
@@ -291,11 +314,11 @@ private:
   vp::io_req_status_e status_req(vp::io_req *req);
   vp::io_req_status_e setup_req(vp::io_req *req);
   void set_setup_reg(uint32_t value);
+  static void rx_sync(void *, int data);
 
   uint32_t setup_reg_value;
 
   vp::trace     trace;
-
 };
 
 
@@ -335,6 +358,7 @@ T *Udma_queue<T>::pop()
 class udma : public vp::component
 {
   friend class Udma_periph;
+  friend class Udma_rx_channel;
 
 public:
 
@@ -351,6 +375,10 @@ public:
   void trigger_event(int event);
 
   vp::trace *get_trace() { return &this->trace; }
+
+protected:
+  vp::io_master l2_itf;
+  void push_l2_write_req(vp::io_req *req);
 
 private:
 
@@ -374,9 +402,9 @@ private:
   uint32_t clock_gating;
   vp::clock_event *event;
   Udma_queue<vp::io_req> *l2_read_reqs;
+  Udma_queue<vp::io_req> *l2_write_reqs;
   Udma_queue<vp::io_req> *l2_read_waiting_reqs;
   
-  vp::io_master l2_itf;
   vp::wire_master<int>    event_itf;
 };
 

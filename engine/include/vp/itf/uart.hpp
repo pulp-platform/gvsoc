@@ -98,14 +98,18 @@ namespace vp {
 
   private:
 
+    static inline void sync_muxed_stub(uart_slave *_this, int data);
 
     void (*slave_sync_meth)(void *, int data);
+    void (*slave_sync_meth_mux)(void *, int data, int mux);
 
     void (*sync_meth)(void *comp, int data);
     void (*sync_mux_meth)(void *comp, int data, int mux);
 
     static inline void sync_default(uart_slave *, int data);
 
+    vp::component *comp_mux;
+    int sync_mux;
     int mux_id;
 
   };
@@ -113,6 +117,7 @@ namespace vp {
 
   inline uart_master::uart_master() {
     slave_sync = &uart_master::sync_default;
+    slave_sync_mux = NULL;
   }
 
 
@@ -158,13 +163,30 @@ namespace vp {
   {
   }
 
+  inline void uart_slave::sync_muxed_stub(uart_slave *_this, int data)
+  {
+    return _this->slave_sync_meth_mux(_this->comp_mux, data, _this->sync_mux);
+  }
+
   inline void uart_slave::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     uart_master *port = (uart_master *)_port;
     port->slave_port = this;
-    this->slave_sync_meth = port->slave_sync;
-    this->set_remote_context(port->get_context());
+    if (port->slave_sync_mux == NULL)
+    {
+      this->slave_sync_meth = port->slave_sync;
+      this->set_remote_context(port->get_context());
+    }
+    else
+    {
+      this->slave_sync_meth_mux = port->slave_sync_mux;
+      this->slave_sync_meth = (uart_sync_meth_t *)&uart_slave::sync_muxed_stub;
+
+      set_remote_context(this);
+      comp_mux = (vp::component *)port->get_context();
+      sync_mux = port->mux_id;
+    }
   }
 
   inline uart_slave::uart_slave() : sync_meth(NULL), sync_mux_meth(NULL) {

@@ -105,7 +105,8 @@ namespace vp {
     inline void **arg_get(int index) { return &args[index]; }
     inline void **arg_get_last() { return &args[current_arg]; }
 
-    inline void init() { latency = 0; duration=0; current_arg=0; }
+    inline void prepare() { latency = 0; duration=0; }
+    inline void init() { prepare(); current_arg=0; }
 
     uint64_t addr;
     uint8_t *data;

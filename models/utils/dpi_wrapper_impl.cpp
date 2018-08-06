@@ -42,6 +42,7 @@ static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 static vector<vp::qspim_slave *> qspim_slaves;
 static vector<vp::jtag_master *> jtag_masters;
+static vector<vp::uart_slave *> uart_slaves;
 static vector<uart_handle_t *> uart_handles;
 
 class dpi_wrapper : public vp::component
@@ -189,7 +190,9 @@ int dpi_wrapper::build()
     const char *comp_type = dpi_config_get_str(dpi_config_get_config(comp_config, "type"));
     int nb_itf = dpi_driver_get_comp_nb_itf(comp_config, i);
 
-    //printf("Found TB driver component (index: %d, name: %s, type: %s, nb_itf: %d)\n", i, comp_name, comp_type, nb_itf);
+    this->trace.msg("Found TB driver component (index: %d, name: %s, type: %s, nb_itf: %d)\n", i, comp_name, comp_type, nb_itf);
+
+
 
     if (strcmp(comp_type, "dpi") == 0)
     {
@@ -197,6 +200,9 @@ int dpi_wrapper::build()
 //      int err;
 //
 //      $display("[TB] %t - Instantiating DPI component", $realtime, i);
+
+
+      this->trace.msg("Instantiating DPI component\n");
 
       void *dpi_model = dpi_model_load(comp_config, (void *)this);
       if (dpi_model == NULL)
@@ -216,7 +222,8 @@ int dpi_wrapper::build()
         int itf_id;
         int itf_sub_id;
         dpi_driver_get_comp_itf_info(comp_config, i, j, &itf_name, &itf_type, &itf_id, &itf_sub_id);
-        //printf("Got interface information (index: %d, name: %s, type: %s, id: %d, sub_id: %d)\n", i, itf_name, itf_type, itf_id, itf_sub_id);
+
+        this->trace.msg("Got interface information (index: %d, name: %s, type: %s, id: %d, sub_id: %d)\n", j, itf_name, itf_type, itf_id, itf_sub_id);
 
         if (strcmp(itf_type, "QSPIM") == 0)
         {
@@ -228,7 +235,12 @@ int dpi_wrapper::build()
           itf->set_sync_meth_muxed(&dpi_wrapper::jtag_sync, itf_id);
           new_master_port(itf_name + std::to_string(itf_id), itf);
           jtag_masters.push_back(itf);
-          dpi_jtag_bind(dpi_model, itf_name, jtag_masters.size()-1);
+          void *handle = dpi_jtag_bind(dpi_model, itf_name, jtag_masters.size()-1);
+          if (handle == NULL)
+          {
+            snprintf(vp_error, VP_ERROR_SIZE, "Failed to bind JTAG interface (name: %s)\n", itf_name);
+            return -1;
+          }
 
         }
         else if (strcmp(itf_type, "UART") == 0)
@@ -236,8 +248,14 @@ int dpi_wrapper::build()
           vp::uart_slave *itf = new vp::uart_slave();
           itf->set_sync_meth_muxed(&dpi_wrapper::uart_sync, itf_id);
           new_slave_port(itf_name + std::to_string(itf_id), itf);
+          uart_slaves.push_back(itf);
           uart_handle_t *handle = new uart_handle_t;
           handle->handle = dpi_uart_bind(dpi_model, itf_name, uart_handles.size());
+          if (handle->handle == NULL)
+          {
+            snprintf(vp_error, VP_ERROR_SIZE, "Failed to bind UART interface (name: %s)\n", itf_name);
+            return -1;
+          }
           uart_handles.push_back(handle);
           traces.new_trace_event(itf_name + std::to_string(itf_id) + "/tx", &handle->tx_trace, 1);
 
@@ -273,6 +291,12 @@ extern "C" void dpi_jtag_tck_edge(void *handle, int tck, int tdi, int tms, int t
     itf->sync(tck, tdi, tms, trst);
     *tdo = itf->tdo;
   }
+}
+
+extern "C" void dpi_uart_rx_edge(void *handle, int data)
+{
+  vp::uart_slave *itf = uart_slaves[(int)(long)handle];
+  itf->sync(data);
 }
 
 extern "C" void dpi_print(void *data, const char *msg)

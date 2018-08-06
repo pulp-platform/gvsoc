@@ -66,6 +66,7 @@ public:
   vp::uart_slave slave;
   vp::uart_master master;
   vp::trace tx_trace;
+  vp::trace rx_trace;
 };
 
 class padframe : public vp::component
@@ -171,7 +172,7 @@ void padframe::uart_chip_sync(void *__this, int data, int id)
   group->tx_trace.event((uint8_t *)&data);
   if (!group->master.is_bound())
   {
-    _this->trace.warning("Trying to send UART stream while pad is not connected (interface: %s)\n", group->name.c_str());
+    _this->warning.warning("Trying to send UART stream while pad is not connected (interface: %s)\n", group->name.c_str());
   }
   else
   {
@@ -183,7 +184,12 @@ void padframe::uart_chip_sync(void *__this, int data, int id)
 
 void padframe::uart_master_sync(void *__this, int data, int id)
 {
-  printf("%s %d\n", __FILE__, __LINE__);
+  padframe *_this = (padframe *)__this;
+  Uart_group *group = static_cast<Uart_group *>(_this->groups[id]);
+
+  group->rx_trace.event((uint8_t *)&data);
+
+  group->slave.sync(data);
 }
 
 
@@ -257,11 +263,12 @@ int padframe::build()
       group->slave.set_sync_meth_muxed(&padframe::uart_chip_sync, nb_itf);
       this->groups.push_back(group);
       traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
+      traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
       nb_itf++;
     }
     else
     {
-      trace.warning("Unknown pad group type (group: %s, type: %s)\n",
+      warning.warning("Unknown pad group type (group: %s, type: %s)\n",
         name.c_str(), type.c_str());
     }
   }

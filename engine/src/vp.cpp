@@ -278,6 +278,13 @@ void vp::component::new_master_port(std::string name, vp::master_port *port)
   master_ports[name] = port;
 }
 
+void vp::component::new_master_port(void *comp, std::string name, vp::master_port *port)
+{
+  port->set_owner(this);
+  port->set_context(comp);
+  master_ports[name] = port;
+}
+
 void vp::component::new_slave_port(std::string name, vp::slave_port *port)
 {
   port->set_owner(this);

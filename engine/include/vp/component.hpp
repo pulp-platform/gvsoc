@@ -105,6 +105,8 @@ namespace vp {
 
     void new_master_port(std::string name, master_port *port);
 
+    void new_master_port(void *comp, std::string name, master_port *port);
+
     void new_slave_port(std::string name, slave_port *port);
 
     void new_slave_port(void *comp, std::string name, slave_port *port);

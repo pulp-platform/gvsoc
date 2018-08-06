@@ -36,7 +36,9 @@ Uart_periph_v1::Uart_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top,
   channel0 = new Uart_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
   channel1 = new Uart_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
 
-  top->new_master_port(itf_name, &uart_itf);
+  top->new_master_port(this, itf_name, &uart_itf);
+
+  uart_itf.set_sync_meth(&Uart_periph_v1::rx_sync);
 }
  
 
@@ -126,6 +128,12 @@ vp::io_req_status_e Uart_periph_v1::custom_req(vp::io_req *req, uint64_t offset)
   return vp::IO_REQ_INVALID;
 }
 
+
+void Uart_periph_v1::rx_sync(void *__this, int data)
+{
+  Uart_periph_v1 *_this = (Uart_periph_v1 *)__this;
+  (static_cast<Uart_rx_channel *>(_this->channel0))->handle_rx_bit(data);
+}
 
 
 
@@ -259,6 +267,67 @@ bool Uart_tx_channel::is_busy()
   return this->pending_bits != 0 || !ready_reqs->is_empty();
 }
 
+
+Uart_rx_channel::Uart_rx_channel(udma *top, Uart_periph_v1 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph)
+{
+}
+
+void Uart_rx_channel::reset()
+{
+  Udma_rx_channel::reset();
+  this->state = UART_RX_STATE_WAIT_START;
+  this->nb_received_bits = 0;
+}
+
+void Uart_rx_channel::handle_rx_bit(int bit)
+{
+  if (this->state == UART_RX_STATE_WAIT_START)
+  {
+    if (bit == 0)
+    {
+      this->parity = 0;
+      this->state = UART_RX_STATE_DATA;
+    }
+  }
+  else if (this->state == UART_RX_STATE_DATA)
+  {
+    this->pending_rx_byte = (this->pending_rx_byte >> 1) | (bit << 7);
+    this->nb_received_bits++;
+    this->parity ^= bit;
+    if (this->nb_received_bits == this->periph->bit_length)
+    {
+      this->push_data((uint8_t *)&this->pending_rx_byte, 1);
+      this->nb_received_bits = 0;
+      if (this->periph->parity)
+        this->state = UART_RX_STATE_PARITY;
+      else
+      {
+        this->stop_bits = this->periph->stop_bits;
+        this->state = UART_RX_STATE_WAIT_STOP;
+      }
+    }
+  }
+  else if (this->state == UART_RX_STATE_PARITY)
+  {
+    if (bit != this->parity)
+    {
+
+    }
+    this->stop_bits = this->periph->stop_bits;
+    this->state = UART_RX_STATE_WAIT_STOP;
+  }
+  else if (this->state == UART_RX_STATE_WAIT_STOP)
+  {
+    if (bit == 1)
+    {
+      this->stop_bits--;
+      if (this->stop_bits == 0)
+      {
+        this->state = UART_RX_STATE_WAIT_START;
+      }
+    }
+  }
+}
 
 bool Uart_rx_channel::is_busy()
 {
