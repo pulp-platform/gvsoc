@@ -75,6 +75,7 @@ uint_t flexfloat_pack(flexfloat_desc_t desc, bool sign, int_fast16_t exp, uint_t
     {
         exp = (exp - bias) + BIAS;
     }
+
     return PACK(sign, exp, frac << (NUM_BITS_FRAC - desc.frac_bits));
 }
 
@@ -90,7 +91,10 @@ uint_t flexfloat_pack_bits(flexfloat_desc_t desc, uint_t bits)
     int_fast16_t exp = (bits >> desc.frac_bits) & ((0x1<<desc.exp_bits) - 1);
     uint_t frac = bits & ((0x1<<desc.frac_bits) - 1);
 
-    return flexfloat_pack(desc, sign, exp, frac);
+    if(exp == 0 && frac == 0)
+      return PACK(sign, 0, 0);
+    else
+      return flexfloat_pack(desc, sign, exp, frac);
 }
 
 void flexfloat_set_bits(flexfloat_t *a, uint_t bits)
@@ -100,8 +104,10 @@ void flexfloat_set_bits(flexfloat_t *a, uint_t bits)
 
 uint_t flexfloat_get_bits(flexfloat_t *a)
 {
+    int_fast16_t exp = flexfloat_exp(a);
+    if(exp == INF_EXP) exp = flexfloat_inf_exp(a->desc);
     return (flexfloat_sign(a) << (a->desc.exp_bits + a->desc.frac_bits))
-           + (flexfloat_exp(a) << a->desc.frac_bits)
+           + (exp << a->desc.frac_bits)
            + flexfloat_frac(a);
 }
 
@@ -269,7 +275,7 @@ void flexfloat_sanitize(flexfloat_t *a)
         frac = 0UL;
     }
 
-    //printf("ENCODING: %d %d %lu\n", sign, exp, frac);
+    //printf("ENCODING: %d %ld %u\n", sign, exp, frac);
     CAST_TO_INT(a->value) = flexfloat_pack(a->desc, sign, exp, frac);
 }
 
