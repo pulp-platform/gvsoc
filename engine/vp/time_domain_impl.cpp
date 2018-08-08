@@ -381,6 +381,9 @@ void vp::time_engine::run_loop()
 
         if (!current || !run_req) break;
 
+        // Update the global engine time with the current event time
+        this->time = current->next_event_time;
+
       }
     }
 
