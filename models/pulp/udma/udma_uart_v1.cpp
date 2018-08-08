@@ -152,6 +152,7 @@ void Uart_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
   Uart_tx_channel *_this = (Uart_tx_channel *)__this;
 
   int bit = -1;
+  bool end = false;
 
   if (_this->state == UART_TX_STATE_START)
   {
@@ -169,8 +170,7 @@ void Uart_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 
     if (_this->pending_bits == 0)
     {
-      _this->handle_ready_req_end(_this->pending_req);
-      _this->handle_ready_reqs();
+      end = true;
     }
 
     if (_this->sent_bits == _this->periph->bit_length)
@@ -212,9 +212,16 @@ void Uart_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
       if (_this->periph->tx)
       {
         _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
+        _this->top->get_trace()->msg("Sending bit (value: %d)\n", bit);
         _this->periph->uart_itf.sync(bit);
       }
     }
+  }
+
+  if (end)
+  {
+    _this->handle_ready_req_end(_this->pending_req);
+    _this->handle_ready_reqs();
   }
 
   _this->check_state();

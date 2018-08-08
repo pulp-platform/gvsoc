@@ -54,7 +54,7 @@ public:
 
   int build();
   void start();
-  void create_task(void *arg1, void *arg2);
+  void create_task(int id);
   int wait(int64_t t);
   int wait_ps(int64_t t);
   void wait_event();
@@ -63,7 +63,7 @@ public:
 
 private:
 
-  void task_thread_routine(void *arg1, void *arg2);
+  void task_thread_routine(int id);
   static void wait_handler(void *__this, vp::clock_event *event);
   static void jtag_sync(void *__this, int tdo, int id);
   static void uart_sync(void *__this, int data, int id);
@@ -85,19 +85,21 @@ dpi_wrapper::dpi_wrapper(const char *config)
 void dpi_wrapper::wait_handler(void *__this, vp::clock_event *event)
 {
   dpi_wrapper *_this = (dpi_wrapper *)__this;
+  _this->get_trace()->msg("HANDLER\n");
   pthread_mutex_lock(&dpi_mutex);
   *(bool *)(event->get_args()[0]) = false;
   pthread_cond_broadcast(&cond);
   pthread_mutex_unlock(&dpi_mutex);
+  _this->get_clock()->get_engine()->lock_step();
 }
 
-void dpi_wrapper::task_thread_routine(void *arg1, void *arg2)
+void dpi_wrapper::task_thread_routine(int id)
 {
   this->get_clock()->get_engine()->lock();
   this->get_clock()->retain();
   wait_evt = event_new(dpi_wrapper::wait_handler);
   wait_evt->get_args()[0] = &is_waiting;
-  ((void (*)(void *))arg1)(arg2);  
+  dpi_start_task(id);
   this->get_clock()->release();
 }
 
@@ -111,7 +113,10 @@ int dpi_wrapper::wait(int64_t t)
 
   pthread_mutex_lock(&dpi_mutex);
   while(is_waiting)
+  {
+    get_clock()->get_engine()->lock_step_cancel();
     pthread_cond_wait(&cond, &dpi_mutex);
+  }
   pthread_mutex_unlock(&dpi_mutex);
 
   get_clock()->get_engine()->lock();
@@ -122,13 +127,17 @@ int dpi_wrapper::wait_ps(int64_t t)
 {
   int64_t period = get_period();
   int64_t cycles = (t + period - 1) / period;
+
   event_enqueue(wait_evt, cycles);
   is_waiting = true;
   get_clock()->get_engine()->unlock();
 
   pthread_mutex_lock(&dpi_mutex);
   while(is_waiting)
+  {
+    get_clock()->get_engine()->lock_step_cancel();
     pthread_cond_wait(&cond, &dpi_mutex);
+  }
   pthread_mutex_unlock(&dpi_mutex);
 
   get_clock()->get_engine()->lock();
@@ -140,7 +149,10 @@ void dpi_wrapper::wait_event()
   get_clock()->get_engine()->unlock();
   pthread_mutex_lock(&dpi_mutex);
   while(!event_raised)
+  {
+    get_clock()->get_engine()->lock_step_cancel();
     pthread_cond_wait(&cond, &dpi_mutex);
+  }
   event_raised = false;
   pthread_mutex_unlock(&dpi_mutex);
   get_clock()->get_engine()->lock();
@@ -152,11 +164,12 @@ void dpi_wrapper::raise_event()
   event_raised = true;
   pthread_cond_broadcast(&cond);
   pthread_mutex_unlock(&dpi_mutex);
+  this->get_clock()->get_engine()->lock_step();
 }
 
-void dpi_wrapper::create_task(void *arg1, void *arg2)
+void dpi_wrapper::create_task(int id)
 {
-  threads.push_back(new std::thread(&dpi_wrapper::task_thread_routine, this, arg1, arg2));
+  threads.push_back(new std::thread(&dpi_wrapper::task_thread_routine, this, id));
 }
 
 void dpi_wrapper::jtag_sync(void *__this, int tdo, int id)
@@ -352,10 +365,10 @@ extern "C" void dpi_qspim_set_data(void *handle, int data_0, int data_1, int dat
   exit(-1);
 }
 
-extern "C" void dpi_create_task(void *handle, void *arg1, void *arg2)
+extern "C" void dpi_create_task(void *handle, int id)
 {
   dpi_wrapper *dpi = (dpi_wrapper *)handle;
-  dpi->create_task(arg1, arg2);
+  dpi->create_task(id);
 }
 
 extern "C" void *vp_constructor(const char *config)

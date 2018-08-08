@@ -46,6 +46,10 @@ namespace vp {
 
     int run_status() { return stop_status; }
 
+    inline void lock_step();
+
+    inline void lock_step_cancel();
+
     inline void lock();
 
     inline void wait_running();
@@ -159,12 +163,37 @@ namespace vp {
     pthread_mutex_unlock(&mutex);
   }
 
+  inline void vp::time_engine::lock_step()
+  {
+    if (!locked)
+    {
+      locked = true;
+      locked_run_req = run_req;
+      run_req = false;
+    }
+  }
+
+  inline void vp::time_engine::lock_step_cancel()
+  {
+    pthread_mutex_lock(&mutex);
+    if (locked)
+    {
+      run_req = locked_run_req;
+      locked = false;
+    }
+    pthread_cond_broadcast(&cond);
+    pthread_mutex_unlock(&mutex);
+  }
+
   inline void vp::time_engine::lock()
   {
     pthread_mutex_lock(&mutex);
-    locked = true;
-    locked_run_req = run_req;
-    run_req = false;
+    if (!locked)
+    {
+      locked_run_req = run_req;
+      run_req = false;
+      locked = true;
+    }
     pthread_cond_broadcast(&cond);
     while (running) pthread_cond_wait(&cond, &mutex);
     pthread_mutex_unlock(&mutex);

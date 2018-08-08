@@ -222,8 +222,6 @@ void vp::time_engine::run_loop()
   started = true;
 #endif
 
-  time_engine_client *current = first_client;
-
   pthread_mutex_unlock(&mutex);
 
   while(1)
@@ -255,115 +253,135 @@ void vp::time_engine::run_loop()
 
     pthread_mutex_unlock(&mutex);
 
-    while (likely(current && run_req))
+    time_engine_client *current = first_client;
+
+
+    if (current)
     {
-      current->running = true;
-
-#ifdef __VP_USE_SYSTEMC
-
       // Update the global engine time with the current event time
       this->time = current->next_event_time;
 
-      // Execute the events for the next engine
-      int64_t time = current->exec();
-
-      // Dequeue the engine we have just executed
-      first_client = current->next;
-
-      current->is_enqueued = false;
-      current->running = false;
-
-      // And reenqueue it in case it has events in the future
-      if (time != -1)
+      while (1)
       {
-        current->next_event_time = time + this->time;
-        time_engine_client *client = first_client, *prev = NULL;
-        while (client && client->next_event_time < time)
-        {
-          prev = client;
-          client = client->next;
-        }
-        if (prev)
-          prev->next = current;
-        else
-          first_client = current;
+        current->running = true;
 
-        current->next = client;
-        current->is_enqueued = true;
-      }
+  #ifdef __VP_USE_SYSTEMC
 
-      // Now loop until the systemC times reaches the time of out next event.
-      // We can get back control before the next event in case the systemC part
-      // enqueues a new event.
-      while(1)
-      {
-        if (!first_client)
+        // Update the global engine time with the current event time
+        this->time = current->next_event_time;
+
+        // Execute the events for the next engine
+        int64_t time = current->exec();
+
+        // Dequeue the engine we have just executed
+        first_client = current->next;
+
+        current->is_enqueued = false;
+        current->running = false;
+
+        // And reenqueue it in case it has events in the future
+        if (time != -1)
         {
-          if (stop_req || locked) {
-            break;
+          current->next_event_time = time + this->time;
+          time_engine_client *client = first_client, *prev = NULL;
+          while (client && client->next_event_time < time)
+          {
+            prev = client;
+            client = client->next;
           }
+          if (prev)
+            prev->next = current;
+          else
+            first_client = current;
 
-          // In case we don't have any event to schedule, just wait until the systemc part
-          // enqueues something on our side
-          wait(sync_event);
+          current->next = client;
+          current->is_enqueued = true;
         }
-        else
+
+        // Now loop until the systemC times reaches the time of out next event.
+        // We can get back control before the next event in case the systemC part
+        // enqueues a new event.
+        while(1)
         {
-          // Otherwise, either wait until we can schedule our event
-          // or wait unil the systemC part enqueues something before
+          if (!first_client)
+          {
+            if (stop_req || locked) {
+              break;
+            }
 
-          vp_assert(first_client->next_event_time >= (int64_t)sc_time_stamp().to_double(), NULL, "SystemC time is after vp time\n");
-          wait(first_client->next_event_time - (int64_t)sc_time_stamp().to_double(), SC_PS, sync_event);
+            // In case we don't have any event to schedule, just wait until the systemc part
+            // enqueues something on our side
+            wait(sync_event);
+          }
+          else
+          {
+            // Otherwise, either wait until we can schedule our event
+            // or wait unil the systemC part enqueues something before
 
-          int64_t current_sc_time = (int64_t)sc_time_stamp().to_double();
-          if (current_sc_time == first_client->next_event_time) break;
+            vp_assert(first_client->next_event_time >= (int64_t)sc_time_stamp().to_double(), NULL, "SystemC time is after vp time\n");
+            wait(first_client->next_event_time - (int64_t)sc_time_stamp().to_double(), SC_PS, sync_event);
+
+            int64_t current_sc_time = (int64_t)sc_time_stamp().to_double();
+            if (current_sc_time == first_client->next_event_time) break;
+          }
         }
-      }
 
-      current = first_client;
+        current = first_client;
 
-#else
-  
-      int64_t time = current->exec();
+  #else
+    
+        int64_t time = current->exec();
 
-      time_engine_client *next = current->next;
+        time_engine_client *next = current->next;
 
-      // Shortcut to quickly continue with the same client
-      if (likely(time != -1))
-      {
-        time += this->time;
-        if (likely((!next || next->next_event_time >= time)))
+        // Shortcut to quickly continue with the same client
+        if (likely(time != -1))
         {
-          this->time = time;
-          continue;
+          time += this->time;
+          if (likely((!next || next->next_event_time >= time)))
+          {
+            if (likely(run_req))
+            {
+              this->time = time;
+              continue;
+            }
+            else
+            {
+              current->next_event_time = time;
+              break;
+            }
+          }
         }
-      }
 
-      // Otherwise remove it, reenqueue it and continue with the next one.
-      // We can optimize a bit the operation as we already know
-      // who to schedule next.
-      first_client = next;
-      current->is_enqueued = false;
+        // Otherwise remove it, reenqueue it and continue with the next one.
+        // We can optimize a bit the operation as we already know
+        // who to schedule next.
+        first_client = next;
+        current->is_enqueued = false;
 
-      if (time != -1)
-      {
-        current->next_event_time = time;
-        time_engine_client *client = next->next, *prev = next;
-        while (client && client->next_event_time < time)
+        if (time != -1)
         {
-          prev = client;
-          client = client->next;
+          current->next_event_time = time;
+          time_engine_client *client = next->next, *prev = next;
+          while (client && client->next_event_time < time)
+          {
+            prev = client;
+            client = client->next;
+          }
+          current->next = client;
+          prev->next = current;
+          current->is_enqueued = true;
         }
-        current->next = client;
-        prev->next = current;
-        current->is_enqueued = true;
+
+        current->running = false;
+
+        current = next;
+
+  #endif
+
+        if (!current || !run_req) break;
+
       }
-
-      current->running = false;
-
-      current = next;
-
-#endif
     }
 
     pthread_mutex_lock(&mutex);

@@ -96,6 +96,7 @@ void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
 
   time_engine_client *current = first_client, *prev = NULL;
   client->next_event_time = get_time() + time;
+  if (current)
   while (current && current->next_event_time < client->next_event_time)
   {
     prev = current;
