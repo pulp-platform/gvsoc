@@ -153,6 +153,15 @@ class R5(Instr):
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             ]
+        elif format == 'R2VF': 
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InFReg (0, Range(15, 5)),
+                            InFReg (1, Range(20, 5)),
+                            ]
+        elif format == 'R2VF2': 
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InFReg (0, Range(15, 5)),
+                            ]
         elif format == 'RRRR': 
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (2, Range(7,  5), dumpName=False),
@@ -783,7 +792,7 @@ rv32Xf8 = [
 
 rv32Xfvec = [
 #
-# For F - only in RV64Xfvec
+# For F - only in RVDXfvec
 #
 #     R5('vfadd.s',    'RVF', '1000001 ----- ----- 000 ----- 0110011', group=fpuGroupAdd),
 #     R5('vfadd.r.s',  'RVF', '1000001 ----- ----- 100 ----- 0110011', group=fpuGroupAdd),
@@ -806,7 +815,7 @@ rv32Xfvec = [
 #     R5('vfmre.s',    'RVF4','1001001 ----- ----- 000 ----- 0110011', group=fpuGroupFmadd),
 #     R5('vfmre.r.s',  'RVF4','1001001 ----- ----- 100 ----- 0110011', group=fpuGroupFmadd),
 
-#     R5('vfclass.s',  'RVF2','1001100 00001 ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vfclass.s', 'R2VF2','1001100 00001 ----- 000 ----- 0110011', group=fpuGroupOther),
    
 #     R5('vfsgnj.r.s', 'RVF', '1001101 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
 #     R5('vfsgnj.s',   'RVF', '1001101 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
@@ -815,18 +824,18 @@ rv32Xfvec = [
 #     R5('vfsgnjx.s',  'RVF', '1001111 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
 #     R5('vfsgnjx.r.s','RVF', '1001111 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
 
-#     R5('vfeq.s',     'RVF', '1010000 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfeq.r.s',   'RVF', '1010000 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfne.s',     'RVF', '1010001 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfne.r.s',   'RVF', '1010001 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vflt.s',     'RVF', '1010010 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vflt.r.s',   'RVF', '1010010 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfge.s',     'RVF', '1010011 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfge.r.s',   'RVF', '1010011 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfle.s',     'RVF', '1010100 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfle.r.s',   'RVF', '1010100 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfgt.s',     'RVF', '1010101 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfgt.r.s',   'RVF', '1010101 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
+#     R5('vfeq.s',    'R2VF', '1010000 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vfeq.r.s',  'R2VF', '1010000 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
+#     R5('vfne.s',    'R2VF', '1010001 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vfne.r.s',  'R2VF', '1010001 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
+#     R5('vflt.s',    'R2VF', '1010010 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vflt.r.s',  'R2VF', '1010010 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
+#     R5('vfge.s',    'R2VF', '1010011 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vfge.r.s',  'R2VF', '1010011 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
+#     R5('vfle.s',    'R2VF', '1010100 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vfle.r.s',  'R2VF', '1010100 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
+#     R5('vfgt.s',    'R2VF', '1010101 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+#     R5('vfgt.r.s',  'R2VF', '1010101 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
     
 #     R5('vfcpka.s.s', 'RVF', '1011000 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
 #     R5('vfcpka.s.d', 'RVF', '1011010 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
@@ -864,7 +873,7 @@ rv32Xfvec = [
     R5('vfmre.h',    'RVF4','1001001 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd),
     R5('vfmre.r.h',  'RVF4','1001001 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd),
 
-    R5('vfclass.h',  'RVF2','1001100 00001 ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfclass.h', 'R2VF2','1001100 00001 ----- 010 ----- 0110011', group=fpuGroupOther),
    
     R5('vfsgnj.r.h', 'RVF', '1001101 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
     R5('vfsgnj.h',   'RVF', '1001101 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
@@ -873,18 +882,18 @@ rv32Xfvec = [
     R5('vfsgnjx.h',  'RVF', '1001111 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
     R5('vfsgnjx.r.h','RVF', '1001111 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
 
-    R5('vfeq.h',     'RVF', '1010000 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfeq.r.h',   'RVF', '1010000 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.h',     'RVF', '1010001 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.r.h',   'RVF', '1010001 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.h',     'RVF', '1010010 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.r.h',   'RVF', '1010010 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.h',     'RVF', '1010011 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.r.h',   'RVF', '1010011 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.h',     'RVF', '1010100 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.r.h',   'RVF', '1010100 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.h',     'RVF', '1010101 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.r.h',   'RVF', '1010101 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.h',    'R2VF', '1010000 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.r.h',  'R2VF', '1010000 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vfne.h',    'R2VF', '1010001 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfne.r.h',  'R2VF', '1010001 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vflt.h',    'R2VF', '1010010 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vflt.r.h',  'R2VF', '1010010 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vfge.h',    'R2VF', '1010011 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfge.r.h',  'R2VF', '1010011 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vfle.h',    'R2VF', '1010100 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfle.r.h',  'R2VF', '1010100 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vfgt.h',    'R2VF', '1010101 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfgt.r.h',  'R2VF', '1010101 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
     
     R5('vfcpka.h.s', 'RVF', '1011000 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
 
@@ -929,7 +938,7 @@ rv32Xfvec = [
     R5('vfmre.ah',    'RVF4','1001001 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd),
     R5('vfmre.r.ah',  'RVF4','1001001 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd),
 
-    R5('vfclass.ah',  'RVF2','1001100 00001 ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfclass.ah', 'R2VF2','1001100 00001 ----- 001 ----- 0110011', group=fpuGroupOther),
    
     R5('vfsgnj.r.ah', 'RVF', '1001101 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
     R5('vfsgnj.ah',   'RVF', '1001101 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
@@ -938,18 +947,18 @@ rv32Xfvec = [
     R5('vfsgnjx.ah',  'RVF', '1001111 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
     R5('vfsgnjx.r.ah','RVF', '1001111 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
 
-    R5('vfeq.ah',     'RVF', '1010000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfeq.r.ah',   'RVF', '1010000 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.ah',     'RVF', '1010001 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.r.ah',   'RVF', '1010001 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.ah',     'RVF', '1010010 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.r.ah',   'RVF', '1010010 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.ah',     'RVF', '1010011 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.r.ah',   'RVF', '1010011 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.ah',     'RVF', '1010100 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.r.ah',   'RVF', '1010100 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.ah',     'RVF', '1010101 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.r.ah',   'RVF', '1010101 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.ah',    'R2VF', '1010000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.r.ah',  'R2VF', '1010000 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
+    R5('vfne.ah',    'R2VF', '1010001 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfne.r.ah',  'R2VF', '1010001 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
+    R5('vflt.ah',    'R2VF', '1010010 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vflt.r.ah',  'R2VF', '1010010 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
+    R5('vfge.ah',    'R2VF', '1010011 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfge.r.ah',  'R2VF', '1010011 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
+    R5('vfle.ah',    'R2VF', '1010100 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfle.r.ah',  'R2VF', '1010100 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
+    R5('vfgt.ah',    'R2VF', '1010101 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfgt.r.ah',  'R2VF', '1010101 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
     
     R5('vfcpka.ah.s', 'RVF', '1011000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
 
@@ -1005,24 +1014,24 @@ rv32Xfvec = [
     R5('vfsgnjx.b',  'RVF', '1001111 ----- ----- 011 ----- 0110011', group=fpuGroupConv),
     R5('vfsgnjx.r.b','RVF', '1001111 ----- ----- 111 ----- 0110011', group=fpuGroupConv),
 
-    R5('vfeq.b',     'RVF', '1010000 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfeq.r.b',   'RVF', '1010000 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.b',     'RVF', '1010001 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.r.b',   'RVF', '1010001 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.b',     'RVF', '1010010 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.r.b',   'RVF', '1010010 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.b',     'RVF', '1010011 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.r.b',   'RVF', '1010011 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.b',     'RVF', '1010100 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.r.b',   'RVF', '1010100 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.b',     'RVF', '1010101 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.r.b',   'RVF', '1010101 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.b',    'R2VF', '1010000 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.r.b',  'R2VF', '1010000 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vfne.b',    'R2VF', '1010001 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfne.r.b',  'R2VF', '1010001 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vflt.b',    'R2VF', '1010010 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vflt.r.b',  'R2VF', '1010010 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vfge.b',    'R2VF', '1010011 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfge.r.b',  'R2VF', '1010011 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vfle.b',    'R2VF', '1010100 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfle.r.b',  'R2VF', '1010100 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vfgt.b',    'R2VF', '1010101 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfgt.r.b',  'R2VF', '1010101 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
     
 # Unless RV32D supported
     R5('vfmv.x.b',   'R3F', '1001100 00000 ----- 011 ----- 0110011', group=fpuGroupOther),
     R5('vfmv.b.x',   'R3F2','1001100 00000 ----- 111 ----- 0110011', group=fpuGroupOther),
    
-    R5('vfclass.b',  'RVF2','1001100 00001 ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfclass.b', 'R2VF2','1001100 00001 ----- 011 ----- 0110011', group=fpuGroupOther),
     
     R5('vfcvt.x.b',  'R3F', '1001100 00010 ----- 011 ----- 0110011', group=fpuGroupConv),
     R5('vfcvt.xu.b', 'R3F', '1001100 00010 ----- 111 ----- 0110011', group=fpuGroupConv),
