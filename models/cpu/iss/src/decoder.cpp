@@ -21,6 +21,7 @@
 #include "iss.hpp"
 
 extern iss_isa_set_t __iss_isa_set;
+extern iss_isa_tag_t __iss_isa_tags[];
 
 static int decode_item(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_decoder_item_t *item);
 
@@ -62,6 +63,8 @@ static int decode_info(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
 
 static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_decoder_item_t *item)
 {
+  if (!item->is_active) return -1;
+
   insn->hwloop_handler = NULL;
   insn->fast_handler = item->u.insn.fast_handler;
   insn->handler = item->u.insn.handler;
@@ -211,6 +214,24 @@ static int decode_opcode(iss *iss, iss_insn_t *insn, iss_opcode_t opcode)
 }
 
 
+void iss_decode_activate_isa(iss_t *cpu, char *name)
+{
+  iss_isa_tag_t *isa = &__iss_isa_tags[0];
+  while(isa->name)
+  {
+    if (strcmp(isa->name, name) == 0)
+    {
+      iss_decoder_item_t **insn_ptr = isa->insns;
+      while(*insn_ptr)
+      {
+        iss_decoder_item_t *insn = *insn_ptr;
+        insn->is_active = true;
+        insn_ptr++;
+      }
+    }
+    isa++;
+  }
+}
 
 
 static iss_insn_t *iss_exec_insn_illegal(iss *iss, iss_insn_t *insn)

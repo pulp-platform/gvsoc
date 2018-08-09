@@ -41,7 +41,7 @@ rv32mGroupMulh    = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_MULH')
 rv32mGroupDiv     = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_DIV')
 
 class R5(Instr):
-    def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None, fast_handler=False, tags=[]):
+    def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None, fast_handler=False, tags=[], isa_tags=[]):
 
         # Encodings for non-compressed instruction sets
               #   3 3 2 2 2 2 2       2 2 2 2 2       1 1 1 1 1       1 1 1       1 1
@@ -514,7 +514,7 @@ class R5(Instr):
         else:
             raise Exception('Undefined format: %s' % format)
 
-        super(R5, self).__init__(label, type, encoding, decode, N, L, mapTo, group=group, fast_handler=fast_handler, tags=tags)
+        super(R5, self).__init__(label, type, encoding, decode, N, L, mapTo, group=group, fast_handler=fast_handler, tags=tags, isa_tags=isa_tags)
 
 
 
@@ -523,7 +523,7 @@ class R5(Instr):
 #
 # RV32I
 #
-rv32i = [
+rv32i = IsaSubset('i', [
 
     R5('lui',   'U',  '------- ----- ----- --- ----- 0110111'),
     R5('auipc', 'U',  '------- ----- ----- --- ----- 0010111', 'auipc_decode'),
@@ -568,7 +568,7 @@ rv32i = [
     #R5('ecall',   'I',  '0000000 00000 00000 000 00000 1110011'), # , mapTo="SCALL_exec"),
     R5('sbreak',  'I',  '0000000 00001 00000 000 00000 1110011')
 #
-]
+])
 
 
 
@@ -578,7 +578,7 @@ rv32i = [
 #
 # RV32M
 #
-rv32m = [
+rv32m = IsaSubset('m', [
 
     R5('mul', 'R', '0000001 ----- ----- 000 ----- 0110011', group=rv32mGroupMul),
     R5('mulh',  'R', '0000001 ----- ----- 001 ----- 0110011', group=rv32mGroupMulh),
@@ -589,16 +589,16 @@ rv32m = [
     R5('rem',   'R', '0000001 ----- ----- 110 ----- 0110011', group=rv32mGroupDiv),
     R5('remu',  'R', '0000001 ----- ----- 111 ----- 0110011', group=rv32mGroupDiv),
 
-]
+])
 
-rv32a = [
+rv32a = IsaSubset('a', [
 
     R5('lr.w', 'LRES',  '00010 -- 00000 ----- 010 ----- 0101111'),
     R5('sc.w', 'SCOND', '00011 -- ----- ----- 010 ----- 0101111')
 
-]
+])
 
-rv32d = [
+rv32d = IsaSubset('d', [
     R5('fld',       'FL', '------- ----- ----- 011 ----- 0000111', mapTo="lib_FLW"),
     R5('fsd',       'FS', '------- ----- ----- 011 ----- 0100111', mapTo="lib_FSW"),
     
@@ -606,9 +606,9 @@ rv32d = [
     R5('c.fsdsp',    'FCSS', '101 --- --- -- --- 10'),
     R5('c.fld',      'FCL',  '001 --- --- -- --- 00'),
     R5('c.flwsp',    'FCI3', '001 --- --- -- --- 10'),
-]
+])
 
-rv32f = [
+rv32f = IsaSubset('f', [
 
     R5('flw',       'FL', '------- ----- ----- 010 ----- 0000111', tags=["load"]),
     R5('fsw',       'FS', '------- ----- ----- 010 ----- 0100111'),
@@ -650,9 +650,9 @@ rv32f = [
     R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10'),
     R5('c.flw',      'FCL',  '011 --- --- -- --- 00', tags=["load"]),
     R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10', tags=["load"]),
-]
+])
 
-rv32Xf16alt = [
+rv32Xf16alt = IsaSubset('f16alt', [
 
     R5('fmadd.ah',   'R4U','-----10 ----- ----- 101 ----- 1000011', group=fpuGroupFmadd),
     R5('fmsub.ah',   'R4U','-----10 ----- ----- 101 ----- 1000111', group=fpuGroupFmadd),
@@ -693,9 +693,9 @@ rv32Xf16alt = [
     
     R5('fcvt.h.ah', 'R2F3','0100010 00110 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.ah.h', 'R2F3','0100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv),
-]
+])
 
-rv32Xf16 = [
+rv32Xf16 = IsaSubset('f16', [
 
     R5('flh',       'FL', '------- ----- ----- 001 ----- 0000111', tags=["load"]),
     R5('fsh',       'FS', '------- ----- ----- 001 ----- 0100111'),
@@ -735,9 +735,9 @@ rv32Xf16 = [
 
     R5('fcvt.s.h', 'R2F3','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv),
     R5('fcvt.h.s', 'R2F3','0100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
-]
+])
 
-rv32Xf8 = [
+rv32Xf8 = IsaSubset('f8', [
 
     R5('flb',       'FL', '------- ----- ----- 000 ----- 0000111', tags=["load"]),
     R5('fsb',       'FS', '------- ----- ----- 000 ----- 0100111'),
@@ -783,14 +783,14 @@ rv32Xf8 = [
 
     R5('fcvt.ah.b','R2F3','0100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv),
     R5('fcvt.b.ah','R2F3','0100011 00110 ----- --- ----- 1010011', group=fpuGroupConv),
-]
+])
 
 
 # 
 # Vectorial Floats
 # 
 
-rv32Xfvec = [
+rv32Xfvec = IsaSubset('fvec', [
 #
 # For F - only in RVDXfvec
 #
@@ -852,50 +852,50 @@ rv32Xfvec = [
 #
 # For Xf16
 #
-    R5('vfadd.h',    'RVF', '1000001 ----- ----- 010 ----- 0110011', group=fpuGroupAdd),
-    R5('vfadd.r.h',  'RVF', '1000001 ----- ----- 110 ----- 0110011', group=fpuGroupAdd),
-    R5('vfsub.h',    'RVF', '1000010 ----- ----- 010 ----- 0110011', group=fpuGroupAdd),
-    R5('vfsub.r.h',  'RVF', '1000010 ----- ----- 110 ----- 0110011', group=fpuGroupAdd),
-    R5('vfmul.h',    'RVF', '1000011 ----- ----- 010 ----- 0110011', group=fpuGroupMul),
-    R5('vfmul.r.h',  'RVF', '1000011 ----- ----- 110 ----- 0110011', group=fpuGroupMul),
-    R5('vfdiv.h',    'RVF', '1000100 ----- ----- 010 ----- 0110011', group=fpuGroupDiv),
-    R5('vfdiv.r.h',  'RVF', '1000100 ----- ----- 110 ----- 0110011', group=fpuGroupDiv),
+    R5('vfadd.h',    'RVF', '1000001 ----- ----- 010 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16vec']),
+    R5('vfadd.r.h',  'RVF', '1000001 ----- ----- 110 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16vec']),
+    R5('vfsub.h',    'RVF', '1000010 ----- ----- 010 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16vec']),
+    R5('vfsub.r.h',  'RVF', '1000010 ----- ----- 110 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16vec']),
+    R5('vfmul.h',    'RVF', '1000011 ----- ----- 010 ----- 0110011', group=fpuGroupMul, isa_tags=['f16vec']),
+    R5('vfmul.r.h',  'RVF', '1000011 ----- ----- 110 ----- 0110011', group=fpuGroupMul, isa_tags=['f16vec']),
+    R5('vfdiv.h',    'RVF', '1000100 ----- ----- 010 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16vec']),
+    R5('vfdiv.r.h',  'RVF', '1000100 ----- ----- 110 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16vec']),
     
-    R5('vfmin.h',    'RVF', '1000101 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfmin.r.h',  'RVF', '1000101 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
-    R5('vfmax.h',    'RVF', '1000110 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfmax.r.h',  'RVF', '1000110 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
+    R5('vfmin.h',    'RVF', '1000101 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfmin.r.h',  'RVF', '1000101 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfmax.h',    'RVF', '1000110 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfmax.r.h',  'RVF', '1000110 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
        
-    R5('vfsqrt.h',   'RVF2','1000111 00000 ----- 010 ----- 0110011', group=fpuGroupDiv),
+    R5('vfsqrt.h',   'RVF2','1000111 00000 ----- 010 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16vec']),
     
-    R5('vfmac.h',    'RVF4','1001000 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmac.r.h',  'RVF4','1001000 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmre.h',    'RVF4','1001001 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmre.r.h',  'RVF4','1001001 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd),
+    R5('vfmac.h',    'RVF4','1001000 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
+    R5('vfmac.r.h',  'RVF4','1001000 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
+    R5('vfmre.h',    'RVF4','1001001 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
+    R5('vfmre.r.h',  'RVF4','1001001 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
 
-    R5('vfclass.h', 'R2VF2','1001100 00001 ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfclass.h', 'R2VF2','1001100 00001 ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
    
-    R5('vfsgnj.r.h', 'RVF', '1001101 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnj.h',   'RVF', '1001101 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjn.h',  'RVF', '1001110 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjn.r.h','RVF', '1001110 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjx.h',  'RVF', '1001111 ----- ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjx.r.h','RVF', '1001111 ----- ----- 110 ----- 0110011', group=fpuGroupConv),
+    R5('vfsgnj.r.h', 'RVF', '1001101 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfsgnj.h',   'RVF', '1001101 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfsgnjn.h',  'RVF', '1001110 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfsgnjn.r.h','RVF', '1001110 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfsgnjx.h',  'RVF', '1001111 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
+    R5('vfsgnjx.r.h','RVF', '1001111 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
 
-    R5('vfeq.h',    'R2VF', '1010000 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfeq.r.h',  'R2VF', '1010000 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.h',    'R2VF', '1010001 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.r.h',  'R2VF', '1010001 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.h',    'R2VF', '1010010 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.r.h',  'R2VF', '1010010 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.h',    'R2VF', '1010011 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.r.h',  'R2VF', '1010011 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.h',    'R2VF', '1010100 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.r.h',  'R2VF', '1010100 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.h',    'R2VF', '1010101 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.r.h',  'R2VF', '1010101 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.h',    'R2VF', '1010000 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfeq.r.h',  'R2VF', '1010000 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfne.h',    'R2VF', '1010001 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfne.r.h',  'R2VF', '1010001 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vflt.h',    'R2VF', '1010010 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vflt.r.h',  'R2VF', '1010010 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfge.h',    'R2VF', '1010011 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfge.r.h',  'R2VF', '1010011 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfle.h',    'R2VF', '1010100 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfle.r.h',  'R2VF', '1010100 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfgt.h',    'R2VF', '1010101 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfgt.r.h',  'R2VF', '1010101 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
     
-    R5('vfcpka.h.s', 'RVF', '1011000 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    R5('vfcpka.h.s', 'RVF', '1011000 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
 
 # Unless RV32D supported
     R5('vfmv.x.h',   'R3F', '1001100 00000 ----- 010 ----- 0110011', group=fpuGroupOther),
@@ -1061,7 +1061,7 @@ rv32Xfvec = [
     R5('vfcvt.ah.b', 'RVF2','1001100 00111 ----- 001 ----- 0110011', group=fpuGroupConv),
     R5('vfcvt.b.ah', 'RVF2','1001100 00101 ----- 011 ----- 0110011', group=fpuGroupConv),
     
-]
+])
 
 
 
@@ -1069,7 +1069,7 @@ rv32Xfvec = [
 #
 # Privileged ISA
 #
-priv = [
+priv = IsaSubset('priv', [
 
     R5('csrrw', 'IU',  '------- ----- ----- 001 ----- 1110011'),
     R5('csrrs', 'IU',  '------- ----- ----- 010 ----- 1110011'),
@@ -1078,10 +1078,10 @@ priv = [
     R5('csrrsi','IUR', '------- ----- ----- 110 ----- 1110011'),
     R5('csrrci','IUR', '------- ----- ----- 111 ----- 1110011'),
 
-]
+])
 
 
-priv_pulp_v2 = [
+priv_pulp_v2 = IsaSubset('priv_pulp_v2', [
 
     #R5('uret',      'Z',   '0000000 00010 00000 000 00000 1110011'),
     #R5('sret',      'Z',   '0001000 00010 00000 000 00000 1110011'),
@@ -1089,18 +1089,17 @@ priv_pulp_v2 = [
     R5('mret',      'Z',   '0011000 00010 00000 000 00000 1110011'),
     R5('wfi',       'Z',   '0001000 00101 00000 000 00000 1110011'),
 
-]
+])
 
-priv_pulp = [
+priv_pulp = IsaSubset('priv_pulp', [
  
     R5('eret',  'Z',   '0001000 00000 00000 000 00000 1110011'),
     R5('wfi',   'Z',   '0001000 00010 00000 000 00000 1110011'),
 
+])
 
-]
 
-
-priv_1_9 = [
+priv_1_9 = IsaSubset('priv_1_9', [
 
     #R5('uret',      'Z',   '0000000 00010 00000 000 00000 1110011'),
     #R5('sret',      'Z',   '0001000 00010 00000 000 00000 1110011'),
@@ -1109,14 +1108,14 @@ priv_1_9 = [
     #R5('sfence.vm', 'F',   '0001000 00100 ----- 000 00000 1110011'),
     R5('wfi',       'Z',   '0001000 00101 00000 000 00000 1110011'),
 
-]
+])
 
 
 
 #
 # RV32C
 #
-rv32c = [
+rv32c = IsaSubset('c', [
 
     # Compressed ISA
     R5('c.addi4spn', 'CIW', '000 --- --- -- --- 00', fast_handler=True),
@@ -1147,14 +1146,14 @@ rv32c = [
     R5('c.add',      'CR',  '100 1-- --- -- --- 10', fast_handler=True),
     R5('c.swsp',     'CSS', '110 --- --- -- --- 10', fast_handler=True),
     R5('c.sbreak',   'CI1', '100 000 000 00 000 10'),
-]
+])
 
 
 
 #
 # PULP extensions
 #
-pulp = [
+pulp_common_insns = [
 
     # Reg-reg LD/ST
     R5('LB_RR',    'LR', '0000000 ----- ----- 111 ----- 0000011', L='p.lb' , fast_handler=True, tags=["load"]),
@@ -1211,7 +1210,7 @@ pulp = [
     
 ]
 
-pulp_v1 = [
+pulp_v1 = IsaSubset('pulp_v1', [
     R5('p.abs',  'R1', '0001010 00000 ----- 000 ----- 0110011', mapTo="lib_ABS"),
 
     R5('SB_RR',  'SR_OLD', '------- ----- ----- 100 ----- 0100011', L='p.sb',  mapTo="lib_SB_RR"),
@@ -1237,14 +1236,14 @@ pulp_v1 = [
     R5('p.mac.zh.sh',  'RR','01----- ----- ----- 111 ----- 1011011', mapTo="lib_MAC_ZH_SH"),
     R5('p.mac.zh.zl',  'RR','00----- ----- ----- 110 ----- 1011011', mapTo="lib_MAC_ZH_ZL"),
     R5('p.mac.zh.zh',  'RR','00----- ----- ----- 111 ----- 1011011', mapTo="lib_MAC_ZH_ZH"),
-]
+])
 
 
-pulp_zeroriscy = [
+pulp_zeroriscy = IsaSubset('pulp_zeroriscy', [
     R5('p.elw',           'L',   '------- ----- ----- 110 ----- 0000011', mapTo="lib_LW", tags=["load"]),
-]
+])
 
-pulp_v2 = [
+pulp_v2_insns = [
 
     R5('p.abs',  'R1', '0000010 00000 ----- 000 ----- 0110011'),
 
@@ -1572,7 +1571,10 @@ pulp_v2 = [
 ]
 
 
-gap8 = [
+pulp_v2 = IsaSubset('pulpv2', pulp_v2_insns + pulp_common_insns)
+
+
+gap8 = IsaSubset('gap8', [
     R5('pv.cplxmul.s',      'R',   '010101- ----- ----- 000 ----- 1010111', mapTo="lib_CPLXMULS"),
     R5('pv.cplxmul.s.div2', 'R',   '0101010 ----- ----- 010 ----- 1010111', mapTo="lib_CPLXMULS_DIV2"),
     R5('pv.cplxmul.s.div4', 'R',   '0101011 ----- ----- 010 ----- 1010111', mapTo="lib_CPLXMULS_DIV4"),
@@ -1601,7 +1603,7 @@ gap8 = [
 
     R5('pv.pack.h.h',       'R',   '110100- ----- ----- 110 ----- 1010111', mapTo="lib_VEC_PACK_SC_H_16"),
     R5('pv.pack.h.l',       'R',   '110100- ----- ----- 100 ----- 1010111', mapTo="lib_VEC_PACK_SC_HL_16"),
-]
+])
 
 parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
 
@@ -1631,24 +1633,20 @@ commonOptions = ["--pulp-perf-counters", "--pulp-hw-loop", "--itc-internal", "--
 isa = Isa(
     'riscv',
     [
-        IsaSubset('priv_pulp_v2', priv_pulp_v2),
-        IsaSubset('i', rv32i),
-        IsaSubset('rv32m', rv32m),
-        #IsaSubset('rv32a', rv32a),
-        IsaSubset('c', rv32c),
-        IsaSubset('priv', priv),
-        IsaSubset('pulp', pulp),
-        IsaSubset('pulp_v2', pulp_v2),
-        #IsaSubset('pulp_zeroriscy', pulp_zeroriscy),
-        IsaSubset('fpu', rv32f),
-        IsaSubset('f16', rv32Xf16),
-        IsaSubset('f16alt', rv32Xf16alt),
-        IsaSubset('f8', rv32Xf8),
-        IsaSubset('f8', rv32Xfvec),
-        #IsaSubset('fpud', rv32d),
-        #IsaSubset('gap8', gap8),
-        #IsaSubset('priv_pulp_v2', priv_pulp_v2),
-        #IsaSubset('priv_1_9', priv_1_9)
+        IsaDecodeTree('pulp_v2', [priv_pulp_v2]),
+        IsaDecodeTree('i', [rv32i]),
+        IsaDecodeTree('m', [rv32m]),
+        IsaDecodeTree('c', [rv32c]),
+        IsaDecodeTree('priv', [priv]),
+        IsaDecodeTree('pulp_v2', [pulp_v2]),
+        IsaDecodeTree('f', [rv32f]),
+        IsaDecodeTree('sfloat', [rv32Xf16, rv32Xf16alt, rv32Xf8, rv32Xfvec]),
+        #IsaTree('fpud', rv32d),
+        #IsaTree('gap8', gap8),
+        #IsaTree('priv_pulp_v2', priv_pulp_v2),
+        #IsaTree('priv_1_9', priv_1_9)
+        #IsaTree('rv32a', rv32a),
+        #IsaTree('pulp_zeroriscy', pulp_zeroriscy),
     ]
 )
 

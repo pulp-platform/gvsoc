@@ -500,7 +500,7 @@ int iss::build()
 
   this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
   string isa = get_config_str("isa");
-  transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
+  //transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
   this->cpu.config.isa = strdup(isa.c_str());
 
   return 0;

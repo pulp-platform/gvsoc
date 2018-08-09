@@ -19,9 +19,17 @@
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
 instrLabels = {}
+insn_isa_tags = {}
 instrLabelsList = []
 nb_insn = 0
 nb_decoder_tree = 0
+
+def append_insn_to_isa_tag(isa_tag, insn):
+    global insn_isa_tags
+    if insn_isa_tags.get(isa_tag) is None:
+        insn_isa_tags[isa_tag] = []
+    insn_isa_tags[isa_tag].append(insn)
+
 
 def dump(isaFile, str, level=0):
     for i in range(0, level):
@@ -523,6 +531,7 @@ class DecodeTree(object):
 
                 self.dump('%siss_decoder_item_t %s = {\n' % ('' if is_top else 'static ', self.get_name()))
                 self.dump('  .is_insn=false,\n')
+                self.dump('  .is_active=false,\n')
                 self.dump('  .opcode_others=0,\n')
                 self.dump('  .opcode=0b%s,\n' % self.opcode)
                 self.dump('  .u={\n')
@@ -542,26 +551,27 @@ class IsaSubset(object):
         self.name = name
         self.instrs = instrs
         self.active = active
-        self.tree = None
         for instr in instrs:
             instr.isa = self
             instr.active = active
         if file == 'default': self.file = name
         else: self.file = file
 
+        self.insn_registered = False
+
+    def get_insns(self):
+        if not self.insn_registered:
+            self.insn_registered = True
+
+            for insn in self.instrs:
+                if len(insn.isa_tags) == 0:
+                    append_insn_to_isa_tag(self.name, insn)
+
+        return self.instrs
+
     def setPower(self, power):
         for instr in self.instrs:
             instr.setPower(power)
-
-    def dumpTree(self, isa, isaFile):
-        if self.tree == None:
-            self.tree = DecodeTree(isaFile, self.instrs, 0xffffffff, '0')
-
-        if len(self.instrs) != 0:
-            self.tree.gen(is_top=True)
-
-    def dump_ref(self, isa, isaFile):
-        dump(isaFile, '  {(char *)"%s", &%s},\n' % (self.name, self.tree.get_name()))
 
     def getOptions(self):
         options = {}
@@ -570,27 +580,48 @@ class IsaSubset(object):
 
         return options
         
+class IsaDecodeTree(object):
+
+    def __init__(self, name, subsets):
+        self.subsets = subsets
+        self.tree = None
+        self.name = name
             
+    def get_insns(self):
+        result = []
+        
+        for subset in self.subsets:
+            result += subset.get_insns()
+
+        return result
+
+    def dumpTree(self, isa, isaFile):
+        instrs = self.get_insns()
+
+        if self.tree == None:
+            self.tree = DecodeTree(isaFile, instrs, 0xffffffff, '0')
+
+        if len(instrs) != 0:
+            self.tree.gen(is_top=True)
+
+    def dump_ref(self, isa, isaFile):
+        dump(isaFile, '  {(char *)"%s", &%s},\n' % (self.name, self.tree.get_name()))
+
+
 class Isa(object):
-    def __init__(self, name, subsets, power=None, options=[]):
+    def __init__(self, name, trees):
         self.level = 0
         self.name = name
-        self.subsets = subsets
-        self.options = options
-        self.optionsDict = {}
-        for subset in subsets:
-            if subset.active != None: self.options.append(subset.active)
-            if power != None: subset.setPower(power)
-            self.optionsDict.update(subset.getOptions())
+        self.trees = trees
 
 
     def get_insns(self):
         result = []
-        for subset in self.subsets:
-            result += subset.instrs
+        
+        for tree in self.trees:
+            result += tree.get_insns()
 
         return result
-
 
     def dump(self, str):
         for i in range(0, self.level):
@@ -613,13 +644,31 @@ class Isa(object):
 
 
 
-        for subset in self.subsets:
-            subset.dumpTree(self, isaFile)
+        for tree in self.trees:
+            tree.dumpTree(self, isaFile)
+
+
+        for isa_tag in insn_isa_tags.keys():
+            self.dump('static iss_decoder_item_t *__iss_isa_tag_%s[] = {\n' % isa_tag)
+            insn_list = []
+            for insn in insn_isa_tags.get(isa_tag):
+                insn_list.append('&' + insn.get_full_name())
+            insn_list.append('NULL')
+            self.dump('  %s\n' % ', '.join(insn_list))
+            self.dump('};\n')
+            self.dump('\n')
+
+        self.dump('iss_isa_tag_t __iss_isa_tags[] = {\n')
+        for isa_tag in insn_isa_tags.keys():
+            self.dump('  {(char *)"%s", __iss_isa_tag_%s},\n' % (isa_tag, isa_tag))
+        self.dump('  {(char *)NULL, NULL}\n')
+        self.dump('};\n')
+        self.dump('\n')
 
 
         self.dump('static iss_isa_t __iss_isa_list[] = {\n')
-        for subset in self.subsets:
-            subset.dump_ref(self, isaFile)
+        for tree in self.trees:
+            tree.dump_ref(self, isaFile)
         self.dump('};\n')
         self.dump('\n')
 
@@ -838,10 +887,15 @@ defaultIsaGroup   = IsaGroup('ISA_GROUP_OTHER')
 defaultInstrGroup = InstrGroup(defaultIsaGroup, 'INSTR_GROUP_OTHER')
 
 class Instr(object):
-    def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None, fast_handler=False, tags=[]):
+    def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None, fast_handler=False, tags=[], isa_tags=[]):
         global nb_insn
+
+        for isa_tag in isa_tags:
+            append_insn_to_isa_tag(isa_tag, self)
+
         self.insn_number = nb_insn
         self.tags = tags
+        self.isa_tags = isa_tags
         self.out_reg_latencies = []
         nb_insn += 1
 
@@ -929,6 +983,7 @@ class Instr(object):
 
         self.dump(isaFile, 'static iss_decoder_item_t %s = {\n' % (name))
         self.dump(isaFile, '  .is_insn=true,\n')
+        self.dump(isaFile, '  .is_active=false,\n')
         self.dump(isaFile, '  .opcode_others=%d,\n' % (1 if others else 0))
         self.dump(isaFile, '  .opcode=0b%s,\n' % opcode)
         self.dump(isaFile, '  .u={\n')

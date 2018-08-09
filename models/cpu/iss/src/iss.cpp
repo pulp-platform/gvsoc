@@ -36,56 +36,67 @@ static int iss_parse_isa(iss_t *iss)
     return -1;
   }
 
-  while (len)
+  iss_decode_activate_isa(iss, (char *)"priv");
+  iss_decode_activate_isa(iss, (char *)"priv_pulp_v2");
+
+  bool has_f16 = false;
+  bool has_fvec = false;
+
+  while (len > 0)
   {
     switch (*current)
     {
-      case 'x':
-        if (strncmp(current, "xpulpv2", 7) == 0)
-        {
-          iss_isa_pulpv2_activate(iss);
-          current += 6;
-          len -= 6;
-        }
-        else if (strncmp(current, "xf8", 3) == 0)
-        {
-          current += 2;
-          len -= 2;
-        }
-        else if (strncmp(current, "xf16alt", 7) == 0)
-        {
-          current += 6;
-          len -= 6;
-        }
-        else if (strncmp(current, "xf16", 4) == 0)
-        {
-          current += 3;
-          len -= 3;
-        }
-        else if (strncmp(current, "xfvec", 5) == 0)
-        {
-          current += 4;
-          len -= 4;
-        }
-        else if (strncmp(current, "xfaux", 5) == 0)
-        {
-          current += 4;
-          len -= 4;
-        }
-        break;
       case 'i':
       case 'm':
       case 'c':
       case 'f':
-      case 'd':
+      case 'd': {
+        char name[2];
+        name[0] = *current;
+        name[1] = 0;
+        iss_decode_activate_isa(iss, name);
+        current++;
+        len--;
         break;
+      }
+      case 'X': {
+        char *token = strtok(strdup(current), "X");
+
+        while(token)
+        {
+
+          iss_decode_activate_isa(iss, token);
+
+          if (strcmp(token, "pulpv2") == 0)
+          {
+            iss_isa_pulpv2_activate(iss);
+          }
+          else if (strcmp(token, "f16") == 0)
+          {
+            has_f16 = true;
+          }
+          else if (strcmp(token, "fvec") == 0)
+          {
+            has_fvec = true;
+          }
+
+          token =  strtok(NULL, "X");
+        }
+
+        len = 0;
+
+
+        break;
+      }
       default:
         iss->trace.warning("Unknwon ISA descriptor: %c\n", *current);
         return -1;
     }
-    current++;
-    len--;
   }
+
+  if (has_fvec && has_f16)
+    iss_decode_activate_isa(iss, (char *)"f16vec");
+
 
   return 0;
 }

@@ -46,6 +46,7 @@ void iss_pc_set(iss_t *iss, iss_addr_t value);
 
 iss_insn_t *iss_decode_pc(iss_t *cpu, iss_insn_t *pc);
 iss_insn_t *iss_decode_pc_noexec(iss_t *cpu, iss_insn_t *pc);
+void iss_decode_activate_isa(iss_t *cpu, char *isa);
 
 
 
