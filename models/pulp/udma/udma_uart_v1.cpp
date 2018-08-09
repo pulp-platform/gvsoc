@@ -231,7 +231,7 @@ void Uart_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 
 void Uart_tx_channel::check_state()
 {
-  if (this->pending_bits != 0 && !pending_word_event->is_enqueued())
+  if ((this->pending_bits != 0 || this->stop_bits) && !pending_word_event->is_enqueued())
   {
     int latency = 1;
     int64_t cycles = this->top->get_clock()->get_cycles();
@@ -265,6 +265,7 @@ void Uart_tx_channel::reset()
   this->next_bit_cycle = -1;
   this->sent_bits = 0;
   this->pending_bits = 0;
+  this->stop_bits = 0;
 }
 
 
