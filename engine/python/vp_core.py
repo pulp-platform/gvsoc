@@ -385,6 +385,9 @@ class component(component_trace):
 
     implementation_class = default_implementation_class
 
+    def get_json_config(self, config):
+        return js.import_config(config.get_dict())
+
     def __init__(self, name, config, debug, parent=None):
 
         super(component, self).__init__()
@@ -411,7 +414,7 @@ class component(component_trace):
                 else:
                     self.path = parent.get_path() + '/' + name
 
-        self.json_config = js.import_config(config.get_dict())
+        self.json_config = self.get_json_config(config)
 
         if hasattr(self, 'implementation'):
             self.impl = self.implementation_class(getattr(self, 'implementation'), config, parent=self, debug=debug)

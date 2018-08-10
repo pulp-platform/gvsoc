@@ -578,6 +578,8 @@ void udma::l2_response(void *__this, vp::io_req *req)
 int udma::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
+  traces.new_trace("warning", &warning, vp::WARNING);
+
   in.set_req_meth(&udma::req);
   new_slave_port("input", &in);
 
@@ -620,6 +622,13 @@ int udma::build()
   {
     std::string name = interfaces->get_elem(i)->get_str();
     vp::config *interface = get_config()->get(name);
+
+    if (interface == NULL)
+    {
+      //warning.warning("Invalid JSON config, didn't find interface description (name: )\n");
+      return -1;
+    }
+
     int nb_channels = interface->get("nb_channels")->get_int();
     vp::config *ids = interface->get("ids");
     vp::config *offsets = interface->get("offsets");

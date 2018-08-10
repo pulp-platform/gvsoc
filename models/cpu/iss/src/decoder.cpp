@@ -96,8 +96,10 @@ static int decode_insn(iss *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_deco
         if (darg->flags & ISS_DECODER_ARG_FLAG_COMPRESSED)
           arg->u.reg.index += 8;
 
+#ifndef ISS_SINGLE_REGFILE
         if (darg->flags & ISS_DECODER_ARG_FLAG_FREG)
           arg->u.reg.index += ISS_NB_REGS;
+#endif
 
         if (darg->type == ISS_DECODER_ARG_TYPE_IN_REG) {
           if (darg->u.reg.id >= insn->nb_in_reg)

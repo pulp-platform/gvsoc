@@ -6,10 +6,12 @@ VP_PY_INSTALL_PATH ?= $(PULP_SDK_WS_INSTALL)/python
 VP_MAKEFILE_LIST = $(addsuffix /Makefile,$(VP_DIRS))
 
 CPP=g++
+CC=gcc
 
 VP_COMP_PYBIND_FLAGS := $(shell python3-config --includes)
 
-VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -std=c++11 -I$(PULP_SDK_WS_INSTALL)/include $(VP_COMP_PYBIND_FLAGS)
+VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -I$(PULP_SDK_WS_INSTALL)/include $(VP_COMP_PYBIND_FLAGS)
+VP_COMP_CPPFLAGS=-std=c++11
 VP_COMP_LDFLAGS=-O2 -g -shared -L$(PULP_SDK_WS_INSTALL)/lib -lpulpvp
 
 VP_COMP_CFLAGS += -Werror -Wfatal-errors
@@ -35,13 +37,17 @@ include $(VP_MAKEFILE_LIST)
 
 define declare_implementation
 
-$(eval $(1)_OBJS = $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/%.o, $($(1)_SRCS)))
+$(eval $(1)_OBJS = $(patsubst %.c, $(VP_BUILD_DIR)/$(1)/%.o, $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/%.o, $($(1)_SRCS))))
 
 -include $($(1)_OBJS:.o=.d)
 
 $(VP_BUILD_DIR)/$(1)/%.o: %.cpp $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
-	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS)
+	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $($(1)_CPPFLAGS) $(VP_COMP_CFLAGS) $(VP_COMP_CPPFLAGS)
+
+$(VP_BUILD_DIR)/$(1)/%.o: %.c $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CC) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS)
 
 
 $(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT): $($(1)_OBJS) $($(1)_DEPS)
@@ -59,13 +65,17 @@ endef
 
 define declare_debug_implementation
 
-$(eval $(1)_DBG_OBJS = $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/debug/%.o, $($(1)_SRCS)))
+$(eval $(1)_DBG_OBJS = $(patsubst %.c, $(VP_BUILD_DIR)/$(1)/debug/%.o, $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/debug/%.o, $($(1)_SRCS))))
 
 -include $($(1)_DBG_OBJS:.o=.d)
 
 $(VP_BUILD_DIR)/$(1)/debug/%.o: %.cpp $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
-	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) -DVP_TRACE_ACTIVE=1
+	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_CPPFLAGS) $(VP_COMP_CPPFLAGS) -DVP_TRACE_ACTIVE=1
+
+$(VP_BUILD_DIR)/$(1)/debug/%.o: %.c $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CC) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) -DVP_TRACE_ACTIVE=1
 
 
 $(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT): $($(1)_DBG_OBJS) $($(1)_DEPS)

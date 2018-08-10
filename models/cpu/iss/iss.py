@@ -20,4 +20,14 @@ import vp_core as vp
 
 class component(vp.component):
 
-    implementation = 'cpu/iss/iss_wrapper'
+    def __init__(self, name, config, debug, parent=None):
+
+        js_config = self.get_json_config(config)
+
+        iss_class = js_config.get_child_str('iss_class')
+        if iss_class is None:
+          iss_class = 'iss_riscy'
+
+        setattr(self, 'implementation', 'cpu/iss/%s' % iss_class)
+
+        super(component, self).__init__(name, config, debug, parent)
