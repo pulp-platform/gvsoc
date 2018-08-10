@@ -895,7 +895,7 @@ rv32Xfvec = IsaSubset('fvec', [
     R5('vfgt.h',    'R2VF', '1010101 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
     R5('vfgt.r.h',  'R2VF', '1010101 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
     
-    R5('vfcpka.h.s', 'RVF', '1011000 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
+    R5('vfcpka.h.s', 'RVF4','1011000 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
 
 # Unless RV32D supported
     R5('vfmv.x.h',   'R3F', '1001100 00000 ----- 010 ----- 0110011', group=fpuGroupOther),
@@ -911,7 +911,7 @@ rv32Xfvec = IsaSubset('fvec', [
     # R5('vfcvt.h.s',  'RVF2','1001100 00100 ----- 010 ----- 0110011', group=fpuGroupConv),
 
     # R5('vfcpkb.h.s', 'RVF4','1011000 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpka.h.d', 'RVF', '1011010 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
+    # R5('vfcpka.h.d', 'RVF4','1011010 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
     # R5('vfcpkb.h.d', 'RVF4','1011010 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
     
 #
@@ -960,7 +960,7 @@ rv32Xfvec = IsaSubset('fvec', [
     R5('vfgt.ah',    'R2VF', '1010101 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
     R5('vfgt.r.ah',  'R2VF', '1010101 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
     
-    R5('vfcpka.ah.s', 'RVF', '1011000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfcpka.ah.s', 'RVF4','1011000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
 
 # Unless RV32D supported
     R5('vfmv.x.ah',   'R3F', '1001100 00000 ----- 001 ----- 0110011', group=fpuGroupOther),
@@ -976,7 +976,7 @@ rv32Xfvec = IsaSubset('fvec', [
     # R5('vfcvt.ah.s',  'RVF2','1001100 00100 ----- 001 ----- 0110011', group=fpuGroupConv),
 
     # R5('vfcpkb.ah.s', 'RVF4','1011000 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpka.ah.d', 'RVF', '1011010 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    # R5('vfcpka.ah.d', 'RVF4','1011010 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
     # R5('vfcpkb.ah.d', 'RVF4','1011010 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
     
 # If Xf16 extension also supported
@@ -1039,16 +1039,16 @@ rv32Xfvec = IsaSubset('fvec', [
     R5('vfcvt.b.xu', 'R3F2','1001100 00011 ----- 111 ----- 0110011', group=fpuGroupConv),
 
 # If F extension also supported (implies FLEN>=32)
-    R5('vfcpka.b.s', 'RVF', '1011000 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    R5('vfcpka.b.s', 'RVF4','1011000 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
     R5('vfcpkb.b.s', 'RVF4','1011000 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
 
 # If D extension also supported (implies FLEN>=64)
     # R5('vfcvt.s.b',  'RVF2','1001100 00111 ----- 000 ----- 0110011', group=fpuGroupConv),
     # R5('vfcvt.b.s',  'RVF2','1001100 00100 ----- 011 ----- 0110011', group=fpuGroupConv),
 
-    # R5('vfcpkc.b.s', 'RVF', '1011001 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkd.b.s', 'RVF', '1011001 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpka.b.d', 'RVF', '1011010 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    # R5('vfcpkc.b.s', 'RVF4','1011001 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
+    # R5('vfcpkd.b.s', 'RVF4','1011001 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    # R5('vfcpka.b.d', 'RVF4','1011010 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
     # R5('vfcpkb.b.d', 'RVF4','1011010 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
     # R5('vfcpkc.b.d', 'RVF4','1011011 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
     # R5('vfcpkd.b.d', 'RVF4','1011011 ----- ----- 111 ----- 0110011', group=fpuGroupOther),

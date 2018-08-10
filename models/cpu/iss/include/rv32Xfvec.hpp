@@ -360,7 +360,8 @@ static inline iss_insn_t *vfgt_r_h_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcpka_h_s_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 10, 0) & 0xffff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 10, 0) & 0xffff) << 16));
+            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 10, 0) & 0xffff) << 16) |\
+            (REG_GET(2) & ~0xffffffff));
   return insn->next;
 }
 
@@ -750,7 +751,8 @@ static inline iss_insn_t *vfgt_r_ah_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcpka_ah_s_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 8, 7, 0) & 0xffff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 8, 7, 0) & 0xffff) << 16));
+            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 8, 7, 0) & 0xffff) << 16) |\
+            (REG_GET(2) & ~0xffffffff));
   return insn->next;
 }
 
@@ -1219,7 +1221,9 @@ static inline iss_insn_t *vfgt_r_b_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfmv_x_b_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL1(lib_flexfloat_fmv_x_ff, REG_GET(0) & 0xff, 5, 2) & 0xff) |\
-            ((LIB_FF_CALL1(lib_flexfloat_fmv_x_ff, REG_GET(0) >> 8, 5, 2) & 0xff) << 8));
+            ((LIB_FF_CALL1(lib_flexfloat_fmv_x_ff, REG_GET(0) >> 8, 5, 2) & 0xff) << 8) |\
+            ((LIB_FF_CALL1(lib_flexfloat_fmv_x_ff, REG_GET(0) >> 16, 5, 2) & 0xff) << 16) |\
+            ((LIB_FF_CALL1(lib_flexfloat_fmv_x_ff, REG_GET(0) >> 24, 5, 2) & 0xff) << 24));
   return insn->next;
 }
 
@@ -1228,7 +1232,9 @@ static inline iss_insn_t *vfmv_x_b_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfmv_b_x_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL1(lib_flexfloat_fmv_ff_x, REG_GET(0) & 0xff, 5, 2) & 0xff) |\
-            ((LIB_FF_CALL1(lib_flexfloat_fmv_ff_x, REG_GET(0) >> 8, 5, 2) & 0xff) << 8));
+            ((LIB_FF_CALL1(lib_flexfloat_fmv_ff_x, REG_GET(0) >> 8, 5, 2) & 0xff) << 8) |\
+            ((LIB_FF_CALL1(lib_flexfloat_fmv_ff_x, REG_GET(0) >> 16, 5, 2) & 0xff) << 16) |\
+            ((LIB_FF_CALL1(lib_flexfloat_fmv_ff_x, REG_GET(0) >> 24, 5, 2) & 0xff) << 24));
   return insn->next;
 }
 
@@ -1245,7 +1251,9 @@ static inline iss_insn_t *vfclass_b_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcvt_x_b_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL2(lib_flexfloat_cvt_x_ff_round, REG_GET(0) & 0xff, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL2(lib_flexfloat_cvt_x_ff_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8));
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_x_ff_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_x_ff_round, REG_GET(0) >> 16, 5, 2, 0) & 0xff) << 16) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_x_ff_round, REG_GET(0) >> 24, 5, 2, 0) & 0xff) << 24));
   return insn->next;
 }
 
@@ -1254,7 +1262,9 @@ static inline iss_insn_t *vfcvt_x_b_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcvt_xu_b_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL2(lib_flexfloat_cvt_xu_ff_round, REG_GET(0) & 0xff, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL2(lib_flexfloat_cvt_xu_ff_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8));
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_xu_ff_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_xu_ff_round, REG_GET(0) >> 16, 5, 2, 0) & 0xff) << 16) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_xu_ff_round, REG_GET(0) >> 24, 5, 2, 0) & 0xff) << 24));
   return insn->next;
 }
 
@@ -1262,7 +1272,9 @@ static inline iss_insn_t *vfcvt_xu_b_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcvt_b_x_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL2(lib_flexfloat_cvt_ff_x_round, REG_GET(0) & 0xff, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_x_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8));
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_x_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_x_round, REG_GET(0) >> 16, 5, 2, 0) & 0xff) << 16) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_x_round, REG_GET(0) >> 24, 5, 2, 0) & 0xff) << 24));
   return insn->next;
 }
 
@@ -1271,7 +1283,9 @@ static inline iss_insn_t *vfcvt_b_x_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcvt_b_xu_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL2(lib_flexfloat_cvt_ff_xu_round, REG_GET(0) & 0xff, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_xu_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8));
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_xu_round, REG_GET(0) >> 8, 5, 2, 0) & 0xff) << 8) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_xu_round, REG_GET(0) >> 16, 5, 2, 0) & 0xff) << 16) |\
+            ((LIB_FF_CALL2(lib_flexfloat_cvt_ff_xu_round, REG_GET(0) >> 24, 5, 2, 0) & 0xff) << 24));
   return insn->next;
 }
 
@@ -1280,7 +1294,8 @@ static inline iss_insn_t *vfcvt_b_xu_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *vfcpka_b_s_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 2, 0) & 0xff) << 8));
+            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 2, 0) & 0xff) << 8) |\
+              (REG_GET(2) & ~0xffff));
   return insn->next;
 }
 
@@ -1288,9 +1303,9 @@ static inline iss_insn_t *vfcpka_b_s_exec(iss *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *vfcpkb_b_s_exec(iss *iss, iss_insn_t *insn)
 {
-  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 2, 0) & 0xff) << 8) |\
-              REG_GET(2));
+  REG_SET(0,((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 2, 0) & 0xff) << 16) |\
+            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 2, 0) & 0xff) << 24) |\
+            (REG_GET(2) & ~(0xffff<<16)));
   return insn->next;
 }
 
