@@ -135,7 +135,7 @@ vp::io_req_status_e Udma_channel::size_req(vp::io_req *req)
   if (req->get_is_write())
   {
     trace.msg("Setting size register (value: 0x%x)\n", *data);
-    size = *(int16_t *)data;
+    size = *(int32_t *)data;
   }
   else
   {
@@ -321,11 +321,11 @@ vp::io_req_status_e Udma_periph::custom_req(vp::io_req *req, uint64_t offset)
 
 vp::io_req_status_e Udma_periph::req(vp::io_req *req, uint64_t offset)
 {
-  if (!is_on)
-  {
-    top->trace.warning("Trying to access periph while it is off (periph: %d)\n", id);
-    return vp::IO_REQ_INVALID;
-  }
+//  if (!is_on)
+//  {
+//    top->trace.warning("Trying to access periph while it is off (periph: %d)\n", id);
+//    return vp::IO_REQ_INVALID;
+//  }
 
   if (offset < UDMA_CHANNEL_TX_OFFSET)
   {
@@ -661,6 +661,19 @@ int udma::build()
         if (version == 1)
         {
           Uart_periph_v1 *periph = new Uart_periph_v1(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-support udma version: " + std::to_string(version));
+        }
+      }
+      else if (strcmp(name.c_str(), "cam") == 0)
+      {
+        trace.msg("Instantiating CPI channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 1)
+        {
+          Cpi_periph_v1 *periph = new Cpi_periph_v1(this, id, j);
           periphs[id] = periph;
         }
         else

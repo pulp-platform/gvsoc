@@ -23,6 +23,7 @@
 #include <vp/itf/qspim.hpp>
 #include <vp/itf/uart.hpp>
 #include <vp/itf/jtag.hpp>
+#include <vp/itf/cpi.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -44,6 +45,18 @@ public:
   Qspim_group(std::string name) : Pad_group(name) {}
   vp::qspim_slave slave;
   vp::qspim_master master;
+};
+
+class Cpi_group : public Pad_group
+{
+public:
+  Cpi_group(std::string name) : Pad_group(name) {}
+  vp::cpi_slave slave;
+  vp::cpi_master master;
+  vp::trace pclk_trace;
+  vp::trace href_trace;
+  vp::trace vsync_trace;
+  vp::trace data_trace;
 };
 
 class Jtag_group : public Pad_group
@@ -90,6 +103,9 @@ private:
   static void jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int id);
   static void jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id);
   static void jtag_master_sync(void *__this, int tdo, int id);
+
+  static void cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id);
+  static void cpi_sync_cycle(void *__this, int href, int vsync, int data, int id);
 
   static void uart_chip_sync(void *__this, int data, int id);
   static void uart_master_sync(void *__this, int data, int id);
@@ -163,6 +179,33 @@ void padframe::jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
   group->master.sync_cycle(tdi, tms, trst);
 }
 
+
+
+void padframe::cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Cpi_group *group = static_cast<Cpi_group *>(_this->groups[id]);
+
+  group->pclk_trace.event((uint8_t *)&pclk);
+  group->href_trace.event((uint8_t *)&href);
+  group->vsync_trace.event((uint8_t *)&vsync);
+  group->data_trace.event((uint8_t *)&data);
+
+  group->master.sync(pclk, href, vsync, data);
+}
+
+
+void padframe::cpi_sync_cycle(void *__this, int href, int vsync, int data, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Cpi_group *group = static_cast<Cpi_group *>(_this->groups[id]);
+
+  group->href_trace.event((uint8_t *)&href);
+  group->vsync_trace.event((uint8_t *)&vsync);
+  group->data_trace.event((uint8_t *)&data);
+
+  group->master.sync_cycle(href, vsync, data);
+}
 
 
 void padframe::uart_chip_sync(void *__this, int data, int id)
@@ -252,6 +295,20 @@ int padframe::build()
       traces.new_trace_event(name + "/tdo", &group->tdo_trace, 1);
       traces.new_trace_event(name + "/tms", &group->tms_trace, 1);
       traces.new_trace_event(name + "/trst", &group->trst_trace, 1);
+      nb_itf++;
+    }
+    else if (type == "cpi")
+    {
+      Cpi_group *group = new Cpi_group(name);
+      new_master_port(name, &group->master);
+      new_slave_port(name + "_pad", &group->slave);
+      group->slave.set_sync_meth_muxed(&padframe::cpi_sync, nb_itf);
+      group->slave.set_sync_cycle_meth_muxed(&padframe::cpi_sync_cycle, nb_itf);
+      this->groups.push_back(group);
+      traces.new_trace_event(name + "/pclk", &group->pclk_trace, 1);
+      traces.new_trace_event(name + "/href", &group->href_trace, 1);
+      traces.new_trace_event(name + "/vsync", &group->vsync_trace, 1);
+      traces.new_trace_event(name + "/data", &group->data_trace, 8);
       nb_itf++;
     }
     else if (type == "uart")

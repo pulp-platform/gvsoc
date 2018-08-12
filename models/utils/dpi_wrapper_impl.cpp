@@ -26,6 +26,7 @@
 #include "vp/itf/qspim.hpp"
 #include "vp/itf/jtag.hpp"
 #include "vp/itf/uart.hpp"
+#include "vp/itf/cpi.hpp"
 #include <vector>
 #include <thread>
 #include <unistd.h>
@@ -37,13 +38,23 @@ typedef struct {
   vp::trace tx_trace;
 } uart_handle_t;
 
+typedef struct {
+  void *handle;
+  vp::trace trace;
+} cpi_handle_t;
+
 class dpi_wrapper;
 class dpi_task;
 
 static vector<vp::qspim_slave *> qspim_slaves;
+
 static vector<vp::jtag_master *> jtag_masters;
+
 static vector<vp::uart_slave *> uart_slaves;
 static vector<uart_handle_t *> uart_handles;
+
+static vector<vp::cpi_master *> cpi_masters;
+static vector<cpi_handle_t *> cpi_handles;
 
 static ucontext_t main_context;
 
@@ -96,6 +107,7 @@ private:
 
   static void jtag_sync(void *__this, int tdo, int id);
   static void uart_sync(void *__this, int data, int id);
+  static void cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id);
   static void wakeup_handler(void *__this, vp::clock_event *event);
 
   vp::trace     trace;
@@ -317,6 +329,18 @@ int dpi_wrapper::build()
           traces.new_trace_event(itf_name + std::to_string(itf_id) + "/tx", &handle->tx_trace, 1);
 
         }
+        else if (strcmp(itf_type, "CPI") == 0)
+        {
+          vp::cpi_master *itf = new vp::cpi_master();
+          new_master_port(itf_name + std::to_string(itf_id), itf);
+          cpi_masters.push_back(itf);
+          void *handle = dpi_cpi_bind(dpi_model, itf_name, cpi_masters.size()-1);
+          if (handle == NULL)
+          {
+            snprintf(vp_error, VP_ERROR_SIZE, "Failed to bind CPI interface (name: %s)\n", itf_name);
+            return -1;
+          }
+        }
         else if (strcmp(itf_type, "CTRL") == 0)
         {
 //            i_comp.ctrl_bind(itf_name, ctrl_infos[itf_id].itf);
@@ -359,6 +383,12 @@ extern "C" void dpi_uart_rx_edge(void *handle, int data)
 {
   vp::uart_slave *itf = uart_slaves[(int)(long)handle];
   itf->sync(data);
+}
+
+extern "C" void dpi_cpi_edge(void *handle, int pclk, int href, int vsync, int data)
+{
+  vp::cpi_master *itf = cpi_masters[(int)(long)handle];
+  itf->sync(pclk, href, vsync, data);
 }
 
 extern "C" void dpi_print(void *data, const char *msg)
