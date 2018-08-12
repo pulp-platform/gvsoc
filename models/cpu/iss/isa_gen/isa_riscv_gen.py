@@ -17,7 +17,7 @@
 #
 
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
- 
+
 
 from isa_gen import *
 import argparse
@@ -25,7 +25,7 @@ import os.path
 
 fpuGroup      = IsaGroup('fpu', offload=['shfpu_offload', '--shared-fpu'], timingTable=TimingTable(name='fpu', option='--fpu-timing', default='timing_fpu_private.cfg'))
 rv32mGroup     = IsaGroup('rv32m', timingTable=TimingTable(name='rv32m', option='--rv32m-timing', default='timing_rv32m_ri5cy.cfg'))
-    
+
 fpuGroupOther = InstrGroup(fpuGroup, 'INSTR_GROUP_OTHER')
 fpuGroupAdd   = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_ADD')
 fpuGroupMul   = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_MUL')
@@ -77,7 +77,7 @@ class R5(Instr):
         # I5U #   f2 | ui0[4:0]   |   ui1[4:0]    |      rs1      |     f3    |     rs2/rd    |      opcode
         # IOU #                  f12              |   ui0[4:0]    |     f3    |       f5      |      opcode
         # S   #       si[11:5]    |      rs2      |      rs1      |     f3    |     si[4:0]   |      opcode        # Indirect addressing mode
-        # S1  #   f2 |     rs3    |      rs2      |      rs1      |     f3    |       f5      |      opcode 
+        # S1  #   f2 |     rs3    |      rs2      |      rs1      |     f3    |       f5      |      opcode
         # SB  #     si[12|10:5]   |      rs2      |      rs1      |     f3    |   si[4:1|11]  |      opcode
         # SB2 #     si[12|10:5]   |    si[4:0]    |      rs1      |     f3    |   si[4:1|11]  |      opcode
         # U   #                           ui[31:12]                           |       rd      |      opcode
@@ -85,184 +85,184 @@ class R5(Instr):
         # HL0 #              ui1[11:0]            |      rs1      |     f3    |  opcode  |ui0[0]|      opcode
         # HL1 #              ui1[11:0]            |    ui2[4:0]   |     f3    |  opcode  |ui0[0]|      opcode
         # Z   #                 -                 |       -       |     f3    |        -      |      opcode
-        
+
         self.args = []
 
-        if format == 'R': 
+        if format == 'R':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             ]
-        elif format == 'F': 
+        elif format == 'F':
             self.args = [   InReg (0, Range(15, 5)),
                             ]
-        elif format == 'RF': 
+        elif format == 'RF':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
-        elif format == 'RF2': 
+        elif format == 'RF2':
             self.args = [   OutReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
-        elif format == 'R2F1': 
+        elif format == 'R2F1':
             self.args = [   OutReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
-        elif format == 'R2F2': 
+        elif format == 'R2F2':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
-        elif format == 'R2F3': 
+        elif format == 'R2F3':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
-        elif format == 'R3F': 
+        elif format == 'R3F':
             self.args = [   OutReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             ]
-        elif format == 'R3F2': 
+        elif format == 'R3F2':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             ]
-        elif format == 'R4U': 
+        elif format == 'R4U':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             InFReg (2, Range(27, 5)),
                             UnsignedImm(0, Range(12, 3)),
                             ]
-        elif format == 'RVF': 
+        elif format == 'RVF':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             ]
-        elif format == 'RVF2': 
+        elif format == 'RVF2':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             ]
-        elif format == 'RVF4': 
+        elif format == 'RVF4':
             self.args = [   OutFReg(0, Range(7,  5)),
                             InFReg (2, Range(7,  5), dumpName=False),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             ]
-        elif format == 'R2VF': 
+        elif format == 'R2VF':
             self.args = [   OutReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             ]
-        elif format == 'R2VF2': 
+        elif format == 'R2VF2':
             self.args = [   OutReg(0, Range(7,  5)),
                             InFReg (0, Range(15, 5)),
                             ]
-        elif format == 'RRRR': 
+        elif format == 'RRRR':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (2, Range(7,  5), dumpName=False),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             ]
-        elif format == 'RRRR2': 
+        elif format == 'RRRR2':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(7,  5), dumpName=False),
                             InReg (1, Range(15, 5)),
                             InReg (2, Range(20, 5)),
                             ]
-        elif format == 'RRRS': 
+        elif format == 'RRRS':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(7,  5)),
                             InReg (1, Range(15, 5)),
                             SignedImm(0, Ranges([[25, 1, 0], [20, 5, 1]])),
                             ]
-        elif format == 'RRRU': 
+        elif format == 'RRRU':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(7,  5)),
                             InReg (1, Range(15, 5)),
                             UnsignedImm(0, Ranges([[25, 1, 0], [20, 5, 1]])),
                             ]
-        elif format == 'RRRU2': 
+        elif format == 'RRRU2':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(25, 5)),
                             ]
-        elif format == 'RRRRU': 
+        elif format == 'RRRRU':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (2, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(25, 5)),
                             ]
-        elif format == 'R1': 
+        elif format == 'R1':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             ]
-        elif format == 'RRU': 
+        elif format == 'RRU':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             UnsignedImm(0, Ranges([[25, 1, 0], [20, 5, 1]])),
                             ]
-        elif format == 'RRS': 
+        elif format == 'RRS':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             SignedImm(0, Ranges([[25, 1, 0], [20, 5, 1]])),
                             ]
-        elif format == 'RRU2': 
+        elif format == 'RRU2':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             UnsignedImm(0, Ranges([[25, 1, 0], [20, 5, 1]])),
                             ]
-        elif format == 'LR': 
+        elif format == 'LR':
             self.args = [   OutReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5)), InReg (1, Range(20, 5))),
                             ]
-        elif format == 'LRPOST': 
+        elif format == 'LRPOST':
             self.args = [   OutReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5)), InReg (1, Range(20, 5)), postInc=True),
                             ]
-        elif format == 'RR': 
+        elif format == 'RR':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             InReg (2, Range(25, 5)),
                         ]
-        elif format == 'SR': 
+        elif format == 'SR':
             self.args = [   InReg (1, Range(20, 5)),
                             Indirect(InReg (0, Range(15, 5)), InReg (2, Range(7, 5))),
                         ]
-        elif format == 'SR_OLD': 
+        elif format == 'SR_OLD':
             self.args = [   InReg (1, Range(20, 5)),
                             Indirect(InReg (0, Range(15, 5)), InReg (2, Range(25, 5))),
                         ]
-        elif format == 'I': 
+        elif format == 'I':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             SignedImm(0, Range(20, 12)),
                         ]
-        elif format == 'Z': 
+        elif format == 'Z':
             self.args = [
                         ]
-        elif format == 'L': 
+        elif format == 'L':
             self.args = [   OutReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5)), SignedImm(0, Range(20, 12))),
                         ]
-        elif format == 'LRES': 
+        elif format == 'LRES':
             self.args = [   OutReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5))),
                             UnsignedImm(0, Range(25, 1)),
                             UnsignedImm(1, Range(26, 1)),
                         ]
-        elif format == 'FL': 
+        elif format == 'FL':
             self.args = [   OutFReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5)), SignedImm(0, Range(20, 12))),
                         ]
-        elif format == 'LPOST': 
+        elif format == 'LPOST':
             self.args = [   OutReg(0, Range(7,  5)),
                             Indirect(InReg (0, Range(15, 5)), SignedImm(0, Range(20, 12)), postInc=True),
                         ]
@@ -328,7 +328,7 @@ class R5(Instr):
                         ]
         elif format == 'SPOST':
             self.args = [   InReg(1, Range(20, 5)),
-                            Indirect(InReg(0, Range(15, 5)), SignedImm(0, Ranges([[7, 5, 0], [25, 7, 5]])), postInc=True),                            
+                            Indirect(InReg(0, Range(15, 5)), SignedImm(0, Ranges([[7, 5, 0], [25, 7, 5]])), postInc=True),
                         ]
         elif format == 'S1':
             self.args = [   InReg(0, Range(15, 5)),
@@ -359,7 +359,7 @@ class R5(Instr):
                         ]
         elif format == 'HL0':
             self.args = [   UnsignedImm(0, Range(7, 1)),
-                            InReg (0, Range(15, 5)),                            
+                            InReg (0, Range(15, 5)),
                             UnsignedImm(1, Range(20, 12)),
                         ]
         elif format == 'HL1':
@@ -375,8 +375,8 @@ class R5(Instr):
         # CR1  #      func4    |        rs1        |          f5       |  op      # rs2=0, rd=0, si=0
         # CR2  #      func4    |        rd         |         rs2       |  op      # rs1=0
         # CR3  #      func4    |        rs1        |         rs2       |  op      # rd=1, si=0
-        # CI1  #   func3 | si[5]|     rd/rs1       |      si[4:0]      |  op      # 
-        # CI1U #   func3 | ui[5]|     rd/rs1       |      ui[4:0]      |  op      # 
+        # CI1  #   func3 | si[5]|     rd/rs1       |      si[4:0]      |  op      #
+        # CI1U #   func3 | ui[5]|     rd/rs1       |      ui[4:0]      |  op      #
         # CI2  #   func3 | si[7]|     rd/rs1       |      si[6:2]      |  op      #
         # CI3  #   func3 | ui[5]|       rd         |     ui[4:2|7:6]   |  op      # rs1=2, ui->si
         # CI4  #   func3 | si[9]|      func5       |    si[4|6|8:7|5]  |  op      # rs1=2, rd=2
@@ -389,8 +389,8 @@ class R5(Instr):
         # CS   #   func3   |  ui[5:3]  |   rs1'    |ui[6|2]|    rs2'   |  op      # ui->si
         # CS2  #      func6            |  rd/rs1   | func  |    rs2    |  op      #
         # CB1  #   func3   | si[8|4:3] |   rs1'    |   si[7:6|2:1|5]   |  op      # rs2=0
-        # CB2  #   func3 |ui[5]| func2 |  rd/rs1'  |       ui[4:0]     |  op      # 
-        # CB2S #   func3 |si[5]| func2 |  rd/rs1'  |       si[4:0]     |  op      # 
+        # CB2  #   func3 |ui[5]| func2 |  rd/rs1'  |       ui[4:0]     |  op      #
+        # CB2S #   func3 |si[5]| func2 |  rd/rs1'  |       si[4:0]     |  op      #
         # CJ   #   func3   |         si[11|4|9:8|6|7|3:1|5]            |  op      # rd=0
         # CJ1  #   func3   |         si[11|4|9:8|6|7|3:1|5]            |  op      # rd=1
 
@@ -598,14 +598,16 @@ rv32a = IsaSubset('a', [
 
 ])
 
+# TODO: COMPLETE D EXTENSION
 rv32d = IsaSubset('d', [
     R5('fld',       'FL', '------- ----- ----- 011 ----- 0000111', mapTo="lib_FLW"),
     R5('fsd',       'FS', '------- ----- ----- 011 ----- 0100111', mapTo="lib_FSW"),
-    
-    R5('c.fsd',      'FCS',  '101 --- --- -- --- 00'),
-    R5('c.fsdsp',    'FCSS', '101 --- --- -- --- 10'),
-    R5('c.fld',      'FCL',  '001 --- --- -- --- 00'),
-    R5('c.flwsp',    'FCI3', '001 --- --- -- --- 10'),
+
+    # # If C also supported
+    # R5('c.fsd',      'FCS',  '101 --- --- -- --- 00', isa_tags=['cd']),
+    # R5('c.fsdsp',    'FCSS', '101 --- --- -- --- 10', isa_tags=['cd']),
+    # R5('c.fld',      'FCL',  '001 --- --- -- --- 00', isa_tags=['cd']),
+    # R5('c.flwsp',    'FCI3', '001 --- --- -- --- 10', isa_tags=['cd']),
 ])
 
 rv32f = IsaSubset('f', [
@@ -630,72 +632,33 @@ rv32f = IsaSubset('f', [
     R5('fmin.s',    'RF', '0010100 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
     R5('fmax.s',    'RF', '0010100 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
 
-    R5('fcvt.w.s', 'R2F1','1100000 00000 ----- --- ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.wu.s','R2F1','1100000 00001 ----- --- ----- 1010011', group=fpuGroupConv),
-
-    R5('fmv.x.s',   'R3F','1110000 00000 ----- 000 ----- 1010011'),
-
     R5('feq.s',    'RF2', '1010000 ----- ----- 010 ----- 1010011'),
     R5('flt.s',    'RF2', '1010000 ----- ----- 001 ----- 1010011'),
     R5('fle.s',    'RF2', '1010000 ----- ----- 000 ----- 1010011'),
 
-    R5('fclass.s',  'R3F','1110000 00000 ----- 001 ----- 1010011'),
-
+    R5('fcvt.w.s', 'R2F1','1100000 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.s','R2F1','1100000 00001 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.s.w', 'R2F2','1101000 00000 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.s.wu','R2F2','1101000 00001 ----- --- ----- 1010011', group=fpuGroupConv),
 
+    R5('fmv.x.s',   'R3F','1110000 00000 ----- 000 ----- 1010011'),
+    R5('fclass.s',  'R3F','1110000 00000 ----- 001 ----- 1010011'),
     R5('fmv.s.x',  'R3F2','1111000 00000 ----- 000 ----- 1010011'),
-    
-    R5('c.fsw',      'FCS',  '111 --- --- -- --- 00'),
-    R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10'),
-    R5('c.flw',      'FCL',  '011 --- --- -- --- 00', tags=["load"]),
-    R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10', tags=["load"]),
+
+    # # If RV64F supported
+    # R5('fcvt.w.l', 'R2F1','1100000 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
+    # R5('fcvt.wu.l','R2F1','1100000 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
+    # R5('fcvt.l.w', 'R2F2','1101000 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
+    # R5('fcvt.l.wu','R2F2','1101000 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
+
+    # If C also supported
+    R5('c.fsw',      'FCS',  '111 --- --- -- --- 00', isa_tags=['cf']),
+    R5('c.fswsp',    'FCSS', '111 --- --- -- --- 10', isa_tags=['cf']),
+    R5('c.flw',      'FCL',  '011 --- --- -- --- 00', tags=["load"], isa_tags=['cf']),
+    R5('c.flwsp',    'FCI3', '011 --- --- -- --- 10', tags=["load"], isa_tags=['cf']),
 ])
 
-rv32Xf16alt = IsaSubset('f16alt', [
-
-    R5('fmadd.ah',   'R4U','-----10 ----- ----- 101 ----- 1000011', group=fpuGroupFmadd),
-    R5('fmsub.ah',   'R4U','-----10 ----- ----- 101 ----- 1000111', group=fpuGroupFmadd),
-    R5('fnmsub.ah',  'R4U','-----10 ----- ----- 101 ----- 1001011', group=fpuGroupFmadd),
-    R5('fnmadd.ah',  'R4U','-----10 ----- ----- 101 ----- 1001111', group=fpuGroupFmadd),
-
-    R5('fadd.ah',    'RF', '0000010 ----- ----- 101 ----- 1010011', group=fpuGroupAdd),
-    R5('fsub.ah',    'RF', '0000110 ----- ----- 101 ----- 1010011', group=fpuGroupAdd),
-    R5('fmul.ah',    'RF', '0001010 ----- ----- 101 ----- 1010011', group=fpuGroupMul),
-    R5('fdiv.ah',    'RF', '0001110 ----- ----- 101 ----- 1010011', group=fpuGroupDiv),
-    R5('fsqrt.ah',  'R2F3','0101110 00000 ----- 101 ----- 1010011', group=fpuGroupDiv),
-
-    R5('fsgnj.ah',   'RF', '0010010 ----- ----- 100 ----- 1010011', group=fpuGroupConv),
-    R5('fsgnjn.ah',  'RF', '0010010 ----- ----- 101 ----- 1010011', group=fpuGroupConv),
-    R5('fsgnjx.ah',  'RF', '0010010 ----- ----- 110 ----- 1010011', group=fpuGroupConv),
-
-    R5('fmin.ah',    'RF', '0010110 ----- ----- 100 ----- 1010011', group=fpuGroupConv),
-    R5('fmax.ah',    'RF', '0010110 ----- ----- 101 ----- 1010011', group=fpuGroupConv),
-
-    R5('fcvt.w.ah', 'R2F1','1100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.wu.ah','R2F1','1100010 00001 ----- 101 ----- 1010011', group=fpuGroupConv),
-
-    R5('fmv.x.ah',   'R3F','1110010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
-
-    R5('feq.ah',    'RF2', '1010010 ----- ----- 110 ----- 1010011', group=fpuGroupOther),
-    R5('flt.ah',    'RF2', '1010010 ----- ----- 101 ----- 1010011', group=fpuGroupOther),
-    R5('fle.ah',    'RF2', '1010010 ----- ----- 100 ----- 1010011', group=fpuGroupOther),
-
-    R5('fclass.ah',  'R3F','1110010 00000 ----- 101 ----- 1010011', group=fpuGroupOther),
-
-    R5('fcvt.ah.w', 'R2F2','1101010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.ah.wu','R2F2','1101010 00001 ----- 101 ----- 1010011', group=fpuGroupConv),
-
-    R5('fmv.ah.x',  'R3F2','1111010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
-        
-    R5('fcvt.s.ah', 'R2F3','0100000 00110 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.ah.s', 'R2F3','0100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
-    
-    R5('fcvt.h.ah', 'R2F3','0100010 00110 ----- --- ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.ah.h', 'R2F3','0100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv),
-])
-
-rv32Xf16 = IsaSubset('f16', [
+Xf16 = IsaSubset('f16', [
 
     R5('flh',       'FL', '------- ----- ----- 001 ----- 0000111', tags=["load"]),
     R5('fsh',       'FS', '------- ----- ----- 001 ----- 0100111'),
@@ -717,27 +680,87 @@ rv32Xf16 = IsaSubset('f16', [
     R5('fmin.h',    'RF', '0010110 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
     R5('fmax.h',    'RF', '0010110 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
 
-    R5('fcvt.w.h', 'R2F1','1100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.wu.h','R2F1','1100010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
-
-    R5('fmv.x.h',   'R3F','1110010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
-
     R5('feq.h',    'RF2', '1010010 ----- ----- 010 ----- 1010011', group=fpuGroupOther),
     R5('flt.h',    'RF2', '1010010 ----- ----- 001 ----- 1010011', group=fpuGroupOther),
     R5('fle.h',    'RF2', '1010010 ----- ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    R5('fclass.h',  'R3F','1110010 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
-
+    R5('fcvt.w.h', 'R2F1','1100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.h','R2F1','1100010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.h.w', 'R2F2','1101010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.h.wu','R2F2','1101010 00001 ----- --- ----- 1010011', group=fpuGroupConv),
 
+    R5('fmv.x.h',   'R3F','1110010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
+    R5('fclass.h',  'R3F','1110010 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
     R5('fmv.h.x',  'R3F2','1111010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    R5('fcvt.s.h', 'R2F3','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.h.s', 'R2F3','0100010 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    # # If RV64Xf16 supported
+    # R5('fcvt.l.h', 'R2F1','1100010 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
+    # R5('fcvt.lu.h','R2F1','1100010 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+    # R5('fcvt.h.l', 'R2F2','1101010 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+    # R5('fcvt.h.lu','R2F2','1101010 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+
+    # If F also supported
+    R5('fcvt.s.h', 'R2F3','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f16f']),
+    R5('fcvt.h.s', 'R2F3','0100010 00000 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f16f']),
+
+    # # If D also supported
+    # R5('fcvt.d.h', 'R2F3','0100001 00010 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f16d']),
+    # R5('fcvt.h.d', 'R2F3','0100010 00001 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f16d']),
 ])
 
-rv32Xf8 = IsaSubset('f8', [
+Xf16alt = IsaSubset('f16alt', [
+
+    R5('fmadd.ah',   'R4U','-----10 ----- ----- 101 ----- 1000011', group=fpuGroupFmadd),
+    R5('fmsub.ah',   'R4U','-----10 ----- ----- 101 ----- 1000111', group=fpuGroupFmadd),
+    R5('fnmsub.ah',  'R4U','-----10 ----- ----- 101 ----- 1001011', group=fpuGroupFmadd),
+    R5('fnmadd.ah',  'R4U','-----10 ----- ----- 101 ----- 1001111', group=fpuGroupFmadd),
+
+    R5('fadd.ah',    'RF', '0000010 ----- ----- 101 ----- 1010011', group=fpuGroupAdd),
+    R5('fsub.ah',    'RF', '0000110 ----- ----- 101 ----- 1010011', group=fpuGroupAdd),
+    R5('fmul.ah',    'RF', '0001010 ----- ----- 101 ----- 1010011', group=fpuGroupMul),
+    R5('fdiv.ah',    'RF', '0001110 ----- ----- 101 ----- 1010011', group=fpuGroupDiv),
+    R5('fsqrt.ah',  'R2F3','0101110 00000 ----- 101 ----- 1010011', group=fpuGroupDiv),
+
+    R5('fsgnj.ah',   'RF', '0010010 ----- ----- 100 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjn.ah',  'RF', '0010010 ----- ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fsgnjx.ah',  'RF', '0010010 ----- ----- 110 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmin.ah',    'RF', '0010110 ----- ----- 100 ----- 1010011', group=fpuGroupConv),
+    R5('fmax.ah',    'RF', '0010110 ----- ----- 101 ----- 1010011', group=fpuGroupConv),
+
+    R5('feq.ah',    'RF2', '1010010 ----- ----- 110 ----- 1010011', group=fpuGroupOther),
+    R5('flt.ah',    'RF2', '1010010 ----- ----- 101 ----- 1010011', group=fpuGroupOther),
+    R5('fle.ah',    'RF2', '1010010 ----- ----- 100 ----- 1010011', group=fpuGroupOther),
+
+    R5('fcvt.w.ah', 'R2F1','1100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.ah','R2F1','1100010 00001 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.w', 'R2F2','1101010 00000 ----- 101 ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.ah.wu','R2F2','1101010 00001 ----- 101 ----- 1010011', group=fpuGroupConv),
+
+    R5('fmv.x.ah',   'R3F','1110010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
+    R5('fclass.ah',  'R3F','1110010 00000 ----- 101 ----- 1010011', group=fpuGroupOther),
+    R5('fmv.ah.x',  'R3F2','1111010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
+
+    # # If RV64Xf16alt supported
+    # R5('fcvt.l.ah', 'R2F1','1100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    # R5('fcvt.lu.ah','R2F1','1100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    # R5('fcvt.ah.l', 'R2F2','1101010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    # R5('fcvt.ah.lu','R2F2','1101010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+
+    # If F also supported
+    R5('fcvt.s.ah', 'R2F3','0100000 00110 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f16altf']),
+    R5('fcvt.ah.s', 'R2F3','0100010 00000 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['f16altf']),
+
+    # # If D also supported
+    # R5('fcvt.d.ah', 'R2F3','0100001 00110 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f16altd']),
+    # R5('fcvt.ah.d', 'R2F3','0100010 00001 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['f16altd']),
+
+    # If Xf16 also supported
+    R5('fcvt.h.ah', 'R2F3','0100010 00110 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f16altf16']),
+    R5('fcvt.ah.h', 'R2F3','0100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['f16altf16']),
+])
+
+Xf8 = IsaSubset('f8', [
 
     R5('flb',       'FL', '------- ----- ----- 000 ----- 0000111', tags=["load"]),
     R5('fsb',       'FS', '------- ----- ----- 000 ----- 0100111'),
@@ -759,96 +782,106 @@ rv32Xf8 = IsaSubset('f8', [
     R5('fmin.b',    'RF', '0010111 ----- ----- 000 ----- 1010011', group=fpuGroupConv),
     R5('fmax.b',    'RF', '0010111 ----- ----- 001 ----- 1010011', group=fpuGroupConv),
 
-    R5('fcvt.w.b', 'R2F1','1100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.wu.b','R2F1','1100011 00001 ----- --- ----- 1010011', group=fpuGroupConv),
-
-    R5('fmv.x.b',   'R3F','1110011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
-
     R5('feq.b',    'RF2', '1010011 ----- ----- 010 ----- 1010011', group=fpuGroupOther),
     R5('flt.b',    'RF2', '1010011 ----- ----- 001 ----- 1010011', group=fpuGroupOther),
     R5('fle.b',    'RF2', '1010011 ----- ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    R5('fclass.b',  'R3F','1110011 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
-
+    R5('fcvt.w.b', 'R2F1','1100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    R5('fcvt.wu.b','R2F1','1100011 00001 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.b.w', 'R2F2','1101011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
     R5('fcvt.b.wu','R2F2','1101011 00001 ----- --- ----- 1010011', group=fpuGroupConv),
 
+    R5('fmv.x.b',   'R3F','1110011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
+    R5('fclass.b',  'R3F','1110011 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
     R5('fmv.b.x',  'R3F2','1111011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    R5('fcvt.s.b', 'R2F3','0100000 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.b.s', 'R2F3','0100011 00000 ----- --- ----- 1010011', group=fpuGroupConv),
+    # # If RV64Xf8 supported
+    # R5('fcvt.l.b', 'R2F1','1100011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    # R5('fcvt.lu.b','R2F1','1100011 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    # R5('fcvt.b.l', 'R2F2','1101011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    # R5('fcvt.b.lu','R2F2','1101011 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
 
-    R5('fcvt.h.b', 'R2F3','0100010 00011 ----- 000 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.b.h', 'R2F3','0100011 00010 ----- --- ----- 1010011', group=fpuGroupConv),
+    # If F also supported
+    R5('fcvt.s.b', 'R2F3','0100000 00011 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f8f']),
+    R5('fcvt.b.s', 'R2F3','0100011 00000 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f8f']),
 
-    R5('fcvt.ah.b','R2F3','0100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv),
-    R5('fcvt.b.ah','R2F3','0100011 00110 ----- --- ----- 1010011', group=fpuGroupConv),
+    # # If D also supported
+    # R5('fcvt.d.b', 'R2F3','0100001 00011 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f8d']),
+    # R5('fcvt.b.d', 'R2F3','0100011 00001 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f8d']),
+
+    # If Xf16 also supported
+    R5('fcvt.h.b', 'R2F3','0100010 00011 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f8f16']),
+    R5('fcvt.b.h', 'R2F3','0100011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f8f16']),
+
+    # If Xf16alt also supported
+    R5('fcvt.ah.b','R2F3','0100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['f8f16alt']),
+    R5('fcvt.b.ah','R2F3','0100011 00110 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['f8f16alt']),
 ])
 
 
-# 
+#
 # Vectorial Floats
-# 
-
-rv32Xfvec = IsaSubset('fvec', [
 #
-# For F - only in RVDXfvec
+
+Xfvec = IsaSubset('fvec', [
 #
-#     R5('vfadd.s',    'RVF', '1000001 ----- ----- 000 ----- 0110011', group=fpuGroupAdd),
-#     R5('vfadd.r.s',  'RVF', '1000001 ----- ----- 100 ----- 0110011', group=fpuGroupAdd),
-#     R5('vfsub.s',    'RVF', '1000010 ----- ----- 000 ----- 0110011', group=fpuGroupAdd),
-#     R5('vfsub.r.s',  'RVF', '1000010 ----- ----- 100 ----- 0110011', group=fpuGroupAdd),
-#     R5('vfmul.s',    'RVF', '1000011 ----- ----- 000 ----- 0110011', group=fpuGroupMul),
-#     R5('vfmul.r.s',  'RVF', '1000011 ----- ----- 100 ----- 0110011', group=fpuGroupMul),
-#     R5('vfdiv.s',    'RVF', '1000100 ----- ----- 000 ----- 0110011', group=fpuGroupDiv),
-#     R5('vfdiv.r.s',  'RVF', '1000100 ----- ----- 100 ----- 0110011', group=fpuGroupDiv),
-    
-#     R5('vfmin.s',    'RVF', '1000101 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfmin.r.s',  'RVF', '1000101 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
-#     R5('vfmax.s',    'RVF', '1000110 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfmax.r.s',  'RVF', '1000110 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
-       
-#     R5('vfsqrt.s',   'RVF2','1000111 00000 ----- 000 ----- 0110011', group=fpuGroupDiv),
-    
-#     R5('vfmac.s',    'RVF4','1001000 ----- ----- 000 ----- 0110011', group=fpuGroupFmadd),
-#     R5('vfmac.r.s',  'RVF4','1001000 ----- ----- 100 ----- 0110011', group=fpuGroupFmadd),
-#     R5('vfmre.s',    'RVF4','1001001 ----- ----- 000 ----- 0110011', group=fpuGroupFmadd),
-#     R5('vfmre.r.s',  'RVF4','1001001 ----- ----- 100 ----- 0110011', group=fpuGroupFmadd),
+# For F
+#
+    # R5('vfadd.s',    'RVF', '1000001 ----- ----- 000 ----- 0110011', group=fpuGroupAdd, isa_tags=['f32vec']),
+    # R5('vfadd.r.s',  'RVF', '1000001 ----- ----- 100 ----- 0110011', group=fpuGroupAdd, isa_tags=['f32vec']),
+    # R5('vfsub.s',    'RVF', '1000010 ----- ----- 000 ----- 0110011', group=fpuGroupAdd, isa_tags=['f32vec']),
+    # R5('vfsub.r.s',  'RVF', '1000010 ----- ----- 100 ----- 0110011', group=fpuGroupAdd, isa_tags=['f32vec']),
+    # R5('vfmul.s',    'RVF', '1000011 ----- ----- 000 ----- 0110011', group=fpuGroupMul, isa_tags=['f32vec']),
+    # R5('vfmul.r.s',  'RVF', '1000011 ----- ----- 100 ----- 0110011', group=fpuGroupMul, isa_tags=['f32vec']),
+    # R5('vfdiv.s',    'RVF', '1000100 ----- ----- 000 ----- 0110011', group=fpuGroupDiv, isa_tags=['f32vec']),
+    # R5('vfdiv.r.s',  'RVF', '1000100 ----- ----- 100 ----- 0110011', group=fpuGroupDiv, isa_tags=['f32vec']),
 
-#     R5('vfclass.s', 'R2VF2','1001100 00001 ----- 000 ----- 0110011', group=fpuGroupOther),
-   
-#     R5('vfsgnj.r.s', 'RVF', '1001101 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfsgnj.s',   'RVF', '1001101 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
-#     R5('vfsgnjn.s',  'RVF', '1001110 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfsgnjn.r.s','RVF', '1001110 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
-#     R5('vfsgnjx.s',  'RVF', '1001111 ----- ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfsgnjx.r.s','RVF', '1001111 ----- ----- 100 ----- 0110011', group=fpuGroupConv),
+    # R5('vfmin.s',    'RVF', '1000101 ----- ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfmin.r.s',  'RVF', '1000101 ----- ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfmax.s',    'RVF', '1000110 ----- ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfmax.r.s',  'RVF', '1000110 ----- ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
 
-#     R5('vfeq.s',    'R2VF', '1010000 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfeq.r.s',  'R2VF', '1010000 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfne.s',    'R2VF', '1010001 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfne.r.s',  'R2VF', '1010001 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vflt.s',    'R2VF', '1010010 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vflt.r.s',  'R2VF', '1010010 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfge.s',    'R2VF', '1010011 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfge.r.s',  'R2VF', '1010011 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfle.s',    'R2VF', '1010100 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfle.r.s',  'R2VF', '1010100 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-#     R5('vfgt.s',    'R2VF', '1010101 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfgt.r.s',  'R2VF', '1010101 ----- ----- 100 ----- 0110011', group=fpuGroupOther),
-    
-#     R5('vfcpka.s.s', 'RVF', '1011000 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfcpka.s.d', 'RVF', '1011010 ----- ----- 000 ----- 0110011', group=fpuGroupOther),
+    # R5('vfsqrt.s',   'RVF2','1000111 00000 ----- 000 ----- 0110011', group=fpuGroupDiv, isa_tags=['f32vec']),
 
-# # Unless RV32D supported
-#     R5('vfmv.x.s',   'R3F', '1001100 00000 ----- 000 ----- 0110011', group=fpuGroupOther),
-#     R5('vfmv.s.x',   'R3F2','1001100 00000 ----- 100 ----- 0110011', group=fpuGroupOther),
-   
-#     R5('vfcvt.x.s',  'R3F', '1001100 00010 ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfcvt.xu.s', 'R3F', '1001100 00010 ----- 100 ----- 0110011', group=fpuGroupConv),
-#     R5('vfcvt.s.x',  'R3F2','1001100 00011 ----- 000 ----- 0110011', group=fpuGroupConv),
-#     R5('vfcvt.s.xu', 'R3F2','1001100 00011 ----- 100 ----- 0110011', group=fpuGroupConv),
-    
+    # R5('vfmac.s',    'RVF4','1001000 ----- ----- 000 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f32vec']),
+    # R5('vfmac.r.s',  'RVF4','1001000 ----- ----- 100 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f32vec']),
+    # R5('vfmre.s',    'RVF4','1001001 ----- ----- 000 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f32vec']),
+    # R5('vfmre.r.s',  'RVF4','1001001 ----- ----- 100 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f32vec']),
+
+    # R5('vfclass.s', 'R2VF2','1001100 00001 ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+
+    # R5('vfsgnj.r.s', 'RVF', '1001101 ----- ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfsgnj.s',   'RVF', '1001101 ----- ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfsgnjn.s',  'RVF', '1001110 ----- ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfsgnjn.r.s','RVF', '1001110 ----- ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfsgnjx.s',  'RVF', '1001111 ----- ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+    # R5('vfsgnjx.r.s','RVF', '1001111 ----- ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vec']),
+
+    # R5('vfeq.s',    'R2VF', '1010000 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfeq.r.s',  'R2VF', '1010000 ----- ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfne.s',    'R2VF', '1010001 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfne.r.s',  'R2VF', '1010001 ----- ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vflt.s',    'R2VF', '1010010 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vflt.r.s',  'R2VF', '1010010 ----- ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfge.s',    'R2VF', '1010011 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfge.r.s',  'R2VF', '1010011 ----- ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfle.s',    'R2VF', '1010100 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfle.r.s',  'R2VF', '1010100 ----- ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfgt.s',    'R2VF', '1010101 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # R5('vfgt.r.s',  'R2VF', '1010101 ----- ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+
+    # R5('vfcpka.s.s', 'RVF', '1011000 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+    # # R5('vfcpka.s.d', 'RVF', '1011010 ----- ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vec']),
+
+    # # Unless RV32D supported
+    # R5('vfmv.x.s',   'R3F', '1001100 00000 ----- 000 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vecno32d']),
+    # R5('vfmv.s.x',   'R3F2','1001100 00000 ----- 100 ----- 0110011', group=fpuGroupOther, isa_tags=['f32vecno32d']),
+
+    # R5('vfcvt.x.s',  'R3F', '1001100 00010 ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vecno32d']),
+    # R5('vfcvt.xu.s', 'R3F', '1001100 00010 ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vecno32d']),
+    # R5('vfcvt.s.x',  'R3F2','1001100 00011 ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vecno32d']),
+    # R5('vfcvt.s.xu', 'R3F2','1001100 00011 ----- 100 ----- 0110011', group=fpuGroupConv, isa_tags=['f32vecno32d']),
+
 #
 # For Xf16
 #
@@ -860,21 +893,21 @@ rv32Xfvec = IsaSubset('fvec', [
     R5('vfmul.r.h',  'RVF', '1000011 ----- ----- 110 ----- 0110011', group=fpuGroupMul, isa_tags=['f16vec']),
     R5('vfdiv.h',    'RVF', '1000100 ----- ----- 010 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16vec']),
     R5('vfdiv.r.h',  'RVF', '1000100 ----- ----- 110 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16vec']),
-    
+
     R5('vfmin.h',    'RVF', '1000101 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
     R5('vfmin.r.h',  'RVF', '1000101 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
     R5('vfmax.h',    'RVF', '1000110 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
     R5('vfmax.r.h',  'RVF', '1000110 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
-       
+
     R5('vfsqrt.h',   'RVF2','1000111 00000 ----- 010 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16vec']),
-    
+
     R5('vfmac.h',    'RVF4','1001000 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
     R5('vfmac.r.h',  'RVF4','1001000 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
     R5('vfmre.h',    'RVF4','1001001 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
     R5('vfmre.r.h',  'RVF4','1001001 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16vec']),
 
     R5('vfclass.h', 'R2VF2','1001100 00001 ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
-   
+
     R5('vfsgnj.r.h', 'RVF', '1001101 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
     R5('vfsgnj.h',   'RVF', '1001101 ----- ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
     R5('vfsgnjn.h',  'RVF', '1001110 ----- ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vec']),
@@ -894,173 +927,174 @@ rv32Xfvec = IsaSubset('fvec', [
     R5('vfle.r.h',  'R2VF', '1010100 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
     R5('vfgt.h',    'R2VF', '1010101 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
     R5('vfgt.r.h',  'R2VF', '1010101 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
-    
+
     R5('vfcpka.h.s', 'RVF4','1011000 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vec']),
 
-# Unless RV32D supported
-    R5('vfmv.x.h',   'R3F', '1001100 00000 ----- 010 ----- 0110011', group=fpuGroupOther),
-    R5('vfmv.h.x',   'R3F2','1001100 00000 ----- 110 ----- 0110011', group=fpuGroupOther),
-   
-    R5('vfcvt.x.h',  'R3F', '1001100 00010 ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.xu.h', 'R3F', '1001100 00010 ----- 110 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.h.x',  'R3F2','1001100 00011 ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.h.xu', 'R3F2','1001100 00011 ----- 110 ----- 0110011', group=fpuGroupConv),
+    # Unless RV32D supported
+    R5('vfmv.x.h',   'R3F', '1001100 00000 ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vecno32d']),
+    R5('vfmv.h.x',   'R3F2','1001100 00000 ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vecno32d']),
 
-# If D extension also supported (implies FLEN>=64)
-    # R5('vfcvt.s.h',  'RVF2','1001100 00110 ----- 000 ----- 0110011', group=fpuGroupConv),
-    # R5('vfcvt.h.s',  'RVF2','1001100 00100 ----- 010 ----- 0110011', group=fpuGroupConv),
+    R5('vfcvt.x.h',  'R3F', '1001100 00010 ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vecno32d']),
+    R5('vfcvt.xu.h', 'R3F', '1001100 00010 ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vecno32d']),
+    R5('vfcvt.h.x',  'R3F2','1001100 00011 ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vecno32d']),
+    R5('vfcvt.h.xu', 'R3F2','1001100 00011 ----- 110 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vecno32d']),
 
-    # R5('vfcpkb.h.s', 'RVF4','1011000 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpka.h.d', 'RVF4','1011010 ----- ----- 010 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkb.h.d', 'RVF4','1011010 ----- ----- 110 ----- 0110011', group=fpuGroupOther),
-    
+    # # If D extension also supported (implies FLEN>=64)
+    # R5('vfcvt.s.h',  'RVF2','1001100 00110 ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vecd']),
+    # R5('vfcvt.h.s',  'RVF2','1001100 00100 ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16vecd']),
+
+    # R5('vfcpkb.h.s', 'RVF4','1011000 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vecd']),
+    # R5('vfcpka.h.d', 'RVF4','1011010 ----- ----- 010 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vecd']),
+    # R5('vfcpkb.h.d', 'RVF4','1011010 ----- ----- 110 ----- 0110011', group=fpuGroupOther, isa_tags=['f16vecd']),
+
 #
 # For Xf16alt
-# 
-    R5('vfadd.ah',    'RVF', '1000001 ----- ----- 001 ----- 0110011', group=fpuGroupAdd),
-    R5('vfadd.r.ah',  'RVF', '1000001 ----- ----- 101 ----- 0110011', group=fpuGroupAdd),
-    R5('vfsub.ah',    'RVF', '1000010 ----- ----- 001 ----- 0110011', group=fpuGroupAdd),
-    R5('vfsub.r.ah',  'RVF', '1000010 ----- ----- 101 ----- 0110011', group=fpuGroupAdd),
-    R5('vfmul.ah',    'RVF', '1000011 ----- ----- 001 ----- 0110011', group=fpuGroupMul),
-    R5('vfmul.r.ah',  'RVF', '1000011 ----- ----- 101 ----- 0110011', group=fpuGroupMul),
-    R5('vfdiv.ah',    'RVF', '1000100 ----- ----- 001 ----- 0110011', group=fpuGroupDiv),
-    R5('vfdiv.r.ah',  'RVF', '1000100 ----- ----- 101 ----- 0110011', group=fpuGroupDiv),
-    
-    R5('vfmin.ah',    'RVF', '1000101 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfmin.r.ah',  'RVF', '1000101 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
-    R5('vfmax.ah',    'RVF', '1000110 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfmax.r.ah',  'RVF', '1000110 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
-       
-    R5('vfsqrt.ah',   'RVF2','1000111 00000 ----- 001 ----- 0110011', group=fpuGroupDiv),
-    
-    R5('vfmac.ah',    'RVF4','1001000 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmac.r.ah',  'RVF4','1001000 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmre.ah',    'RVF4','1001001 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmre.r.ah',  'RVF4','1001001 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd),
+#
+    R5('vfadd.ah',    'RVF', '1000001 ----- ----- 001 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16altvec']),
+    R5('vfadd.r.ah',  'RVF', '1000001 ----- ----- 101 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16altvec']),
+    R5('vfsub.ah',    'RVF', '1000010 ----- ----- 001 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16altvec']),
+    R5('vfsub.r.ah',  'RVF', '1000010 ----- ----- 101 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16altvec']),
+    R5('vfmul.ah',    'RVF', '1000011 ----- ----- 001 ----- 0110011', group=fpuGroupMul, isa_tags=['f16altvec']),
+    R5('vfmul.r.ah',  'RVF', '1000011 ----- ----- 101 ----- 0110011', group=fpuGroupMul, isa_tags=['f16altvec']),
+    R5('vfdiv.ah',    'RVF', '1000100 ----- ----- 001 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16altvec']),
+    R5('vfdiv.r.ah',  'RVF', '1000100 ----- ----- 101 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16altvec']),
 
-    R5('vfclass.ah', 'R2VF2','1001100 00001 ----- 001 ----- 0110011', group=fpuGroupOther),
-   
-    R5('vfsgnj.r.ah', 'RVF', '1001101 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnj.ah',   'RVF', '1001101 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjn.ah',  'RVF', '1001110 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjn.r.ah','RVF', '1001110 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjx.ah',  'RVF', '1001111 ----- ----- 001 ----- 0110011', group=fpuGroupConv),
+    R5('vfmin.ah',    'RVF', '1000101 ----- ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfmin.r.ah',  'RVF', '1000101 ----- ----- 101 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfmax.ah',    'RVF', '1000110 ----- ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfmax.r.ah',  'RVF', '1000110 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
+
+    R5('vfsqrt.ah',   'RVF2','1000111 00000 ----- 001 ----- 0110011', group=fpuGroupDiv, isa_tags=['f16altvec']),
+
+    R5('vfmac.ah',    'RVF4','1001000 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altvec']),
+    R5('vfmac.r.ah',  'RVF4','1001000 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altvec']),
+    R5('vfmre.ah',    'RVF4','1001001 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altvec']),
+    R5('vfmre.r.ah',  'RVF4','1001001 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altvec']),
+
+    R5('vfclass.ah', 'R2VF2','1001100 00001 ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+
+    R5('vfsgnj.r.ah', 'RVF', '1001101 ----- ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfsgnj.ah',   'RVF', '1001101 ----- ----- 101 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfsgnjn.ah',  'RVF', '1001110 ----- ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfsgnjn.r.ah','RVF', '1001110 ----- ----- 101 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
+    R5('vfsgnjx.ah',  'RVF', '1001111 ----- ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvec']),
     R5('vfsgnjx.r.ah','RVF', '1001111 ----- ----- 101 ----- 0110011', group=fpuGroupConv),
 
-    R5('vfeq.ah',    'R2VF', '1010000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfeq.r.ah',  'R2VF', '1010000 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.ah',    'R2VF', '1010001 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.r.ah',  'R2VF', '1010001 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.ah',    'R2VF', '1010010 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.r.ah',  'R2VF', '1010010 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.ah',    'R2VF', '1010011 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.r.ah',  'R2VF', '1010011 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.ah',    'R2VF', '1010100 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.r.ah',  'R2VF', '1010100 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.ah',    'R2VF', '1010101 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
+    R5('vfeq.ah',    'R2VF', '1010000 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfeq.r.ah',  'R2VF', '1010000 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfne.ah',    'R2VF', '1010001 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfne.r.ah',  'R2VF', '1010001 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vflt.ah',    'R2VF', '1010010 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vflt.r.ah',  'R2VF', '1010010 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfge.ah',    'R2VF', '1010011 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfge.r.ah',  'R2VF', '1010011 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfle.ah',    'R2VF', '1010100 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfle.r.ah',  'R2VF', '1010100 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
+    R5('vfgt.ah',    'R2VF', '1010101 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
     R5('vfgt.r.ah',  'R2VF', '1010101 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    
-    R5('vfcpka.ah.s', 'RVF4','1011000 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
 
-# Unless RV32D supported
-    R5('vfmv.x.ah',   'R3F', '1001100 00000 ----- 001 ----- 0110011', group=fpuGroupOther),
-    R5('vfmv.ah.x',   'R3F2','1001100 00000 ----- 101 ----- 0110011', group=fpuGroupOther),
-   
-    R5('vfcvt.x.ah',  'R3F', '1001100 00010 ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.xu.ah', 'R3F', '1001100 00010 ----- 101 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.ah.x',  'R3F2','1001100 00011 ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.ah.xu', 'R3F2','1001100 00011 ----- 101 ----- 0110011', group=fpuGroupConv),
+    R5('vfcpka.ah.s', 'RVF4','1011000 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvec']),
 
-# If D extension also supported (implies FLEN>=64)
-    # R5('vfcvt.s.ah',  'RVF2','1001100 00101 ----- 000 ----- 0110011', group=fpuGroupConv),
-    # R5('vfcvt.ah.s',  'RVF2','1001100 00100 ----- 001 ----- 0110011', group=fpuGroupConv),
+    # Unless RV32D supported
+    R5('vfmv.x.ah',   'R3F', '1001100 00000 ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvecno32d']),
+    R5('vfmv.ah.x',   'R3F2','1001100 00000 ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvecno32d']),
 
-    # R5('vfcpkb.ah.s', 'RVF4','1011000 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpka.ah.d', 'RVF4','1011010 ----- ----- 001 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkb.ah.d', 'RVF4','1011010 ----- ----- 101 ----- 0110011', group=fpuGroupOther),
-    
-# If Xf16 extension also supported
-    R5('vfcvt.h.ah',  'RVF2','1001100 00101 ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.ah.h',  'RVF2','1001100 00110 ----- 001 ----- 0110011', group=fpuGroupConv),
-    
+    R5('vfcvt.x.ah',  'R3F', '1001100 00010 ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecno32d']),
+    R5('vfcvt.xu.ah', 'R3F', '1001100 00010 ----- 101 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecno32d']),
+    R5('vfcvt.ah.x',  'R3F2','1001100 00011 ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecno32d']),
+    R5('vfcvt.ah.xu', 'R3F2','1001100 00011 ----- 101 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecno32d']),
+
+    # # If D extension also supported (implies FLEN>=64)
+    # R5('vfcvt.s.ah',  'RVF2','1001100 00101 ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecd']),
+    # R5('vfcvt.ah.s',  'RVF2','1001100 00100 ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecd']),
+
+    # R5('vfcpkb.ah.s', 'RVF4','1011000 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvecd']),
+    # R5('vfcpka.ah.d', 'RVF4','1011010 ----- ----- 001 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvecd']),
+    # R5('vfcpkb.ah.d', 'RVF4','1011010 ----- ----- 101 ----- 0110011', group=fpuGroupOther, isa_tags=['f16altvecd']),
+
+    # If Xf16 extension also supported
+    R5('vfcvt.h.ah',  'RVF2','1001100 00101 ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecf16']),
+    R5('vfcvt.ah.h',  'RVF2','1001100 00110 ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f16altvecf16']),
+
 #
 # For Xf8
-# 
-    R5('vfadd.b',    'RVF', '1000001 ----- ----- 011 ----- 0110011', group=fpuGroupAdd),
-    R5('vfadd.r.b',  'RVF', '1000001 ----- ----- 111 ----- 0110011', group=fpuGroupAdd),
-    R5('vfsub.b',    'RVF', '1000010 ----- ----- 011 ----- 0110011', group=fpuGroupAdd),
-    R5('vfsub.r.b',  'RVF', '1000010 ----- ----- 111 ----- 0110011', group=fpuGroupAdd),
-    R5('vfmul.b',    'RVF', '1000011 ----- ----- 011 ----- 0110011', group=fpuGroupMul),
-    R5('vfmul.r.b',  'RVF', '1000011 ----- ----- 111 ----- 0110011', group=fpuGroupMul),
-    R5('vfdiv.b',    'RVF', '1000100 ----- ----- 011 ----- 0110011', group=fpuGroupDiv),
-    R5('vfdiv.r.b',  'RVF', '1000100 ----- ----- 111 ----- 0110011', group=fpuGroupDiv),
-    
-    R5('vfmin.b',    'RVF', '1000101 ----- ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfmin.r.b',  'RVF', '1000101 ----- ----- 111 ----- 0110011', group=fpuGroupConv),
-    R5('vfmax.b',    'RVF', '1000110 ----- ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfmax.r.b',  'RVF', '1000110 ----- ----- 111 ----- 0110011', group=fpuGroupConv),
-       
-    R5('vfsqrt.b',   'RVF2','1000111 00000 ----- 011 ----- 0110011', group=fpuGroupDiv),
-    
-    R5('vfmac.b',    'RVF4','1001000 ----- ----- 011 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmac.r.b',  'RVF4','1001000 ----- ----- 111 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmre.b',    'RVF4','1001001 ----- ----- 011 ----- 0110011', group=fpuGroupFmadd),
-    R5('vfmre.r.b',  'RVF4','1001001 ----- ----- 111 ----- 0110011', group=fpuGroupFmadd),
-   
-    R5('vfsgnj.r.b', 'RVF', '1001101 ----- ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnj.b',   'RVF', '1001101 ----- ----- 111 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjn.b',  'RVF', '1001110 ----- ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjn.r.b','RVF', '1001110 ----- ----- 111 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjx.b',  'RVF', '1001111 ----- ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfsgnjx.r.b','RVF', '1001111 ----- ----- 111 ----- 0110011', group=fpuGroupConv),
+#
+    R5('vfadd.b',    'RVF', '1000001 ----- ----- 011 ----- 0110011', group=fpuGroupAdd, isa_tags=['f8vec']),
+    R5('vfadd.r.b',  'RVF', '1000001 ----- ----- 111 ----- 0110011', group=fpuGroupAdd, isa_tags=['f8vec']),
+    R5('vfsub.b',    'RVF', '1000010 ----- ----- 011 ----- 0110011', group=fpuGroupAdd, isa_tags=['f8vec']),
+    R5('vfsub.r.b',  'RVF', '1000010 ----- ----- 111 ----- 0110011', group=fpuGroupAdd, isa_tags=['f8vec']),
+    R5('vfmul.b',    'RVF', '1000011 ----- ----- 011 ----- 0110011', group=fpuGroupMul, isa_tags=['f8vec']),
+    R5('vfmul.r.b',  'RVF', '1000011 ----- ----- 111 ----- 0110011', group=fpuGroupMul, isa_tags=['f8vec']),
+    R5('vfdiv.b',    'RVF', '1000100 ----- ----- 011 ----- 0110011', group=fpuGroupDiv, isa_tags=['f8vec']),
+    R5('vfdiv.r.b',  'RVF', '1000100 ----- ----- 111 ----- 0110011', group=fpuGroupDiv, isa_tags=['f8vec']),
 
-    R5('vfeq.b',    'R2VF', '1010000 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfeq.r.b',  'R2VF', '1010000 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.b',    'R2VF', '1010001 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfne.r.b',  'R2VF', '1010001 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.b',    'R2VF', '1010010 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vflt.r.b',  'R2VF', '1010010 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.b',    'R2VF', '1010011 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfge.r.b',  'R2VF', '1010011 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.b',    'R2VF', '1010100 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfle.r.b',  'R2VF', '1010100 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.b',    'R2VF', '1010101 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfgt.r.b',  'R2VF', '1010101 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    
-# Unless RV32D supported
-    R5('vfmv.x.b',   'R3F', '1001100 00000 ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfmv.b.x',   'R3F2','1001100 00000 ----- 111 ----- 0110011', group=fpuGroupOther),
-   
-    R5('vfclass.b', 'R2VF2','1001100 00001 ----- 011 ----- 0110011', group=fpuGroupOther),
-    
-    R5('vfcvt.x.b',  'R3F', '1001100 00010 ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.xu.b', 'R3F', '1001100 00010 ----- 111 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.b.x',  'R3F2','1001100 00011 ----- 011 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.b.xu', 'R3F2','1001100 00011 ----- 111 ----- 0110011', group=fpuGroupConv),
+    R5('vfmin.b',    'RVF', '1000101 ----- ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfmin.r.b',  'RVF', '1000101 ----- ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfmax.b',    'RVF', '1000110 ----- ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfmax.r.b',  'RVF', '1000110 ----- ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
 
-# If F extension also supported (implies FLEN>=32)
-    R5('vfcpka.b.s', 'RVF4','1011000 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    R5('vfcpkb.b.s', 'RVF4','1011000 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
+    R5('vfsqrt.b',   'RVF2','1000111 00000 ----- 011 ----- 0110011', group=fpuGroupDiv, isa_tags=['f8vec']),
 
-# If D extension also supported (implies FLEN>=64)
-    # R5('vfcvt.s.b',  'RVF2','1001100 00111 ----- 000 ----- 0110011', group=fpuGroupConv),
-    # R5('vfcvt.b.s',  'RVF2','1001100 00100 ----- 011 ----- 0110011', group=fpuGroupConv),
+    R5('vfmac.b',    'RVF4','1001000 ----- ----- 011 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8vec']),
+    R5('vfmac.r.b',  'RVF4','1001000 ----- ----- 111 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8vec']),
+    R5('vfmre.b',    'RVF4','1001001 ----- ----- 011 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8vec']),
+    R5('vfmre.r.b',  'RVF4','1001001 ----- ----- 111 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8vec']),
 
-    # R5('vfcpkc.b.s', 'RVF4','1011001 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkd.b.s', 'RVF4','1011001 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpka.b.d', 'RVF4','1011010 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkb.b.d', 'RVF4','1011010 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkc.b.d', 'RVF4','1011011 ----- ----- 011 ----- 0110011', group=fpuGroupOther),
-    # R5('vfcpkd.b.d', 'RVF4','1011011 ----- ----- 111 ----- 0110011', group=fpuGroupOther),
-    
-# If Xf16 extension also supported
-    R5('vfcvt.h.b',  'RVF2','1001100 00111 ----- 010 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.b.h',  'RVF2','1001100 00110 ----- 011 ----- 0110011', group=fpuGroupConv),
-    
-# If Xf16alt extension also supported
-    R5('vfcvt.ah.b', 'RVF2','1001100 00111 ----- 001 ----- 0110011', group=fpuGroupConv),
-    R5('vfcvt.b.ah', 'RVF2','1001100 00101 ----- 011 ----- 0110011', group=fpuGroupConv),
-    
+    R5('vfclass.b', 'R2VF2','1001100 00001 ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+
+    R5('vfsgnj.r.b', 'RVF', '1001101 ----- ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfsgnj.b',   'RVF', '1001101 ----- ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfsgnjn.b',  'RVF', '1001110 ----- ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfsgnjn.r.b','RVF', '1001110 ----- ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfsgnjx.b',  'RVF', '1001111 ----- ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+    R5('vfsgnjx.r.b','RVF', '1001111 ----- ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vec']),
+
+    R5('vfeq.b',    'R2VF', '1010000 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfeq.r.b',  'R2VF', '1010000 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfne.b',    'R2VF', '1010001 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfne.r.b',  'R2VF', '1010001 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vflt.b',    'R2VF', '1010010 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vflt.r.b',  'R2VF', '1010010 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfge.b',    'R2VF', '1010011 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfge.r.b',  'R2VF', '1010011 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfle.b',    'R2VF', '1010100 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfle.r.b',  'R2VF', '1010100 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfgt.b',    'R2VF', '1010101 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+    R5('vfgt.r.b',  'R2VF', '1010101 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vec']),
+
+    # Unless RV32D supported
+    R5('vfmv.x.b',   'R3F', '1001100 00000 ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecno32d']),
+    R5('vfmv.b.x',   'R3F2','1001100 00000 ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecno32d']),
+
+
+    R5('vfcvt.x.b',  'R3F', '1001100 00010 ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecno32d']),
+    R5('vfcvt.xu.b', 'R3F', '1001100 00010 ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecno32d']),
+    R5('vfcvt.b.x',  'R3F2','1001100 00011 ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecno32d']),
+    R5('vfcvt.b.xu', 'R3F2','1001100 00011 ----- 111 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecno32d']),
+
+    # If F extension also supported (implies FLEN>=32)
+    R5('vfcpka.b.s', 'RVF4','1011000 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecf']),
+    R5('vfcpkb.b.s', 'RVF4','1011000 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecf']),
+
+    # # If D extension also supported (implies FLEN>=64)
+    # R5('vfcvt.s.b',  'RVF2','1001100 00111 ----- 000 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecd']),
+    # R5('vfcvt.b.s',  'RVF2','1001100 00100 ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecd']),
+
+    # R5('vfcpkc.b.s', 'RVF4','1011001 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecd']),
+    # R5('vfcpkd.b.s', 'RVF4','1011001 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecd']),
+    # R5('vfcpka.b# ', 'RVF4','1011010 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecd']),
+    # R5('vfcpkb.b.d', 'RVF4','1011010 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecd']),
+    # R5('vfcpkc.b.d', 'RVF4','1011011 ----- ----- 011 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecd']),
+    # R5('vfcpkd.b.d', 'RVF4','1011011 ----- ----- 111 ----- 0110011', group=fpuGroupOther, isa_tags=['f8vecd']),
+
+    # If Xf16 extension also supported
+    R5('vfcvt.h.b',  'RVF2','1001100 00111 ----- 010 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecf16']),
+    R5('vfcvt.b.h',  'RVF2','1001100 00110 ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecf16']),
+
+    # If Xf16alt extension also supported
+    R5('vfcvt.ah.b', 'RVF2','1001100 00111 ----- 001 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecf16alt']),
+    R5('vfcvt.b.ah', 'RVF2','1001100 00101 ----- 011 ----- 0110011', group=fpuGroupConv, isa_tags=['f8vecf16alt']),
+
 ])
 
 
@@ -1092,7 +1126,7 @@ priv_pulp_v2 = IsaSubset('priv_pulp_v2', [
 ])
 
 priv_pulp = IsaSubset('priv_pulp', [
- 
+
     R5('eret',  'Z',   '0001000 00000 00000 000 00000 1110011'),
     R5('wfi',   'Z',   '0001000 00010 00000 000 00000 1110011'),
 
@@ -1160,14 +1194,14 @@ pulp_common_insns = [
     R5('LH_RR',    'LR', '0001000 ----- ----- 111 ----- 0000011', L='p.lh' , fast_handler=True, tags=["load"]),
     R5('LW_RR',    'LR', '0010000 ----- ----- 111 ----- 0000011', L='p.lw' , fast_handler=True, tags=["load"]),
     R5('LBU_RR',   'LR', '0100000 ----- ----- 111 ----- 0000011', L='p.lbu', fast_handler=True, tags=["load"]),
-    R5('LHU_RR',   'LR', '0101000 ----- ----- 111 ----- 0000011', L='p.lhu', fast_handler=True, tags=["load"]),    
+    R5('LHU_RR',   'LR', '0101000 ----- ----- 111 ----- 0000011', L='p.lhu', fast_handler=True, tags=["load"]),
 
     # Regular post-inc LD/ST
     R5('LB_POSTINC',    'LPOST', '------- ----- ----- 000 ----- 0001011', L='p.lb' , fast_handler=True, tags=["load"]),
     R5('LH_POSTINC',    'LPOST', '------- ----- ----- 001 ----- 0001011', L='p.lh' , fast_handler=True, tags=["load"]),
     R5('LW_POSTINC',    'LPOST', '------- ----- ----- 010 ----- 0001011', L='p.lw' , fast_handler=True, tags=["load"]),
     R5('LBU_POSTINC',   'LPOST', '------- ----- ----- 100 ----- 0001011', L='p.lbu', fast_handler=True, tags=["load"]),
-    R5('LHU_POSTINC',   'LPOST', '------- ----- ----- 101 ----- 0001011', L='p.lhu', fast_handler=True, tags=["load"]), 
+    R5('LHU_POSTINC',   'LPOST', '------- ----- ----- 101 ----- 0001011', L='p.lhu', fast_handler=True, tags=["load"]),
     R5('SB_POSTINC',    'SPOST', '------- ----- ----- 000 ----- 0101011', L='p.sb' , fast_handler=True),
     R5('SH_POSTINC',    'SPOST', '------- ----- ----- 001 ----- 0101011', L='p.sh' , fast_handler=True),
     R5('SW_POSTINC',    'SPOST', '------- ----- ----- 010 ----- 0101011', L='p.sw' , fast_handler=True),
@@ -1180,7 +1214,7 @@ pulp_common_insns = [
     R5('LHU_RR_POSTINC',  'LRPOST',  '0101000 ----- ----- 111 ----- 0001011', L='p.lhu', fast_handler=True, tags=["load"]),
     R5('SB_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 100 ----- 0101011',  L='p.sb' , fast_handler=True),
     R5('SH_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 101 ----- 0101011',  L='p.sh' , fast_handler=True),
-    R5('SW_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 110 ----- 0101011',  L='p.sw' , fast_handler=True),    
+    R5('SW_RR_POSTINC',   'SRPOST', '0000000 ----- ----- 110 ----- 0101011',  L='p.sw' , fast_handler=True),
 
     # Additional ALU operations
     R5('p.avgu','R',  '0000010 ----- ----- 001 ----- 0110011'),
@@ -1207,7 +1241,7 @@ pulp_common_insns = [
     R5('lp.counti','HL0','------- ----- ----- 011 0000- 1111011'),
     R5('lp.setup', 'HL0','------- ----- ----- 100 0000- 1111011'),
     R5('lp.setupi','HL1','------- ----- ----- 101 0000- 1111011'),
-    
+
 ]
 
 pulp_v1 = IsaSubset('pulp_v1', [
@@ -1351,13 +1385,13 @@ pulp_v2_insns = [
     R5('pv.and.sc.b',     'R',   '011010- ----- ----- 101 ----- 1010111'),
     R5('pv.and.sci.b',    'RRS', '011010- ----- ----- 111 ----- 1010111'),
 
-    R5('pv.abs.h',        'R1',  '0111000 ----- ----- 000 ----- 1010111'),  
-    R5('pv.abs.b',        'R1',  '0111000 ----- ----- 001 ----- 1010111'), 
+    R5('pv.abs.h',        'R1',  '0111000 ----- ----- 000 ----- 1010111'),
+    R5('pv.abs.b',        'R1',  '0111000 ----- ----- 001 ----- 1010111'),
 
-    R5('pv.extract.h',    'RRU', '011110- ----- ----- 110 ----- 1010111'),  
-    R5('pv.extract.b',    'RRU', '011110- ----- ----- 111 ----- 1010111'),  
+    R5('pv.extract.h',    'RRU', '011110- ----- ----- 110 ----- 1010111'),
+    R5('pv.extract.b',    'RRU', '011110- ----- ----- 111 ----- 1010111'),
     R5('pv.extractu.h',   'RRU', '100100- ----- ----- 110 ----- 1010111'),
-    R5('pv.extractu.b',   'RRU', '100100- ----- ----- 111 ----- 1010111'),  
+    R5('pv.extractu.b',   'RRU', '100100- ----- ----- 111 ----- 1010111'),
 
     R5('pv.insert.h',     'RRRU','101100- ----- ----- 110 ----- 1010111'),
     R5('pv.insert.b',     'RRRU','101100- ----- ----- 111 ----- 1010111'),
@@ -1612,7 +1646,7 @@ parser.add_argument("--header-file", dest="header_file", default=None, metavar="
 parser.add_argument("--source-file", dest="source_file", default=None, metavar="PATH", help="Specify source output file")
 
 args = parser.parse_args()
-        
+
 commonOptions = ["--pulp-perf-counters", "--pulp-hw-loop", "--itc-internal", "--itc-external-req", "--itc-external-wire", "--is-secured"]
 
 #if args.version == 1:
@@ -1640,7 +1674,7 @@ isa = Isa(
         IsaDecodeTree('priv', [priv]),
         IsaDecodeTree('pulp_v2', [pulp_v2]),
         IsaDecodeTree('f', [rv32f]),
-        IsaDecodeTree('sfloat', [rv32Xf16, rv32Xf16alt, rv32Xf8, rv32Xfvec]),
+        IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec]),
         #IsaTree('fpud', rv32d),
         #IsaTree('gap8', gap8),
         #IsaTree('priv_pulp_v2', priv_pulp_v2),
