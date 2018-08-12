@@ -85,6 +85,25 @@ private:
   dpi_task *next;
 };
 
+class dpi_periodic_handler
+{
+  friend class dpi_wrapper;
+
+public:
+  dpi_periodic_handler(dpi_wrapper *top, int id, int64_t period) : top(top), id(id), period(period) {}
+  void start();
+
+protected:
+
+private:
+  static void entry_stub(void *__this, vp::clock_event *event);
+
+  dpi_wrapper *top;
+  int id;
+  int64_t period;
+  vp::clock_event *wait_evt;
+};
+
 class dpi_wrapper : public vp::component
 {
 
@@ -95,6 +114,7 @@ public:
   int build();
   void start();
   void create_task(int id);
+  void create_periodic_handler(int id, int64_t period);
   int wait(int64_t t);
   int wait_ps(int64_t t);
   void wait_event();
@@ -115,6 +135,7 @@ private:
   vector<std::thread *>threads;
   vector<void *>models;
   vector<dpi_task *> tasks;
+  vector<dpi_periodic_handler *> handlers;
   dpi_task * first_waiting_task = NULL;
 
   bool event_raised = false;
@@ -162,6 +183,19 @@ void dpi_task::start()
   makecontext(&this->context, (void (*)())dpi_task::entry_stub, 1, this->id);
 }
 
+
+void dpi_periodic_handler::start()
+{
+  this->wait_evt = top->event_new(this, dpi_periodic_handler::entry_stub);
+  this->top->event_enqueue(this->wait_evt, this->period);
+}
+
+void dpi_periodic_handler::entry_stub(void *__this, vp::clock_event *event)
+{
+  dpi_periodic_handler *_this = (dpi_periodic_handler *)__this;
+  _this->top->event_enqueue(_this->wait_evt, _this->period);
+  dpi_exec_periodic_handler(_this->id);
+}
 
 
 dpi_wrapper::dpi_wrapper(const char *config)
@@ -226,6 +260,11 @@ void dpi_wrapper::raise_event_from_ext()
 void dpi_wrapper::create_task(int id)
 {
   this->tasks.push_back(new dpi_task(this, id));
+}
+
+void dpi_wrapper::create_periodic_handler(int id, int64_t period)
+{
+  this->handlers.push_back(new dpi_periodic_handler(this, id, period));
 }
 
 void dpi_wrapper::jtag_sync(void *__this, int tdo, int id)
@@ -363,6 +402,11 @@ void dpi_wrapper::start()
   {
     x->start();
   }
+
+  for (auto x: handlers)
+  {
+    x->start();
+  }
 }
 
 extern "C" void dpi_ctrl_reset_edge(void *handle, int reset)
@@ -454,6 +498,12 @@ extern "C" void dpi_create_task(void *handle, int id)
 {
   dpi_wrapper *dpi = (dpi_wrapper *)handle;
   dpi->create_task(id);
+}
+
+extern "C" void dpi_create_periodic_handler(void *handle, int id, int64_t period)
+{
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  dpi->create_periodic_handler(id, period);
 }
 
 extern "C" void *vp_constructor(const char *config)
