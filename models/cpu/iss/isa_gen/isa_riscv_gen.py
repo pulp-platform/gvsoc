@@ -614,6 +614,7 @@ rv32f = IsaSubset('f', [
 
     R5('flw',       'FL', '------- ----- ----- 010 ----- 0000111', tags=["load"]),
     R5('fsw',       'FS', '------- ----- ----- 010 ----- 0100111'),
+    
     R5('fmadd.s',   'R4U','-----00 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
     R5('fmsub.s',   'R4U','-----00 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
     R5('fnmsub.s',  'R4U','-----00 ----- ----- --- ----- 1001011', group=fpuGroupFmadd),
@@ -645,11 +646,11 @@ rv32f = IsaSubset('f', [
     R5('fclass.s',  'R3F','1110000 00000 ----- 001 ----- 1010011'),
     R5('fmv.s.x',  'R3F2','1111000 00000 ----- 000 ----- 1010011'),
 
-    # # If RV64F supported
-    # R5('fcvt.w.l', 'R2F1','1100000 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
-    # R5('fcvt.wu.l','R2F1','1100000 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
-    # R5('fcvt.l.w', 'R2F2','1101000 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
-    # R5('fcvt.l.wu','R2F2','1101000 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
+    # If RV64F supported
+    R5('fcvt.l.s', 'R2F1','1100000 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f']),
+    R5('fcvt.lu.s','R2F1','1100000 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f']),
+    R5('fcvt.s.l', 'R2F2','1101000 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f']),
+    R5('fcvt.s.lu','R2F2','1101000 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f']),
 
     # If C also supported
     R5('c.fsw',      'FCS',  '111 --- --- -- --- 00', isa_tags=['cf']),
@@ -662,6 +663,7 @@ Xf16 = IsaSubset('f16', [
 
     R5('flh',       'FL', '------- ----- ----- 001 ----- 0000111', tags=["load"]),
     R5('fsh',       'FS', '------- ----- ----- 001 ----- 0100111'),
+    
     R5('fmadd.h',   'R4U','-----10 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
     R5('fmsub.h',   'R4U','-----10 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
     R5('fnmsub.h',  'R4U','-----10 ----- ----- --- ----- 1001011', group=fpuGroupFmadd),
@@ -693,11 +695,11 @@ Xf16 = IsaSubset('f16', [
     R5('fclass.h',  'R3F','1110010 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
     R5('fmv.h.x',  'R3F2','1111010 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    # # If RV64Xf16 supported
-    # R5('fcvt.l.h', 'R2F1','1100010 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64F']),
-    # R5('fcvt.lu.h','R2F1','1100010 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
-    # R5('fcvt.h.l', 'R2F2','1101010 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
-    # R5('fcvt.h.lu','R2F2','1101010 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+    # If RV64Xf16 supported
+    R5('fcvt.l.h', 'R2F1','1100010 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+    R5('fcvt.lu.h','R2F1','1100010 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+    R5('fcvt.h.l', 'R2F2','1101010 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
+    R5('fcvt.h.lu','R2F2','1101010 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16']),
 
     # If F also supported
     R5('fcvt.s.h', 'R2F3','0100000 00010 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f16f']),
@@ -709,7 +711,7 @@ Xf16 = IsaSubset('f16', [
 ])
 
 Xf16alt = IsaSubset('f16alt', [
-
+    
     R5('fmadd.ah',   'R4U','-----10 ----- ----- 101 ----- 1000011', group=fpuGroupFmadd),
     R5('fmsub.ah',   'R4U','-----10 ----- ----- 101 ----- 1000111', group=fpuGroupFmadd),
     R5('fnmsub.ah',  'R4U','-----10 ----- ----- 101 ----- 1001011', group=fpuGroupFmadd),
@@ -741,11 +743,11 @@ Xf16alt = IsaSubset('f16alt', [
     R5('fclass.ah',  'R3F','1110010 00000 ----- 101 ----- 1010011', group=fpuGroupOther),
     R5('fmv.ah.x',  'R3F2','1111010 00000 ----- 100 ----- 1010011', group=fpuGroupOther),
 
-    # # If RV64Xf16alt supported
-    # R5('fcvt.l.ah', 'R2F1','1100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
-    # R5('fcvt.lu.ah','R2F1','1100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
-    # R5('fcvt.ah.l', 'R2F2','1101010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
-    # R5('fcvt.ah.lu','R2F2','1101010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    # If RV64Xf16alt supported
+    R5('fcvt.l.ah', 'R2F1','1100010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    R5('fcvt.lu.ah','R2F1','1100010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    R5('fcvt.ah.l', 'R2F2','1101010 00010 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
+    R5('fcvt.ah.lu','R2F2','1101010 00011 ----- 101 ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f16alt']),
 
     # If F also supported
     R5('fcvt.s.ah', 'R2F3','0100000 00110 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f16altf']),
@@ -764,6 +766,7 @@ Xf8 = IsaSubset('f8', [
 
     R5('flb',       'FL', '------- ----- ----- 000 ----- 0000111', tags=["load"]),
     R5('fsb',       'FS', '------- ----- ----- 000 ----- 0100111'),
+    
     R5('fmadd.b',   'R4U','-----11 ----- ----- --- ----- 1000011', group=fpuGroupFmadd),
     R5('fmsub.b',   'R4U','-----11 ----- ----- --- ----- 1000111', group=fpuGroupFmadd),
     R5('fnmsub.b',  'R4U','-----11 ----- ----- --- ----- 1001011', group=fpuGroupFmadd),
@@ -795,11 +798,11 @@ Xf8 = IsaSubset('f8', [
     R5('fclass.b',  'R3F','1110011 00000 ----- 001 ----- 1010011', group=fpuGroupOther),
     R5('fmv.b.x',  'R3F2','1111011 00000 ----- 000 ----- 1010011', group=fpuGroupOther),
 
-    # # If RV64Xf8 supported
-    # R5('fcvt.l.b', 'R2F1','1100011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
-    # R5('fcvt.lu.b','R2F1','1100011 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
-    # R5('fcvt.b.l', 'R2F2','1101011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
-    # R5('fcvt.b.lu','R2F2','1101011 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    # If RV64Xf8 supported
+    R5('fcvt.l.b', 'R2F1','1100011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    R5('fcvt.lu.b','R2F1','1100011 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    R5('fcvt.b.l', 'R2F2','1101011 00010 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
+    R5('fcvt.b.lu','R2F2','1101011 00011 ----- --- ----- 1010011', group=fpuGroupConv, isa_tags=['rv64f8']),
 
     # If F also supported
     R5('fcvt.s.b', 'R2F3','0100000 00011 ----- 000 ----- 1010011', group=fpuGroupConv, isa_tags=['f8f']),
