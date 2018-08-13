@@ -1236,7 +1236,7 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
 // Floating-Point Emulation
 
 #include "flexfloat.h"
-#include <limits.h>
+#include <stdint.h>
 #include <math.h>
 #include <fenv.h>
 #pragma STDC FENV_ACCESS ON
@@ -1277,6 +1277,31 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
   FF_INIT_2(a, b, e, m) \
   name(&ff_res, &ff_a, &ff_b); \
   return flexfloat_get_bits(&ff_res);
+
+// Inspired by https://stackoverflow.com/a/38470183
+static inline int32_t double_to_int (double dbl) {
+  dbl = nearbyint(dbl);
+  if (dbl < 2.0*(INT32_MAX/2+1)) { // NO OVERFLOW
+    if (ceil(dbl) >= INT32_MIN) // NO UNDERFLOW
+      return (int32_t) dbl;
+    else // UNDERFLOW
+      return INT32_MIN;
+  } else { // OVERFLOW OR NAN
+    return INT32_MAX;
+  }
+}
+
+static inline uint32_t double_to_uint (double dbl) {
+  dbl = nearbyint(dbl);
+  if (dbl < 2.0*(UINT32_MAX/2+1)) { // NO OVERFLOW
+    if (ceil(dbl) >= 0) // NO UNDERFLOW
+      return (uint32_t) dbl;
+    else // UNDERFLOW
+      return 0;
+  } else { // OVERFLOW OR NAN
+    return UINT32_MAX;
+  }
+}
 
 static inline unsigned int lib_flexfloat_add(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
   FF_EXEC_2(ff_add, a, b, e, m)
@@ -1455,17 +1480,17 @@ static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a,
 static inline int lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   FF_INIT_1(a, e, m)
-  long int result_long = (long int) ff_a.value;
+  int result_int = double_to_int(ff_a.value);
   restoreFFRoundingMode(old);
-  return result_long < INT_MIN ? INT_MIN : result_long > INT_MAX ? INT_MAX : (int) result_long ;
+  return result_int;
 }
 
 static inline unsigned int lib_flexfloat_cvt_wu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   FF_INIT_1(a, e, m)
-  long int result_long = (long int) ff_a.value;
+  unsigned int result_uint = double_to_uint(ff_a.value);
   restoreFFRoundingMode(old);
-  return result_long < 0 ? 0 : result_long > UINT_MAX ? UINT_MAX : (unsigned int) result_long ;
+  return result_uint;
 }
 
 static inline int lib_flexfloat_cvt_ff_w_round(iss_cpu_state_t *s, int a, uint8_t e, uint8_t m, unsigned int round) {
