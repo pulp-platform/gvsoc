@@ -1781,20 +1781,20 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
 
   if (exp == flexfloat_inf_exp(env)) {
     if (frac == 0) {
-      if (sign) return 0; // - infinity
-      else return 7; // + infinity
+      if (sign) return (0x1 << 0); // - infinity
+      else return (0x1 << 7); // + infinity
     } else {
-      return 9; // quiet NaN
+      return (0x1 << 9); // quiet NaN
     }
   } else if (exp == 0 && frac == 0) {
-    if (sign) return 3; // - 0
-    else return 4; // + 0
+    if (sign) return (0x1 << 3); // - 0
+    else return (0x1 << 4); // + 0
   } else if (exp == 0 && frac != 0) {
-    if (sign) return 2; // negative subnormal
-    else return 5; // positive subnormal
+    if (sign) return (0x1 << 2); // negative subnormal
+    else return (0x1 << 5); // positive subnormal
   } else {
-    if (sign) return 1; // negative number
-    else return 6; // positive number
+    if (sign) return (0x1 << 1); // negative number
+    else return (0x1 << 6); // positive number
   }
 }
 
