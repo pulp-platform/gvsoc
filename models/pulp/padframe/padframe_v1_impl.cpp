@@ -265,68 +265,72 @@ int padframe::build()
   {
     std::string name = group.first;
     vp::config *config = group.second;
-    std::string type = config->get("type")->get_str();
+    vp::config *type_config = config->get("type");
+    if (type_config)
+    {
+      std::string type = type_config->get_str();
 
-    trace.msg("Found pad group (group: %s, type: %s)\n",
-      name.c_str(), type.c_str());
-
-    if (type == "qspim")
-    {
-      Qspim_group *group = new Qspim_group(name);
-      new_master_port(name + "_pad", &group->master);
-      new_slave_port(name, &group->slave);
-      group->slave.set_sync_meth_muxed(&padframe::sync, nb_itf);
-      group->slave.set_sync_cycle_meth_muxed(&padframe::sync_cycle, nb_itf);
-      group->slave.set_cs_sync_meth_muxed(&padframe::cs_sync, nb_itf);
-      this->groups.push_back(group);
-      nb_itf++;
-    }
-    else if (type == "jtag")
-    {
-      Jtag_group *group = new Jtag_group(name);
-      new_master_port(name, &group->master);
-      new_slave_port(name + "_pad", &group->slave);
-      group->master.set_sync_meth_muxed(&padframe::jtag_master_sync, nb_itf);
-      group->slave.set_sync_meth_muxed(&padframe::jtag_sync, nb_itf);
-      group->slave.set_sync_cycle_meth_muxed(&padframe::jtag_sync_cycle, nb_itf);
-      this->groups.push_back(group);
-      traces.new_trace_event(name + "/tck", &group->tck_trace, 1);
-      traces.new_trace_event(name + "/tdi", &group->tdi_trace, 1);
-      traces.new_trace_event(name + "/tdo", &group->tdo_trace, 1);
-      traces.new_trace_event(name + "/tms", &group->tms_trace, 1);
-      traces.new_trace_event(name + "/trst", &group->trst_trace, 1);
-      nb_itf++;
-    }
-    else if (type == "cpi")
-    {
-      Cpi_group *group = new Cpi_group(name);
-      new_master_port(name, &group->master);
-      new_slave_port(name + "_pad", &group->slave);
-      group->slave.set_sync_meth_muxed(&padframe::cpi_sync, nb_itf);
-      group->slave.set_sync_cycle_meth_muxed(&padframe::cpi_sync_cycle, nb_itf);
-      this->groups.push_back(group);
-      traces.new_trace_event(name + "/pclk", &group->pclk_trace, 1);
-      traces.new_trace_event(name + "/href", &group->href_trace, 1);
-      traces.new_trace_event(name + "/vsync", &group->vsync_trace, 1);
-      traces.new_trace_event(name + "/data", &group->data_trace, 8);
-      nb_itf++;
-    }
-    else if (type == "uart")
-    {
-      Uart_group *group = new Uart_group(name);
-      new_master_port(name + "_pad", &group->master);
-      new_slave_port(name, &group->slave);
-      group->master.set_sync_meth_muxed(&padframe::uart_master_sync, nb_itf);
-      group->slave.set_sync_meth_muxed(&padframe::uart_chip_sync, nb_itf);
-      this->groups.push_back(group);
-      traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
-      traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
-      nb_itf++;
-    }
-    else
-    {
-      warning.warning("Unknown pad group type (group: %s, type: %s)\n",
+      trace.msg("Found pad group (group: %s, type: %s)\n",
         name.c_str(), type.c_str());
+
+      if (type == "qspim")
+      {
+        Qspim_group *group = new Qspim_group(name);
+        new_master_port(name + "_pad", &group->master);
+        new_slave_port(name, &group->slave);
+        group->slave.set_sync_meth_muxed(&padframe::sync, nb_itf);
+        group->slave.set_sync_cycle_meth_muxed(&padframe::sync_cycle, nb_itf);
+        group->slave.set_cs_sync_meth_muxed(&padframe::cs_sync, nb_itf);
+        this->groups.push_back(group);
+        nb_itf++;
+      }
+      else if (type == "jtag")
+      {
+        Jtag_group *group = new Jtag_group(name);
+        new_master_port(name, &group->master);
+        new_slave_port(name + "_pad", &group->slave);
+        group->master.set_sync_meth_muxed(&padframe::jtag_master_sync, nb_itf);
+        group->slave.set_sync_meth_muxed(&padframe::jtag_sync, nb_itf);
+        group->slave.set_sync_cycle_meth_muxed(&padframe::jtag_sync_cycle, nb_itf);
+        this->groups.push_back(group);
+        traces.new_trace_event(name + "/tck", &group->tck_trace, 1);
+        traces.new_trace_event(name + "/tdi", &group->tdi_trace, 1);
+        traces.new_trace_event(name + "/tdo", &group->tdo_trace, 1);
+        traces.new_trace_event(name + "/tms", &group->tms_trace, 1);
+        traces.new_trace_event(name + "/trst", &group->trst_trace, 1);
+        nb_itf++;
+      }
+      else if (type == "cpi")
+      {
+        Cpi_group *group = new Cpi_group(name);
+        new_master_port(name, &group->master);
+        new_slave_port(name + "_pad", &group->slave);
+        group->slave.set_sync_meth_muxed(&padframe::cpi_sync, nb_itf);
+        group->slave.set_sync_cycle_meth_muxed(&padframe::cpi_sync_cycle, nb_itf);
+        this->groups.push_back(group);
+        traces.new_trace_event(name + "/pclk", &group->pclk_trace, 1);
+        traces.new_trace_event(name + "/href", &group->href_trace, 1);
+        traces.new_trace_event(name + "/vsync", &group->vsync_trace, 1);
+        traces.new_trace_event(name + "/data", &group->data_trace, 8);
+        nb_itf++;
+      }
+      else if (type == "uart")
+      {
+        Uart_group *group = new Uart_group(name);
+        new_master_port(name + "_pad", &group->master);
+        new_slave_port(name, &group->slave);
+        group->master.set_sync_meth_muxed(&padframe::uart_master_sync, nb_itf);
+        group->slave.set_sync_meth_muxed(&padframe::uart_chip_sync, nb_itf);
+        this->groups.push_back(group);
+        traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
+        traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
+        nb_itf++;
+      }
+      else
+      {
+        warning.warning("Unknown pad group type (group: %s, type: %s)\n",
+          name.c_str(), type.c_str());
+      }
     }
   }
 
