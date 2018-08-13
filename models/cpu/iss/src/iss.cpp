@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
+ *          Stefan Mach, ETH (smach@iis.ee.ethz.ch)
  */
 
 #include "iss.hpp"
@@ -25,10 +26,14 @@ static int iss_parse_isa(iss_t *iss)
   const char *current = iss->cpu.config.isa;
   int len = strlen(current);
 
+  bool arch_rv32 = false;
+  bool arch_rv64 = false;
+
   if (strncmp(current, "rv32", 4) == 0)
   {
     current += 4;
     len -= 4;
+    arch_rv32 = true;
   }
   else
   {
@@ -39,24 +44,37 @@ static int iss_parse_isa(iss_t *iss)
   iss_decode_activate_isa(iss, (char *)"priv");
   iss_decode_activate_isa(iss, (char *)"priv_pulp_v2");
 
+  bool has_f = false;
+  bool has_d = false;
+  bool has_c = false;
   bool has_f16 = false;
+  bool has_f16alt = false;
+  bool has_f8 = false;
   bool has_fvec = false;
 
   while (len > 0)
   {
     switch (*current)
     {
-      case 'i':
-      case 'm':
-      case 'c':
+      case 'd':
+        has_d = true; // D needs F
       case 'f':
-      case 'd': {
+        has_f = true;
+      case 'i':
+      case 'm': {
         char name[2];
         name[0] = *current;
         name[1] = 0;
         iss_decode_activate_isa(iss, name);
         current++;
         len--;
+        break;
+      }
+      case 'c': {
+        iss_decode_activate_isa(iss, (char *)"c");
+        current++;
+        len--;
+        has_c = true;
         break;
       }
       case 'X': {
@@ -74,6 +92,14 @@ static int iss_parse_isa(iss_t *iss)
           else if (strcmp(token, "f16") == 0)
           {
             has_f16 = true;
+          }
+          else if (strcmp(token, "f16alt") == 0)
+          {
+            has_f16alt = true;
+          }
+          else if (strcmp(token, "f8") == 0)
+          {
+            has_f8 = true;
           }
           else if (strcmp(token, "fvec") == 0)
           {
@@ -94,9 +120,98 @@ static int iss_parse_isa(iss_t *iss)
     }
   }
 
-  if (has_fvec && has_f16)
-    iss_decode_activate_isa(iss, (char *)"f16vec");
+  //
+  // Activate inter-dependent ISA extension subsets
+  //
 
+  // Compressed floating-point instructions
+  if (has_c)
+  {
+    if (has_f)
+      iss_decode_activate_isa(iss, (char *)"cf");
+    if (has_d)
+      iss_decode_activate_isa(iss, (char *)"cd");
+  }
+
+  // For F Extension
+  if (has_f) {
+    if (arch_rv64)
+      iss_decode_activate_isa(iss, (char *)"rv64f");
+    // Vectors
+    if (has_fvec && has_d) { // make sure FLEN >= 64
+      iss_decode_activate_isa(iss, (char *)"f32vec");
+      if (!(arch_rv32 && has_d))
+        iss_decode_activate_isa(iss, (char *)"f32vecno32d");
+    }
+  }
+
+ // For Xf16 Extension
+  if (has_f16) {
+    if (arch_rv64)
+      iss_decode_activate_isa(iss, (char *)"rv64f16");
+    if (has_f)
+      iss_decode_activate_isa(iss, (char *)"f16f");
+    if (has_d)
+      iss_decode_activate_isa(iss, (char *)"f16d");
+    // Vectors
+    if (has_fvec && has_f) { // make sure FLEN >= 32
+      iss_decode_activate_isa(iss, (char *)"f16vec");
+      if (!(arch_rv32 && has_d))
+        iss_decode_activate_isa(iss, (char *)"f16vecno32d");
+      if (has_d)
+        iss_decode_activate_isa(iss, (char *)"f16vecd");
+    }
+  }
+
+ // For Xf16alt Extension
+  if (has_f16alt) {
+    if (arch_rv64)
+      iss_decode_activate_isa(iss, (char *)"rv64f16alt");
+    if (has_f)
+      iss_decode_activate_isa(iss, (char *)"f16altf");
+    if (has_d)
+      iss_decode_activate_isa(iss, (char *)"f16altd");
+    if (has_f16)
+      iss_decode_activate_isa(iss, (char *)"f16altf16");
+    // Vectors
+    if (has_fvec && has_f) { // make sure FLEN >= 32
+      iss_decode_activate_isa(iss, (char *)"f16altvec");
+      if (!(arch_rv32 && has_d))
+        iss_decode_activate_isa(iss, (char *)"f16altvecno32d");
+      if (has_d)
+        iss_decode_activate_isa(iss, (char *)"f16altvecd");
+      if (has_f16)
+        iss_decode_activate_isa(iss, (char *)"f16altvecf16");
+    }
+  }
+
+ // For Xf8 Extension
+  if (has_f8) {
+    if (arch_rv64)
+      iss_decode_activate_isa(iss, (char *)"rv64f8");
+    if (has_f)
+      iss_decode_activate_isa(iss, (char *)"f8f");
+    if (has_d)
+      iss_decode_activate_isa(iss, (char *)"f8d");
+    if (has_f16)
+      iss_decode_activate_isa(iss, (char *)"f8f16");
+    if (has_f16alt)
+      iss_decode_activate_isa(iss, (char *)"f8f16alt");
+    // Vectors
+    if (has_fvec && (has_f16 || has_f16alt || has_f)) { // make sure FLEN >= 16
+      iss_decode_activate_isa(iss, (char *)"f8vec");
+      if (!(arch_rv32 && has_d))
+        iss_decode_activate_isa(iss, (char *)"f8vecno32d");
+      if (has_f)
+        iss_decode_activate_isa(iss, (char *)"f8vecf");
+      if (has_d)
+        iss_decode_activate_isa(iss, (char *)"f8vecd");
+      if (has_f16)
+        iss_decode_activate_isa(iss, (char *)"f8vecf16");
+      if (has_f16alt)
+        iss_decode_activate_isa(iss, (char *)"f8vecf16alt");
+    }
+  }
 
   return 0;
 }
