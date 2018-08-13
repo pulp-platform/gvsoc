@@ -1,7 +1,7 @@
 COMPONENTS += cpu/iss/iss
 
-COMMON_SRCS = cpu/iss/src/iss_wrapper.cpp cpu/iss/src/iss.cpp cpu/iss/src/insn_cache.cpp cpu/iss/src/csr.cpp cpu/iss/src/decoder.cpp cpu/iss/src/trace.cpp cpu/iss/softfloat/softfloat.cpp cpu/iss/flexfloat/flexfloat.c
-COMMON_CFLAGS = -I$(CURDIR)/cpu/iss/include -DRISCV=1 -DRISCY -I$(CURDIR)/cpu/iss/softfloat -I$(CURDIR)/cpu/iss/flexfloat
+COMMON_SRCS = cpu/iss/src/iss_wrapper.cpp cpu/iss/src/iss.cpp cpu/iss/src/insn_cache.cpp cpu/iss/src/csr.cpp cpu/iss/src/decoder.cpp cpu/iss/src/trace.cpp cpu/iss/flexfloat/flexfloat.c
+COMMON_CFLAGS = -I$(CURDIR)/cpu/iss/include -DRISCV=1 -DRISCY -I$(CURDIR)/cpu/iss/flexfloat
 
 
 define declare_iss_isa_build
