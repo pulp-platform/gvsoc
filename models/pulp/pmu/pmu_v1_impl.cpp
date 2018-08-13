@@ -62,7 +62,7 @@ vp::io_req_status_e pmu::req(void *__this, vp::io_req *req)
 
   _this->trace.msg("IO access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
-  return vp::IO_REQ_INVALID;
+  return vp::IO_REQ_OK;
 }
 
 

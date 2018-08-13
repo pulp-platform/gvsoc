@@ -45,6 +45,30 @@ class Mutex_unit;
 #define EU_WAKEUP_LATENCY 2
 
 
+class Soc_event_unit {
+public:
+
+  Soc_event_unit(Event_unit *top);
+  void reset();
+
+  int nb_fifo_events;
+  int nb_free_events;
+  int fifo_event_head;
+  int fifo_event_tail;
+  int *fifo_event;
+  int fifo_soc_event;
+
+  vp::wire_slave<int>     soc_event_itf;
+
+  vp::io_req_status_e ioReq(uint32_t offset, bool is_write, uint32_t *data);
+
+private:
+  static void sync(void *__this, int event);
+
+  Event_unit *top;
+  vp::trace     trace;
+};
+
 class Mutex {
 public:
   void reset();
@@ -172,6 +196,7 @@ class Event_unit : public vp::component
   friend class Dispatch_unit;
   friend class Barrier_unit;
   friend class Mutex_unit;
+  friend class Soc_event_unit;
 
 public:
 
@@ -195,6 +220,7 @@ protected:
   Core_event_unit *core_eu;
   Dispatch_unit *dispatch;
   Barrier_unit *barrier_unit;
+  Soc_event_unit *soc_event_unit;
 
   int nb_core;
 
@@ -287,15 +313,13 @@ vp::io_req_status_e Event_unit::req(void *__this, vp::io_req *req)
 
   if (offset >= EU_CORES_AREA_OFFSET && offset < EU_CORES_AREA_OFFSET + EU_CORES_AREA_SIZE)
   {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //unsigned int coreId = EU_CORE_AREA_COREID_GET(offset - EU_CORES_AREA_OFFSET);
-    //if (coreId >= nbPes) return true;
-    //return coreEvt[coreId].ioReq(req, offset - EU_CORE_AREA_OFFSET_GET(coreId), isRead, data);
+    unsigned int core_id = EU_CORE_AREA_COREID_GET(offset - EU_CORES_AREA_OFFSET);
+    if (core_id >= _this->nb_core) return vp::IO_REQ_INVALID;
+    return _this->core_eu[core_id].req(req, offset - EU_CORE_AREA_OFFSET_GET(core_id), is_write, (uint32_t *)data);
   }
   else if (offset >= EU_SOC_EVENTS_AREA_OFFSET && offset < EU_SOC_EVENTS_AREA_OFFSET + EU_SOC_EVENTS_AREA_SIZE)
   {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //return socEventsUnit.ioReq(offset - EU_SOC_EVENTS_AREA_OFFSET, isRead, data);
+    return _this->soc_event_unit->ioReq(offset - EU_SOC_EVENTS_AREA_OFFSET, is_write, (uint32_t *)data);
   }
   else if (offset >= EU_EXT_EVENT_AREA_OFFSET && offset < EU_EXT_EVENT_AREA_OFFSET + EU_EXT_EVENT_AREA_SIZE)
   {
@@ -592,6 +616,7 @@ int Event_unit::build()
   mutex = new Mutex_unit(this);
   dispatch = new Dispatch_unit(this);
   barrier_unit = new Barrier_unit(this);
+  soc_event_unit = new Soc_event_unit(this);
 
   for (int i=0; i<nb_core; i++)
   {
@@ -1326,4 +1351,71 @@ void Barrier_unit::reset()
     barrier->status = 0;
     barrier->target_mask = 0;
   }
+}
+
+
+Soc_event_unit::Soc_event_unit(Event_unit *top) : top(top)
+{
+  this->nb_fifo_events = top->get_config_int("**/nb_fifo_events");
+  this->fifo_soc_event = top->get_config_int("**/fifo_event");
+
+  top->traces.new_trace("soc_eu/trace", &trace, vp::DEBUG);
+
+  this->fifo_event = new int[nb_fifo_events];
+
+  this->soc_event_itf.set_sync_meth(&Soc_event_unit::sync);
+  top->new_slave_port(this, "soc_event", &this->soc_event_itf);
+
+  this->reset();
+}
+
+void Soc_event_unit::reset()
+{
+  this->nb_free_events = this->nb_fifo_events;
+  this->fifo_event_head = 0;
+  this->fifo_event_tail = 0;
+}
+
+void Soc_event_unit::sync(void *__this, int event)
+{
+  Soc_event_unit *_this = (Soc_event_unit *)__this;
+  _this->trace.msg("Received soc event (event: %d)\n", event);
+
+  if (_this->nb_free_events == 0) {
+    return;
+  }
+
+  _this->nb_free_events--;
+  _this->fifo_event[_this->fifo_event_head] = event;
+  _this->fifo_event_head++;
+  if (_this->fifo_event_head == _this->nb_fifo_events) _this->fifo_event_head = 0;
+
+  
+  if (_this->fifo_soc_event != -1 && _this->nb_free_events == _this->nb_fifo_events - 1) {
+    _this->trace.msg("Generating FIFO soc event (id: %d)\n", _this->fifo_soc_event);
+    _this->top->trigger_event(1<<_this->fifo_soc_event, -1);
+  }
+}
+
+vp::io_req_status_e Soc_event_unit::ioReq(uint32_t offset, bool is_write, uint32_t *data)
+{
+  if (is_write) return vp::IO_REQ_INVALID;
+
+  if (nb_free_events == nb_fifo_events) {
+    trace.msg("Reading FIFO with no event\n");
+    *data = 0;
+  } else {
+    trace.msg("Popping event from FIFO (id: %d)\n", fifo_event[fifo_event_tail]);
+    *data = (1 << EU_SOC_EVENTS_VALID_BIT) | fifo_event[fifo_event_tail];
+    fifo_event_tail++;
+    if (fifo_event_tail == nb_fifo_events) fifo_event_tail = 0;
+    nb_free_events++;
+    if (nb_free_events != nb_fifo_events)
+    {
+      this->trace.msg("Generating FIFO soc event (id: %d)\n", this->fifo_soc_event);
+      this->top->trigger_event(1<<this->fifo_soc_event, -1);
+    }
+  }
+
+  return vp::IO_REQ_OK;
 }

@@ -551,10 +551,12 @@ static bool mie_write(iss *iss, unsigned int value) {
 
 static bool mtvec_read(iss *iss, iss_reg_t *value) {
   //*value = iss->tvec[GVSIM_MODE_MACHINE];
+  *value = iss->cpu.csr.mtvec;
   return false;
 }
 
 static bool mtvec_write(iss *iss, unsigned int value) {
+  iss->cpu.csr.mtvec = value;
   //iss->tvec[GVSIM_MODE_MACHINE] = value;
   return false;
 }
