@@ -1233,268 +1233,10 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
 #endif
 
 
-#include "softfloat.h"
-
-static inline unsigned int lib_float_add_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  float_exception_flags = 0;
-  unsigned int result = float32_add(a, b);
-  return result;
-}
-
-static inline unsigned int lib_float_sub_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-    float_exception_flags = 0;
-  unsigned int result = float32_sub(a, b);
-  return result;
-}
-
-static inline unsigned int lib_float_mul_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  float_exception_flags = 0;
-  unsigned int result = float32_mul(a, b);
-  return result;
-}
-
-static inline unsigned int lib_float_div_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  float_exception_flags = 0;
-  unsigned int result = float32_div(a, b);
-  return result;
-}
-
-static inline unsigned int lib_float_itof_s(iss_cpu_state_t *s, unsigned int a) {
-  float_exception_flags = 0;
-  unsigned int result = int32_to_float32(a);
-  return result;
-}
-
-static inline unsigned int lib_float_ftoi_s(iss_cpu_state_t *s, unsigned int a) {
-  float_exception_flags = 0;
-  unsigned int result = float32_to_int32(a);
-  return result;
-}
-
-static inline unsigned int lib_float_rem_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  float_exception_flags = 0;
-  unsigned int result = float32_rem(a, b);
-  return result;
-}
-
-/*
-static inline unsigned int lib_float_madd_s(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c) {
-  unsigned int result = float32_add(a, float32_mul(b, c));
-  return result;
-}*/
-
-static inline unsigned int setRoundingMode(unsigned int mode)
-{
-  unsigned int old = float_rounding_mode;
-  switch (mode) {
-    case 0: float_rounding_mode = float_round_nearest_even; break;
-    case 1: float_rounding_mode = float_round_to_zero; break;
-    case 2: float_rounding_mode = float_round_down; break;
-    case 3: float_rounding_mode = float_round_up; break;
-    case 4: printf("Unimplemented roudning mode nearest ties to max magnitude"); exit(-1); break;
-  }
-  return old;
-}
-
-static inline void restoreRoundingMode(unsigned int mode)
-{
-  float_rounding_mode = mode;
-}
-
-static inline unsigned int lib_float_madd_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result;
-  result = float32_mul(a, b);
-  result = float32_add(result, c);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_msub_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result;
-  result = float32_mul(a, b);
-  result = float32_sub(result, c);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_nmadd_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result;
-  result = float32_mul(a, b);
-  result = float32_add(result, c);
-  result = float32_sub(0, result);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_nmsub_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result;
-  result = float32_mul(a, b);
-  result = float32_sub(result, c);
-  result = float32_sub(0, result);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_add_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result = float32_add(a, b);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_sub_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result = float32_sub(a, b);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_mul_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result = float32_mul(a, b);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_div_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result = float32_div(a, b);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_sqrt_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  unsigned int result = float32_sqrt(a);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_sgnj_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  return float32_sgnj(a, b);
-}
-
-static inline unsigned int lib_float_sgnjn_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  return float32_sgnjn(a, b);
-}
-
-static inline unsigned int lib_float_sgnjx_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  return float32_sgnjx(a, b);
-}
-
-static inline unsigned int lib_float_min_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  float_exception_flags = 0;
-  unsigned int result = float32_min(a, b);
-  return result;
-}
-
-static inline unsigned int lib_float_max_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  float_exception_flags = 0;
-  unsigned int result = float32_max(a, b);
-  return result;
-}
-
-static inline int lib_float_cvt_w_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  int result = float32_to_int32(a);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_cvt_wu_s_round(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  long long result = float32_to_int64(a);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline int lib_float_cvt_s_w_round(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  int result = int32_to_float32(a);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline unsigned int lib_float_cvt_s_wu_round(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  float_exception_flags = 0;
-  unsigned int old = setRoundingMode(round);
-  int result = int64_to_float32(a);
-  restoreRoundingMode(old);
-  return result;
-}
-
-static inline int lib_float_cvt_d_s(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  return a;
-}
-
-static inline int lib_float_cvt_s_d(iss_cpu_state_t *s, unsigned int a, unsigned int round) {
-  return a;
-}
-
-static inline unsigned int lib_float_fmv_x_s(iss_cpu_state_t *s, unsigned int a) {
-  return a;
-}
-
-static inline unsigned int lib_float_fmv_s_x(iss_cpu_state_t *s, unsigned int a) {
-  return a;
-}
-
-static inline unsigned int lib_float_eq_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  return float32_eq(a, b);
-}
-
-static inline unsigned int lib_float_lt_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  return float32_lt(a, b);
-}
-
-static inline unsigned int lib_float_le_s(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
-  return float32_le(a, b);
-}
-
-static inline unsigned int lib_float_class_s(iss_cpu_state_t *s, unsigned int a) {
-  unsigned int frac = a & 0x007FFFFF;
-  unsigned int exp = ( a>>23 ) & 0xFF;
-  int sign = a>>31;
-
-  if (exp == 0xff) {
-    if (frac == 0) {
-      if (sign) return 0; // - infinity
-      else return 7; // + infinity
-    } else {
-      return 9; // quiet NaN
-    }
-  } else if (exp == 0 && frac == 0) {
-    if (sign) return 3; // - 0
-    else return 4; // + 0
-  } else if (exp == 0 && frac != 0) {
-    if (sign) return 2; // negative subnormal
-    else return 5; // positive subnormal
-  } else {
-    if (sign) return 1; // negative number
-    else return 6; // positive number
-  }
-}
-
-// smallFloats
+// Floating-Point Emulation
 
 #include "flexfloat.h"
-#include <limits.h>
+#include <stdint.h>
 #include <math.h>
 #include <fenv.h>
 #pragma STDC FENV_ACCESS ON
@@ -1535,6 +1277,55 @@ static inline unsigned int lib_float_class_s(iss_cpu_state_t *s, unsigned int a)
   FF_INIT_2(a, b, e, m) \
   name(&ff_res, &ff_a, &ff_b); \
   return flexfloat_get_bits(&ff_res);
+
+// Inspired by https://stackoverflow.com/a/38470183
+static inline int32_t double_to_int (double dbl) {
+  dbl = nearbyint(dbl);
+  if (dbl < 2.0*(INT32_MAX/2+1)) { // NO OVERFLOW
+    if (ceil(dbl) >= INT32_MIN) // NO UNDERFLOW
+      return (int32_t) dbl;
+    else // UNDERFLOW
+      return INT32_MIN;
+  } else { // OVERFLOW OR NAN
+    return INT32_MAX;
+  }
+}
+
+static inline uint32_t double_to_uint (double dbl) {
+  dbl = nearbyint(dbl);
+  if (dbl < 2.0*(UINT32_MAX/2+1)) { // NO OVERFLOW
+    if (ceil(dbl) >= 0) // NO UNDERFLOW
+      return (uint32_t) dbl;
+    else // UNDERFLOW
+      return 0;
+  } else { // OVERFLOW OR NAN
+    return UINT32_MAX;
+  }
+}
+
+static inline int64_t double_to_long (double dbl) {
+  dbl = nearbyint(dbl);
+  if (dbl < 2.0*(INT64_MAX/2+1)) { // NO OVERFLOW
+    if (ceil(dbl) >= INT64_MIN) // NO UNDERFLOW
+      return (int64_t) dbl;
+    else // UNDERFLOW
+      return INT64_MIN;
+  } else { // OVERFLOW OR NAN
+    return INT64_MAX;
+  }
+}
+
+static inline uint64_t double_to_ulong (double dbl) {
+  dbl = nearbyint(dbl);
+  if (dbl < 2.0*(UINT64_MAX/2+1)) { // NO OVERFLOW
+    if (ceil(dbl) >= 0) // NO UNDERFLOW
+      return (uint64_t) dbl;
+    else // UNDERFLOW
+      return 0;
+  } else { // OVERFLOW OR NAN
+    return UINT64_MAX;
+  }
+}
 
 static inline unsigned int lib_flexfloat_add(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
   FF_EXEC_2(ff_add, a, b, e, m)
@@ -1710,34 +1501,66 @@ static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a,
   return ff_ge(&ff_a, &ff_b) ? a : b;
 }
 
-static inline int lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+static inline int64_t lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   FF_INIT_1(a, e, m)
-  long int result_long = (long int) ff_a.value;
+  int32_t result_int = double_to_int(ff_a.value);
   restoreFFRoundingMode(old);
-  return result_long < INT_MIN ? INT_MIN : result_long > INT_MAX ? INT_MAX : (int) result_long ;
+  return (int64_t) result_int;
 }
 
-static inline unsigned int lib_flexfloat_cvt_wu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+static inline int64_t lib_flexfloat_cvt_wu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   FF_INIT_1(a, e, m)
-  long int result_long = (long int) ff_a.value;
+  int32_t result_int = double_to_uint(ff_a.value);
   restoreFFRoundingMode(old);
-  return result_long < 0 ? 0 : result_long > UINT_MAX ? UINT_MAX : (unsigned int) result_long ;
+  return (int64_t) result_int;
 }
 
-static inline int lib_flexfloat_cvt_ff_w_round(iss_cpu_state_t *s, int a, uint8_t e, uint8_t m, unsigned int round) {
+static inline int lib_flexfloat_cvt_ff_w_round(iss_cpu_state_t *s, int64_t a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   flexfloat_t ff_a;
-  ff_init_int(&ff_a, a, (flexfloat_desc_t) {e,m});
+  ff_init_int(&ff_a, a&0xffffffff, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
   return flexfloat_get_bits(&ff_a);
 }
 
-static inline unsigned int lib_flexfloat_cvt_ff_wu_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+static inline unsigned int lib_flexfloat_cvt_ff_wu_round(iss_cpu_state_t *s, int64_t a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   flexfloat_t ff_a;
-  ff_init_long(&ff_a, (unsigned long) a, (flexfloat_desc_t) {e,m});
+  ff_init_long(&ff_a, (uint32_t) a&0xffffffff, (flexfloat_desc_t) {e,m});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_a);
+}
+
+static inline int64_t lib_flexfloat_cvt_l_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  int64_t result_long = double_to_long(ff_a.value);
+  restoreFFRoundingMode(old);
+  return result_long;
+}
+
+static inline uint64_t lib_flexfloat_cvt_lu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  FF_INIT_1(a, e, m)
+  uint64_t result_ulong = double_to_ulong(ff_a.value);
+  restoreFFRoundingMode(old);
+  return result_ulong;
+}
+
+static inline int lib_flexfloat_cvt_ff_l_round(iss_cpu_state_t *s, int64_t a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  flexfloat_t ff_a;
+  ff_init_long(&ff_a, a, (flexfloat_desc_t) {e,m});
+  restoreFFRoundingMode(old);
+  return flexfloat_get_bits(&ff_a);
+}
+
+static inline unsigned int lib_flexfloat_cvt_ff_lu_round(iss_cpu_state_t *s, uint64_t a, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  flexfloat_t ff_a;
+  ff_init_long(&ff_a, a, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
   return flexfloat_get_bits(&ff_a);
 }
@@ -1781,20 +1604,20 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
 
   if (exp == flexfloat_inf_exp(env)) {
     if (frac == 0) {
-      if (sign) return 0; // - infinity
-      else return 7; // + infinity
+      if (sign) return (0x1 << 0); // - infinity
+      else return (0x1 << 7); // + infinity
     } else {
-      return 9; // quiet NaN
+      return (0x1 << 9); // quiet NaN
     }
   } else if (exp == 0 && frac == 0) {
-    if (sign) return 3; // - 0
-    else return 4; // + 0
+    if (sign) return (0x1 << 3); // - 0
+    else return (0x1 << 4); // + 0
   } else if (exp == 0 && frac != 0) {
-    if (sign) return 2; // negative subnormal
-    else return 5; // positive subnormal
+    if (sign) return (0x1 << 2); // negative subnormal
+    else return (0x1 << 5); // positive subnormal
   } else {
-    if (sign) return 1; // negative number
-    else return 6; // positive number
+    if (sign) return (0x1 << 1); // negative number
+    else return (0x1 << 6); // positive number
   }
 }
 
@@ -1869,33 +1692,6 @@ static inline unsigned int lib_flexfloat_cvt_ff_xu_round(iss_cpu_state_t *s, uns
 /////
 
 #if 0
-// Taken from spike
-uint_fast16_t f32_classify( float32_t a )
-{
-    union ui32_f32 uA;
-    uint_fast32_t uiA;
-
-    uA.f = a;
-    uiA = uA.ui;
-
-    uint_fast16_t infOrNaN = expF32UI( uiA ) == 0xFF;
-    uint_fast16_t subnormalOrZero = expF32UI( uiA ) == 0;
-    bool sign = signF32UI( uiA );
-
-    return
-        (  sign && infOrNaN && fracF32UI( uiA ) == 0 )          << 0 |
-        (  sign && !infOrNaN && !subnormalOrZero )              << 1 |
-        (  sign && subnormalOrZero && fracF32UI( uiA ) )        << 2 |
-        (  sign && subnormalOrZero && fracF32UI( uiA ) == 0 )   << 3 |
-        ( !sign && infOrNaN && fracF32UI( uiA ) == 0 )          << 7 |
-        ( !sign && !infOrNaN && !subnormalOrZero )              << 6 |
-        ( !sign && subnormalOrZero && fracF32UI( uiA ) )        << 5 |
-        ( !sign && subnormalOrZero && fracF32UI( uiA ) == 0 )   << 4 |
-        ( isNaNF32UI( uiA ) &&  softfloat_isSigNaNF32UI( uiA )) << 8 |
-        ( isNaNF32UI( uiA ) && !softfloat_isSigNaNF32UI( uiA )) << 9;
-}
-
-
 
 #include "lnu/lnu.h"
 

@@ -19,8 +19,8 @@
  *          Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
-#ifndef __CPU_ISS_RV32XF8_HPP
-#define __CPU_ISS_RV32XF8_HPP
+#ifndef __CPU_ISS_RVXF8_HPP
+#define __CPU_ISS_RVXF8_HPP
 
 #include "iss_core.hpp"
 #include "isa_lib/int.h"
@@ -271,6 +271,40 @@ static inline iss_insn_t *fcvt_ah_b_exec(iss *iss, iss_insn_t *insn)
 static inline iss_insn_t *fcvt_b_ah_exec(iss *iss, iss_insn_t *insn)
 {
   REG_SET(0, LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 7, 5, 2, UIM_GET(0)));
+  return insn->next;
+}
+
+
+//
+// RV64Xf16
+//
+static inline iss_insn_t *fcvt_l_b_exec(iss *iss, iss_insn_t *insn)
+{
+  REG_SET(0, LIB_FF_CALL2(lib_flexfloat_cvt_l_ff_round, REG_GET(0), 5, 2, UIM_GET(0)));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *fcvt_lu_b_exec(iss *iss, iss_insn_t *insn)
+{
+  REG_SET(0, LIB_FF_CALL2(lib_flexfloat_cvt_lu_ff_round, REG_GET(0), 5, 2, UIM_GET(0)));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *fcvt_b_l_exec(iss *iss, iss_insn_t *insn)
+{
+  REG_SET(0, LIB_FF_CALL2(lib_flexfloat_cvt_ff_l_round, REG_GET(0), 5, 2, UIM_GET(0)));
+  return insn->next;
+}
+
+
+
+static inline iss_insn_t *fcvt_b_lu_exec(iss *iss, iss_insn_t *insn)
+{
+  REG_SET(0, LIB_FF_CALL2(lib_flexfloat_cvt_ff_lu_round, REG_GET(0), 5, 2, UIM_GET(0)));
   return insn->next;
 }
 
