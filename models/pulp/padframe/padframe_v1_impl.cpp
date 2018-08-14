@@ -24,6 +24,7 @@
 #include <vp/itf/uart.hpp>
 #include <vp/itf/jtag.hpp>
 #include <vp/itf/cpi.hpp>
+#include <vp/itf/hyper.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -82,6 +83,18 @@ public:
   vp::trace rx_trace;
 };
 
+class Hyper_group : public Pad_group
+{
+public:
+  Hyper_group(std::string name) : Pad_group(name) {}
+  vp::hyper_slave slave;
+  vp::hyper_master master;
+  vp::trace data_trace;
+  int nb_cs;
+  vector<vp::trace *> cs_trace;
+  vector<vp::wire_master<bool> *> cs;
+};
+
 class padframe : public vp::component
 {
 
@@ -109,6 +122,9 @@ private:
 
   static void uart_chip_sync(void *__this, int data, int id);
   static void uart_master_sync(void *__this, int data, int id);
+
+  static void hyper_sync_cycle(void *__this, int data, int id);
+  static void hyper_cs_sync(void *__this, int cs, int active, int id);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -236,6 +252,45 @@ void padframe::uart_master_sync(void *__this, int data, int id)
 }
 
 
+void padframe::hyper_sync_cycle(void *__this, int data, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Hyper_group *group = static_cast<Hyper_group *>(_this->groups[id]);
+  group->data_trace.event((uint8_t *)&data);
+  if (!group->master.is_bound())
+  {
+    _this->warning.warning("Trying to send HYPER stream while pad is not connected (interface: %s)\n", group->name.c_str());
+  }
+  else
+  {
+    group->master.sync_cycle(data);
+  }
+}
+
+
+void padframe::hyper_cs_sync(void *__this, int cs, int active, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Hyper_group *group = static_cast<Hyper_group *>(_this->groups[id]);
+
+  if (cs >= group->nb_cs)
+  {
+    _this->warning.warning("Trying to activate invalid cs (interface: %s, cs: %d, nb_cs: %d)\n", group->name.c_str(), cs, group->nb_cs);
+    return;
+  }
+
+  group->cs_trace[cs]->event((uint8_t *)&active);
+  if (!group->cs[cs]->is_bound())
+  {
+    _this->warning.warning("Trying to activate cs while pad is not connected (interface: %s, cs: %d)\n", group->name.c_str(), cs);
+  }
+  else
+  {
+    group->cs[cs]->sync(active);
+  }
+}
+
+
 
 vp::io_req_status_e padframe::req(void *__this, vp::io_req *req)
 {
@@ -324,6 +379,17 @@ int padframe::build()
         this->groups.push_back(group);
         traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
         traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
+        nb_itf++;
+      }
+      else if (type == "hyper")
+      {
+        Hyper_group *group = new Hyper_group(name);
+        new_master_port(name + "_pad", &group->master);
+        new_slave_port(name, &group->slave);
+        group->slave.set_sync_cycle_meth_muxed(&padframe::hyper_sync_cycle, nb_itf);
+        group->slave.set_cs_sync_meth_muxed(&padframe::hyper_cs_sync, nb_itf);
+        this->groups.push_back(group);
+        traces.new_trace_event(name + "/data", &group->data_trace, 8);
         nb_itf++;
       }
       else
