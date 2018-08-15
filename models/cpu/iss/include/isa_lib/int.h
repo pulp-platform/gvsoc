@@ -1201,7 +1201,6 @@ static inline unsigned int lib_VEC_ADD_16_ROTMJ_DIV4(iss_cpu_state_t *s, unsigne
 
 // Viterbi extensions
 
-#if 0
 static inline unsigned int lib_VITOP_MAX(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
   int ah = (short)(a >> 16), al = (short)(a & 0xffff);
   int bh = (short)(b >> 16), bl = (short)(b & 0xffff);
@@ -1230,7 +1229,6 @@ static inline unsigned int lib_VEC_PACK_SC_H_16(iss_cpu_state_t *s, unsigned int
 static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
   return (b & 0xffff) | (a << 16);
 }
-#endif
 
 
 // Floating-Point Emulation

@@ -32,5 +32,6 @@
 #include "rv32Xfvec.hpp"
 #include "priv.hpp"
 #include "pulp_v2.hpp"
+#include "rvXgap8.hpp"
 
 #endif

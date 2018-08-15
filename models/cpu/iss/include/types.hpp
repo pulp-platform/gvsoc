@@ -327,6 +327,9 @@ typedef struct iss_cpu_state_s {
 
   iss_insn_arg_t saved_args[ISS_MAX_DECODE_ARGS];
 
+  iss_reg_t vf0;
+  iss_reg_t vf1;
+
 } iss_cpu_state_t;
 
 typedef struct iss_config_s {

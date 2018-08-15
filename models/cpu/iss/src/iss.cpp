@@ -89,6 +89,11 @@ static int iss_parse_isa(iss_t *iss)
           {
             iss_isa_pulpv2_activate(iss);
           }
+          else if (strcmp(token, "gap8") == 0)
+          {
+            iss_isa_pulpv2_activate(iss);
+            iss_decode_activate_isa(iss, (char *)"pulpv2");
+          }
           else if (strcmp(token, "f16") == 0)
           {
             has_f16 = true;

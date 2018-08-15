@@ -1678,6 +1678,7 @@ isa = Isa(
         IsaDecodeTree('pulp_v2', [pulp_v2]),
         IsaDecodeTree('f', [rv32f]),
         IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec]),
+        IsaDecodeTree('gap8', [gap8]),
         #IsaTree('fpud', rv32d),
         #IsaTree('gap8', gap8),
         #IsaTree('priv_pulp_v2', priv_pulp_v2),
