@@ -652,7 +652,7 @@ int udma::build()
         }
         else
         {
-          throw logic_error("Non-support udma version: " + std::to_string(version));
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
       else if (strcmp(name.c_str(), "uart") == 0)
@@ -665,10 +665,23 @@ int udma::build()
         }
         else
         {
-          throw logic_error("Non-support udma version: " + std::to_string(version));
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
-      else if (strcmp(name.c_str(), "cam") == 0)
+      else if (strcmp(name.c_str(), "hyper") == 0)
+      {
+        trace.msg("Instantiating HYPER channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 1)
+        {
+          Hyper_periph_v1 *periph = new Hyper_periph_v1(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+      else if (strcmp(name.c_str(), "cpi") == 0)
       {
         trace.msg("Instantiating CPI channel (id: %d, offset: 0x%x)\n", id, offset);
         if (version == 1)
@@ -678,7 +691,7 @@ int udma::build()
         }
         else
         {
-          throw logic_error("Non-support udma version: " + std::to_string(version));
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
       else

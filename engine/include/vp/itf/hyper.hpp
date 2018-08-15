@@ -38,7 +38,6 @@ namespace vp {
   typedef void (hyper_cs_sync_meth_muxed_t)(void *, int cs, int active, int id);
 
 
-
   class hyper_master : public vp::master_port
   {
     friend class hyper_slave;
@@ -59,27 +58,31 @@ namespace vp {
 
     void bind_to(vp::port *port, vp::config *config);
 
+    inline void set_sync_cycle_meth(hyper_sync_cycle_meth_t *meth);
+    inline void set_sync_cycle_meth_muxed(hyper_sync_cycle_meth_muxed_t *meth, int id);
+
     bool is_bound() { return slave_port != NULL; }
-
-    void set_nb_cs(int nb_cs) { this->nb_cs = nb_cs; }
-
-    int get_nb_cs() { return this->nb_cs; }
 
   private:
 
     static inline void sync_cycle_muxed_stub(hyper_master *_this, int data);
     static inline void cs_sync_muxed_stub(hyper_master *_this, int cs, int active);
 
+    void (*slave_sync_cycle)(void *comp, int data);
+    void (*slave_sync_cycle_mux)(void *comp, int data, int mux);
+
     void (*sync_cycle_meth)(void *, int data);
     void (*sync_cycle_meth_mux)(void *, int data, int mux);
     void (*cs_sync_meth)(void *, int cs, int active);
     void (*cs_sync_meth_mux)(void *, int cs, int active, int mux);
 
+    static inline void sync_cycle_default(void *, int data);
+
 
     vp::component *comp_mux;
     int sync_mux;
     hyper_slave *slave_port = NULL;
-    int nb_cs;
+    int mux_id;
   };
 
 
@@ -93,6 +96,11 @@ namespace vp {
 
     inline hyper_slave();
 
+    inline void sync_cycle(int data)
+    {
+      slave_sync_cycle_meth(this->get_remote_context(), data);
+    }
+
     inline void set_sync_cycle_meth(hyper_sync_cycle_meth_t *meth);
     inline void set_sync_cycle_meth_muxed(hyper_sync_cycle_meth_muxed_t *meth, int id);
 
@@ -101,8 +109,13 @@ namespace vp {
 
     inline void bind_to(vp::port *_port, vp::config *config);
 
+    static inline void sync_cycle_muxed_stub(hyper_slave *_this, int data);
+
   private:
 
+
+    void (*slave_sync_cycle_meth)(void *, int data);
+    void (*slave_sync_cycle_meth_mux)(void *, int data, int mux);
 
     void (*sync_cycle_meth)(void *comp, int data);
     void (*sync_cycle_mux_meth)(void *comp, int data, int mux);
@@ -112,15 +125,36 @@ namespace vp {
     static inline void sync_cycle_default(hyper_slave *, int data);
     static inline void cs_sync_default(hyper_slave *, int cs, int active);
 
+    vp::component *comp_mux;
+    int sync_mux;
     int mux_id;
 
 
   };
 
 
-  inline hyper_master::hyper_master() : nb_cs(1) {
+  inline hyper_master::hyper_master() {
+    slave_sync_cycle = &hyper_master::sync_cycle_default;
+    slave_sync_cycle_mux = NULL;
   }
 
+
+  inline void hyper_master::sync_cycle_default(void *, int data)
+  {
+  }
+
+
+  inline void hyper_master::set_sync_cycle_meth(hyper_sync_cycle_meth_t *meth)
+  {
+    slave_sync_cycle = meth;
+  }
+
+  inline void hyper_master::set_sync_cycle_meth_muxed(hyper_sync_cycle_meth_muxed_t *meth, int id)
+  {
+    slave_sync_cycle_mux = meth;
+    slave_sync_cycle = NULL;
+    mux_id = id;
+  }
 
 
 
@@ -161,12 +195,30 @@ namespace vp {
     }
   }
 
+  inline void hyper_slave::sync_cycle_muxed_stub(hyper_slave *_this, int data)
+  {
+    return _this->slave_sync_cycle_meth_mux(_this->comp_mux, data, _this->sync_mux);
+  }
+
   inline void hyper_slave::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     hyper_master *port = (hyper_master *)_port;
     port->slave_port = this;
-    this->set_remote_context(port->get_context());
+    if (port->slave_sync_cycle_mux == NULL)
+    {
+      this->slave_sync_cycle_meth = port->slave_sync_cycle;
+      this->set_remote_context(port->get_context());
+    }
+    else
+    {
+      this->slave_sync_cycle_meth_mux = port->slave_sync_cycle_mux;
+      this->slave_sync_cycle_meth = (hyper_sync_cycle_meth_t *)&hyper_slave::sync_cycle_muxed_stub;
+
+      set_remote_context(this);
+      comp_mux = (vp::component *)port->get_context();
+      sync_mux = port->mux_id;
+    }
   }
 
   inline hyper_slave::hyper_slave() : sync_cycle_meth(NULL), sync_cycle_mux_meth(NULL) {

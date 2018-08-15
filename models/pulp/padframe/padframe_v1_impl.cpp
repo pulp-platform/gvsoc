@@ -123,6 +123,7 @@ private:
   static void uart_chip_sync(void *__this, int data, int id);
   static void uart_master_sync(void *__this, int data, int id);
 
+  static void hyper_master_sync_cycle(void *__this, int data, int id);
   static void hyper_sync_cycle(void *__this, int data, int id);
   static void hyper_cs_sync(void *__this, int cs, int active, int id);
 
@@ -251,6 +252,14 @@ void padframe::uart_master_sync(void *__this, int data, int id)
   group->slave.sync(data);
 }
 
+
+void padframe::hyper_master_sync_cycle(void *__this, int data, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Hyper_group *group = static_cast<Hyper_group *>(_this->groups[id]);
+  group->data_trace.event((uint8_t *)&data);
+  group->slave.sync_cycle(data);
+}
 
 void padframe::hyper_sync_cycle(void *__this, int data, int id)
 {
@@ -386,11 +395,23 @@ int padframe::build()
         Hyper_group *group = new Hyper_group(name);
         new_master_port(name + "_pad", &group->master);
         new_slave_port(name, &group->slave);
+        group->master.set_sync_cycle_meth_muxed(&padframe::hyper_master_sync_cycle, nb_itf);
         group->slave.set_sync_cycle_meth_muxed(&padframe::hyper_sync_cycle, nb_itf);
         group->slave.set_cs_sync_meth_muxed(&padframe::hyper_cs_sync, nb_itf);
         this->groups.push_back(group);
         traces.new_trace_event(name + "/data", &group->data_trace, 8);
         nb_itf++;
+        vp::config *nb_cs_config = config->get("nb_cs");
+        int nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
+        for (int i=0; i<nb_cs; i++)
+        {
+          vp::trace *trace = new vp::trace;
+          traces.new_trace_event(name + "/cs_" + std::to_string(i), trace, 1);
+          group->cs_trace.push_back(trace);
+          vp::wire_master<bool> *itf = new vp::wire_master<bool>;
+          new_master_port(name + "cs_" + std::to_string(i), itf);
+          group->cs.push_back(itf);
+        }
       }
       else
       {

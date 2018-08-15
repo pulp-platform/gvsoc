@@ -27,6 +27,7 @@
 #include <vp/itf/uart.hpp>
 #include <vp/itf/cpi.hpp>
 #include <vp/itf/wire.hpp>
+#include <vp/itf/hyper.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -399,6 +400,58 @@ private:
   unsigned int currentLine;
   unsigned int currentRow;
 
+};
+
+
+
+
+
+/*
+ * HYPER
+ */
+
+class Hyper_periph_v1;
+
+class Hyper_rx_channel : public Udma_rx_channel
+{
+public:
+  Hyper_rx_channel(udma *top, Hyper_periph_v1 *periph, int id, string name);
+
+private:
+  void reset();
+  Hyper_periph_v1 *periph;
+};
+
+
+class Hyper_tx_channel : public Udma_tx_channel
+{
+public:
+  Hyper_tx_channel(udma *top, Hyper_periph_v1 *periph, int id, string name);
+
+private:
+  void reset();
+
+  Hyper_periph_v1 *periph;
+
+};
+
+
+class Hyper_periph_v1 : public Udma_periph
+{
+  friend class Hyper_tx_channel;
+  friend class Hyper_rx_channel;
+
+public:
+  Hyper_periph_v1(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  void reset();
+
+protected:
+  vp::hyper_master hyper_itf;
+
+private:
+
+  vp::trace     trace;
 };
 
 
