@@ -88,11 +88,12 @@ class Hyper_group : public Pad_group
 public:
   Hyper_group(std::string name) : Pad_group(name) {}
   vp::hyper_slave slave;
-  vp::hyper_master master;
   vp::trace data_trace;
   int nb_cs;
   vector<vp::trace *> cs_trace;
-  vector<vp::wire_master<bool> *> cs;
+  vector<vp::hyper_master *> master;
+  vector<vp::wire_master<bool> *> cs_master;
+  int active_cs;
 };
 
 class padframe : public vp::component
@@ -266,13 +267,13 @@ void padframe::hyper_sync_cycle(void *__this, int data, int id)
   padframe *_this = (padframe *)__this;
   Hyper_group *group = static_cast<Hyper_group *>(_this->groups[id]);
   group->data_trace.event((uint8_t *)&data);
-  if (!group->master.is_bound())
+  if (!group->master[group->active_cs]->is_bound())
   {
     _this->warning.warning("Trying to send HYPER stream while pad is not connected (interface: %s)\n", group->name.c_str());
   }
   else
   {
-    group->master.sync_cycle(data);
+    group->master[group->active_cs]->sync_cycle(data);
   }
 }
 
@@ -289,13 +290,15 @@ void padframe::hyper_cs_sync(void *__this, int cs, int active, int id)
   }
 
   group->cs_trace[cs]->event((uint8_t *)&active);
-  if (!group->cs[cs]->is_bound())
+  group->active_cs = cs;
+
+  if (!group->cs_master[cs]->is_bound())
   {
-    _this->warning.warning("Trying to activate cs while pad is not connected (interface: %s, cs: %d)\n", group->name.c_str(), cs);
+    _this->warning.warning("Trying to send HYPER stream while cs pad is not connected (interface: %s)\n", group->name.c_str());
   }
   else
   {
-    group->cs[cs]->sync(active);
+    group->cs_master[cs]->sync(active);
   }
 }
 
@@ -393,9 +396,7 @@ int padframe::build()
       else if (type == "hyper")
       {
         Hyper_group *group = new Hyper_group(name);
-        new_master_port(name + "_pad", &group->master);
         new_slave_port(name, &group->slave);
-        group->master.set_sync_cycle_meth_muxed(&padframe::hyper_master_sync_cycle, nb_itf);
         group->slave.set_sync_cycle_meth_muxed(&padframe::hyper_sync_cycle, nb_itf);
         group->slave.set_cs_sync_meth_muxed(&padframe::hyper_cs_sync, nb_itf);
         this->groups.push_back(group);
@@ -408,9 +409,14 @@ int padframe::build()
           vp::trace *trace = new vp::trace;
           traces.new_trace_event(name + "/cs_" + std::to_string(i), trace, 1);
           group->cs_trace.push_back(trace);
-          vp::wire_master<bool> *itf = new vp::wire_master<bool>;
-          new_master_port(name + "cs_" + std::to_string(i), itf);
-          group->cs.push_back(itf);
+          vp::hyper_master *itf = new vp::hyper_master;
+          itf->set_sync_cycle_meth_muxed(&padframe::hyper_master_sync_cycle, nb_itf);
+          new_master_port(name + "_cs" + std::to_string(i) + "_data_pad", itf);
+          group->master.push_back(itf);
+
+          vp::wire_master<bool> *cs_itf = new vp::wire_master<bool>;
+          new_master_port(name + "_cs" + std::to_string(i) + "_pad", cs_itf);
+          group->cs_master.push_back(cs_itf);
         }
       }
       else

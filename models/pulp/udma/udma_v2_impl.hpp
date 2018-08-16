@@ -149,6 +149,8 @@ public:
   Udma_tx_channel(udma *top, int id, string name) : Udma_channel(top, id, name) {}
   bool is_tx() { return true; }
 
+  void handle_pending_word(void *__this, vp::clock_event *event);
+
 };
 
 
@@ -423,6 +425,17 @@ private:
 };
 
 
+typedef enum
+{
+  HYPER_STATE_IDLE,
+  HYPER_STATE_CS,
+  HYPER_STATE_CA,
+  HYPER_STATE_DATA,
+  HYPER_STATE_CS_OFF,
+} hyper_state_e;
+
+
+
 class Hyper_tx_channel : public Udma_tx_channel
 {
 public:
@@ -430,8 +443,31 @@ public:
 
 private:
   void reset();
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+  void handle_ready_reqs();
+  void check_state();
 
   Hyper_periph_v1 *periph;
+  int pending_bytes;
+  vp::clock_event *pending_word_event;
+  int64_t next_bit_cycle;
+  vp::io_req *pending_req;
+  uint32_t pending_word;
+  int transfer_size;
+  hyper_state_e state;
+  int ca_count;
+  union
+  {
+    struct {
+      int low_addr:3;
+      int reserved:13;
+      int high_addr:29;
+      int burst_type:1;
+      int address_space:1;
+      int read:1;
+    };
+    uint8_t raw[6];
+  } ca;
 
 };
 
@@ -448,9 +484,10 @@ public:
 
 protected:
   vp::hyper_master hyper_itf;
+  unsigned int *regs; 
+  int clkdiv;
 
 private:
-
   vp::trace     trace;
 };
 
