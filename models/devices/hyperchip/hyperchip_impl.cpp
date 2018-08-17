@@ -68,13 +68,13 @@ private:
   union
   {
     struct {
-      int low_addr:3;
-      int reserved:13;
-      int high_addr:29;
-      int burst_type:1;
-      int address_space:1;
-      int read:1;
-    };
+      unsigned int low_addr:3;
+      unsigned int reserved:13;
+      unsigned int high_addr:29;
+      unsigned int burst_type:1;
+      unsigned int address_space:1;
+      unsigned int read:1;
+    } __attribute__((packed));;
     uint8_t raw[6];
   } ca;
 
@@ -104,19 +104,29 @@ void hyperchip::sync_cycle(void *__this, int data)
     {
       _this->state = HYPERCHIP_STATE_DATA;
       _this->current_address = (_this->ca.low_addr | (_this->ca.high_addr << 3)) * 2;
-      _this->trace.msg("Received command header (addr: 0x%x)\n", _this->current_address);
+      _this->trace.msg("Received command header (addr: 0x%x, read: %d)\n", _this->current_address, _this->ca.read);
     }
   }
   else if (_this->state == HYPERCHIP_STATE_DATA)
   {
-    _this->trace.msg("Received data byte (value: 0x%x)\n", data);
     if (_this->current_address >= _this->ram_size)
     {
       _this->warning.warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", _this->current_address, _this->ram_size);
     }
     else
     {
-      _this->ram_data[_this->current_address] = data;
+      if (_this->ca.read)
+      {
+        uint8_t data = _this->ram_data[_this->current_address];
+        _this->trace.msg("Sending data byte (value: 0x%x)\n", data);
+        _this->in_itf.sync_cycle(data);
+
+      }
+      else
+      {
+        _this->trace.msg("Received data byte (value: 0x%x)\n", data);
+        _this->ram_data[_this->current_address] = data;
+      }
       _this->current_address++;
     }
 

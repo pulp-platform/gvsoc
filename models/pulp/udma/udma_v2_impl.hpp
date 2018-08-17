@@ -92,12 +92,14 @@ public:
   void push_ready_req(vp::io_req *req);
   void handle_ready_req_end(vp::io_req *req);
   virtual bool is_busy() { return false; }
+  virtual void handle_ready() { }
+
+  Udma_transfer *current_cmd;
 
 protected:
   vp::trace     trace;
   Udma_queue<vp::io_req> *ready_reqs;
   udma *top;
-  Udma_transfer *current_cmd;
   void handle_transfer_end();
 
 private:
@@ -166,11 +168,11 @@ public:
 protected:
   Udma_channel *channel0 = NULL;
   Udma_channel *channel1 = NULL;
+  udma *top;
 
 private:
   virtual vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
   bool is_on;
-  udma *top;
   int id;
 };
 
@@ -418,6 +420,8 @@ class Hyper_rx_channel : public Udma_rx_channel
 {
 public:
   Hyper_rx_channel(udma *top, Hyper_periph_v1 *periph, int id, string name);
+  void handle_rx_data(int data);
+  void handle_ready();
 
 private:
   void reset();
@@ -438,36 +442,18 @@ typedef enum
 
 class Hyper_tx_channel : public Udma_tx_channel
 {
+  friend class Hyper_periph_v1;
+
 public:
   Hyper_tx_channel(udma *top, Hyper_periph_v1 *periph, int id, string name);
 
+protected:
+  void handle_ready_reqs();
+
 private:
   void reset();
-  static void handle_pending_word(void *__this, vp::clock_event *event);
-  void handle_ready_reqs();
-  void check_state();
 
   Hyper_periph_v1 *periph;
-  int pending_bytes;
-  vp::clock_event *pending_word_event;
-  int64_t next_bit_cycle;
-  vp::io_req *pending_req;
-  uint32_t pending_word;
-  int transfer_size;
-  hyper_state_e state;
-  int ca_count;
-  union
-  {
-    struct {
-      int low_addr:3;
-      int reserved:13;
-      int high_addr:29;
-      int burst_type:1;
-      int address_space:1;
-      int read:1;
-    };
-    uint8_t raw[6];
-  } ca;
 
 };
 
@@ -480,15 +466,47 @@ class Hyper_periph_v1 : public Udma_periph
 public:
   Hyper_periph_v1(udma *top, int id, int itf_id);
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  static void rx_sync(void *__this, int data);
   void reset();
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+  void check_state();
+  void handle_ready_reqs();
 
 protected:
   vp::hyper_master hyper_itf;
   unsigned int *regs; 
   int clkdiv;
+  Hyper_tx_channel *tx_channel;
+  Hyper_rx_channel *rx_channel;
 
 private:
   vp::trace     trace;
+
+  vector<Udma_transfer *> pending_transfers;
+
+  int pending_bytes;
+  vp::clock_event *pending_word_event;
+  int64_t next_bit_cycle;
+  vp::io_req *pending_req;
+  uint32_t pending_word;
+  int transfer_size;
+  hyper_state_e state;
+  int ca_count;
+  bool pending_tx;
+  bool pending_rx;
+  Udma_transfer *current_cmd;
+  union
+  {
+    struct {
+      unsigned int low_addr:3;
+      unsigned int reserved:13;
+      unsigned int high_addr:29;
+      unsigned int burst_type:1;
+      unsigned int address_space:1;
+      unsigned int read:1;
+    } __attribute__((packed));
+    uint8_t raw[6];
+  } ca;
 };
 
 

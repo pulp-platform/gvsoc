@@ -75,6 +75,7 @@ void Udma_channel::handle_transfer_end()
   free_reqs->push(current_cmd);
   current_cmd = NULL;
   top->trigger_event(id);
+  this->check_state();
 }
 
 void Udma_channel::handle_ready_reqs()
@@ -405,6 +406,8 @@ void udma::enqueue_ready(Udma_channel *channel)
 {
   if (channel->is_tx())
     ready_tx_channels->push(channel);
+  else
+    channel->handle_ready();
 
   check_state();
 }

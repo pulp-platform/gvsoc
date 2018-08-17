@@ -257,6 +257,7 @@ void padframe::uart_master_sync(void *__this, int data, int id)
 void padframe::hyper_master_sync_cycle(void *__this, int data, int id)
 {
   padframe *_this = (padframe *)__this;
+
   Hyper_group *group = static_cast<Hyper_group *>(_this->groups[id]);
   group->data_trace.event((uint8_t *)&data);
   group->slave.sync_cycle(data);
@@ -401,7 +402,6 @@ int padframe::build()
         group->slave.set_cs_sync_meth_muxed(&padframe::hyper_cs_sync, nb_itf);
         this->groups.push_back(group);
         traces.new_trace_event(name + "/data", &group->data_trace, 8);
-        nb_itf++;
         vp::config *nb_cs_config = config->get("nb_cs");
         int nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
         for (int i=0; i<nb_cs; i++)
@@ -411,6 +411,7 @@ int padframe::build()
           group->cs_trace.push_back(trace);
           vp::hyper_master *itf = new vp::hyper_master;
           itf->set_sync_cycle_meth_muxed(&padframe::hyper_master_sync_cycle, nb_itf);
+
           new_master_port(name + "_cs" + std::to_string(i) + "_data_pad", itf);
           group->master.push_back(itf);
 
@@ -418,6 +419,7 @@ int padframe::build()
           new_master_port(name + "_cs" + std::to_string(i) + "_pad", cs_itf);
           group->cs_master.push_back(cs_itf);
         }
+        nb_itf++;
       }
       else
       {
