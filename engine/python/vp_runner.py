@@ -64,16 +64,6 @@ class Runner(Platform):
                 flashType=self.tree.get('**/runner/flash_type').get()):
                 return -1
 
-        else:
-
-            stim = runner.stim_utils.stim()
-
-            for binary in self.get_json().get('**/loader/binaries').get_dict():
-                stim.add_binary(binary)
-
-            stim.gen_stim_64('vectors/stim.txt')
-
-
         return 0
 
     def run(self):
