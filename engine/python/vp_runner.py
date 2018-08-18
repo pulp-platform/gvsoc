@@ -22,6 +22,7 @@ import vp_core
 import plptree
 
 from plp_platform import *
+import plp_flash_stimuli
 
 
 class Runner(Platform):
@@ -41,7 +42,36 @@ class Runner(Platform):
 
 
 
+    def get_flash_preload_file(self):
+        return os.path.join(os.getcwd(), 'flash_preload_file.bin')
+
+
     def prepare(self):
+        comps = self.get_json().get('**/fs/files').get_dict()
+
+
+
+        if comps is not None or self.get_json.get_child_bool('**/runner/boot_from_flash'):
+
+            if plp_flash_stimuli.genFlashImage(
+                raw_stim=self.get_flash_preload_file(),
+                bootBinary=self.get_json().get('**/loader/binaries').get_elem(0).get(),
+                comps=comps,
+                verbose=self.tree.get('**/runner/verbose').get(),
+                archi=self.tree.get('**/pulp_chip_family').get(),
+                flashType=self.tree.get('**/runner/flash_type').get()):
+                return -1
+
+        else:
+
+            stim = runner.stim_utils.stim()
+
+            for binary in self.get_json().get('**/loader/binaries').get_dict():
+                stim.add_binary(binary)
+
+            stim.gen_stim_64('vectors/stim.txt')
+
+
         return 0
 
     def run(self):
@@ -90,6 +120,9 @@ class Runner(Platform):
             start_value = self.get_json().get_child_int('**/loader/start_value')
             if start_value != None:
                 self.get_json().get('**/plt_loader').set('start_value', '0x%x' % start_value)
+
+        if self.get_json().get('**/fs/files').get_dict() is not None or self.get_json.get_child_bool('**/runner/boot_from_flash'):
+            self.get_json().get('**/flash').set('preload_file', self.get_flash_preload_file())
 
 
         system = plptree.get_config_tree_from_dict(self.get_json().get_dict())

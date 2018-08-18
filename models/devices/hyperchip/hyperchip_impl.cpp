@@ -23,6 +23,8 @@
 #include <string.h>
 #include "vp/itf/hyper.hpp"
 #include "vp/itf/wire.hpp"
+#include "archi/utils.h"
+#include "archi/udma/hyper.h"
 
 #define REGS_AREA_SIZE 1024
 
@@ -34,6 +36,43 @@
 #define FLASH_STATE_CMD_1 5
 #define FLASH_STATE_LOAD_VCR 6
 
+
+class hyperchip;
+
+
+class Hyperflash
+{
+public:
+  Hyperflash(hyperchip *top, int size);
+
+  void handle_access(int reg_access, int address, int read, uint8_t data);
+  int preload_file(char *path);
+
+private:
+  hyperchip *top;
+  int size;
+  uint8_t *data;
+  uint8_t *reg_data;
+};
+
+
+
+class Hyperram
+{
+public:
+  Hyperram(hyperchip *top, int size);
+
+  void handle_access(int reg_access, int address, int read, uint8_t data);
+
+private:
+  hyperchip *top;
+  int size;
+  uint8_t *data;
+  uint8_t *reg_data;
+};
+
+
+
 typedef enum
 {
   HYPERCHIP_STATE_CA,
@@ -42,6 +81,8 @@ typedef enum
 
 class hyperchip : public vp::component
 {
+  friend class Hyperram;
+  friend class Hyperflash;
 
 public:
 
@@ -52,18 +93,14 @@ public:
   static void sync_cycle(void *_this, int data);
   static void cs_sync(void *__this, bool value);
 
-private:
-
+protected:
   vp::trace     trace;
   vp::hyper_slave   in_itf;
   vp::wire_slave<bool> cs_itf;
 
-  uint8_t *ram_data;
-  uint8_t *flash_data;
-  uint8_t *reg_data;
-
-  int ram_size;
-  int flash_size;
+private:
+  Hyperflash *flash;
+  Hyperram *ram;
 
   union
   {
@@ -80,14 +117,102 @@ private:
 
   int ca_count;
   int current_address;
+  int flash_access;
+  int reg_access;
 
   hyperchip_state_e state;
 };
 
+
+
+Hyperram::Hyperram(hyperchip *top, int size) : top(top), size(size)
+{
+  this->data = new uint8_t[this->size];
+  memset(this->data, 0x57, this->size);
+
+  this->reg_data = new uint8_t[REGS_AREA_SIZE];
+  memset(this->reg_data, 0x57, REGS_AREA_SIZE);
+  ((uint16_t *)this->reg_data)[0] = 0x8F1F;
+}
+
+
+void Hyperram::handle_access(int reg_access, int address, int read, uint8_t data)
+{
+  if (address >= this->size)
+  {
+    this->top->warning.warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", address, this->size);
+  }
+  else
+  {
+    if (read)
+    {
+      uint8_t data = this->data[address];
+      this->top->trace.msg("Sending data byte (value: 0x%x)\n", data);
+      this->top->in_itf.sync_cycle(data);
+
+    }
+    else
+    {
+      this->top->trace.msg("Received data byte (value: 0x%x)\n", data);
+      this->data[address] = data;
+    }
+  }
+}
+
+
+
+Hyperflash::Hyperflash(hyperchip *top, int size) : top(top), size(size)
+{
+  this->data = new uint8_t[this->size];
+  memset(this->data, 0x57, this->size);
+
+  this->reg_data = new uint8_t[REGS_AREA_SIZE];
+  memset(this->reg_data, 0x57, REGS_AREA_SIZE);
+  ((uint16_t *)this->reg_data)[0] = 0x8F1F;
+}
+
+
+
+void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t data)
+{
+  if (address >= this->size)
+  {
+    this->top->warning.warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", address, this->size);
+  }
+  else
+  {
+    if (read)
+    {
+      uint8_t data = this->data[address];
+      this->top->trace.msg("Sending data byte (value: 0x%x)\n", data);
+      this->top->in_itf.sync_cycle(data);
+
+    }
+    else
+    {
+      this->top->trace.msg("Received data byte (value: 0x%x)\n", data);
+      this->data[address] = data;
+    }
+  }
+}
+
+int Hyperflash::preload_file(char *path)
+{
+  FILE *file = fopen(path, "r");
+  if (file == NULL) {
+    printf("Unable to open stimulus file (path: %s, error: %s)\n", path, strerror(errno));
+    return -1;
+  }
+
+  if (fread(this->data, 1, this->size, file) == 0)
+    return -1;
+
+  return 0;
+}
+
 hyperchip::hyperchip(const char *config)
 : vp::component(config)
 {
-
 }
 
 void hyperchip::sync_cycle(void *__this, int data)
@@ -104,32 +229,25 @@ void hyperchip::sync_cycle(void *__this, int data)
     {
       _this->state = HYPERCHIP_STATE_DATA;
       _this->current_address = (_this->ca.low_addr | (_this->ca.high_addr << 3)) * 2;
-      _this->trace.msg("Received command header (addr: 0x%x, read: %d)\n", _this->current_address, _this->ca.read);
+
+      _this->flash_access = ARCHI_REG_FIELD_GET(_this->current_address, REG_MBR_WIDTH, 1);
+      _this->current_address = ARCHI_REG_FIELD_GET(_this->current_address, 0, REG_MBR_WIDTH);
+      _this->reg_access = _this->ca.address_space == 1;
+
+      _this->trace.msg("Received command header (flash_access: %d, reg_access: %d, addr: 0x%x, read: %d)\n", _this->flash_access, _this->ca.address_space, _this->current_address, _this->ca.read);
     }
   }
   else if (_this->state == HYPERCHIP_STATE_DATA)
   {
-    if (_this->current_address >= _this->ram_size)
+    if (_this->flash_access)
     {
-      _this->warning.warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", _this->current_address, _this->ram_size);
+      _this->flash->handle_access(_this->reg_access, _this->current_address, _this->ca.read, data);
     }
     else
     {
-      if (_this->ca.read)
-      {
-        uint8_t data = _this->ram_data[_this->current_address];
-        _this->trace.msg("Sending data byte (value: 0x%x)\n", data);
-        _this->in_itf.sync_cycle(data);
-
-      }
-      else
-      {
-        _this->trace.msg("Received data byte (value: 0x%x)\n", data);
-        _this->ram_data[_this->current_address] = data;
-      }
-      _this->current_address++;
+      _this->ram->handle_access(_this->reg_access, _this->current_address, _this->ca.read, data);
     }
-
+    _this->current_address++;
   }
 }
 
@@ -153,30 +271,30 @@ int hyperchip::build()
   cs_itf.set_sync_meth(&hyperchip::cs_sync);
   new_slave_port("cs", &cs_itf);
 
-  this->ram_size = 0;
-  this->flash_size = 0;
+  int ram_size = 0;
+  int flash_size = 0;
 
   js::config *conf = this->get_js_config();
 
   js::config *ram_conf = conf->get("ram");
   if (ram_conf)
-  {
-    this->ram_size = ram_conf->get("size")->get_int();
-    this->ram_data = new uint8_t[this->ram_size];
-    memset(this->ram_data, 0x57, this->ram_size);
-  }
+    ram_size = ram_conf->get("size")->get_int();
+  this->ram = new Hyperram(this, ram_size);
 
   js::config *flash_conf = conf->get("flash");
   if (flash_conf)
-  {
-    this->flash_size = flash_conf->get("size")->get_int();
-    this->flash_data = new uint8_t[this->flash_size];
-    memset(this->flash_data, 0x57, this->flash_size);
-  }
+    flash_size = flash_conf->get("size")->get_int();
+  this->flash = new Hyperflash(this, flash_size);
 
-  this->reg_data = new uint8_t[REGS_AREA_SIZE];
-  memset(this->reg_data, 0x57, REGS_AREA_SIZE);
-  ((uint16_t *)this->reg_data)[0] = 0x8F1F;
+  if (flash_conf)
+  {
+    js::config *preload_file_conf = flash_conf->get("preload_file");
+    if (preload_file_conf)
+    {
+      if (this->flash->preload_file((char *)preload_file_conf->get_str().c_str()))
+        return -1;
+    }
+  }
 
   return 0;
 }
