@@ -47,11 +47,13 @@ class Runner(Platform):
 
 
     def prepare(self):
-        comps = self.get_json().get('**/fs/files').get_dict()
+        comps = []
+        comps_conf = self.get_json().get('**/fs/files')
+        if comps_conf is not None:
+            comps = comps_conf.get_dict()
 
 
-
-        if comps is not None or self.get_json.get_child_bool('**/runner/boot_from_flash'):
+        if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
 
             if plp_flash_stimuli.genFlashImage(
                 raw_stim=self.get_flash_preload_file(),
@@ -121,8 +123,9 @@ class Runner(Platform):
             if start_value != None:
                 self.get_json().get('**/plt_loader').set('start_value', '0x%x' % start_value)
 
-        if self.get_json().get('**/fs/files').get_dict() is not None or self.get_json.get_child_bool('**/runner/boot_from_flash'):
-            self.get_json().get('**/flash').set('preload_file', self.get_flash_preload_file())
+        if self.get_json().get('**/fs/files') is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
+            if self.get_json().get('**/flash') is not None:
+                self.get_json().get('**/flash').set('preload_file', self.get_flash_preload_file())
 
 
         system = plptree.get_config_tree_from_dict(self.get_json().get_dict())
