@@ -1669,8 +1669,10 @@ static inline unsigned int lib_flexfloat_cvt_xu_ff_round(iss_cpu_state_t *s, uns
 
 static inline int lib_flexfloat_cvt_ff_x_round(iss_cpu_state_t *s, int a, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
+  int sign_mask = 1U << (e+m);
   flexfloat_t ff_a;
   a &= (0x1 << (e+m+1))-1;
+  a = (a ^ sign_mask) - sign_mask;
   ff_init_int(&ff_a, a, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
   return flexfloat_get_bits(&ff_a);
