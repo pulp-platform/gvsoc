@@ -51,6 +51,7 @@ static int iss_parse_isa(iss_t *iss)
   bool has_f16alt = false;
   bool has_f8 = false;
   bool has_fvec = false;
+  bool has_faux = false;
 
   while (len > 0)
   {
@@ -110,6 +111,10 @@ static int iss_parse_isa(iss_t *iss)
           {
             has_fvec = true;
           }
+          else if (strcmp(token, "faux") == 0)
+          {
+            has_faux = true;
+          }
 
           token =  strtok(NULL, "X");
         }
@@ -148,6 +153,12 @@ static int iss_parse_isa(iss_t *iss)
       if (!(arch_rv32 && has_d))
         iss_decode_activate_isa(iss, (char *)"f32vecno32d");
     }
+    // Auxiliary Ops
+    if (has_faux) {
+      // nothing for scalars as expansions are to fp32
+      if (has_fvec)
+        iss_decode_activate_isa(iss, (char *)"f32auxvec");
+    }
   }
 
  // For Xf16 Extension
@@ -165,6 +176,12 @@ static int iss_parse_isa(iss_t *iss)
         iss_decode_activate_isa(iss, (char *)"f16vecno32d");
       if (has_d)
         iss_decode_activate_isa(iss, (char *)"f16vecd");
+    }
+    // Auxiliary Ops
+    if (has_faux) {
+      iss_decode_activate_isa(iss, (char *)"f16aux");
+      if (has_fvec)
+        iss_decode_activate_isa(iss, (char *)"f16auxvec");
     }
   }
 
@@ -187,6 +204,12 @@ static int iss_parse_isa(iss_t *iss)
         iss_decode_activate_isa(iss, (char *)"f16altvecd");
       if (has_f16)
         iss_decode_activate_isa(iss, (char *)"f16altvecf16");
+    }
+    // Auxiliary Ops
+    if (has_faux) {
+      iss_decode_activate_isa(iss, (char *)"f16altaux");
+      if (has_fvec)
+        iss_decode_activate_isa(iss, (char *)"f16altauxvec");
     }
   }
 
@@ -215,6 +238,12 @@ static int iss_parse_isa(iss_t *iss)
         iss_decode_activate_isa(iss, (char *)"f8vecf16");
       if (has_f16alt)
         iss_decode_activate_isa(iss, (char *)"f8vecf16alt");
+    }
+    // Auxiliary Ops
+    if (has_faux) {
+      iss_decode_activate_isa(iss, (char *)"f8aux");
+      if (has_fvec)
+        iss_decode_activate_isa(iss, (char *)"f8auxvec");
     }
   }
 

@@ -30,6 +30,7 @@
 #include "rvXf16alt.hpp"
 #include "rvXf8.hpp"
 #include "rv32Xfvec.hpp"
+#include "rv32Xfaux.hpp"
 #include "priv.hpp"
 #include "pulp_v2.hpp"
 #include "rvXgap8.hpp"

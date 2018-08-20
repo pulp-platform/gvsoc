@@ -1341,6 +1341,15 @@ static inline unsigned int lib_flexfloat_div(iss_cpu_state_t *s, unsigned int a,
   FF_EXEC_2(ff_div, a, b, e, m)
 }
 
+static inline unsigned int lib_flexfloat_avg(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  FF_INIT_2(a, b, e, m)
+  flexfloat_t ff_two;
+  ff_init_int(&ff_two, 2, (flexfloat_desc_t) {e,m});
+  ff_add(&ff_res, &ff_a, &ff_b);
+  ff_div(&ff_res, &ff_res, &ff_two);
+  return flexfloat_get_bits(&ff_res);
+}
+
 static inline unsigned int lib_flexfloat_itof(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
   flexfloat_t ff_a;
   ff_init_int(&ff_a, a, (flexfloat_desc_t) {e,m});
@@ -1459,6 +1468,13 @@ static inline unsigned int lib_flexfloat_mul_round(iss_cpu_state_t *s, unsigned 
 static inline unsigned int lib_flexfloat_div_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
   int old = setFFRoundingMode(round);
   unsigned int result = lib_flexfloat_div(s, a, b, e, m);
+  restoreFFRoundingMode(old);
+  return result;
+}
+
+static inline unsigned int lib_flexfloat_avg_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
+  int old = setFFRoundingMode(round);
+  unsigned int result = lib_flexfloat_avg(s, a, b, e, m);
   restoreFFRoundingMode(old);
   return result;
 }

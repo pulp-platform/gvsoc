@@ -49,6 +49,7 @@ class R5(Instr):
               #   X X X X X X X   |   X X X X X   |   X X X X X   |   X X X   |   X X X X X   |   X X X X X X X
         # R   #         f7        |      rs2      |      rs1      |     f3    |       rd      |      opcode
         # RF  #         f7        |      rs2      |      rs1      |  ui[2:0]  |       rd      |      opcode
+        # RF4 #         f7        |      rs2      |      rs1      |  ui[2:0]  |     rd/rs3    |      opcode
         # R2F #                  f7               |      rs1      |  ui[2:0]  |       rd      |      opcode
         # R3F #                  f7               |      rs1      |     f3    |       rd      |      opcode
         # R4U #    rs3     |  f2  |      rs2      |      rs1      |  ui[2:0]  |       rd      |      opcode
@@ -98,6 +99,13 @@ class R5(Instr):
                             ]
         elif format == 'RF':
             self.args = [   OutFReg(0, Range(7,  5)),
+                            InFReg (0, Range(15, 5)),
+                            InFReg (1, Range(20, 5)),
+                            UnsignedImm(0, Range(12, 3)),
+                            ]
+        elif format == 'RF4':
+            self.args = [   OutFReg(0, Range(7,  5)),
+                            InFReg (2, Range(7,  5), dumpName=False),
                             InFReg (0, Range(15, 5)),
                             InFReg (1, Range(20, 5)),
                             UnsignedImm(0, Range(12, 3)),
@@ -1101,6 +1109,63 @@ Xfvec = IsaSubset('fvec', [
 ])
 
 
+#
+# Auxiliary Float operations
+#
+
+Xfaux = IsaSubset('faux', [
+#
+# For F
+#
+    # # If Xfvec supported
+    # R5('vfdotp.s',      'RVF', '1001010 ----- ----- 000 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f32auxvec']),
+    # R5('vfdotp.r.s',    'RVF', '1001010 ----- ----- 100 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f32auxvec']),
+    # R5('vfavg.s',       'RVF', '1010110 ----- ----- 000 ----- 0110011', group=fpuGroupAdd, isa_tags=['f32auxvec']),
+    # R5('vfavg.r.s',     'RVF', '1010110 ----- ----- 100 ----- 0110011', group=fpuGroupAdd, isa_tags=['f32auxvec']),
+
+#
+# For Xf16
+#
+    R5('fmulex.s.h',     'RF', '0100110 ----- ----- --- ----- 1010011', group=fpuGroupMul, isa_tags=['f16aux']),
+    R5('fmacex.s.h',    'RF4', '0101010 ----- ----- --- ----- 1010011', group=fpuGroupFmadd, isa_tags=['f16aux']),
+
+    # If Xfvec supported
+    R5('vfdotp.h',      'RVF', '1001010 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16auxvec']),
+    R5('vfdotp.r.h',    'RVF', '1001010 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16auxvec']),
+    R5('vfdotpex.s.h',  'RVF', '1001011 ----- ----- 010 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16auxvec']),
+    R5('vfdotpex.s.r.h','RVF', '1001011 ----- ----- 110 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16auxvec']),
+    R5('vfavg.h',       'RVF', '1010110 ----- ----- 010 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16auxvec']),
+    R5('vfavg.r.h',     'RVF', '1010110 ----- ----- 110 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16auxvec']),
+
+#
+# For Xf16aux
+#
+    R5('fmulex.s.ah',    'RF', '0100110 ----- ----- 101 ----- 1010011', group=fpuGroupMul, isa_tags=['f16altaux']),
+    R5('fmacex.s.ah',   'RF4', '0101010 ----- ----- 101 ----- 1010011', group=fpuGroupFmadd, isa_tags=['f16altaux']),
+
+    # If Xfvec supported
+    R5('vfdotp.ah',      'RVF','1001010 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altauxvec']),
+    R5('vfdotp.r.ah',    'RVF','1001010 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altauxvec']),
+    R5('vfdotpex.s.ah',  'RVF','1001011 ----- ----- 001 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altauxvec']),
+    R5('vfdotpex.s.r.ah','RVF','1001011 ----- ----- 101 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f16altauxvec']),
+    R5('vfavg.ah',       'RVF','1010110 ----- ----- 001 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16altauxvec']),
+    R5('vfavg.r.ah',     'RVF','1010110 ----- ----- 101 ----- 0110011', group=fpuGroupAdd, isa_tags=['f16altauxvec']),
+
+#
+# For Xf8
+#
+    R5('fmulex.s.b',     'RF', '0100111 ----- ----- --- ----- 1010011', group=fpuGroupMul, isa_tags=['f8aux']),
+    R5('fmacex.s.b',    'RF4', '0101011 ----- ----- --- ----- 1010011', group=fpuGroupFmadd, isa_tags=['f8aux']),
+
+    # If Xfvec supported
+    R5('vfdotp.b',      'RVF', '1001010 ----- ----- 011 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8auxvec']),
+    R5('vfdotp.r.b',    'RVF', '1001010 ----- ----- 111 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8auxvec']),
+    R5('vfdotpex.s.b',  'RVF', '1001011 ----- ----- 011 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8auxvec']),
+    R5('vfdotpex.s.r.b','RVF', '1001011 ----- ----- 111 ----- 0110011', group=fpuGroupFmadd, isa_tags=['f8auxvec']),
+    R5('vfavg.b',       'RVF', '1010110 ----- ----- 011 ----- 0110011', group=fpuGroupAdd, isa_tags=['f8auxvec']),
+    R5('vfavg.r.b',     'RVF', '1010110 ----- ----- 111 ----- 0110011', group=fpuGroupAdd, isa_tags=['f8auxvec']),
+  
+])
 
 
 #
@@ -1677,7 +1742,7 @@ isa = Isa(
         IsaDecodeTree('priv', [priv]),
         IsaDecodeTree('pulp_v2', [pulp_v2]),
         IsaDecodeTree('f', [rv32f]),
-        IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec]),
+        IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec, Xfaux]),
         IsaDecodeTree('gap8', [gap8]),
         #IsaTree('fpud', rv32d),
         #IsaTree('gap8', gap8),
