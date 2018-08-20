@@ -151,6 +151,7 @@ void iss::exec_misaligned(void *__this, vp::clock_event *event)
   if (_this->data_req_aligned(_this->misaligned_addr, _this->misaligned_data,
     _this->misaligned_size, _this->misaligned_is_write) == vp::IO_REQ_OK)
   {
+    _this->misaligned_access = false;
     iss_exec_insn_resume(_this);
     _this->enqueue_next_instr(_this->io_req.get_latency() + 1);
   }
