@@ -322,11 +322,13 @@ vp::io_req_status_e Udma_periph::custom_req(vp::io_req *req, uint64_t offset)
 
 vp::io_req_status_e Udma_periph::req(vp::io_req *req, uint64_t offset)
 {
-//  if (!is_on)
-//  {
-//    top->trace.warning("Trying to access periph while it is off (periph: %d)\n", id);
-//    return vp::IO_REQ_INVALID;
-//  }
+  if (!is_on)
+  {
+    //top->trace.warning("Trying to access periph while it is off (periph: %d)\n", id);
+    //return vp::IO_REQ_INVALID;
+    // TODO should dump the warning but the himax driver is buggy
+    return vp::IO_REQ_OK;
+  }
 
   if (offset < UDMA_CHANNEL_TX_OFFSET)
   {
