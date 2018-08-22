@@ -322,9 +322,9 @@ static inline iss_insn_t *vfdotpex_s_b_exec(iss *iss, iss_insn_t *insn)
                                                     LIB_FF_CALL3(lib_flexfloat_mul_round, \
                                                                  LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0) >> 24, 5, 2, 8, 23, 0), \
                                                                  LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1) >> 24, 5, 2, 8, 23, 0), \
-                                                                 8, 23, 0) & 0xff, \
-                                                    8, 23, 0) & 0xff, \
-                                       8, 23, 0) & 0xff, \
+                                                                 8, 23, 0), \
+                                                    8, 23, 0), \
+                                       8, 23, 0), \
                           8, 23, 0));
   return insn->next;
 }
@@ -346,9 +346,9 @@ static inline iss_insn_t *vfdotpex_s_r_b_exec(iss *iss, iss_insn_t *insn)
                                                     LIB_FF_CALL3(lib_flexfloat_mul_round, \
                                                                  LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0) >> 24, 5, 2, 8, 23, 0), \
                                                                  LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1) & 0xff, 5, 2, 8, 23, 0), \
-                                                                 8, 23, 0) & 0xff, \
-                                                    8, 23, 0) & 0xff, \
-                                       8, 23, 0) & 0xff, \
+                                                                 8, 23, 0), \
+                                                    8, 23, 0), \
+                                       8, 23, 0), \
                           8, 23, 0));
   return insn->next;
 }
