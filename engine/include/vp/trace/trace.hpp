@@ -47,6 +47,7 @@ namespace vp {
     inline void event(uint8_t *value);
     inline void event_string(uint8_t *value, int size);
     inline void event_real(double value);
+    inline void event_real_pulse(int64_t duration, double pulse_value, double background_value);
     inline void event_real_delayed(double value);
 
     void dump_header();
@@ -78,6 +79,7 @@ namespace vp {
     bool is_event_active = false;
     string name;
     uint8_t *buffer = NULL;
+    uint8_t *buffer2 = NULL;
     trace *next;
     trace *prev;
     int64_t pending_timestamp;

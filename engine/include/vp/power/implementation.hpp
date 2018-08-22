@@ -28,7 +28,7 @@
 
 inline void vp::power_trace::account(double quantum)
 {
-  this->trace.event_real(quantum);
+  this->trace.event_real_pulse(this->top->get_period(), quantum, 0);
 
   for (auto &x: top_traces)
   {
@@ -51,7 +51,7 @@ inline void vp::power_trace::incr(double quantum)
     x->incr(quantum);
   }
 
-  this->trace.event_real_delayed(this->value);
+  this->trace.event_real_pulse(this->top->get_period(), this->value, 0);
 }
 
 #endif

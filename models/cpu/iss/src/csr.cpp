@@ -884,7 +884,8 @@ void update_external_pccr(iss *iss, int id, unsigned int pcer, unsigned int pcmr
   }
 
   // Reset the counter
-  iss_csr_ext_counter_set(iss, id, 0);
+  if (iss->ext_counter[id].is_bound())
+    iss_csr_ext_counter_set(iss, id, 0);
 
   //if (cpu->traceEvent) sim_trace_event_incr(cpu, id, incr);
 }

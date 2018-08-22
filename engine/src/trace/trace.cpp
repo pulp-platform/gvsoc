@@ -48,6 +48,7 @@ void vp::component_trace::new_trace_event(std::string name, trace *trace, int wi
   trace->name = top.get_path() + "/" + name;
   trace->pending_timestamp = -1;
   trace->buffer = new uint8_t[trace->bytes];
+  trace->buffer2 = new uint8_t[trace->bytes];
 }
 
 void vp::component_trace::new_trace_event_real(std::string name, trace *trace)
@@ -60,6 +61,7 @@ void vp::component_trace::new_trace_event_real(std::string name, trace *trace)
   trace->name = top.get_path() + "/" + name;
   trace->pending_timestamp = -1;
   trace->buffer = new uint8_t[trace->bytes];
+  trace->buffer2 = new uint8_t[trace->bytes];
 }
 
 void vp::component_trace::new_trace_event_string(std::string name, trace *trace)
@@ -69,6 +71,7 @@ void vp::component_trace::new_trace_event_string(std::string name, trace *trace)
   trace->name = top.get_path() + "/" + name;
   trace->pending_timestamp = -1;
   trace->buffer = new uint8_t[trace->bytes];
+  trace->buffer2 = new uint8_t[trace->bytes];
 }
 
 void vp::component_trace::post_post_build()
@@ -180,25 +183,9 @@ void vp::trace_engine::dump_event(vp::trace *trace, int64_t timestamp, uint8_t *
   this->dump_event_to_buffer(trace, timestamp, event, bytes);
 }
 
-void vp::trace_engine::check_pending_events(int64_t timestamp)
-{
-  if (timestamp == -1 || (this->first_pending_event && this->first_pending_event->pending_timestamp < timestamp))
-  {
-    vp::trace *trace = this->first_pending_event;
-    while (trace)
-    {
-      this->dump_event_to_buffer(trace, timestamp, trace->buffer, trace->bytes);
-      trace = trace->next;
-    }
-    this->first_pending_event = NULL;
-  }
-}
 
-// This is called when several values can be dumped for the same trace
-// and only the last value must be dumped
-void vp::trace_engine::dump_event_delayed(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes)
+void vp::trace_engine::dump_event_pulse(vp::trace *trace, int64_t timestamp, int64_t end_timestamp, uint8_t *pulse_event, uint8_t *event, int width)
 {
-  // First flush pending events
   this->check_pending_events(timestamp);
 
   // Then dequeue the trace if a pending value is already there
@@ -208,25 +195,91 @@ void vp::trace_engine::dump_event_delayed(vp::trace *trace, int64_t timestamp, u
       trace->prev->next = trace->next;
     else
       this->first_pending_event = trace->next;
-
+ 
     if (trace->next != NULL)
       trace->next->prev = trace->prev;
   }
 
-  // Then reenqueue it
-  trace->pending_timestamp = timestamp;
-  trace->next = this->first_pending_event;
-  if (trace->next != NULL)
-    trace->next->prev = trace;
+  this->dump_event_to_buffer(trace, timestamp, pulse_event, width);
+
+  this->enqueue_pending(trace, end_timestamp, event);
+}
+
+
+void vp::trace_engine::check_pending_events(int64_t timestamp)
+{
+  vp::trace *trace = this->first_pending_event;
+  while (trace && (timestamp == -1 || trace->pending_timestamp <= timestamp))
+  {
+    this->dump_event_to_buffer(trace, trace->pending_timestamp, trace->buffer, trace->bytes);
+    trace->pending_timestamp = -1;
+    trace = trace->next;
+  }
   this->first_pending_event = trace;
-  trace->prev = NULL;
+  if (trace)
+    trace->prev = NULL;
+}
+
+
+void vp::trace_engine::enqueue_pending(vp::trace *trace, int64_t timestamp, uint8_t *event)
+{
+  // Eenqueue the trace to the pending queue
+  vp::trace *current = this->first_pending_event, *prev = NULL;
+
+  while (current && current->pending_timestamp < timestamp)
+  {
+    prev = current;
+    current = current->next;
+  }
+
+  if (prev)
+  {
+    prev->next = trace;
+  }
+  else
+  {
+    this->first_pending_event = trace;
+  }
+
+  trace->prev = prev;
+  trace->next = current;
+  if (current)
+    current->prev = trace;
+
+  trace->pending_timestamp = timestamp;
   
   // And dump the value to the trace
   memcpy(trace->buffer, event, trace->bytes);
+
+}
+
+
+// This is called when several values can be dumped for the same trace
+// and only the last value must be dumped
+void vp::trace_engine::dump_event_delayed(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes)
+{
+  // First flush pending events
+  this->check_pending_events(timestamp);
+
+  this->dump_event_to_buffer(trace, timestamp, event, bytes);
+}
+
+void vp::trace_engine::flush_vcd_traces(int64_t timestamp)
+{
+  Vcd_trace *current = first_trace_to_dump;
+  while(current)
+  {
+    current->dump(timestamp);
+    current->is_enqueued = false;
+    current = current->next;
+  }
+  first_trace_to_dump = NULL;
 }
 
 void vp::trace_engine::vcd_routine()
 {
+  int64_t last_timestamp = -1;
+
   while(1)
   {
     char *event_buffer, *event_buffer_start;
@@ -258,6 +311,16 @@ void vp::trace_engine::vcd_routine()
 
       event_buffer += sizeof(trace);
       timestamp = *(int64_t *)event_buffer;
+
+      if (last_timestamp == -1)
+        last_timestamp = timestamp;        
+
+      if (last_timestamp < timestamp)
+      {
+        this->flush_vcd_traces(last_timestamp);
+        last_timestamp = timestamp;
+      }
+
       event_buffer += sizeof(timestamp);
       int bytes = trace->bytes;
       uint8_t event[bytes];
@@ -268,7 +331,13 @@ void vp::trace_engine::vcd_routine()
 
       if (trace->vcd_trace)
       {
-        trace->vcd_trace->dump(timestamp, event, trace->width);
+        trace->vcd_trace->reg(timestamp, event, trace->width);
+        if (!trace->vcd_trace->is_enqueued)
+        {
+          trace->vcd_trace->is_enqueued = true;
+          trace->vcd_trace->next = this->first_trace_to_dump;
+          this->first_trace_to_dump = trace->vcd_trace;
+        }
       }
 
     }
@@ -279,5 +348,6 @@ void vp::trace_engine::vcd_routine()
     pthread_mutex_unlock(&this->mutex);
   }
 
+  this->flush_vcd_traces(last_timestamp);
   vcd_dumper.close();
 }

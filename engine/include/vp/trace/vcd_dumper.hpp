@@ -47,12 +47,17 @@ namespace vp {
   {
   public:
     Vcd_trace(string trace_name, Vcd_file *file, int width, bool is_real);
-    inline void dump(int64_t timestamp, uint8_t *event, int width) { file->dump(timestamp, id, event, width, this->is_real); }
+    void reg(int64_t timestamp, uint8_t *event, int width);
+    inline void dump(int64_t timestamp) { file->dump(timestamp, id, this->buffer, this->width, this->is_real); }
     bool is_real = false;
+    Vcd_trace *next;
+    bool is_enqueued;
 
   private:
     Vcd_file *file;
     int id;
+    uint8_t *buffer;
+    int width;
 
   };
 

@@ -46,16 +46,20 @@ namespace vp {
 
     void dump_event(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 
+    void dump_event_pulse(vp::trace *trace, int64_t timestamp, int64_t end_timestamp, uint8_t *pulse_event, uint8_t *event, int width);
+
     void dump_event_delayed(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 
     Vcd_dumper vcd_dumper;
 
   private:
+    void enqueue_pending(vp::trace *trace, int64_t timestamp, uint8_t *event);
     char *get_event_buffer(int bytes);
     void vcd_routine();
     void flush();
     void check_pending_events(int64_t timestamp);
     void dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes);
+    void flush_vcd_traces(int64_t timestamp);
 
     vector<char *> event_buffers;
     vector<char *> ready_event_buffers;
@@ -66,6 +70,8 @@ namespace vp {
     int end = 0;
     std::thread *thread;
     trace *first_pending_event;
+
+    Vcd_trace *first_trace_to_dump;
   };
 
 };

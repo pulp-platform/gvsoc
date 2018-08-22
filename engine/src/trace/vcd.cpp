@@ -72,12 +72,19 @@ void vp::Vcd_file::add_trace(string path, int id, int width, bool is_real)
   
 }
 
-vp::Vcd_trace::Vcd_trace(string trace_name, Vcd_file *file, int width, bool is_real) : is_real(is_real), file(file)
+vp::Vcd_trace::Vcd_trace(string trace_name, Vcd_file *file, int width, bool is_real) : is_real(is_real), is_enqueued(false), file(file)
 {
   id = vcd_id++;
   file->add_trace(trace_name, id, width, is_real);
+  this->width = width;
+  this->buffer = new uint8_t[width];
 }
 
+
+void vp::Vcd_trace::reg(int64_t timestamp, uint8_t *event, int width)
+{
+  memcpy(this->buffer, event, width);
+}
 
 
 void vp::Vcd_file::close()

@@ -232,6 +232,7 @@ int vp::power_trace::init(component *top, std::string name)
   top->traces.new_trace_event_real(name, &this->trace);
   this->value = 0;
   this->timestamp = 0;
+  this->trace.event_real(0);
   return 0;
 }
 

@@ -60,7 +60,7 @@ private:
 
 
 vp::trace_engine::trace_engine(const char *config)
-  : vcd_dumper(this), vp::component(config)
+  : vcd_dumper(this), vp::component(config), first_trace_to_dump(NULL)
 {
 
   pthread_mutex_init(&mutex, NULL);

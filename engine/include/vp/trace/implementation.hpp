@@ -53,6 +53,16 @@ namespace vp {
   #endif
   }
 
+  inline void vp::trace::event_real_pulse(int64_t duration, double pulse_value, double background_value)
+  {
+  #ifdef VP_TRACE_ACTIVE
+    if (is_event_active)
+    {
+      trace_manager->dump_event_pulse(this, comp->get_clock()->get_time(), comp->get_clock()->get_time() + duration, (uint8_t *)&pulse_value, (uint8_t *)&background_value, 8);
+    }   
+  #endif
+  }
+
   inline void vp::trace::event_real_delayed(double value)
   {
   #ifdef VP_TRACE_ACTIVE
