@@ -227,6 +227,7 @@ void vp::time_engine::run_loop()
   while(1)
   {
     pthread_mutex_lock(&mutex);
+
     while(!run_req)
     {
       running = false;

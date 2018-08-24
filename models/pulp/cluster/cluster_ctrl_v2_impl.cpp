@@ -113,7 +113,8 @@ vp::io_req_status_e cluster_ctrl::req(void *__this, vp::io_req *req)
     return _this->dbg_halt_mask_req(is_write, (uint32_t *)data);
   }
 
-  _this->trace.warning("Invalid access\n");
+
+  vp_warning_always(&_this->warning, "Invalid access\n");
 
   return vp::IO_REQ_INVALID;
 }
@@ -249,6 +250,8 @@ int cluster_ctrl::build()
 
   for (int i; i<nb_core; i++)
   {
+    cores[i].bootaddr = 0x57575757;
+
     new_master_port("bootaddr_" + std::to_string(i), &cores[i].bootaddr_itf);
     new_master_port("fetchen_" + std::to_string(i), &cores[i].fetchen_itf);
     new_master_port("halt_" + std::to_string(i), &cores[i].halt_itf);

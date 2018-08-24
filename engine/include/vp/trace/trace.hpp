@@ -42,6 +42,7 @@ namespace vp {
     inline void msg(const char *fmt, ...);
     inline void user_msg(const char *fmt, ...);
     inline void warning(const char *fmt, ...);
+    inline void force_warning(const char *fmt, ...);
     inline void fatal(const char *fmt, ...);
 
     inline void event(uint8_t *value);
@@ -96,6 +97,16 @@ namespace vp {
       abort();                                     \
     }                                              \
   }
+
+#define vp_warning_always(trace_ptr, msg...)       \
+    if (trace_ptr)                                 \
+      ((vp::trace *)(trace_ptr))->force_warning(msg);      \
+    else                                           \
+    {                                              \
+      fprintf(stderr, "WARNING: ");                \
+      fprintf(stderr, msg);                        \
+      abort();                                     \
+    }
 
 #ifndef VP_TRACE_ACTIVE
 #define vp_assert(cond, trace, msg...)

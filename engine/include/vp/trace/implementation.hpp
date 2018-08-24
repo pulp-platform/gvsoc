@@ -94,6 +94,23 @@ namespace vp {
     abort();
   }
 
+  inline void vp::trace::force_warning(const char *fmt, ...)
+  {
+    dump_warning_header();
+    va_list ap;
+    va_start(ap, fmt);
+    if (vfprintf(stdout, fmt, ap) < 0) {}
+    va_end(ap);
+    #if 0
+    printf("%ld: %ld: [\033[31m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, comp->get_path());
+    va_list ap;
+    va_start(ap, fmt);
+    if (vprintf(format, ap) < 0) {}
+    va_end(ap);  
+    comp->get_clock()->stop(vp::CLOCK_ENGINE_WARNING);
+    #endif
+  }
+
   inline void vp::trace::warning(const char *fmt, ...) {
   #ifdef VP_TRACE_ACTIVE
     dump_warning_header();
