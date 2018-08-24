@@ -21,6 +21,7 @@
 #ifndef __CPU_ISS_TYPES_HPP
 #define __CPU_ISS_TYPES_HPP
 
+#include "platform_types.hpp"
 #include <stdint.h>
 #define __STDC_FORMAT_MACROS    // This is needed for some old gcc versions
 #include <inttypes.h>
@@ -234,9 +235,9 @@ typedef struct iss_decoder_item_s {
 
   union {
     struct {
-      iss_insn_t *(*handler)(iss *, iss_insn_t*);
-      iss_insn_t *(*fast_handler)(iss *, iss_insn_t*);
-      void (*decode)(iss *, iss_insn_t*);
+      iss_insn_t *(*handler)(iss_t *, iss_insn_t*);
+      iss_insn_t *(*fast_handler)(iss_t *, iss_insn_t*);
+      void (*decode)(iss_t *, iss_insn_t*);
       char *label;
       int size;
       int nb_args;
@@ -278,11 +279,11 @@ typedef struct {
 
 typedef struct iss_insn_s {
   iss_addr_t addr;
-  iss_insn_t *(*fast_handler)(iss *, iss_insn_t*);
-  iss_insn_t *(*handler)(iss *, iss_insn_t*);
-  iss_insn_t *(*hwloop_handler)(iss *, iss_insn_t*);
-  iss_insn_t *(*stall_handler)(iss *, iss_insn_t*);
-  iss_insn_t *(*stall_fast_handler)(iss *, iss_insn_t*);
+  iss_insn_t *(*fast_handler)(iss_t *, iss_insn_t*);
+  iss_insn_t *(*handler)(iss_t *, iss_insn_t*);
+  iss_insn_t *(*hwloop_handler)(iss_t *, iss_insn_t*);
+  iss_insn_t *(*stall_handler)(iss_t *, iss_insn_t*);
+  iss_insn_t *(*stall_fast_handler)(iss_t *, iss_insn_t*);
   int size;
   int nb_out_reg;
   int nb_in_reg;
@@ -294,7 +295,7 @@ typedef struct iss_insn_s {
   iss_insn_t *next;
   iss_decoder_item_t *decoder_item;
 
-  iss_insn_t *(*saved_handler)(iss *, iss_insn_t*);
+  iss_insn_t *(*saved_handler)(iss_t *, iss_insn_t*);
   iss_insn_t *branch;
 
 } iss_insn_t;
@@ -320,7 +321,7 @@ typedef struct iss_cpu_state_s {
 
   int insn_cycles;
 
-  void (*stall_callback)(iss *iss);
+  void (*stall_callback)(iss_t *iss);
   int stall_reg;
   int stall_size;
   int hw_counter_en;

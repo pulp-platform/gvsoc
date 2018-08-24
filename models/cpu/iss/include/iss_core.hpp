@@ -23,10 +23,11 @@
 
 #include "types.hpp"
 
-static inline void iss_exec_insn_stall(iss *iss);
-static inline void iss_exec_insn_resume(iss *iss);
+static inline void iss_exec_insn_stall(iss_t *iss);
+static inline void iss_exec_insn_resume(iss_t *iss);
 
 #include "utils.hpp"
+#include "iss_api.hpp"
 #include "platform_wrapper.hpp"
 #include "regs.hpp"
 #include "perf.hpp"
@@ -52,9 +53,9 @@ void iss_decode_activate_isa(iss_t *cpu, char *isa);
 
 
 
-void iss_csr_init(iss *iss);
-bool iss_csr_read(iss *iss, iss_reg_t reg, iss_reg_t *value);
-bool iss_csr_write(iss *iss, iss_reg_t reg, iss_reg_t value);
+void iss_csr_init(iss_t *iss);
+bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value);
+bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value);
 
 
 #endif

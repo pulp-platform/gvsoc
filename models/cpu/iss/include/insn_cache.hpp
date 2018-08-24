@@ -21,9 +21,9 @@
 #ifndef __CPU_ISS_ISS_INSN_CACHE_HPP
 #define __CPU_ISS_ISS_INSN_CACHE_HPP
 
-int insn_cache_init(iss *iss);
-void iss_cache_flush(iss *iss);
-iss_insn_t *insn_cache_get(iss *iss, iss_addr_t pc);
-iss_insn_t *insn_cache_get_decoded(iss *iss, iss_addr_t pc);
+int insn_cache_init(iss_t *iss);
+void iss_cache_flush(iss_t *iss);
+iss_insn_t *insn_cache_get(iss_t *iss, iss_addr_t pc);
+iss_insn_t *insn_cache_get_decoded(iss_t *iss, iss_addr_t pc);
 
 #endif

@@ -20,6 +20,7 @@
  */
 
 #include "iss.hpp"
+#include <string.h>
 
 static int iss_parse_isa(iss_t *iss)
 {
@@ -37,7 +38,7 @@ static int iss_parse_isa(iss_t *iss)
   }
   else
   {
-    iss->trace.warning("Unsupported ISA: %s\n", current);
+    iss_warning(iss, "Unsupported ISA: %s\n", current);
     return -1;
   }
 
@@ -125,7 +126,7 @@ static int iss_parse_isa(iss_t *iss)
         break;
       }
       default:
-        iss->trace.warning("Unknwon ISA descriptor: %c\n", *current);
+        iss_warning(iss, "Unknwon ISA descriptor: %c\n", *current);
         return -1;
     }
   }
@@ -267,7 +268,7 @@ int iss_open(iss_t *iss)
 
   iss_csr_init(iss);
 
-  iss->io_req.set_data(new uint8_t[sizeof(iss_reg_t)]);
+  iss_init(iss);
 
   return 0;
 }

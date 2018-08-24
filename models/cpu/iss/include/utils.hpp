@@ -33,4 +33,9 @@ static inline iss_opcode_t iss_get_signed_value(iss_opcode_t val, int bits)
   return ((int)val) << (ISS_REG_WIDTH-bits) >> (ISS_REG_WIDTH-bits);
 }
 
+static inline iss_opcode_t iss_get_zext_value(iss_opcode_t val, int bits)
+{
+  return ((unsigned int)val) << (ISS_REG_WIDTH-bits) >> (ISS_REG_WIDTH-bits);
+}
+
 #endif

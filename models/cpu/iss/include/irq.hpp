@@ -44,7 +44,7 @@ static inline iss_insn_t *iss_irq_handle_mret(iss_t *iss)
 static inline void iss_irq_enable(iss_t *iss, int enable)
 {
   iss->cpu.irq.irq_enable = enable;
-  iss->irq_check();
+  iss_trigger_irq_check(iss);
 }
 
 static inline void iss_irq_req(iss_t *iss, int irq)
@@ -54,7 +54,7 @@ static inline void iss_irq_req(iss_t *iss, int irq)
 
 static inline void iss_irq_set_vector_table(iss_t *iss, iss_addr_t base)
 {
-  iss->trace.msg("Setting vector table (addr: 0x%x)\n", base);
+  iss_msg(iss, "Setting vector table (addr: 0x%x)\n", base);
   for (int i=0; i<32; i++)
   {
     iss->cpu.irq.vectors[i] = insn_cache_get(iss, base + i * 4);

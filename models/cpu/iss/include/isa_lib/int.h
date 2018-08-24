@@ -22,6 +22,7 @@
 #define __LIB_HPP__
 #include <strings.h>
 #include <stdio.h>
+#include <stdlib.h>
 #define MAX(a,b) ((a)>=(b)?(a):(b))
 #define MIN(a,b) ((a)<=(b)?(a):(b))
 

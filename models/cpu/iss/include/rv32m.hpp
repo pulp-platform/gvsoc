@@ -23,7 +23,7 @@
 
 
 
-static inline iss_insn_t *mul_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *mul_exec(iss_t *iss, iss_insn_t *insn)
 {
   REG_SET(0, LIB_CALL2(lib_MULU, REG_GET(0), REG_GET(1)));
   return insn->next;
@@ -31,7 +31,7 @@ static inline iss_insn_t *mul_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *mulh_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *mulh_exec(iss_t *iss, iss_insn_t *insn)
 {
   REG_SET(0, ((int64_t)(int32_t)REG_GET(0) * (int64_t)(int32_t)REG_GET(1)) >> 32);
   //setRegTimed(cpu, pc, pc->outReg[0], ((int64_t)(int32_t)getReg(cpu, pc->inReg[0]) * (int64_t)(int32_t)getReg(cpu, pc->inReg[1])) >> 32);
@@ -40,21 +40,21 @@ static inline iss_insn_t *mulh_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *mulhsu_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *mulhsu_exec(iss_t *iss, iss_insn_t *insn)
 {
  REG_SET(0, ((int64_t)(int32_t)REG_GET(0) * (uint64_t)REG_GET(1)) >> 32);
   //setRegTimed(cpu, pc, pc->outReg[0], ((int64_t)(int32_t)getReg(cpu, pc->inReg[0]) * (uint64_t)getReg(cpu, pc->inReg[1])) >> 32);
   return insn->next;
 }
 
-static inline iss_insn_t *mulhu_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *mulhu_exec(iss_t *iss, iss_insn_t *insn)
 {
   REG_SET(0, ((uint64_t)REG_GET(0) * (uint64_t)REG_GET(1)) >> 32);
   //setRegTimed(cpu, pc, pc->outReg[0], ((uint64_t)getReg(cpu, pc->inReg[0]) * (uint64_t)getReg(cpu, pc->inReg[1])) >> 32);
   return insn->next;
 }
 
-static inline iss_insn_t *div_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *div_exec(iss_t *iss, iss_insn_t *insn)
 {
   int32_t divider = REG_GET(1);
   int32_t dividend = REG_GET(0);
@@ -68,7 +68,7 @@ static inline iss_insn_t *div_exec(iss *iss, iss_insn_t *insn)
   return insn->next;
 }
 
-static inline iss_insn_t *divu_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *divu_exec(iss_t *iss, iss_insn_t *insn)
 {
   uint32_t divider = REG_GET(1);
   uint32_t dividend = REG_GET(0);
@@ -80,7 +80,7 @@ static inline iss_insn_t *divu_exec(iss *iss, iss_insn_t *insn)
   return insn->next;
 }
 
-static inline iss_insn_t *rem_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *rem_exec(iss_t *iss, iss_insn_t *insn)
 {
   int32_t divider = REG_GET(1);
   int32_t dividend = REG_GET(0);
@@ -95,7 +95,7 @@ static inline iss_insn_t *rem_exec(iss *iss, iss_insn_t *insn)
 }
 
 
-static inline iss_insn_t *remu_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *remu_exec(iss_t *iss, iss_insn_t *insn)
 {
   uint32_t divider = REG_GET(1);
   uint32_t dividend = REG_GET(0);

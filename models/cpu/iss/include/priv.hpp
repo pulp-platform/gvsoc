@@ -23,7 +23,7 @@
 
 
 
-static inline iss_insn_t *csrrw_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *csrrw_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t value;
   iss_reg_t reg_value = REG_GET(0);
@@ -43,7 +43,7 @@ static inline iss_insn_t *csrrw_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *csrrc_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *csrrc_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t value;
   iss_reg_t reg_value = REG_GET(0);
@@ -58,7 +58,7 @@ static inline iss_insn_t *csrrc_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *csrrs_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *csrrs_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t value;
   iss_reg_t reg_value = REG_GET(0);
@@ -73,7 +73,7 @@ static inline iss_insn_t *csrrs_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *csrrwi_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *csrrwi_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t value;
   if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
@@ -86,7 +86,7 @@ static inline iss_insn_t *csrrwi_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *csrrci_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *csrrci_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t value;
   if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
@@ -99,7 +99,7 @@ static inline iss_insn_t *csrrci_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *csrrsi_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *csrrsi_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t value;
   if (iss_csr_read(iss, UIM_GET(0), &value) == 0)
@@ -112,15 +112,15 @@ static inline iss_insn_t *csrrsi_exec(iss *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *wfi_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *wfi_exec(iss_t *iss, iss_insn_t *insn)
 {
-  iss->wait_for_interrupt();
+  iss_wait_for_interrupt(iss);
   return insn->next;
 }
 
 
 
-static inline iss_insn_t *mret_exec(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *mret_exec(iss_t *iss, iss_insn_t *insn)
 {
   return iss_irq_handle_mret(iss);
 }

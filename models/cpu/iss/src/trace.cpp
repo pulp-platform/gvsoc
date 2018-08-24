@@ -31,7 +31,7 @@ static inline char iss_trace_get_mode(int mode) {
   return ' ';
 }
 
-static inline int iss_trace_dump_reg(iss *iss, iss_insn_t *insn, char *buff, unsigned int reg, bool is_long=true)
+static inline int iss_trace_dump_reg(iss_t *iss, iss_insn_t *insn, char *buff, unsigned int reg, bool is_long=true)
 {
   //if (!cpu->conf->traceLikeRtl)
   {
@@ -63,7 +63,7 @@ static inline int iss_trace_dump_reg(iss *iss, iss_insn_t *insn, char *buff, uns
   return sprintf(buff, "x%d", reg);
 }
 
-static char *iss_trace_dump_reg_value(iss *iss, iss_insn_t *insn, char *buff, bool is_out, int reg, unsigned int saved_value, iss_decoder_arg_t **prev_arg, bool is_long)
+static char *iss_trace_dump_reg_value(iss_t *iss, iss_insn_t *insn, char *buff, bool is_out, int reg, unsigned int saved_value, iss_decoder_arg_t **prev_arg, bool is_long)
 {
   char regStr[16];
   iss_trace_dump_reg(iss, insn, regStr, reg);
@@ -76,7 +76,7 @@ static char *iss_trace_dump_reg_value(iss *iss, iss_insn_t *insn, char *buff, bo
   return buff;
 }
 
-static char *iss_trace_dump_arg_value(iss *iss, iss_insn_t *insn, char *buff, iss_insn_arg_t *insn_arg, iss_decoder_arg_t *arg, iss_insn_arg_t *saved_arg, iss_decoder_arg_t **prev_arg, int dump_out, bool is_long)
+static char *iss_trace_dump_arg_value(iss_t *iss, iss_insn_t *insn, char *buff, iss_insn_arg_t *insn_arg, iss_decoder_arg_t *arg, iss_insn_arg_t *saved_arg, iss_decoder_arg_t **prev_arg, int dump_out, bool is_long)
 {
   if ((arg->type == ISS_DECODER_ARG_TYPE_OUT_REG || arg->type == ISS_DECODER_ARG_TYPE_IN_REG) && insn_arg->u.reg.index != 0)
   {
@@ -128,7 +128,7 @@ static char *iss_trace_dump_arg_value(iss *iss, iss_insn_t *insn, char *buff, is
   return buff;
 }
 
-static char *iss_trace_dump_arg(iss *iss, iss_insn_t *insn, char *buff, iss_insn_arg_t *insn_arg, iss_decoder_arg_t *arg, iss_decoder_arg_t **prev_arg, bool is_long)
+static char *iss_trace_dump_arg(iss_t *iss, iss_insn_t *insn, char *buff, iss_insn_arg_t *insn_arg, iss_decoder_arg_t *arg, iss_decoder_arg_t **prev_arg, bool is_long)
 {
     if (*prev_arg != NULL && (*prev_arg)->type != ISS_DECODER_ARG_TYPE_NONE && (*prev_arg)->type != ISS_DECODER_ARG_TYPE_FLAG && ((arg->type != ISS_DECODER_ARG_TYPE_IN_REG && arg->type != ISS_DECODER_ARG_TYPE_OUT_REG) || arg->u.reg.dump_name))
     {
@@ -173,7 +173,7 @@ static char *iss_trace_dump_arg(iss *iss, iss_insn_t *insn, char *buff, iss_insn
   return buff;
 }
 
-static void iss_trace_dump_insn(iss *iss, iss_insn_t *insn, char *buff, int buffer_size, iss_insn_arg_t *saved_args, bool is_long, int mode) {
+static void iss_trace_dump_insn(iss_t *iss, iss_insn_t *insn, char *buff, int buffer_size, iss_insn_arg_t *saved_args, bool is_long, int mode) {
 
   static int max_len = 20;
   static int max_arg_len = 17;
@@ -231,7 +231,7 @@ static void iss_trace_dump_insn(iss *iss, iss_insn_t *insn, char *buff, int buff
 
 }
 
-static void iss_trace_save_arg(iss *iss, iss_insn_t *insn, iss_insn_arg_t *insn_arg, iss_decoder_arg_t *arg, iss_insn_arg_t *saved_arg, bool save_out)
+static void iss_trace_save_arg(iss_t *iss, iss_insn_t *insn, iss_insn_arg_t *insn_arg, iss_decoder_arg_t *arg, iss_insn_arg_t *saved_arg, bool save_out)
 {
   if (arg->type == ISS_DECODER_ARG_TYPE_OUT_REG || arg->type == ISS_DECODER_ARG_TYPE_IN_REG)
   {
@@ -263,7 +263,7 @@ static void iss_trace_save_arg(iss *iss, iss_insn_t *insn, iss_insn_arg_t *insn_
   //  }
 }
 
-static void iss_trace_save_args(iss *iss, iss_insn_t *insn, iss_insn_arg_t saved_args[], bool save_out)
+static void iss_trace_save_args(iss_t *iss, iss_insn_t *insn, iss_insn_arg_t saved_args[], bool save_out)
 {
   for (int i=0; i<insn->decoder_item->u.insn.nb_args; i++) {
     iss_decoder_arg_t *arg = &insn->decoder_item->u.insn.args[i];
@@ -271,17 +271,17 @@ static void iss_trace_save_args(iss *iss, iss_insn_t *insn, iss_insn_arg_t saved
   }
 }
 
-void iss_trace_dump(iss *iss, iss_insn_t *insn)
+void iss_trace_dump(iss_t *iss, iss_insn_t *insn)
 {
   char buffer[1024];
 
   iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, true);
   
   iss_trace_dump_insn(iss, insn, buffer, 1024, iss->cpu.state.saved_args, true, 3);
-  iss->insn_trace.msg(buffer);
+  iss_insn_msg(iss, buffer);
 }
 
-iss_insn_t *iss_exec_insn_with_trace(iss *iss, iss_insn_t *insn)
+iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn)
 {
   iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, false);
   

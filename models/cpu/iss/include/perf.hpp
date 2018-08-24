@@ -22,7 +22,7 @@
 #define __CPU_ISS_ISS_INSN_PERF_HPP
 
 
-static inline void iss_pccr_account_event(iss *iss, unsigned int event, int incr)
+static inline void iss_pccr_account_event(iss_t *iss, unsigned int event, int incr)
 {
   if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE && (iss->cpu.csr.pcer & (1<<event)))
   {
@@ -32,17 +32,17 @@ static inline void iss_pccr_account_event(iss *iss, unsigned int event, int incr
   //if (cpu->traceEvent) sim_trace_event_incr(cpu, event, incr);
 }
 
-static inline void iss_perf_account_taken_branch(iss *iss)
+static inline void iss_perf_account_taken_branch(iss_t *iss)
 {
   iss->cpu.state.insn_cycles += 2;  
 }
 
-static inline void iss_perf_account_ld_stall(iss *iss)
+static inline void iss_perf_account_ld_stall(iss_t *iss)
 {
   iss->cpu.state.insn_cycles += 1;  
 }
 
-static inline void iss_perf_account_jump(iss *iss)
+static inline void iss_perf_account_jump(iss_t *iss)
 {
   iss->cpu.state.insn_cycles += 1;  
 }

@@ -38,7 +38,7 @@ static inline iss_reg_t iss_get_reg(iss_t *iss, int reg)
   return iss_get_reg_untimed(iss, reg);
 }
 
-static inline iss_reg_t iss_get_reg_for_jump(iss *iss, int reg) {
+static inline iss_reg_t iss_get_reg_for_jump(iss_t *iss, int reg) {
   //unsigned long regCycle = cpu->regsCycle[reg];
   //if (cpu->cycles < regCycle + 1) {
   //  accountJumpStalls(cpu, regCycle + 1 - cpu->cycles);

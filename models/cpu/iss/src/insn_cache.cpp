@@ -33,7 +33,7 @@ static void flush_insn_block(iss_insn_block_t *b, unsigned int pc)
     }
 }
 
-static void flush_cache(iss *iss, iss_insn_cache_t *cache)
+static void flush_cache(iss_t *iss, iss_insn_cache_t *cache)
 {
   prefetcher_flush(iss);
 
@@ -51,7 +51,7 @@ static void flush_cache(iss *iss, iss_insn_cache_t *cache)
 }
 
 
-int insn_cache_init(iss *iss)
+int insn_cache_init(iss_t *iss)
 {
   iss_insn_cache_t *cache = &iss->cpu.insn_cache;
   memset(cache->blocks, 0, sizeof(iss_insn_block_t *)*ISS_INSN_NB_BLOCKS);
@@ -76,7 +76,7 @@ static void insn_block_init(iss_insn_block_t *b, iss_addr_t pc)
 
 
 
-void iss_cache_flush(iss *iss)
+void iss_cache_flush(iss_t *iss)
 {
   iss_addr_t pc = 0;
   iss_insn_t *insn = iss->cpu.current_insn;
@@ -90,7 +90,7 @@ void iss_cache_flush(iss *iss)
 
 
 
-iss_insn_t *insn_cache_get(iss *iss, iss_addr_t pc)
+iss_insn_t *insn_cache_get(iss_t *iss, iss_addr_t pc)
 {
   iss_addr_t pc_base = pc & ~((1 << (ISS_INSN_BLOCK_SIZE_LOG2 + ISS_INSN_PC_BITS)) - 1);
   unsigned insn_id = (pc >> ISS_INSN_PC_BITS) & (ISS_INSN_BLOCK_SIZE - 1);
@@ -115,7 +115,7 @@ iss_insn_t *insn_cache_get(iss *iss, iss_addr_t pc)
   return &b->insns[insn_id];
 }
 
-iss_insn_t *insn_cache_get_decoded(iss *iss, iss_addr_t pc)
+iss_insn_t *insn_cache_get_decoded(iss_t *iss, iss_addr_t pc)
 {
   iss_insn_t *insn = insn_cache_get(iss, pc);
   if (insn->handler != iss_decode_pc) return insn;

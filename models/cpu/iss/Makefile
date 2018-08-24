@@ -1,7 +1,8 @@
 COMPONENTS += cpu/iss/iss
 
-COMMON_SRCS = cpu/iss/src/iss_wrapper.cpp cpu/iss/src/iss.cpp cpu/iss/src/insn_cache.cpp cpu/iss/src/csr.cpp cpu/iss/src/decoder.cpp cpu/iss/src/trace.cpp cpu/iss/flexfloat/flexfloat.c
-COMMON_CFLAGS = -I$(CURDIR)/cpu/iss/include -DRISCV=1 -DRISCY -I$(CURDIR)/cpu/iss/flexfloat
+COMMON_SRCS = cpu/iss/vp/src/iss_wrapper.cpp cpu/iss/src/iss.cpp cpu/iss/src/insn_cache.cpp cpu/iss/src/csr.cpp cpu/iss/src/decoder.cpp cpu/iss/src/trace.cpp cpu/iss/flexfloat/flexfloat.c
+
+COMMON_CFLAGS = -DRISCV=1 -DRISCY -I$(CURDIR)/cpu/iss/include -I$(CURDIR)/cpu/iss/vp/include -I$(CURDIR)/cpu/iss/flexfloat
 
 
 define declare_iss_isa_build
@@ -31,4 +32,3 @@ $(eval $(call declare_iss_build,riscy))
 cpu/iss/iss_riscy_single_regfile_CFLAGS += -DISS_SINGLE_REGFILE
 cpu/iss/iss_riscy_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_single_regfile))
-

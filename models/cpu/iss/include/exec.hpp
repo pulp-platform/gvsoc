@@ -21,47 +21,47 @@
 #ifndef __CPU_ISS_ISS_INSN_EXEC_HPP
 #define __CPU_ISS_ISS_INSN_EXEC_HPP
 
-iss_insn_t *iss_exec_insn_with_trace(iss *iss, iss_insn_t *insn);
-void iss_trace_dump(iss *iss, iss_insn_t *insn);
+iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn);
+void iss_trace_dump(iss_t *iss, iss_insn_t *insn);
 
 
-static inline void iss_exec_insn_resume(iss *iss)
+static inline void iss_exec_insn_resume(iss_t *iss)
 {
-  if (iss->insn_trace.get_active())
+  if (iss_insn_trace_active(iss))
   {
     iss_trace_dump(iss, iss->cpu.stall_insn);
   }
 }
 
-static inline void iss_exec_insn_stall(iss *iss)
+static inline void iss_exec_insn_stall(iss_t *iss)
 {
   iss->cpu.stall_insn = iss->cpu.current_insn;
   iss->cpu.state.insn_cycles = -1;
 }
 
-static inline iss_insn_t *iss_exec_insn_handler(iss *instance, iss_insn_t *insn, iss_insn_t *(*handler)(iss *, iss_insn_t *))
+static inline iss_insn_t *iss_exec_insn_handler(iss_t *instance, iss_insn_t *insn, iss_insn_t *(*handler)(iss_t *, iss_insn_t *))
 {
   return handler(instance, insn);
 }
 
 
-static inline iss_insn_t *iss_exec_insn_fast(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *iss_exec_insn_fast(iss_t *iss, iss_insn_t *insn)
 {
   return iss_exec_insn_handler(iss, insn, insn->fast_handler);
 }
 
-static inline iss_insn_t *iss_exec_insn(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *iss_exec_insn(iss_t *iss, iss_insn_t *insn)
 {
   return iss_exec_insn_handler(iss, insn, insn->handler);
 }
 
-static inline iss_insn_t *iss_exec_stalled_insn_fast(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *iss_exec_stalled_insn_fast(iss_t *iss, iss_insn_t *insn)
 {
   iss_perf_account_ld_stall(iss);
   return iss_exec_insn_handler(iss, insn, insn->stall_fast_handler);
 }
 
-static inline iss_insn_t *iss_exec_stalled_insn(iss *iss, iss_insn_t *insn)
+static inline iss_insn_t *iss_exec_stalled_insn(iss_t *iss, iss_insn_t *insn)
 {
   iss_perf_account_ld_stall(iss);
   iss_pccr_account_event(iss, CSR_PCER_LD_STALL, 1);
@@ -86,9 +86,20 @@ static inline int iss_exec_step_nofetch(iss_t *iss)
   return iss->cpu.state.insn_cycles;
 }
 
+static inline int iss_exec_step(iss_t *iss)
+{
+  return iss_exec_step_nofetch(iss);
+}
+
+
+static inline int iss_exec_switch_to_fast(iss_t *iss)
+{
+  return !iss->cpu.state.hw_counter_en && !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE);
+}
 
 static inline int iss_exec_step_nofetch_perf(iss_t *iss)
 {
+  iss_irq_check(iss);
   ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn);
   int cycles = iss->cpu.state.insn_cycles;
 
@@ -107,15 +118,25 @@ static inline int iss_exec_step_nofetch_perf(iss_t *iss)
 }
 
 
-static inline int iss_exec_is_stalled(iss *iss)
+
+static inline int iss_exec_step_check_all(iss_t *iss)
+{
+  return iss_exec_step_nofetch_perf(iss);
+}
+
+
+
+static inline int iss_exec_is_stalled(iss_t *iss)
 {
   return iss->cpu.state.insn_cycles == -1;
 }
 
+#if 0
 static inline int iss_exec_step(iss_t *iss)
 {
   uint64_t opcode = prefetcher_get_word(iss, 0x1a000000);
   return 1;
 }
+#endif
 
 #endif
