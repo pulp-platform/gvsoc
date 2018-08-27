@@ -45,7 +45,15 @@ class Qspim_group : public Pad_group
 public:
   Qspim_group(std::string name) : Pad_group(name) {}
   vp::qspim_slave slave;
-  vp::qspim_master master;
+  vp::trace data_0_trace;
+  vp::trace data_1_trace;
+  vp::trace data_2_trace;
+  vp::trace data_3_trace;
+  int nb_cs;
+  vector<vp::trace *> cs_trace;
+  vector<vp::qspim_master *> master;
+  vector<vp::wire_master<bool> *> cs_master;
+  int active_cs;
 };
 
 class Cpi_group : public Pad_group
@@ -110,9 +118,10 @@ public:
 
 private:
 
-  static void sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int id);
-  static void sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int id);
-  static void cs_sync(void *__this, int cs, int active, int id);
+  static void qspim_master_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+  static void qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+  static void qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+  static void qspim_cs_sync(void *__this, int cs, int active, int id);
 
   static void jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int id);
   static void jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id);
@@ -142,20 +151,76 @@ padframe::padframe(const char *config)
 
 }
 
-void padframe::sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int id)
+void padframe::qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
 {
 
   printf("%s %d\n", __FILE__, __LINE__);
 }
 
-void padframe::sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int id)
+void padframe::qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id)
 {
-  printf("%s %d\n", __FILE__, __LINE__);
+  padframe *_this = (padframe *)__this;
+  Qspim_group *group = static_cast<Qspim_group *>(_this->groups[id]);
+  unsigned int data = (data_0 << 0) | (data_1 << 1) | (data_2 << 2)| (data_3 << 3);
+
+  if (mask & (1<<0))
+    group->data_0_trace.event((uint8_t *)&data_0);
+  if (mask & (1<<1))
+    group->data_1_trace.event((uint8_t *)&data_1);
+  if (mask & (1<<2))
+    group->data_2_trace.event((uint8_t *)&data_2);
+  if (mask & (1<<3))
+    group->data_3_trace.event((uint8_t *)&data_3);
+
+  if (!group->master[group->active_cs]->is_bound())
+  {
+    vp_warning_always(&_this->warning, "Trying to send QSPIM stream while pad is not connected (interface: %s)\n", group->name.c_str());
+  }
+  else
+  {
+    group->master[group->active_cs]->sync_cycle(data_0, data_1, data_2, data_3, mask);
+  }
 }
 
-void padframe::cs_sync(void *__this, int cs, int active, int id)
+void padframe::qspim_cs_sync(void *__this, int cs, int active, int id)
 {
-  printf("%s %d\n", __FILE__, __LINE__);
+  padframe *_this = (padframe *)__this;
+  Qspim_group *group = static_cast<Qspim_group *>(_this->groups[id]);
+
+  if (cs >= group->nb_cs)
+  {
+    vp_warning_always(&_this->warning, "Trying to activate invalid cs (interface: %s, cs: %d, nb_cs: %d)\n", group->name.c_str(), cs, group->nb_cs);
+    return;
+  }
+
+  group->cs_trace[cs]->event((uint8_t *)&active);
+  group->active_cs = cs;
+
+  if (!group->cs_master[cs]->is_bound())
+  {
+    vp_warning_always(&_this->warning, "Trying to send QSPIM stream while cs pad is not connected (interface: %s, cs: %d)\n", group->name.c_str(), cs);
+  }
+  else
+  {
+    group->cs_master[cs]->sync(active);
+  }
+} 
+
+void padframe::qspim_master_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Qspim_group *group = static_cast<Qspim_group *>(_this->groups[id]);
+
+  if (mask & (1<<0))
+    group->data_0_trace.event((uint8_t *)&data_0);
+  if (mask & (1<<1))
+    group->data_1_trace.event((uint8_t *)&data_1);
+  if (mask & (1<<2))
+    group->data_2_trace.event((uint8_t *)&data_2);
+  if (mask & (1<<3))
+    group->data_3_trace.event((uint8_t *)&data_3);
+
+  group->slave.sync(data_0, data_1, data_2, data_3, mask);
 }
 
 
@@ -233,7 +298,7 @@ void padframe::uart_chip_sync(void *__this, int data, int id)
   group->tx_trace.event((uint8_t *)&data);
   if (!group->master.is_bound())
   {
-    _this->warning.warning("Trying to send UART stream while pad is not connected (interface: %s)\n", group->name.c_str());
+    vp_warning_always(&_this->warning, "Trying to send UART stream while pad is not connected (interface: %s)\n", group->name.c_str());
   }
   else
   {
@@ -270,7 +335,7 @@ void padframe::hyper_sync_cycle(void *__this, int data, int id)
   group->data_trace.event((uint8_t *)&data);
   if (!group->master[group->active_cs]->is_bound())
   {
-    _this->warning.warning("Trying to send HYPER stream while pad is not connected (interface: %s)\n", group->name.c_str());
+    vp_warning_always(&_this->warning, "Trying to send HYPER stream while pad is not connected (interface: %s)\n", group->name.c_str());
   }
   else
   {
@@ -286,7 +351,7 @@ void padframe::hyper_cs_sync(void *__this, int cs, int active, int id)
 
   if (cs >= group->nb_cs)
   {
-    _this->warning.warning("Trying to activate invalid cs (interface: %s, cs: %d, nb_cs: %d)\n", group->name.c_str(), cs, group->nb_cs);
+    vp_warning_always(&_this->warning, "Trying to activate invalid cs (interface: %s, cs: %d, nb_cs: %d)\n", group->name.c_str(), cs, group->nb_cs);
     return;
   }
 
@@ -295,7 +360,7 @@ void padframe::hyper_cs_sync(void *__this, int cs, int active, int id)
 
   if (!group->cs_master[cs]->is_bound())
   {
-    _this->warning.warning("Trying to send HYPER stream while cs pad is not connected (interface: %s)\n", group->name.c_str());
+    vp_warning_always(&_this->warning, "Trying to send HYPER stream while cs pad is not connected (interface: %s)\n", group->name.c_str());
   }
   else
   {
@@ -344,12 +409,34 @@ int padframe::build()
       if (type == "qspim")
       {
         Qspim_group *group = new Qspim_group(name);
-        new_master_port(name + "_pad", &group->master);
         new_slave_port(name, &group->slave);
-        group->slave.set_sync_meth_muxed(&padframe::sync, nb_itf);
-        group->slave.set_sync_cycle_meth_muxed(&padframe::sync_cycle, nb_itf);
-        group->slave.set_cs_sync_meth_muxed(&padframe::cs_sync, nb_itf);
+        group->slave.set_sync_meth_muxed(&padframe::qspim_sync, nb_itf);
+        group->slave.set_sync_cycle_meth_muxed(&padframe::qspim_sync_cycle, nb_itf);
+        group->slave.set_cs_sync_meth_muxed(&padframe::qspim_cs_sync, nb_itf);
         this->groups.push_back(group);
+
+        traces.new_trace_event(name + "/data_0", &group->data_0_trace, 1);
+        traces.new_trace_event(name + "/data_1", &group->data_1_trace, 1);
+        traces.new_trace_event(name + "/data_2", &group->data_2_trace, 1);
+        traces.new_trace_event(name + "/data_3", &group->data_3_trace, 1);
+        vp::config *nb_cs_config = config->get("nb_cs");
+        int nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
+        for (int i=0; i<nb_cs; i++)
+        {
+          vp::trace *trace = new vp::trace;
+          traces.new_trace_event(name + "/cs_" + std::to_string(i), trace, 4);
+          group->cs_trace.push_back(trace);
+          vp::qspim_master *itf = new vp::qspim_master;
+          itf->set_sync_meth_muxed(&padframe::qspim_master_sync, nb_itf);
+
+          new_master_port(name + "_cs" + std::to_string(i) + "_data_pad", itf);
+          group->master.push_back(itf);
+
+          vp::wire_master<bool> *cs_itf = new vp::wire_master<bool>;
+          new_master_port(name + "_cs" + std::to_string(i) + "_pad", cs_itf);
+          group->cs_master.push_back(cs_itf);
+        }
+
         nb_itf++;
       }
       else if (type == "jtag")

@@ -27,6 +27,7 @@
 #include "vp/itf/jtag.hpp"
 #include "vp/itf/uart.hpp"
 #include "vp/itf/cpi.hpp"
+#include "vp/itf/wire.hpp"
 #include <vector>
 #include <thread>
 #include <unistd.h>
@@ -40,18 +41,23 @@ typedef struct {
 
 typedef struct {
   void *handle;
+  vp::qspim_slave *itf;
+  vp::wire_slave<bool> *cs_itf;
+} qspim_handle_t;
+
+typedef struct {
+  void *handle;
   vp::trace trace;
 } cpi_handle_t;
 
 class dpi_wrapper;
 class dpi_task;
 
-static vector<vp::qspim_slave *> qspim_slaves;
-
 static vector<vp::jtag_master *> jtag_masters;
 
 static vector<vp::uart_slave *> uart_slaves;
 static vector<uart_handle_t *> uart_handles;
+static vector<qspim_handle_t *> qspim_handles;
 
 static vector<vp::cpi_master *> cpi_masters;
 static vector<cpi_handle_t *> cpi_handles;
@@ -125,6 +131,9 @@ public:
 
 private:
 
+  static void qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+  static void qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+  static void qspim_cs_sync(void *__this, bool active, int id);
   static void jtag_sync(void *__this, int tdo, int id);
   static void uart_sync(void *__this, int data, int id);
   static void cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id);
@@ -273,6 +282,23 @@ void dpi_wrapper::jtag_sync(void *__this, int tdo, int id)
   itf->tdo = tdo;
 }
 
+void dpi_wrapper::qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+{
+  printf("%s %d\n", __FILE__, __LINE__);
+}
+
+void dpi_wrapper::qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  dpi_qspim_edge(qspim_handles[id]->handle, _this->get_clock()->get_time(), data_0, data_1, data_2, data_3, mask);
+}
+
+void dpi_wrapper::qspim_cs_sync(void *__this, bool active, int id)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  dpi_qspim_cs_edge(qspim_handles[id]->handle, _this->get_clock()->get_time(), active);
+}
+
 void dpi_wrapper::uart_sync(void *__this, int data, int id)
 {
   dpi_wrapper *_this = (dpi_wrapper *)__this;
@@ -309,7 +335,6 @@ int dpi_wrapper::build()
 //
 //      $display("[TB] %t - Instantiating DPI component", $realtime, i);
 
-
       this->trace.msg("Instantiating DPI component\n");
 
       void *dpi_model = dpi_model_load(comp_config, (void *)this);
@@ -335,6 +360,28 @@ int dpi_wrapper::build()
 
         if (strcmp(itf_type, "QSPIM") == 0)
         {
+          qspim_handle_t *handle = new qspim_handle_t;
+          qspim_handles.push_back(handle);
+
+          vp::qspim_slave *itf = new vp::qspim_slave();
+          itf->set_sync_meth_muxed(&dpi_wrapper::qspim_sync, itf_id);
+          itf->set_sync_cycle_meth_muxed(&dpi_wrapper::qspim_sync_cycle, itf_id);
+          new_slave_port("spim" + std::to_string(itf_id) + "_cs" + std::to_string(itf_sub_id) + "_data", itf);
+
+          vp::wire_slave<bool> *cs_itf = new vp::wire_slave<bool>();
+          cs_itf->set_sync_meth_muxed(&dpi_wrapper::qspim_cs_sync, itf_id);
+          new_slave_port("spim" + std::to_string(itf_id) + "_cs" + std::to_string(itf_sub_id), cs_itf);
+
+          handle->itf = itf;
+          handle->cs_itf = cs_itf;
+
+          handle->handle = dpi_qspim_bind(dpi_model, itf_name, qspim_handles.size()-1);
+          if (handle->handle == NULL)
+          {
+            snprintf(vp_error, VP_ERROR_SIZE, "Failed to bind QSPIM interface (name: %s)\n", itf_name);
+            return -1;
+          }
+
 //            i_comp.qpim_bind(itf_name, qspi_infos[itf_id].itf, qspi_infos[itf_id].cs[itf_sub_id]);
         }
         else if (strcmp(itf_type, "JTAG") == 0)
@@ -384,6 +431,7 @@ int dpi_wrapper::build()
         {
 //            i_comp.ctrl_bind(itf_name, ctrl_infos[itf_id].itf);
         }
+
       }
     }
   }
@@ -488,10 +536,10 @@ extern "C" int dpi_wait_ps(void *handle, int64_t t)
 }
 
 
-extern "C" void dpi_qspim_set_data(void *handle, int data_0, int data_1, int data_2, int data_3)
+extern "C" void dpi_qspim_set_data(void *handle, int data_0, int data_1, int data_2, int data_3, int mask)
 {
-  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
-  exit(-1);
+  vp::qspim_slave *itf = qspim_handles[(int)(long)handle]->itf;
+  itf->sync(data_0, data_1, data_2, data_3, mask);
 }
 
 extern "C" void dpi_create_task(void *handle, int id)

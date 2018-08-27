@@ -22,6 +22,7 @@
 
 #include "udma_v2_impl.hpp"
 #include "archi/udma/udma_periph_v2.h"
+#include "archi/utils.h"
 #include "vp/itf/qspim.hpp"
 
 
@@ -34,22 +35,95 @@ Spim_periph_v2::Spim_periph_v2(udma *top, int id, int itf_id) : Udma_periph(top,
   channel0 = new Spim_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
   channel1 = new Spim_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
 
-  top->new_master_port(itf_name, &qspim_itf);
+  qspim_itf.set_sync_meth(&Spim_periph_v2::slave_sync);
+  top->new_master_port(this, itf_name, &qspim_itf);
 }
-  
-void Spim_tx_channel::handle_ready_req(vp::io_req *req)
+
+void Spim_periph_v2::reset()
 {
-  uint32_t data = *(uint32_t *)req->get_data();
+  Udma_periph::reset();
+  this->waiting_rx = false;
+  this->cmd_pending_bits = 0;
+  this->nb_received_bits = 0;
+  this->pending_word = 0x57575757;
+}
 
-  uint32_t command = data >> SPI_CMD_ID_OFFSET;
+  
+void Spim_periph_v2::slave_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask)
+{
+  Spim_periph_v2 *_this = (Spim_periph_v2 *)__this;
+  (static_cast<Spim_rx_channel *>(_this->channel0))->handle_rx_bits(data_0, data_1, data_2, data_3, mask);
+}
 
-  switch (command)
+void Spim_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask)
+{
+
+  if (this->periph->qpi)
+  {
+    this->periph->pending_word = (data_3 << 3) | (data_2 << 2) | (data_1 << 1) | (data_0 << 0) | (this->periph->pending_word << 4);
+  }
+  else
+  {
+    this->periph->pending_word = data_1 | (this->periph->pending_word << 1);
+  }
+}
+
+void Spim_tx_channel::check_state()
+{
+  if ((this->pending_bits != 0 && !pending_word_event->is_enqueued()) || this->periph->waiting_rx)
+  {
+    int latency = 1;
+    int64_t cycles = this->top->get_clock()->get_cycles();
+    if (next_bit_cycle > cycles)
+      latency = next_bit_cycle - cycles;
+
+    top->event_enqueue(pending_word_event, latency);
+  }
+}
+
+
+Spim_tx_channel::Spim_tx_channel(udma *top, Spim_periph_v2 *periph, int id, string name)
+: Udma_tx_channel(top, id, name), periph(periph)
+{
+  pending_word_event = top->event_new(this, Spim_tx_channel::handle_pending_word);
+}
+
+
+void Spim_tx_channel::handle_ready_reqs()
+{
+  if (!this->periph->waiting_rx && this->pending_bits == 0 && !ready_reqs->is_empty())
+  {
+    vp::io_req *req = this->ready_reqs->pop();
+    this->pending_req = req;
+    this->pending_word = *(uint32_t *)req->get_data();
+    this->pending_bits = req->get_size() * 8;
+    this->check_state();
+  }
+}
+
+void Spim_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
+{
+  Spim_tx_channel *_this = (Spim_tx_channel *)__this;
+  _this->handle_data(_this->pending_word);
+  _this->check_state();
+}
+
+void Spim_tx_channel::handle_data(uint32_t data)
+{
+  if (this->periph->cmd_pending_bits <= 0)
+  {
+    this->command = data >> SPI_CMD_ID_OFFSET;
+  }
+
+  bool handled_all = true;
+
+  switch (this->command)
   {
     case SPI_CMD_CFG_ID: {
-      unsigned int clock_div = (data >> SPI_CMD_CFG_CLK_DIV_OFFSET) & ((1<<SPI_CMD_CFG_CLK_DIV_WIDTH)-1);
+      this->periph->clkdiv = (data >> SPI_CMD_CFG_CLK_DIV_OFFSET) & ((1<<SPI_CMD_CFG_CLK_DIV_WIDTH)-1);
       unsigned int cpol = (data >> SPI_CMD_CFG_CPOL_OFFSET) & 1;
       unsigned int cpha = (data >> SPI_CMD_CFG_CPHA_OFFSET) & 1;
-      trace.msg("Received command CFG (clock_div: %d, cpol: %d, cpha: %d)\n", clock_div, cpol, cpha);
+      trace.msg("Received command CFG (clock_div: %d, cpol: %d, cpha: %d)\n", this->periph->clkdiv, cpol, cpha);
       //period = top->getEngine()->getPeriod() * clockDiv * 2;
       break;
     }
@@ -107,6 +181,37 @@ void Spim_tx_channel::handle_ready_req(vp::io_req *req)
     }
 
     case SPI_CMD_TX_DATA_ID: {
+      if (this->periph->cmd_pending_bits <= 0)
+      {
+        unsigned int bits = ((data >> SPI_CMD_TX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_TX_DATA_SIZE_WIDTH)-1))+1;
+        this->periph->byte_align = (data >> SPI_CMD_TX_DATA_BYTE_ALIGN_OFFSET) & 1;
+        this->periph->qpi = ARCHI_REG_FIELD_GET(data, SPI_CMD_TX_DATA_QPI_OFFSET, 1);
+        trace.msg("Received command TX_DATA (size: %d, byte_align: %d, qpi: %d)\n", bits, this->periph->byte_align, this->periph->qpi);
+        this->periph->cmd_pending_bits = bits;
+      }
+      else
+      {
+        if (!this->periph->byte_align && this->pending_bits == 32) this->pending_word = __bswap_32(this->pending_word);
+
+        int nb_bits = periph->qpi ? 4 : 1;
+        this->next_bit_cycle = this->top->get_clock()->get_cycles() + this->periph->clkdiv;
+        unsigned int bits = ARCHI_REG_FIELD_GET(this->pending_word, 32 - nb_bits, nb_bits);
+        this->pending_word <<= nb_bits;
+        this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x)\n", nb_bits, bits);
+        if (!this->periph->qspim_itf.is_bound())
+        {
+          this->top->get_trace()->warning("Trying to send to SPIM interface while it is not connected\n");
+        }
+        else
+        {
+          this->periph->qspim_itf.sync_cycle(
+            (bits >> 0) & 1, (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (1<<nb_bits)-1
+          );
+        }
+        this->periph->cmd_pending_bits -= nb_bits;
+        this->pending_bits -= nb_bits;
+        handled_all = false;
+      }
       #if 0
       if (waitWord) {
         int64_t latency = 0;
@@ -122,19 +227,59 @@ void Spim_tx_channel::handle_ready_req(vp::io_req *req)
         if (dataSize == 0) waitWord = 0;
       } else {
         #endif
-        unsigned int bits = ((data >> SPI_CMD_TX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_TX_DATA_SIZE_WIDTH)-1))+1;
-        unsigned int byte_align = (data >> SPI_CMD_TX_DATA_BYTE_ALIGN_OFFSET) & 1;
-        trace.msg("Received command TX_DATA (size: %d, byte_align: %d)\n", bits, byte_align);
-        //dataSize = bits;
         //waitWord = 1;
       //}
       break;
     }
 
     case SPI_CMD_RX_DATA_ID: {
-      unsigned int bits = ((data >> SPI_CMD_RX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_RX_DATA_SIZE_WIDTH)-1))+1;
-      unsigned int byte_align = (data >> SPI_CMD_TX_DATA_BYTE_ALIGN_OFFSET) & 1;
-      trace.msg("Received command RX_DATA (size: %d, byte_align: %d)\n", bits, byte_align);
+      if (this->periph->cmd_pending_bits <= 0)
+      {
+        unsigned int bits = ((data >> SPI_CMD_RX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_RX_DATA_SIZE_WIDTH)-1))+1;
+        this->periph->byte_align = (data >> SPI_CMD_RX_DATA_BYTE_ALIGN_OFFSET) & 1;
+        this->periph->qpi = ARCHI_REG_FIELD_GET(data, SPI_CMD_RX_DATA_QPI_OFFSET, 1);
+        trace.msg("Received command RX_DATA (size: %d, byte_align: %d, qpi: %d)\n", bits, periph->byte_align, this->periph->qpi);
+        this->periph->cmd_pending_bits = bits;
+        this->periph->waiting_rx = true;
+      }
+      else
+      {
+        int nb_bits = periph->qpi ? 4 : 1;
+        this->next_bit_cycle = this->top->get_clock()->get_cycles() + this->periph->clkdiv;
+
+        if (!this->periph->qspim_itf.is_bound())
+        {
+          this->top->get_trace()->warning("Trying to receive from SPIM interface while it is not connected\n");
+        }
+        else
+        {
+          this->periph->qspim_itf.sync_cycle(0, 0, 0, 0, 0
+          );
+        }
+
+        this->top->get_trace()->msg("Received bits (nb_bits: %d, value: 0x%x)\n", nb_bits, this->periph->pending_word & ((1<<nb_bits) - 1));
+
+        this->periph->cmd_pending_bits -= nb_bits;
+        this->periph->nb_received_bits += nb_bits;
+
+        if (this->periph->nb_received_bits == 32 || this->periph->cmd_pending_bits <= 0)
+        {
+          if (!this->periph->byte_align) this->periph->pending_word = __bswap_32(this->periph->pending_word);
+
+          (static_cast<Spim_rx_channel *>(this->periph->channel0))->push_data((uint8_t *)&this->periph->pending_word, 4);
+          
+          this->periph->nb_received_bits = 0;
+          this->pending_word = 0x57575757;
+        }
+
+
+        if (this->periph->cmd_pending_bits <= 0)
+        {
+          this->periph->waiting_rx = false;
+        }
+        handled_all = false;
+      }
+
       //int size = (bits+7)/8;
       //uint8_t data[(size+3) & 0xfffffffc];
       //int64_t latency = 0;
@@ -230,10 +375,25 @@ void Spim_tx_channel::handle_ready_req(vp::io_req *req)
     trace.msg("Store L2 data to shift register (value: 0x%x)\n", pending_word);
   }
   #endif
+
+  if (handled_all)
+    this->pending_bits = 0;
+
+  if (this->pending_bits == 0)
+  {
+    this->handle_ready_req_end(this->pending_req);
+    this->handle_ready_reqs();
+  }
 }
 
 void Spim_tx_channel::reset()
 {
   Udma_tx_channel::reset();
-  has_pending_word = false;
+  this->next_bit_cycle = -1;
+  this->pending_bits = 0;
+}
+
+void Spim_rx_channel::reset()
+{
+  Udma_rx_channel::reset();
 }

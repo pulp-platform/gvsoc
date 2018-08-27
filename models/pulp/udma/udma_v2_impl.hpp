@@ -191,6 +191,10 @@ class Spim_rx_channel : public Udma_rx_channel
 public:
   Spim_rx_channel(udma *top, Spim_periph_v2 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
 
+  void reset();
+
+  void handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask);
+
 private:
   Spim_periph_v2 *periph;
 };
@@ -199,15 +203,23 @@ private:
 class Spim_tx_channel : public Udma_tx_channel
 {
 public:
-  Spim_tx_channel(udma *top, Spim_periph_v2 *periph, int id, string name) : Udma_tx_channel(top, id, name), periph(periph) {}
-  void handle_ready_req(vp::io_req *req);
+  Spim_tx_channel(udma *top, Spim_periph_v2 *periph, int id, string name);
+  void handle_ready_reqs();
+  void check_state();
 
 private:
   void reset();
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+  void handle_data(uint32_t data);
+
+  vp::clock_event *pending_word_event;
 
   Spim_periph_v2 *periph;
-  bool has_pending_word;
   uint32_t pending_word;
+  int pending_bits;
+  int64_t next_bit_cycle;
+  vp::io_req *pending_req;
+  uint32_t command;
 };
 
 
@@ -218,9 +230,18 @@ class Spim_periph_v2 : public Udma_periph
 
 public:
   Spim_periph_v2(udma *top, int id, int itf_id);
+  static void slave_sync(void *_this, int data_0, int data_1, int data_2, int data_3, int mask);
+  void reset();
 
 protected:
   vp::qspim_master qspim_itf;
+  int clkdiv;
+  bool waiting_rx;
+  int byte_align;
+  int qpi;
+  int cmd_pending_bits;
+  int nb_received_bits;
+  uint32_t pending_word;
 };
 
 
