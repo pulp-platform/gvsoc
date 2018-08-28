@@ -974,6 +974,7 @@ void mchan::check_loc_transfer_handler(void *__this, vp::clock_event *event)
     vp::io_req *req = &_this->loc_req[i];
     _this->trace.msg("Sending %s request to local port (req: %p, port: %d, addr: 0x%x, size: 0x%x)\n",
       is_write ? "write" : "read", req, i, addr, size);
+    req->init();
     req->set_addr(addr);
     req->set_size(size);
     req->set_is_write(is_write);
