@@ -361,15 +361,16 @@ int dpi_wrapper::build()
         if (strcmp(itf_type, "QSPIM") == 0)
         {
           qspim_handle_t *handle = new qspim_handle_t;
+          int id = qspim_handles.size();
           qspim_handles.push_back(handle);
 
           vp::qspim_slave *itf = new vp::qspim_slave();
-          itf->set_sync_meth_muxed(&dpi_wrapper::qspim_sync, itf_id);
-          itf->set_sync_cycle_meth_muxed(&dpi_wrapper::qspim_sync_cycle, itf_id);
+          itf->set_sync_meth_muxed(&dpi_wrapper::qspim_sync, id);
+          itf->set_sync_cycle_meth_muxed(&dpi_wrapper::qspim_sync_cycle, id);
           new_slave_port("spim" + std::to_string(itf_id) + "_cs" + std::to_string(itf_sub_id) + "_data", itf);
 
           vp::wire_slave<bool> *cs_itf = new vp::wire_slave<bool>();
-          cs_itf->set_sync_meth_muxed(&dpi_wrapper::qspim_cs_sync, itf_id);
+          cs_itf->set_sync_meth_muxed(&dpi_wrapper::qspim_cs_sync, id);
           new_slave_port("spim" + std::to_string(itf_id) + "_cs" + std::to_string(itf_sub_id), cs_itf);
 
           handle->itf = itf;

@@ -379,11 +379,13 @@ void Spim_tx_channel::handle_data(uint32_t data)
   if (handled_all)
     this->pending_bits = 0;
 
-  if (this->pending_bits == 0)
+  if (this->pending_bits == 0 && this->pending_req)
   {
     this->handle_ready_req_end(this->pending_req);
-    this->handle_ready_reqs();
+    this->pending_req = NULL;
   }
+  
+  this->handle_ready_reqs();
 }
 
 void Spim_tx_channel::reset()

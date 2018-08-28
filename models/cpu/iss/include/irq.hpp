@@ -29,6 +29,7 @@ static inline void iss_irq_check(iss_t *iss)
     iss->cpu.csr.epc = iss->cpu.current_insn->addr;
     iss->cpu.irq.saved_irq_enable = iss->cpu.irq.irq_enable;
     iss->cpu.irq.irq_enable = 0;
+    iss->cpu.irq.req_irq = -1;
     iss->cpu.current_insn = iss->cpu.irq.vectors[req_irq];
     iss_irq_ack(iss, req_irq);
   }
@@ -36,6 +37,7 @@ static inline void iss_irq_check(iss_t *iss)
 
 static inline iss_insn_t *iss_irq_handle_mret(iss_t *iss)
 {
+  iss_trigger_check_all(iss);
   iss->cpu.irq.irq_enable = iss->cpu.irq.saved_irq_enable;
   return insn_cache_get(iss, iss->cpu.csr.epc);
 

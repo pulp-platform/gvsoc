@@ -62,11 +62,14 @@ public:
 
   vp::io_req_status_e ioReq(uint32_t offset, bool is_write, uint32_t *data);
 
+  void check_state();
+
 private:
   static void sync(void *__this, int event);
 
   Event_unit *top;
   vp::trace     trace;
+
 };
 
 class Mutex {
@@ -240,6 +243,7 @@ public:
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
   void build(Event_unit *top, int core_id);
   void set_status(uint32_t new_value);
+  void clear_status(uint32_t mask);
   void reset();
   void check_state();
   vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data);
@@ -451,7 +455,7 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
   else if (offset == EU_CORE_BUFFER_CLEAR)
   {
     if (!is_write) return vp::IO_REQ_INVALID;
-    set_status(status & (~*data));
+    clear_status(*data);
     top->trace.msg("Clearing buffer status (mask: 0x%x, newValue: 0x%x)\n", *data, status);
     check_state();
     return vp::IO_REQ_OK;
@@ -641,7 +645,7 @@ extern "C" void *vp_constructor(const char *config)
 
 void Core_event_unit::irq_ack_sync(int irq, int core)
 {
-  set_status(status & ~(1<<irq));
+  clear_status(1<<irq);
   sync_irq = -1;
 
   check_state();
@@ -652,6 +656,12 @@ void Core_event_unit::irq_ack_sync(int irq, int core)
 void Core_event_unit::set_status(uint32_t new_value)
 {
   status = new_value;
+}
+
+void Core_event_unit::clear_status(uint32_t mask)
+{
+  status = status & ~mask;
+  top->soc_event_unit->check_state();
 }
 
 
@@ -666,7 +676,7 @@ void Core_event_unit::check_wait_mask()
 {
   if (clear_evt_mask)
   {
-    set_status(status & (~clear_evt_mask));
+    clear_status(clear_evt_mask);
     top->trace.msg("Clear event after wake-up (evtMask: 0x%x, status: 0x%x)\n", clear_evt_mask, status);
     clear_evt_mask = 0;
   }
@@ -1376,6 +1386,14 @@ void Soc_event_unit::reset()
   this->fifo_event_tail = 0;
 }
 
+void Soc_event_unit::check_state()
+{
+  if (this->fifo_soc_event != -1 && this->nb_free_events != this->nb_fifo_events) {
+    this->trace.msg("Generating FIFO event (id: %d)\n", this->fifo_soc_event);
+    this->top->trigger_event(1<<this->fifo_soc_event, -1);
+  }
+}
+
 void Soc_event_unit::sync(void *__this, int event)
 {
   Soc_event_unit *_this = (Soc_event_unit *)__this;
@@ -1390,11 +1408,7 @@ void Soc_event_unit::sync(void *__this, int event)
   _this->fifo_event_head++;
   if (_this->fifo_event_head == _this->nb_fifo_events) _this->fifo_event_head = 0;
 
-  
-  if (_this->fifo_soc_event != -1 && _this->nb_free_events == _this->nb_fifo_events - 1) {
-    _this->trace.msg("Generating FIFO soc event (id: %d)\n", _this->fifo_soc_event);
-    _this->top->trigger_event(1<<_this->fifo_soc_event, -1);
-  }
+  _this->check_state();
 }
 
 vp::io_req_status_e Soc_event_unit::ioReq(uint32_t offset, bool is_write, uint32_t *data)
