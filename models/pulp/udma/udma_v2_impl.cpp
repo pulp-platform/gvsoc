@@ -647,7 +647,11 @@ int udma::build()
       int offset = offsets->get_elem(j)->get_int();
 
 
-      if (strcmp(name.c_str(), "spim") == 0)
+      if (0)
+      {
+      }
+#ifdef HAS_SPIM
+      else if (strcmp(name.c_str(), "spim") == 0)
       {
         trace.msg("Instantiating SPIM channel (id: %d, offset: 0x%x)\n", id, offset);
         if (version == 2)
@@ -660,6 +664,7 @@ int udma::build()
           throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
+#endif
       else if (strcmp(name.c_str(), "uart") == 0)
       {
         trace.msg("Instantiating UART channel (id: %d, offset: 0x%x)\n", id, offset);
@@ -673,6 +678,7 @@ int udma::build()
           throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
+#ifdef HAS_HYPER
       else if (strcmp(name.c_str(), "hyper") == 0)
       {
         trace.msg("Instantiating HYPER channel (id: %d, offset: 0x%x)\n", id, offset);
@@ -686,6 +692,8 @@ int udma::build()
           throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
+#endif
+#ifdef HAS_CPI
       else if (strcmp(name.c_str(), "cpi") == 0)
       {
         trace.msg("Instantiating CPI channel (id: %d, offset: 0x%x)\n", id, offset);
@@ -699,6 +707,7 @@ int udma::build()
           throw logic_error("Non-supported udma version: " + std::to_string(version));
         }
       }
+#endif
       else
       {
         trace.msg("Instantiating channel (id: %d, offset: 0x%x)\n", id, offset);
