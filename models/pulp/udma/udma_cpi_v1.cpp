@@ -76,6 +76,7 @@ vp::io_req_status_e Cpi_periph_v1::handle_ur_access(bool is_write, uint32_t *dat
   return vp::IO_REQ_OK;
 }
 
+
 vp::io_req_status_e Cpi_periph_v1::handle_size_access(bool is_write, uint32_t *data) {
   if (!is_write) *data = this->size;
   else {

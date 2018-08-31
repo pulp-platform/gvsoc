@@ -20,4 +20,12 @@ import vp_core as vp
 
 class component(vp.component):
 
-    implementation = 'pulp.udma.udma_v2_impl'
+    def __init__(self, name, config, debug, parent=None):
+
+        js_config = self.get_json_config(config)
+
+        udma_class = js_config.get_child_str('vp_impl')
+
+        setattr(self, 'implementation', '%s' % udma_class)
+
+        super(component, self).__init__(name, config, debug, parent)
