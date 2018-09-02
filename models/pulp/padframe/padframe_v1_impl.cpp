@@ -202,7 +202,7 @@ void padframe::qspim_cs_sync(void *__this, int cs, int active, int id)
   }
   else
   {
-    group->cs_master[cs]->sync(active);
+    group->cs_master[cs]->sync(!active);
   }
 } 
 
@@ -364,7 +364,7 @@ void padframe::hyper_cs_sync(void *__this, int cs, int active, int id)
   }
   else
   {
-    group->cs_master[cs]->sync(active);
+    group->cs_master[cs]->sync(!active);
   }
 }
 

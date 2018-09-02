@@ -43,9 +43,11 @@ void Spim_periph_v2::reset()
 {
   Udma_periph::reset();
   this->waiting_rx = false;
+  this->is_full_duplex = false;
   this->cmd_pending_bits = 0;
   this->nb_received_bits = 0;
-  this->pending_word = 0x57575757;
+  this->rx_pending_word = 0x57575757;
+  this->tx_pending_word = 0x57575757;
 }
 
   
@@ -57,14 +59,13 @@ void Spim_periph_v2::slave_sync(void *__this, int data_0, int data_1, int data_2
 
 void Spim_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask)
 {
-
   if (this->periph->qpi)
   {
-    this->periph->pending_word = (data_3 << 3) | (data_2 << 2) | (data_1 << 1) | (data_0 << 0) | (this->periph->pending_word << 4);
+    this->periph->rx_pending_word = (data_3 << 3) | (data_2 << 2) | (data_1 << 1) | (data_0 << 0) | (this->periph->rx_pending_word << 4);
   }
   else
   {
-    this->periph->pending_word = data_1 | (this->periph->pending_word << 1);
+    this->periph->rx_pending_word = data_1 | (this->periph->rx_pending_word << 1);
   }
 }
 
@@ -95,7 +96,7 @@ void Spim_tx_channel::handle_ready_reqs()
   {
     vp::io_req *req = this->ready_reqs->pop();
     this->pending_req = req;
-    this->pending_word = *(uint32_t *)req->get_data();
+    this->tx_pending_word = *(uint32_t *)req->get_data();
     this->pending_bits = req->get_size() * 8;
     this->check_state();
   }
@@ -104,7 +105,7 @@ void Spim_tx_channel::handle_ready_reqs()
 void Spim_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 {
   Spim_tx_channel *_this = (Spim_tx_channel *)__this;
-  _this->handle_data(_this->pending_word);
+  _this->handle_data(_this->tx_pending_word);
   _this->check_state();
 }
 
@@ -129,12 +130,12 @@ void Spim_tx_channel::handle_data(uint32_t data)
     }
 
     case SPI_CMD_SOT_ID: {
-      int cs = (data >> SPI_CMD_SOT_CS_OFFSET) & ((1<<SPI_CMD_SOT_CS_WIDTH)-1);
-      trace.msg("Received command SOT (cs: %d)\n", cs);
+      this->cs = (data >> SPI_CMD_SOT_CS_OFFSET) & ((1<<SPI_CMD_SOT_CS_WIDTH)-1);
+      trace.msg("Received command SOT (cs: %d)\n", this->cs);
       if (!periph->qspim_itf.is_bound())
         trace.warning("Trying to set chip select to unbound QSPIM interface\n");
       else
-        periph->qspim_itf.cs_sync(cs, 1);
+        periph->qspim_itf.cs_sync(this->cs, 1);
       break;
     }
 
@@ -191,13 +192,14 @@ void Spim_tx_channel::handle_data(uint32_t data)
       }
       else
       {
-        if (!this->periph->byte_align && this->pending_bits == 32) this->pending_word = __bswap_32(this->pending_word);
+        if (!this->periph->byte_align && this->pending_bits == 32) this->tx_pending_word = __bswap_32(this->tx_pending_word);
 
         int nb_bits = periph->qpi ? 4 : 1;
         this->next_bit_cycle = this->top->get_clock()->get_cycles() + this->periph->clkdiv;
-        unsigned int bits = ARCHI_REG_FIELD_GET(this->pending_word, 32 - nb_bits, nb_bits);
-        this->pending_word <<= nb_bits;
+        unsigned int bits = ARCHI_REG_FIELD_GET(this->tx_pending_word, 32 - nb_bits, nb_bits);
+        this->tx_pending_word <<= nb_bits;
         this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x)\n", nb_bits, bits);
+
         if (!this->periph->qspim_itf.is_bound())
         {
           this->top->get_trace()->warning("Trying to send to SPIM interface while it is not connected\n");
@@ -247,6 +249,22 @@ void Spim_tx_channel::handle_data(uint32_t data)
         int nb_bits = periph->qpi ? 4 : 1;
         this->next_bit_cycle = this->top->get_clock()->get_cycles() + this->periph->clkdiv;
 
+        this->top->get_trace()->msg("Received bits (nb_bits: %d, value: 0x%x)\n", nb_bits, this->periph->rx_pending_word & ((1<<nb_bits) - 1));
+
+        this->periph->cmd_pending_bits -= nb_bits;
+        this->periph->nb_received_bits += nb_bits;
+
+        if (this->periph->nb_received_bits == 32 || this->periph->cmd_pending_bits <= 0)
+        {
+          if (!this->periph->byte_align) this->periph->rx_pending_word = __bswap_32(this->periph->rx_pending_word);
+
+          (static_cast<Spim_rx_channel *>(this->periph->channel0))->push_data((uint8_t *)&this->periph->rx_pending_word, 4);
+          
+          this->periph->nb_received_bits = 0;
+          this->rx_pending_word = 0x57575757;
+        }
+
+
         if (!this->periph->qspim_itf.is_bound())
         {
           this->top->get_trace()->warning("Trying to receive from SPIM interface while it is not connected\n");
@@ -256,22 +274,6 @@ void Spim_tx_channel::handle_data(uint32_t data)
           this->periph->qspim_itf.sync_cycle(0, 0, 0, 0, 0
           );
         }
-
-        this->top->get_trace()->msg("Received bits (nb_bits: %d, value: 0x%x)\n", nb_bits, this->periph->pending_word & ((1<<nb_bits) - 1));
-
-        this->periph->cmd_pending_bits -= nb_bits;
-        this->periph->nb_received_bits += nb_bits;
-
-        if (this->periph->nb_received_bits == 32 || this->periph->cmd_pending_bits <= 0)
-        {
-          if (!this->periph->byte_align) this->periph->pending_word = __bswap_32(this->periph->pending_word);
-
-          (static_cast<Spim_rx_channel *>(this->periph->channel0))->push_data((uint8_t *)&this->periph->pending_word, 4);
-          
-          this->periph->nb_received_bits = 0;
-          this->pending_word = 0x57575757;
-        }
-
 
         if (this->periph->cmd_pending_bits <= 0)
         {
@@ -296,6 +298,77 @@ void Spim_tx_channel::handle_data(uint32_t data)
       //nextCommandCycles = top->getEngine()->getCycles() + latency;
       break;
     }
+
+    case SPI_CMD_FUL_ID: {
+      if (this->periph->cmd_pending_bits <= 0)
+      {
+        unsigned int bits = ((data >> SPI_CMD_FUL_SIZE_OFFSET) & ((1<<SPI_CMD_FUL_SIZE_WIDTH)-1))+1;
+        this->periph->byte_align = (data >> SPI_CMD_FUL_BYTE_ALIGN_OFFSET) & 1;
+        trace.msg("Received command FULL_DUPLEX (size: %d, byte_align: %d)\n", bits, periph->byte_align);
+        this->periph->cmd_pending_bits = bits;
+        this->periph->is_full_duplex = true;
+      }
+      else
+      {
+        if (!this->periph->byte_align && this->pending_bits == 32) this->tx_pending_word = __bswap_32(this->tx_pending_word);
+
+        int nb_bits = periph->qpi ? 4 : 1;
+        this->next_bit_cycle = this->top->get_clock()->get_cycles() + this->periph->clkdiv;
+        unsigned int bits = ARCHI_REG_FIELD_GET(this->tx_pending_word, 32 - nb_bits, nb_bits);
+
+        this->periph->cmd_pending_bits -= nb_bits;
+        this->periph->nb_received_bits += nb_bits;
+        this->pending_bits -= nb_bits;
+
+        this->top->get_trace()->msg("Received bits (nb_bits: %d, value: 0x%x, pending_word: 0x%x)\n", nb_bits, this->periph->rx_pending_word & ((1<<nb_bits) - 1), this->periph->rx_pending_word);
+
+        if (this->periph->nb_received_bits == 32 || this->periph->cmd_pending_bits <= 0)
+        {
+          if (!this->periph->byte_align) this->periph->rx_pending_word = __bswap_32(this->periph->rx_pending_word);
+
+          (static_cast<Spim_rx_channel *>(this->periph->channel0))->push_data((uint8_t *)&this->periph->rx_pending_word, 4);
+          
+          this->periph->nb_received_bits = 0;
+          this->rx_pending_word = 0x57575757;
+        }
+
+        this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x, pending_word: 0x%x)\n", nb_bits, bits, this->tx_pending_word);
+        this->tx_pending_word <<= nb_bits;
+        if (!this->periph->qspim_itf.is_bound())
+        {
+          this->top->get_trace()->warning("Trying to receive from SPIM interface while it is not connected\n");
+        }
+        else
+        {
+          this->periph->qspim_itf.sync_cycle(
+            (bits >> 0) & 1, (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (1<<nb_bits)-1
+          );
+        }
+
+        if (this->periph->cmd_pending_bits <= 0)
+        {
+          this->periph->is_full_duplex = false;
+        }
+        handled_all = false;
+      }
+
+      //int size = (bits+7)/8;
+      //uint8_t data[(size+3) & 0xfffffffc];
+      //int64_t latency = 0;
+      //if (checkCs(cmdCs)) break;
+      //spiPorts[cmdCs]->bsData((uint8_t *)data, bits, &latency);
+      //// TODO this should be controlled by the datasize
+      //if (byte_align)
+      //{
+      //  for (int i=0; i<size/4; i++) {
+      //    ((int *)data)[i] = swapData(((int *)data)[i], 4);
+      //  }
+      //}
+      //rxChannel->enqueueData(data, size, 0);
+      //nextCommandCycles = top->getEngine()->getCycles() + latency;
+      break;
+    }
+
     case SPI_CMD_RPT_ID: {
       unsigned short iter = (data >> SPI_CMD_RPT_NB_OFFSET) & ((1<<SPI_CMD_RPT_NB_WIDTH)-1);
       trace.msg("Received command RPT (nbIter: %d)\n", iter);
@@ -307,9 +380,12 @@ void Spim_tx_channel::handle_data(uint32_t data)
       break;
     }
     case SPI_CMD_EOT_ID: {
-      trace.msg("Received command EOT\n");
-      //cmdCs = -1;
-      //int evt = (data >> SPI_CMD_EOT_GEN_EVT_OFFSET) & 1;
+      int evt = (data >> SPI_CMD_EOT_GEN_EVT_OFFSET) & 1;
+      trace.msg("Received command EOT (evt: %d)\n", evt);
+      if (!periph->qspim_itf.is_bound())
+        trace.warning("Trying to set chip select to unbound QSPIM interface\n");
+      else
+        periph->qspim_itf.cs_sync(this->cs, 0);
       //if (evt) top->raiseEvent(eotEvent);
       break;
     }

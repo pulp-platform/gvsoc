@@ -215,11 +215,13 @@ private:
   vp::clock_event *pending_word_event;
 
   Spim_periph_v2 *periph;
-  uint32_t pending_word;
+  uint32_t tx_pending_word;
+  uint32_t rx_pending_word;
   int pending_bits;
   int64_t next_bit_cycle;
   vp::io_req *pending_req;
   uint32_t command;
+  int cs;
 };
 
 
@@ -237,11 +239,13 @@ protected:
   vp::qspim_master qspim_itf;
   int clkdiv;
   bool waiting_rx;
+  bool is_full_duplex;
   int byte_align;
   int qpi;
   int cmd_pending_bits;
   int nb_received_bits;
-  uint32_t pending_word;
+  uint32_t rx_pending_word;
+  uint32_t tx_pending_word;
 };
 
 

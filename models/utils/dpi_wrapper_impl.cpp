@@ -537,7 +537,13 @@ extern "C" int dpi_wait_ps(void *handle, int64_t t)
 }
 
 
-extern "C" void dpi_qspim_set_data(void *handle, int data_0, int data_1, int data_2, int data_3, int mask)
+extern "C" void dpi_qspim_set_data(void *handle, int data)
+{
+  vp::qspim_slave *itf = qspim_handles[(int)(long)handle]->itf;
+  itf->sync(0, data, 0, 0, 0x2);
+}
+
+extern "C" void dpi_qspim_set_qpi_data(void *handle, int data_0, int data_1, int data_2, int data_3, int mask)
 {
   vp::qspim_slave *itf = qspim_handles[(int)(long)handle]->itf;
   itf->sync(data_0, data_1, data_2, data_3, mask);

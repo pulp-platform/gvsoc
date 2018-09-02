@@ -48,11 +48,11 @@ void Udma_rx_channel::push_data(uint8_t *data, int size)
 
   if (this->pending_byte_index >= 4 || this->pending_byte_index >= current_cmd->remaining_size)
   {
-    trace.msg("Writing 4 bytes to memory\n");
     this->pending_byte_index = 0;
     vp::io_req *req = this->top->l2_itf.req_new(0, new uint8_t[4], 4, true);
     *(uint32_t *)req->get_data() = this->pending_word;
     bool end = current_cmd->prepare_req(req);
+    trace.msg("Writing 4 bytes to memory (value: 0x%x, addr: 0x%x)\n", this->pending_word, req->get_addr());
     this->top->push_l2_write_req(req);
     if (end)
     {
