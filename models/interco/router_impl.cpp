@@ -346,6 +346,8 @@ int router::build()
       if (conf) entry->remove_offset = conf->get_int();
       conf = config->get("add_offset");
       if (conf) entry->add_offset = conf->get_int();
+      conf = config->get("latency");
+      if (conf) entry->latency = conf->get_int();
       conf = config->get("id");
       if (conf) entry->id = conf->get_int();
 
@@ -469,6 +471,8 @@ inline void io_master_map::bind_to(vp::port *_port, vp::config *config)
     if (conf) entry->remove_offset = conf->get_int();
     conf = config->get("add_offset");
     if (conf) entry->add_offset = conf->get_int();
+    conf = config->get("latency");
+    if (conf) entry->latency = conf->get_int();
   }
   entry->insert((router *)get_comp());
 }
