@@ -170,7 +170,7 @@ void Udma_channel::enqueue_transfer()
 {
   if (free_reqs->is_empty())
   {
-    trace.warning("Trying to enqueue transfer while already 2 are pending\n");
+    vp_warning_always(&this->trace, "Trying to enqueue transfer while already 2 are pending\n");
     return;
   }
 
@@ -223,9 +223,8 @@ vp::io_req_status_e Udma_channel::cfg_req(vp::io_req *req)
   {
     *data = (continuous_mode << UDMA_CHANNEL_CFG_CONT_BIT) |
       (transfer_size << UDMA_CHANNEL_CFG_SIZE_BIT) |
-      (!pending_reqs->is_empty() << UDMA_CHANNEL_CFG_EN_BIT) |
-      (pending_reqs->is_full() << UDMA_CHANNEL_CFG_SHADOW_BIT);
-
+      (!free_reqs->is_full() << UDMA_CHANNEL_CFG_EN_BIT) |
+      (free_reqs->is_empty() << UDMA_CHANNEL_CFG_SHADOW_BIT);
   }
   return vp::IO_REQ_OK;
 }
