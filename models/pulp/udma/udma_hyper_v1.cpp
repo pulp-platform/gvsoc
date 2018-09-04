@@ -93,6 +93,7 @@ void Hyper_periph_v1::handle_pending_word(void *__this, vp::clock_event *event)
       _this->ca.burst_type = 0;
       _this->ca.address_space = ARCHI_REG_FIELD_GET(_this->regs[HYPER_MEM_CFG3_CHANNEL_OFFSET], HYPER_MEM_CFG3_CRT0_OFFSET, 1);
       _this->ca.read = _this->pending_rx ? 1 : 0;
+
       if (_this->ca.read)
         _this->transfer_size = _this->rx_channel->current_cmd->size;
       else
@@ -122,15 +123,16 @@ void Hyper_periph_v1::handle_pending_word(void *__this, vp::clock_event *event)
     byte = _this->pending_word & 0xff;
     _this->pending_word >>= 8;
     _this->pending_bytes--;
-    if (_this->pending_bytes == 0)
-    {
-      end = true;
-    }
     _this->transfer_size--;
 
     if (_this->transfer_size == 0)
     {
+      _this->pending_bytes = 0;
       _this->state = HYPER_STATE_CS_OFF;
+    }
+    if (_this->pending_bytes == 0)
+    {
+      end = true;
     }
   }
   else if (_this->state == HYPER_STATE_CS_OFF)
