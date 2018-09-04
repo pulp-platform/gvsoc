@@ -228,7 +228,7 @@ void hyperchip::sync_cycle(void *__this, int data)
     if (_this->ca_count == 0)
     {
       _this->state = HYPERCHIP_STATE_DATA;
-      _this->current_address = (_this->ca.low_addr | (_this->ca.high_addr << 3)) * 2;
+      _this->current_address = (_this->ca.low_addr | (_this->ca.high_addr << 3)) & ~1;
 
       _this->flash_access = ARCHI_REG_FIELD_GET(_this->current_address, REG_MBR_WIDTH, 1);
       _this->current_address = ARCHI_REG_FIELD_GET(_this->current_address, 0, REG_MBR_WIDTH);
