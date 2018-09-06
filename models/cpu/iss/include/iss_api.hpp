@@ -29,6 +29,11 @@ static inline void iss_set_reg(iss_t *iss, int reg, iss_reg_t value);
 
 static inline iss_reg_t iss_get_reg(iss_t *iss, int reg);
 
+static inline iss_reg_t iss_get_reg_untimed(iss_t *iss, int reg);
+
+static inline iss_reg_t *iss_reg_ref(iss_t *iss, int reg);
+
+static inline iss_reg_t *iss_reg_store_ref(iss_t *iss, int reg);
 
 
 static inline void iss_pccr_account_event(iss_t *iss, unsigned int event, int incr);

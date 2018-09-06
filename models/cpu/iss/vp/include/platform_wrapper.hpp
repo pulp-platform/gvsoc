@@ -156,13 +156,13 @@ static inline void iss_lsu_load_resume(iss_t *iss)
 static inline void iss_lsu_load_signed_resume(iss_t *iss)
 {
   int reg = iss->cpu.state.stall_reg;
-  iss->cpu.regfile.regs[reg] = iss_get_signed_value(iss->cpu.regfile.regs[reg], iss->cpu.state.stall_size*8);
+  iss_set_reg(iss, reg, iss_get_signed_value(iss_get_reg_untimed(iss, reg), iss->cpu.state.stall_size*8));
 }
 
 static inline void iss_lsu_load(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
-  iss->cpu.regfile.regs[reg] = 0;
-  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, false))
+  iss_set_reg(iss, reg, 0);
+  if (!iss->data_req(addr, (uint8_t *)iss_reg_ref(iss, reg), size, false))
   {
     // We don't need to do anything as the target will write directly to the register
     // and we the zero extension is already managed by the initial value
@@ -177,9 +177,9 @@ static inline void iss_lsu_load(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, i
 
 static inline void iss_lsu_load_signed(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
-  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, false))
+  if (!iss->data_req(addr, (uint8_t *)iss_reg_ref(iss, reg), size, false))
   {
-    iss->cpu.regfile.regs[reg] = iss_get_signed_value(iss->cpu.regfile.regs[reg], size*8);
+    iss_set_reg(iss, reg, iss_get_signed_value(iss_get_reg_untimed(iss, reg), size*8));
   }
   else
   {
@@ -198,7 +198,7 @@ static inline void iss_lsu_store_resume(iss_t *iss)
 
 static inline void iss_lsu_store(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
-  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.regfile.regs[reg], size, true))
+  if (!iss->data_req(addr, (uint8_t *)iss_reg_store_ref(iss, reg), size, true))
   {
     // For now we don't have to do anything as the register was written directly
     // by the request but we cold support sign-extended loads here;

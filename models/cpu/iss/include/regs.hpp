@@ -23,9 +23,25 @@
 
 #include "types.hpp"
 
+static iss_reg_t null_reg = 0;
+
+static inline iss_reg_t *iss_reg_ref(iss_t *iss, int reg)
+{
+  if (reg == 0)
+    return &null_reg;
+  else
+    return &iss->cpu.regfile.regs[reg];
+}
+
+static inline iss_reg_t *iss_reg_store_ref(iss_t *iss, int reg)
+{
+  return &iss->cpu.regfile.regs[reg];
+}
+
 static inline void iss_set_reg(iss_t *iss, int reg, iss_reg_t value)
 {
-  iss->cpu.regfile.regs[reg] = value;
+  if (reg != 0)
+    iss->cpu.regfile.regs[reg] = value;
 }
 
 static inline iss_reg_t iss_get_reg_untimed(iss_t *iss, int reg)
