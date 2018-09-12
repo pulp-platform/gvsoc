@@ -453,11 +453,11 @@ int iss_wrapper::build()
 
   traces.new_trace_event("pc", &pc_trace_event, 32);
 
-  if (power.new_trace("power_trace", &power_trace)) return -1;
+  power.new_trace("power_trace", &power_trace);
 
-  if (power.new_event("power_insn", &insn_power, this->get_js_config()->get("**/insn"), &power_trace)) return -1;
-  if (power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace)) return -1;
-  if (power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace)) return -1;
+  power.new_event("power_insn", &insn_power, this->get_js_config()->get("**/insn"), &power_trace);
+  power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace);
+  power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
 
   data.set_resp_meth(&iss_wrapper::data_response);
   data.set_grant_meth(&iss_wrapper::data_grant);
