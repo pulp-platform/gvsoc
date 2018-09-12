@@ -22,6 +22,7 @@
 #define __VP_TRACE_COMPONENT_POWER_HPP__
 
 #include "vp/component.hpp"
+#include "vp/power/power.hpp"
 #include "json.hpp"
 
 using namespace std;
@@ -38,7 +39,16 @@ namespace vp {
 
     component_power(component &top);
 
-    int new_event(std::string name, power_source *source, js::config *config, power_trace *trace);
+    power_engine *get_engine() { return power_manager; }
+
+    void post_post_build();
+
+    void pre_start();
+
+    int new_event(std::string name, power_source *source, js::config *config, power_trace *trace, bool is_leakage=false);
+
+    int new_leakage_event(std::string name, power_source *source, js::config *config, power_trace *trace) { return this->new_event(name, source, config, trace, true); }
+
     int new_trace(std::string name, power_trace *trace);
 
     void reg_top_trace(vp::power_trace *trace);
@@ -50,6 +60,7 @@ namespace vp {
 
     std::vector<power_trace *> traces;
 
+    power_engine *power_manager = NULL;
   };
 
 };  

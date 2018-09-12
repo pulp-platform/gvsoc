@@ -87,6 +87,7 @@ public:
 
   vp::power_source insn_power;
   vp::power_source clock_gated_power;
+  vp::power_source leakage_power;
 
   vp::trace     pc_trace_event;
   

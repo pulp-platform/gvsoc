@@ -48,10 +48,15 @@ void vp::component::set_config(const char *config_string)
   comp_js_config = js::import_config_from_string(strdup(config_string));
 }
 
+void vp::component::reg_step_pre_start(std::function<void()> callback)
+{
+  this->pre_start_callbacks.push_back(callback);
+}
 
 void vp::component::post_post_build()
 {
   traces.post_post_build();
+  power.post_post_build();
 }
 
 
@@ -599,6 +604,15 @@ void vp::component::elab()
   }
 }
 
+void vp::component::pre_start_all()
+{
+  this->pre_start();
+  for (auto x: pre_start_callbacks)
+  {
+    x();
+  }
+}
+
 
 extern "C" int vp_comp_get_ports(void *comp, bool master, int size, const char *names[], void *ports[])
 {
@@ -653,7 +667,7 @@ extern "C" void vp_comp_conf(void *comp, const char *path, void *parent)
 
 extern "C" void vp_pre_start(void *comp)
 {
-  ((vp::component *)comp)->pre_start();
+  ((vp::component *)comp)->pre_start_all();
 }
 
 extern "C" void vp_load(void *comp)

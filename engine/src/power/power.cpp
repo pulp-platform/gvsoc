@@ -204,6 +204,22 @@ vp::component_power::component_power(vp::component &top)
 
 
 
+void vp::component_power::post_post_build()
+{
+  power_manager = (vp::power_engine *)top.get_service("power");
+  top.reg_step_pre_start(std::bind(&component_power::pre_start, this));
+}
+
+
+void vp::component_power::pre_start()
+{
+  for (auto trace: this->traces)
+  {
+    this->get_engine()->reg_trace(trace);
+  }
+}
+
+
 int vp::component_power::new_trace(std::string name, power_trace *trace)
 {
   if (trace->init(&top, name))
@@ -215,9 +231,9 @@ int vp::component_power::new_trace(std::string name, power_trace *trace)
 }
 
 
-int vp::component_power::new_event(std::string name, power_source *source, js::config *config, power_trace *trace)
+int vp::component_power::new_event(std::string name, power_source *source, js::config *config, power_trace *trace, bool is_leakage)
 {
-  if (source->init(&top, name, config, trace))
+  if (source->init(&top, name, config, trace, is_leakage))
     return -1;
 
   source->setup(VP_POWER_DEFAULT_TEMP, VP_POWER_DEFAULT_VOLT, VP_POWER_DEFAULT_FREQ);
@@ -231,9 +247,68 @@ int vp::power_trace::init(component *top, std::string name)
   this->top = top;
   top->traces.new_trace_event_real(name, &this->trace);
   this->value = 0;
+  this->total = 0;
+  this->total_leakage = 0;
   this->timestamp = 0;
   this->trace.event_real(0);
+  //this->top->power.get_engine()->reg_trace(this);
+
+  this->current_power = 0;
+  this->current_power_timestamp = 0;
+
+  this->current_leakage_power = 0;
+  this->current_leakage_power_timestamp = 0;
+
   return 0;
+}
+
+
+void vp::power_trace::clear()
+{
+  this->dumped = false;
+  this->total = this->get_value();
+  this->total_leakage = 0;
+  this->last_clear_timestamp = this->top->get_time();
+  this->current_power_timestamp = this->top->get_time();
+  this->current_leakage_power_timestamp = this->top->get_time();
+}
+
+void vp::power_trace::get(double *dynamic, double *leakage)
+{
+  this->dumped = true;
+
+  *dynamic = this->get_total() / (this->top->get_time() - this->last_clear_timestamp);
+
+  *leakage = this->get_total_leakage() / (this->top->get_time() - this->last_clear_timestamp);
+}
+
+void vp::power_trace::dump(FILE *file)
+{
+  for (auto x: child_traces)
+  {
+    x->flush();
+  }
+
+
+  fprintf(file, "Trace path; Dynamic power (W); Leakage power (W); Total (W); Percentage\n");
+
+  double dynamic, leakage;
+  this->get(&dynamic, &leakage);
+  double total = dynamic + leakage;
+
+  fprintf(file, "%s; %.12f; %.12f; %.12f; 1.0\n", this->trace.get_name().c_str(), dynamic, leakage, total);
+
+  if (this->child_traces.size())
+  {
+    for (auto x:this->child_traces)
+    {
+      x->get(&dynamic, &leakage);
+
+      fprintf(file, "%s; %.12f; %.12f; %.12f; %.6f\n", x->trace.get_name().c_str(), dynamic, leakage, dynamic + leakage, (dynamic + leakage) / total);
+    }
+  }
+  fprintf(file, "\n");
+
 }
 
 
@@ -244,7 +319,66 @@ void vp::power_trace::collect()
 
 void vp::power_trace::reg_top_trace(vp::power_trace *trace)
 {
-  this->top_traces.push_back(trace);
+  if (this->top_trace == NULL)
+  {
+    this->top_trace = trace;
+    trace->reg_child_trace(this);
+  }
+}
+
+void vp::power_trace::account_power()
+{
+  int64_t diff = this->top->get_time() - this->current_power_timestamp;
+  if (diff > 0)
+  {
+    double energy = this->current_power * diff;
+    if (this->top_trace)
+      this->top_trace->incr(energy);
+    this->total += energy;
+    this->current_power_timestamp = this->top->get_time();
+  }
+}
+
+void vp::power_trace::account_leakage_power()
+{
+  int64_t diff = this->top->get_time() - this->current_leakage_power_timestamp;
+  if (diff > 0)
+  {
+    double energy = this->current_leakage_power * diff;
+    if (this->top_trace)
+    {
+      this->top_trace->incr(energy, true);
+    }
+    this->total_leakage += energy;
+    this->current_leakage_power_timestamp = this->top->get_time();
+  }
+}
+
+void vp::power_trace::set_power(double quantum, bool is_leakage)
+{
+  if (is_leakage)
+  {
+    this->account_leakage_power();
+    this->current_leakage_power += quantum;
+  }
+  else
+  {
+    this->account_power();
+    this->current_power += quantum;
+  }
+}
+
+void vp::power_trace::reg_child_trace(vp::power_trace *trace)
+{
+  this->child_traces.push_back(trace);
+}
+
+vp::power_trace *vp::power_trace::get_top_trace()
+{
+  if (this->top_trace == NULL)
+    return this;
+  else
+    return this->top_trace;
 }
 
 
@@ -255,26 +389,50 @@ void vp::power_source::setup(double temp, double volt, double freq)
 
 
 
-int vp::power_source::init(component *top, std::string name, js::config *config, vp::power_trace *trace)
+int vp::power_source::init(component *top, std::string name, js::config *config, vp::power_trace *trace, bool is_leakage)
 {
 
   this->top = top;
   this->trace = trace;
+  this->is_leakage = is_leakage;
 
   try
   {
     if (config == NULL)
     {
-      snprintf(vp_error, VP_ERROR_SIZE, "Didn't find power trace (name: %s)",  name.c_str());
+      //snprintf(vp_error, VP_ERROR_SIZE, "Didn't find power trace (name: %s)",  name.c_str());
       return -1;
     }
 
     js::config *type_cfg = config->get("type");
     if (type_cfg == NULL)
     {
-      snprintf(vp_error, VP_ERROR_SIZE, "Didn't find power trace type (name: %s)", name.c_str());
+      //snprintf(vp_error, VP_ERROR_SIZE, "Didn't find power trace type (name: %s)", name.c_str());
       return -1;
     }
+
+    js::config *unit_cfg = config->get("unit");
+    if (unit_cfg == NULL)
+    {
+      //snprintf(vp_error, VP_ERROR_SIZE, "Didn't find power trace unit (name: %s)", name.c_str());
+      return -1;
+    }
+
+
+    if (unit_cfg->get_str() == "pJ")
+    {
+
+    }
+    else if (unit_cfg->get_str() == "W")
+    {
+
+    }
+    else
+    {
+      snprintf(vp_error, VP_ERROR_SIZE, "Unknown unit (name: %s, unit: %s)", name.c_str(), unit_cfg->get_str().c_str());
+      return -1;
+    }
+
 
     if (type_cfg->get_str() == "linear")
     {
@@ -305,15 +463,17 @@ int vp::power_source::init(component *top, std::string name, js::config *config,
 
 void vp::component_power::reg_top_trace(vp::power_trace *trace)
 {
-  for (auto& x: this->top.get_childs())
-  {
-    x->power.reg_top_trace(trace);
-  }
-
   for (auto& x: this->traces)
   {
     if (x != trace)
+    {
       x->reg_top_trace(trace);
+    }
+  }
+
+  for (auto& x: this->top.get_childs())
+  {
+    x->power.reg_top_trace(trace);
   }
 
 }

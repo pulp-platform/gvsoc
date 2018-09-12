@@ -296,7 +296,8 @@ class default_implementation_class(object):
         for i in range(0, size):
             names[i] = keys[i].encode('utf-8')
             services_param[i] = services[keys[i]]
-            self.implem_set_services(self.instance, size, names, services_param)
+
+        self.implem_set_services(self.instance, size, names, services_param)
 
     def __get_services(self):
         size = self.implem_get_services(self.instance, 0, None, None)
@@ -381,6 +382,18 @@ class component_trace(object):
 
 
 
+class component_power(object):
+
+    power_engine = None
+
+    def __init__(self, top):
+        self.top = top
+
+    def init(self):
+        self.power_engine = self.top.get_service('power')
+
+
+
 class component(component_trace):
 
     implementation_class = default_implementation_class
@@ -402,6 +415,7 @@ class component(component_trace):
         self.name = name
         self.ports = {}
         self.debug = debug
+        self.power = component_power(self)
         if name is None:
             self.path = ''
         else:
@@ -420,6 +434,7 @@ class component(component_trace):
             self.impl = self.implementation_class(getattr(self, 'implementation'), config, parent=self, debug=debug)
 
         component_trace.init(self)
+        self.power.init()
 
         self.trace = self.new_trace('py_comp')
 

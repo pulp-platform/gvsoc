@@ -51,6 +51,8 @@ namespace vp {
     inline void event_real_pulse(int64_t duration, double pulse_value, double background_value);
     inline void event_real_delayed(double value);
 
+    inline string get_name() { return this->name; }
+
     void dump_header();
     void dump_warning_header();
     void dump_fatal_header();

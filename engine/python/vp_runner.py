@@ -18,6 +18,7 @@
  
 import vp.time_domain
 import vp.trace_engine
+import vp.power_engine
 import vp_core
 import plptree
 
@@ -137,7 +138,13 @@ class Runner(Platform):
 
         trace_engine = vp.trace_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
-        time_engine = trace_engine.new(
+        power_engine = trace_engine.new(
+            name=None,
+            component='vp.power_engine',
+            config=gvsoc_config
+        )
+
+        time_engine = power_engine.new(
             name=None,
             component='vp.time_domain',
             config=system
@@ -179,5 +186,11 @@ class Runner(Platform):
         else:
           return time_engine.run_status()
 
+
+        return 0
+
+    def power(self):
+        if os.system('power_report_extract --report=power_report.csv --dump --config=plt_config.json --output=power_synthesis.txt') != 0:
+            return -1
 
         return 0

@@ -35,6 +35,7 @@
 #include "vp/trace/component_trace.hpp"
 #include "vp/power/component_power.hpp"
 #include "json.hpp"
+#include <functional>
 
 
 #define   likely(x) __builtin_expect(x, 1)
@@ -96,12 +97,15 @@ namespace vp {
 
     config *import_config(const char *config_string);
 
+    void reg_step_pre_start(std::function<void()> callback);
 
     void post_post_build();
 
     void pre_build() {
       component_clock::pre_build(this);
     }
+
+    void pre_start_all();
 
     void new_master_port(std::string name, master_port *port);
 
@@ -154,6 +158,8 @@ namespace vp {
     string path;
 
     component *parent = NULL;
+
+    vector<std::function<void()>> pre_start_callbacks;
 
   };
 

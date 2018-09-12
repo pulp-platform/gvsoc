@@ -96,6 +96,18 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       {
         _this->clock->stop_engine(_this->core_status & 0x7fffffff);
       }
+      else
+      {
+        uint32_t value = *(uint32_t *)data;
+        if (value == 0x0BBAABBA)
+        {
+          _this->power.get_engine()->start_capture();
+        }
+        else if (value == 0x0BBADEAD)
+        {
+          _this->power.get_engine()->stop_capture();
+        }
+      }
     }
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)

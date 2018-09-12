@@ -37,6 +37,8 @@ public:
 
 private:
 
+  static void power_callback(void *__this, vp::clock_event *event);
+
   vp::trace     trace;
   vp::io_slave in;
 
@@ -45,12 +47,36 @@ private:
 
   uint8_t *mem_data;
   uint8_t *check_mem;
+
+  bool power_trigger; 
+
+  vp::power_trace power_trace;
+  vp::power_source idle_power;
+  vp::power_source read_8_power;
+  vp::power_source read_16_power;
+  vp::power_source read_32_power;
+  vp::power_source write_8_power;
+  vp::power_source write_16_power;
+  vp::power_source write_32_power;
+  vp::power_source leakage_power;
+
+  vp::clock_event *power_event;
+  int64_t last_access_timestamp;
 };
 
 memory::memory(const char *config)
 : vp::component(config)
 {
 
+}
+
+void memory::power_callback(void *__this, vp::clock_event *event)
+{
+  memory *_this = (memory *)__this;
+  if (_this->last_access_timestamp < _this->get_time())
+  {
+    _this->idle_power.power_on();
+  }
 }
 
 vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
@@ -67,6 +93,51 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
     //gv_trace_dumpWarning(&warning, "Received out-of-bound request (reqAddr: 0x%x, reqSize: 0x%x, memSize: 0x%x)\n", offset, size, this->size);
     return vp::IO_REQ_INVALID;
   }
+
+  if (_this->power_trace.get_active())
+  {
+    _this->last_access_timestamp = _this->get_time();
+
+    if (req->get_is_write())
+    {
+      if (size == 1)
+        _this->write_8_power.account_event();
+      else if (size == 2)
+        _this->write_16_power.account_event();
+      else if (size == 4)
+        _this->write_32_power.account_event();
+    }
+    else
+    {
+      if (size == 1)
+        _this->read_8_power.account_event();
+      else if (size == 2)
+        _this->read_16_power.account_event();
+      else if (size == 4)
+        _this->read_32_power.account_event();
+    }
+
+    if (!_this->power_event->is_enqueued())
+      _this->event_enqueue(_this->power_event, 1);
+  }
+
+#ifdef VP_TRACE_ACTIVE
+  if (_this->power_trigger)
+  {
+    if (req->get_is_write() && size == 4)
+    {
+      if (*(uint32_t *)data == 0xabbaabba)
+      {
+        _this->power.get_engine()->start_capture();
+      }
+      else if (*(uint32_t *)data == 0xdeadcaca)
+      {
+        _this->power.get_engine()->stop_capture();
+      }
+    }
+  }
+#endif
+
 
   if (req->get_is_write()) {
     if (_this->check_mem) {
@@ -96,6 +167,23 @@ int memory::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&memory::req);
   new_slave_port("input", &in);
+
+  js::config *config = get_js_config()->get("power_trigger");
+  this->power_trigger = config != NULL && config->get_bool();
+
+  if (power.new_trace("power_trace", &power_trace)) return -1;
+
+  power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
+  power.new_event("idle", &idle_power, this->get_js_config()->get("**/idle"), &power_trace);
+  power.new_event("read_8", &read_8_power, this->get_js_config()->get("**/read_8"), &power_trace);
+  power.new_event("read_16", &read_16_power, this->get_js_config()->get("**/read_16"), &power_trace);
+  power.new_event("read_32", &read_32_power, this->get_js_config()->get("**/read_32"), &power_trace);
+  power.new_event("write_8", &write_8_power, this->get_js_config()->get("**/write_8"), &power_trace);
+  power.new_event("write_16", &write_16_power, this->get_js_config()->get("**/write_16"), &power_trace);
+  power.new_event("write_32", &write_32_power, this->get_js_config()->get("**/write_32"), &power_trace);
+
+  power_event = this->event_new(memory::power_callback);
+
   return 0;
 }
 
@@ -118,6 +206,10 @@ void memory::start()
   }
 
   memset(mem_data, 0x57, size);
+
+  this->leakage_power.power_on();
+  this->idle_power.power_on();
+  this->last_access_timestamp = -1;
 }
 
 extern "C" void *vp_constructor(const char *config)
