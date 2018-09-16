@@ -83,7 +83,7 @@ void Spim_tx_channel::check_state()
     top->event_enqueue(pending_word_event, 1);
   }
 
-  if ((this->spi_tx_pending_bits > 0 || this->periph->spi_rx_pending_bits > 0) && !pending_spi_word_event->is_enqueued())
+  if ((this->spi_tx_pending_bits > 0 || (!this->periph->is_full_duplex && this->periph->spi_rx_pending_bits > 0)) && !pending_spi_word_event->is_enqueued())
   {
     int latency = 1;
     int64_t cycles = this->top->get_clock()->get_cycles();
@@ -120,37 +120,6 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
 {
   Spim_tx_channel *_this = (Spim_tx_channel *)__this;
   bool raised_edge = false;
-
-  if (_this->spi_tx_pending_bits > 0)
-  {
-    if (!_this->periph->byte_align && _this->spi_tx_pending_bits == 32) _this->spi_tx_pending_word = __bswap_32(_this->spi_tx_pending_word);
-
-    int nb_bits = _this->periph->qpi ? 4 : 1;
-    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
-    unsigned int bits = ARCHI_REG_FIELD_GET(_this->spi_tx_pending_word, 32 - nb_bits, nb_bits);
-    _this->spi_tx_pending_word <<= nb_bits;
-    _this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x)\n", nb_bits, bits);
-
-    raised_edge = true;
-
-    if (!_this->periph->qspim_itf.is_bound())
-    {
-      _this->top->get_trace()->warning("Trying to send to SPIM interface while it is not connected\n");
-    }
-    else
-    {
-      _this->periph->qspim_itf.sync_cycle(
-        (bits >> 0) & 1, (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (1<<nb_bits)-1
-      );
-    }
-    _this->spi_tx_pending_bits -= nb_bits;
-
-    if (_this->spi_tx_pending_bits <= 0 && _this->gen_eot)
-    {
-      _this->gen_eot = false;
-      _this->handle_eot();
-    }
-  }
 
   if (_this->periph->spi_rx_pending_bits > 0)
   {
@@ -193,7 +162,36 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
       _this->handle_ready_reqs();
     }
   }
+  if (_this->spi_tx_pending_bits > 0)
+  {
+    if (!_this->periph->byte_align && _this->spi_tx_pending_bits == 32) _this->spi_tx_pending_word = __bswap_32(_this->spi_tx_pending_word);
 
+    int nb_bits = _this->periph->qpi ? 4 : 1;
+    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
+    unsigned int bits = ARCHI_REG_FIELD_GET(_this->spi_tx_pending_word, 32 - nb_bits, nb_bits);
+    _this->spi_tx_pending_word <<= nb_bits;
+    _this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x)\n", nb_bits, bits);
+
+    raised_edge = true;
+
+    if (!_this->periph->qspim_itf.is_bound())
+    {
+      _this->top->get_trace()->warning("Trying to send to SPIM interface while it is not connected\n");
+    }
+    else
+    {
+      _this->periph->qspim_itf.sync_cycle(
+        (bits >> 0) & 1, (bits >> 1) & 1, (bits >> 2) & 1, (bits >> 3) & 1, (1<<nb_bits)-1
+      );
+    }
+    _this->spi_tx_pending_bits -= nb_bits;
+
+    if (_this->spi_tx_pending_bits <= 0 && _this->gen_eot)
+    {
+      _this->gen_eot = false;
+      _this->handle_eot();
+    }
+  }
 
   _this->check_state();
 }
