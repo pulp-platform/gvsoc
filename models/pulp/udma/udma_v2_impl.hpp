@@ -210,18 +210,27 @@ public:
 private:
   void reset();
   static void handle_pending_word(void *__this, vp::clock_event *event);
+  static void handle_spi_pending_word(void *__this, vp::clock_event *event);
+  void handle_eot();
   void handle_data(uint32_t data);
 
   vp::clock_event *pending_word_event;
+  vp::clock_event *pending_spi_word_event;
 
   Spim_periph_v2 *periph;
-  uint32_t tx_pending_word;
+
+  uint32_t spi_tx_pending_word;   // Word being flushed to spi pads
+  int      spi_tx_pending_bits;   // Tell how many bits are ready to be sent to SPI pads
+
+  bool     has_tx_pending_word;   // Tell if a TX pending word is present
+  uint32_t tx_pending_word;       // Word received by last L2 req
   uint32_t rx_pending_word;
-  int pending_bits;
   int64_t next_bit_cycle;
   vp::io_req *pending_req;
   uint32_t command;
   int cs;
+  bool gen_eot;
+  bool gen_eot_with_evt;
 };
 
 
@@ -246,6 +255,10 @@ protected:
   int nb_received_bits;
   uint32_t rx_pending_word;
   uint32_t tx_pending_word;
+  int eot_event;
+  
+  int      spi_rx_pending_bits;   // Tell how many bits should be received from spi pads
+
 };
 
 

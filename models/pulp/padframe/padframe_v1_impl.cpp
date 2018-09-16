@@ -172,7 +172,11 @@ void padframe::qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2
   if (mask & (1<<3))
     group->data_3_trace.event((uint8_t *)&data_3);
 
-  if (!group->master[group->active_cs]->is_bound())
+  if (group->active_cs == -1)
+  {
+    vp_warning_always(&_this->warning, "Trying to send QSPIM stream while no cs is active\n");
+  }
+  else if (!group->master[group->active_cs]->is_bound())
   {
     vp_warning_always(&_this->warning, "Trying to send QSPIM stream while pad is not connected (interface: %s)\n", group->name.c_str());
   }
@@ -194,7 +198,7 @@ void padframe::qspim_cs_sync(void *__this, int cs, int active, int id)
   }
 
   group->cs_trace[cs]->event((uint8_t *)&active);
-  group->active_cs = cs;
+  group->active_cs = active ? cs : -1;
 
   if (!group->cs_master[cs]->is_bound())
   {
@@ -410,6 +414,7 @@ int padframe::build()
       {
         Qspim_group *group = new Qspim_group(name);
         new_slave_port(name, &group->slave);
+        group->active_cs = -1;
         group->slave.set_sync_meth_muxed(&padframe::qspim_sync, nb_itf);
         group->slave.set_sync_cycle_meth_muxed(&padframe::qspim_sync_cycle, nb_itf);
         group->slave.set_cs_sync_meth_muxed(&padframe::qspim_cs_sync, nb_itf);
