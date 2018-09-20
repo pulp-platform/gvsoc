@@ -43,6 +43,8 @@ private:
   vp::trace     trace;
   vp::io_slave in;
 
+  static void ref_clock_sync(void *__this, bool value);
+
   void sync();
   void reset();
   void depack_config(int counter, uint32_t configuration);
@@ -59,6 +61,7 @@ private:
   void set_value(bool is_64, int counter, uint64_t new_value);
 
   vp::wire_master<bool> irq_itf[2];
+  vp::wire_slave<bool> ref_clock_itf;
 
   uint32_t value[2];
   uint32_t config[2];
@@ -194,6 +197,20 @@ void timer::check_state()
   }
 }
 
+void timer::ref_clock_sync(void *__this, bool value)
+{
+  timer *_this = (timer *)__this;
+  if (value)
+  {
+    if (_this->ref_clock[0])
+      _this->value[0]++;
+    if (_this->ref_clock[1])
+      _this->value[1]++;
+  }
+
+  _this->check_state();
+}
+
 void timer::timer_reset(int counter)
 {
   trace.msg("Resetting timer (timer: %d)\n", counter);
@@ -234,7 +251,7 @@ vp::io_req_status_e timer::handle_value(int counter, uint32_t *data, unsigned in
 {
   if (is_write)
   {
-    trace.msg("Modified value (timer: %d, value: 0x%x)\n", *data);
+    trace.msg("Modified value (timer: %d, value: 0x%x)\n", counter, *data);
     value[counter] = *data;
     check_state();
   }
@@ -249,7 +266,7 @@ vp::io_req_status_e timer::handle_compare(int counter, uint32_t *data, unsigned 
 {
   if (is_write)
   {
-    trace.msg("Modified compare value (timer: %d, value: 0x%x)\n", *data);
+    trace.msg("Modified compare value (timer: %d, value: 0x%x)\n", counter, *data);
     compare_value[counter] = *data;
     check_state();
   }
@@ -347,6 +364,9 @@ int timer::build()
 
   new_master_port("irq_itf_0", &irq_itf[0]);
   new_master_port("irq_itf_1", &irq_itf[1]);
+
+  ref_clock_itf.set_sync_meth(&timer::ref_clock_sync);
+  new_slave_port("ref_clock", &ref_clock_itf);
 
   return 0;
 }

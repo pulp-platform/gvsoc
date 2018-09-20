@@ -137,10 +137,17 @@ private:
   static void hyper_sync_cycle(void *__this, int data, int id);
   static void hyper_cs_sync(void *__this, int cs, int active, int id);
 
+
+  static void ref_clock_sync(void *__this, int value);
+
   vp::trace     trace;
   vp::io_slave in;
 
   vector<Pad_group *> groups;
+  vp::wire_slave<int>    ref_clock_pad_itf;
+  vp::wire_master<int>    ref_clock_itf;
+
+  vp::trace ref_clock_trace;
 
   int nb_itf = 0;
 };
@@ -387,6 +394,17 @@ vp::io_req_status_e padframe::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
+void padframe::ref_clock_sync(void *__this, int value)
+{
+  padframe *_this = (padframe *)__this;
+  _this->ref_clock_trace.event((uint8_t *)&value);
+
+  if (_this->ref_clock_itf.is_bound())
+  {
+    _this->ref_clock_itf.sync(value);
+  }
+}
+
 int padframe::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -394,7 +412,12 @@ int padframe::build()
 
   new_slave_port("in", &in);
 
+  ref_clock_pad_itf.set_sync_meth(&padframe::ref_clock_sync);
+  new_slave_port("ref_clock_pad", &this->ref_clock_pad_itf);
 
+  new_master_port("ref_clock", &this->ref_clock_itf);
+
+  this->traces.new_trace_event("ref_clock", &this->ref_clock_trace, 1);
 
   vp::config *groups = get_config()->get("groups");
 

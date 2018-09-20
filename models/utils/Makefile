@@ -14,3 +14,7 @@ utils/injector_impl_SRCS = utils/injector_impl.cpp
 IMPLEMENTATIONS += utils/composite_impl
 COMPONENTS += utils/composite
 utils/composite_impl_SRCS = utils/composite_impl.cpp
+
+IMPLEMENTATIONS += utils/clock_impl
+COMPONENTS += utils/clock
+utils/clock_impl_SRCS = utils/clock_impl.cpp
