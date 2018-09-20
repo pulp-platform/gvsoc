@@ -89,12 +89,12 @@ class Runner(Platform):
         bridge = autorun is not None and autorun.get_bool() or \
           self.get_json().get('**/gdb/active').get_bool() or \
           bridge_active is not None and bridge_active.get_bool()
-        
+
         if bridge:
             self.get_json().get('**/jtag_proxy').set('active', True)
             self.get_json().get('gvsoc').set('use_external_bridge', True)
 
-        if (autorun is None or not autorun.get()) and self.get_json().get_child_str('**/loader/boot/mode') != 'bridge':
+        if not bridge and self.get_json().get_child_str('**/loader/boot/mode') != 'bridge':
             binaries = self.get_json().get('**/loader/binaries').get_dict()
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
