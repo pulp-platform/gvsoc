@@ -115,4 +115,7 @@ namespace vp {
 
 };
 
+
+#include "vp/itf/implem/wire.hpp"
+
 #endif

@@ -19,7 +19,7 @@
  */
 
 #include <vp/vp.hpp>
-#include <vp/itf/wire.hpp>
+#include <vp/itf/clock.hpp>
 #include <stdio.h>
 #include <string.h>
 
@@ -38,7 +38,7 @@ private:
   static void edge_handler(void *__this, vp::clock_event *event);
   void raise_edge();
 
-  vp::wire_master<int>    clock_itf;
+  vp::clock_master    clock_itf;
   vp::clock_event *event;
   int value;
 };
@@ -76,6 +76,8 @@ int Clock::build()
 
 void Clock::start()
 {
+  this->clock_itf.set_frequency(this->get_clock()->get_frequency() / 2);
+
   this->raise_edge();
 }
 

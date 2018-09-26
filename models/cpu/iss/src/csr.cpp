@@ -558,6 +558,7 @@ static bool mtvec_read(iss_t *iss, iss_reg_t *value) {
 static bool mtvec_write(iss_t *iss, unsigned int value) {
   iss->cpu.csr.mtvec = value;
   //iss->tvec[GVSIM_MODE_MACHINE] = value;
+  iss_irq_set_vector_table(iss, value);
   return false;
 }
 

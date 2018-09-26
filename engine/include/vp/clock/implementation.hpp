@@ -31,6 +31,8 @@ using namespace std;
 
 int64_t vp::component_clock::get_period() { return get_clock()->get_period(); }
 
+int64_t vp::component_clock::get_frequency() { return get_clock()->get_frequency(); }
+
 inline int64_t vp::component_clock::get_time() { return clock->get_time(); }
 
 inline int64_t vp::component_clock::get_cycles() { return clock->get_cycles(); }

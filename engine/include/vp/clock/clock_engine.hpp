@@ -39,6 +39,12 @@ namespace vp {
 
     void cancel(clock_event *event);
 
+    void reenqueue_to_engine();
+
+    bool dequeue_from_engine();
+
+    void apply_frequency(int frequency);
+    
     inline clock_event *reenqueue(clock_event *event, int64_t cycles);
 
     inline clock_event *enqueue(clock_event *event, int64_t cycles)
@@ -92,6 +98,8 @@ namespace vp {
 
     int64_t get_period() { return period; }
 
+    int64_t get_frequency() { return freq; }
+
   protected:
 
     inline void enqueue_to_cycle(clock_event *event, int64_t cycles)
@@ -110,12 +118,23 @@ namespace vp {
     int current_cycle = 0;
     int64_t period = 0;
     int64_t freq;
+
+    // Gives the current cycle count of this engine.
+    // It is always usable, whatever the state of the engine.
+    // It is updated either when events are executed or when the 
+    // engine is updated by an external interaction.
     int64_t cycles = 0;
+
+    // Tells how many events are enqueued to the circular buffer.
+    // If it is zero, there could still be some events in the delayed queue.
     int nb_enqueued_to_cycle = 0;
 
     // This time is relevant only when no event is enqueued into the circular
-    // buffer of event so that the number of cycles can be resynchronized when something happen
-    // (an event is pushed or the frequency is changed).
+    // buffer of event so that the number of cycles can be resynchronized when
+    // something happen (an event is pushed or the frequency is changed).
+    // This is set when control is given back to the time engine and used
+    // to recompute the numer of cycles when the engine is updated by an
+    // external event.
     int64_t stop_time = 0;
   };    
 

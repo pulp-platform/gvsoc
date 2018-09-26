@@ -20,52 +20,127 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
+#include <vp/itf/clock.hpp>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "archi/fll/fll_v1.h"
 
 #define REG_MASK(offset,size) (((1<<(size))-1) << (offset))
 #define REG_GET(fullValue,offset,size) (((fullValue) & REG_MASK(offset, size)) >> offset)
 
-class fll_v1 : public vp::component
+class fll : public vp::component
 {
 
 public:
 
-  fll_v1(const char *config);
+  fll(const char *config);
 
   int build();
   void start();
+  void reset();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
 private:
 
-  vp::trace     trace;
-  vp::io_slave in;
-
-  uint32_t conf1_reg;
-  uint32_t conf2_reg;
-  uint32_t int_reg;
-
-  //int refClock;
-  unsigned int mult_factor;
-  unsigned int div_factor;
-
   vp::io_req_status_e status_req(int reg_offset, int size, bool is_write, uint8_t *data);
   vp::io_req_status_e conf1_req(int reg_offset, int size, bool is_write, uint8_t *data);
   vp::io_req_status_e conf2_req(int reg_offset, int size, bool is_write, uint8_t *data);
   vp::io_req_status_e integrator_req(int reg_offset, int size, bool is_write, uint8_t *_data);
+  void fll_check_state();
 
-  void setFreq(int frequency);
-  //void propagate_frequency();
+  double get_dco_frequency(int dco_input);
+
+  static void ref_clock_sync(void *__this, bool value);
+  static void ref_clock_set_frequency(void *__this, int64_t frequency);
+
+  uint32_t status_reg_reset;
+  uint32_t conf1_reg_reset;
+  uint32_t conf2_reg_reset;
+  uint32_t integrator_reg_reset;
+
+  fll_reg_status_t     status_reg;
+  fll_reg_conf1_t      conf1_reg;
+  fll_reg_conf2_t      conf2_reg;
+  fll_reg_integrator_t integrator_reg;
+
+  double dco_freq;
+
+  vp::clock_slave ref_clock_itf;
+  vp::clock_master fll_clock_itf;
+  vp::io_slave in;
 };
 
-fll_v1::fll_v1(const char *config)
+fll::fll(const char *config)
 : vp::component(config)
 {
 
+}
+
+void fll::ref_clock_set_frequency(void *__this, int64_t frequency)
+{
+}
+
+void fll::ref_clock_sync(void *__this, bool value)
+{
+  fll *_this = (fll *)__this;
+
+  _this->fll_check_state();
+
+  // DCO freq is the number of pulses so we have to divide by 2
+  _this->status_reg.actual_mult_factor = _this->dco_freq * 1000000 / 32768 / 2;
+
+  if (_this->conf1_reg.mode == 1)
+  {
+    int delta = _this->conf1_reg.mult_factor - _this->status_reg.actual_mult_factor;
+    int delta_ext = delta << 10;
+    int gain = _this->conf2_reg.loop_gain;
+    int delta_ext_amp = gain < 10 ? delta_ext >> gain : 0;
+    int integrator = (_this->integrator_reg.state_int_part << 10) | _this->integrator_reg.state_fract_part;
+    int integrator_output = integrator + delta_ext_amp;
+
+    _this->integrator_reg.state_int_part = integrator_output >> 10;
+    _this->integrator_reg.state_fract_part = integrator_output;
+
+    _this->conf1_reg.dco_input = _this->integrator_reg.state_int_part;
+
+  }
+}
+
+double fll::get_dco_frequency(int dco_input)
+{
+  double result;
+  if (dco_input < 219)
+    result = 0.000001;
+  else if (dco_input < 512)
+    result = 21.897 - 33.1341 - 0.752*dco_input + 0.003674*pow(dco_input, 2);
+  else
+    result = -642.570 + 2.590*dco_input - 0.000445*pow(dco_input, 2);
+
+  return result;
+}
+
+void fll::fll_check_state()
+{
+  if (this->conf1_reg.mode == 0)
+  {
+    // Stand-alone mode.
+    // There is no feedback loop, the output frequency is directly determined
+    // from the DCO input.
+    this->dco_freq = this->get_dco_frequency(this->conf1_reg.dco_input);
+  }
+  else
+  {
+    // Normal mode
+    this->dco_freq = this->get_dco_frequency(this->conf1_reg.dco_input);
+  }
+
+  int frequency = (int)(this->dco_freq / (1 << this->conf1_reg.clock_out_divider) * 1000000);
+
+
+  this->fll_clock_itf.set_frequency(frequency);
 }
 
 //void Fll::propagate_frequency() {
@@ -81,112 +156,148 @@ fll_v1::fll_v1(const char *config)
 //  }
 //}
 
-vp::io_req_status_e fll_v1::status_req(int reg_offset, int size, bool is_write, uint8_t *data) {
-  if (is_write) return vp::io_req_status_e::IO_REQ_INVALID;
-
-  memcpy(data, &(((uint8_t *)&mult_factor)[reg_offset]), size);
-
-  return vp::io_req_status_e::IO_REQ_OK;
-}
-
-vp::io_req_status_e fll_v1::conf1_req(int reg_offset, int size, bool is_write, uint8_t *data) {
-  if (!is_write) {
-    memcpy(data, &(((uint8_t *)&conf1_reg)[reg_offset]), size);
-  } else {
-    memcpy(&(((uint8_t *)&conf1_reg)[reg_offset]), data, size);
-    int mode = REG_GET(conf1_reg, HAL_FLL_CONF1_MODE_BIT, HAL_FLL_CONF1_MODE_WIDTH);
-    int lock = REG_GET(conf1_reg, HAL_FLL_CONF1_LOCK_BIT, HAL_FLL_CONF1_LOCK_WIDTH);
-    div_factor = REG_GET(conf1_reg, HAL_FLL_CONF1_DIV_BIT, HAL_FLL_CONF1_DIV_WIDTH);
-    int dco = REG_GET(conf1_reg, HAL_FLL_CONF1_DCO_BIT, HAL_FLL_CONF1_DCO_WIDTH);
-    mult_factor = REG_GET(conf1_reg, HAL_FLL_CONF1_FACTOR_BIT, HAL_FLL_CONF1_FACTOR_WIDTH);
-    trace.msg("Setting configuration 1 register (raw: 0x%x, mode: %d, lock: %d, div: %d, dco: %d, factor: %d)\n", conf1_reg, mode, lock, div_factor, dco, mult_factor);
-    //propagate_frequency();
-  }
-  return vp::io_req_status_e::IO_REQ_OK;
-}
-
-vp::io_req_status_e fll_v1::conf2_req(int reg_offset, int size, bool is_write, uint8_t *data) {
-  if (!is_write) {
-    memcpy(data, &(((uint8_t *)&conf2_reg)[reg_offset]), size);
-  } else {
-    memcpy(&(((uint8_t *)&conf2_reg)[reg_offset]), data, size);
-    int dith = REG_GET(conf2_reg, HAL_FLL_CONF2_DITH_BIT, HAL_FLL_CONF2_DITH_WIDTH);
-    int open = REG_GET(conf2_reg, HAL_FLL_CONF2_OPEN_BIT, HAL_FLL_CONF2_OPEN_WIDTH);
-    int clkSel = REG_GET(conf2_reg, HAL_FLL_CONF2_CLKSEL_BIT, HAL_FLL_CONF2_CLKSEL_WIDTH);
-    int lockTol = REG_GET(conf2_reg, HAL_FLL_CONF2_LOCK_TOL_BIT, HAL_FLL_CONF2_LOCK_TOL_WIDTH);
-    int nbStable = REG_GET(conf2_reg, HAL_FLL_CONF2_NB_STABLE_BIT, HAL_FLL_CONF2_NB_STABLE_WIDTH);
-    int nbUnstable = REG_GET(conf2_reg, HAL_FLL_CONF2_NB_UNSTABLE_BIT, HAL_FLL_CONF2_NB_UNSTABLE_WIDTH);
-    int gain = REG_GET(conf2_reg, HAL_FLL_CONF2_GAIN_BIT, HAL_FLL_CONF2_GAIN_WIDTH);
-    trace.msg("Setting configuration 2 register (raw: 0x%x, dith: %d, open: %d, clkSel: %d, lockTol: %d, nbStable: %d, nbUnstable: %d, gain: %d)\n",
-      conf2_reg, dith, open, clkSel, lockTol, nbStable, nbUnstable, gain);
-  }
-  return vp::io_req_status_e::IO_REQ_OK;
-}
-
-vp::io_req_status_e fll_v1::integrator_req(int reg_offset, int size, bool is_write, uint8_t *data) {
-  if (!is_write) {
-    memcpy(data, &(((uint8_t *)&int_reg)[reg_offset]), size);
-  } else {
-    memcpy(&(((uint8_t *)&int_reg)[reg_offset]), data, size);
-    int intStateInt = REG_GET(int_reg, HAL_FLL_INT_STATE_INT_BIT, HAL_FLL_INT_STATE_INT_WIDTH);
-    int intStateFract = REG_GET(int_reg, HAL_FLL_INT_STATE_FRACT_BIT, HAL_FLL_INT_STATE_FRACT_WIDTH);
-    trace.msg("Setting integrator register (raw: 0x%x, dith: %d, open: %d, clkSel: %d, lockTol: %d, nbStable: %d, nbUnstable: %d, gain: %d)\n",
-      int_reg, intStateInt, intStateFract);
-  }
-  return vp::io_req_status_e::IO_REQ_OK;
-}
-
-vp::io_req_status_e fll_v1::req(void *__this, vp::io_req *req)
+vp::io_req_status_e fll::status_req(int reg_offset, int size, bool is_write, uint8_t *data)
 {
-  fll_v1 *_this = (fll_v1 *)__this;
+  if (is_write)
+    return vp::io_req_status_e::IO_REQ_INVALID;
 
+  memcpy(data, &(((uint8_t *)&this->status_reg.raw)[reg_offset]), size);
+
+  return vp::io_req_status_e::IO_REQ_OK;
+}
+
+vp::io_req_status_e fll::conf1_req(int reg_offset, int size, bool is_write, uint8_t *data) {
+  if (!is_write)
+  {
+    memcpy(data, &(((uint8_t *)&this->conf1_reg.raw)[reg_offset]), size);
+  }
+  else
+  {
+    memcpy(&(((uint8_t *)&this->conf1_reg.raw)[reg_offset]), data, size);
+
+    this->get_trace()->msg("Setting configuration 1 register (raw: 0x%x, mode: %d, lock: %d, div: %d, dco: %d, factor: %d)\n", this->conf1_reg.raw, this->conf1_reg.mode, this->conf1_reg.output_lock_enable, this->conf1_reg.clock_out_divider, this->conf1_reg.dco_input, this->conf1_reg.mult_factor);
+
+    this->fll_check_state();
+  }
+  return vp::io_req_status_e::IO_REQ_OK;
+}
+
+vp::io_req_status_e fll::conf2_req(int reg_offset, int size, bool is_write, uint8_t *data) {
+  if (!is_write)
+  {
+    memcpy(data, &(((uint8_t *)&this->conf2_reg)[reg_offset]), size);
+  }
+  else
+  {
+    memcpy(&(((uint8_t *)&this->conf2_reg)[reg_offset]), data, size);
+
+    this->get_trace()->msg("Setting configuration 2 register (raw: 0x%x, dith: %d, mode: %d, clkSel: %d, lockTol: %d, nbStable: %d, nbUnstable: %d, gain: %d)\n",
+      this->conf2_reg.raw, this->conf2_reg.dithering, this->conf2_reg.open_loop, this->conf2_reg.config_clock_sel, this->conf2_reg.lock_tolerance, this->conf2_reg.assert_cycles, this->conf2_reg.de_assert_cycles, this->conf2_reg.loop_gain);
+
+    this->fll_check_state();
+  }
+  return vp::io_req_status_e::IO_REQ_OK;
+}
+
+vp::io_req_status_e fll::integrator_req(int reg_offset, int size, bool is_write, uint8_t *data) {
+  if (!is_write)
+  {
+    memcpy(data, &(((uint8_t *)&this->integrator_reg.raw)[reg_offset]), size);
+  }
+  else
+  {
+    memcpy(&(((uint8_t *)&this->integrator_reg.raw)[reg_offset]), data, size);
+
+    this->get_trace()->msg("Setting integrator register (raw: 0x%x, integrator_int: %d, integrator_fract: %d)\n",
+      this->integrator_reg.raw, this->integrator_reg.state_int_part, this->integrator_reg.state_fract_part);
+
+    this->fll_check_state();
+  }
+  return vp::io_req_status_e::IO_REQ_OK;
+}
+
+vp::io_req_status_e fll::req(void *__this, vp::io_req *req)
+{
+  fll *_this = (fll *)__this;
+  
+  vp::io_req_status_e err;
   uint64_t offset = req->get_addr();
   uint8_t *data = req->get_data();
   uint64_t size = req->get_size();
   bool is_write = req->get_is_write();
 
-  _this->trace.msg("Fll_v1 access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+  _this->get_trace()->msg("FLL access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
   int reg_id = offset / 4;
   int reg_offset = offset % 4;
 
   if (reg_offset + size > 4) {
-    _this->trace.warning("Accessing 2 registers in one access\n");
-    return vp::io_req_status_e::IO_REQ_INVALID;
+    _this->get_trace()->warning("Accessing 2 registers in one access\n");
+    goto error;
   }
 
   switch (reg_id) {
-    case HAL_FLL_STATUS_OFFSET/4: return _this->status_req(reg_offset, size, is_write, data);
-    case HAL_FLL_CONF1_OFFSET/4: return _this->conf1_req(reg_offset, size, is_write, data);
-    case HAL_FLL_CONF2_OFFSET/4: return _this->conf2_req(reg_offset, size, is_write, data);
-    case HAL_FLL_INTEGRATOR_OFFSET/4: return _this->integrator_req(reg_offset, size, is_write, data);
+    case FLL_STATUS_OFFSET/4:     err = _this->status_req(reg_offset, size, is_write, data); break;
+    case FLL_CONF1_OFFSET/4:      err = _this->conf1_req(reg_offset, size, is_write, data); break;
+    case FLL_CONF2_OFFSET/4:      err = _this->conf2_req(reg_offset, size, is_write, data); break;
+    case FLL_INTEGRATOR_OFFSET/4: err = _this->integrator_req(reg_offset, size, is_write, data); break;
   }
 
+  if (err != vp::IO_REQ_OK)
+    goto error;
+
+  // The configuration interface is asynchronous.
+  // The time required to reply depends on the clock used internally in the
+  // FLL registers. Just compute the needed time and round it to model the
+  // asynchronous request.
+
+  //if (this->conf1_reg.mode == 0)
+
+
   return vp::IO_REQ_OK;
+
+error:
+  _this->get_trace()->msg("FLL invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+
+  return vp::IO_REQ_INVALID;
 }
 
-int fll_v1::build()
+int fll::build()
 {
-  traces.new_trace("trace", &trace, vp::DEBUG);
-  in.set_req_meth(&fll_v1::req);
+  in.set_req_meth(&fll::req);
   new_slave_port("input", &in);
 
-  mult_factor = 0x5f5;
-  div_factor = 1;
+  ref_clock_itf.set_sync_meth(&fll::ref_clock_sync);
+  ref_clock_itf.set_set_frequency_meth(&fll::ref_clock_set_frequency);
+  new_slave_port("ref_clock", &ref_clock_itf);
 
-  conf1_reg = (mult_factor << HAL_FLL_CONF1_FACTOR_BIT) | 
-    (div_factor << HAL_FLL_CONF1_DIV_BIT);
+  new_master_port("clock_out", &fll_clock_itf);
 
-  conf2_reg = 0;
+  this->status_reg_reset = get_js_config()->get("regmap/status/reset")->get_int();
+  this->conf1_reg_reset = get_js_config()->get("regmap/conf1/reset")->get_int();
+  this->conf2_reg_reset = get_js_config()->get("regmap/conf2/reset")->get_int();
+  this->integrator_reg_reset = get_js_config()->get("regmap/integrator/reset")->get_int();
 
   return 0;
 }
 
-void fll_v1::start()
+void fll::start()
 {
+  // TODO do the reset by hands until the framework is handling it
+  this->reset();
+}
+
+void fll::reset()
+{
+  this->status_reg.raw     = this->status_reg_reset;
+  this->conf1_reg.raw      = this->conf1_reg_reset;
+  this->conf2_reg.raw      = this->conf2_reg_reset;
+  this->integrator_reg.raw = this->integrator_reg_reset;
+
+  this->fll_check_state();
 }
 
 extern "C" void *vp_constructor(const char *config)
 {
-  return (void *)new fll_v1(config);
+  return (void *)new fll(config);
 }

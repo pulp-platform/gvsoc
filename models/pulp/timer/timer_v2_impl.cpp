@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "vp/itf/wire.hpp"
+#include "vp/itf/clock.hpp"
 
 #include "archi/timer/timer_v2.h"
 
@@ -61,7 +62,7 @@ private:
   void set_value(bool is_64, int counter, uint64_t new_value);
 
   vp::wire_master<bool> irq_itf[2];
-  vp::wire_slave<bool> ref_clock_itf;
+  vp::clock_slave ref_clock_itf;
 
   uint32_t value[2];
   uint32_t config[2];

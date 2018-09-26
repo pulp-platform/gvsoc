@@ -87,6 +87,25 @@ void vp::component_clock::pre_build(component *comp) {
   comp->traces.new_trace("warning", &comp->warning, vp::WARNING);
 }
 
+bool vp::time_engine::dequeue(time_engine_client *client)
+{
+  if (!client->is_enqueued) return false;
+
+  client->is_enqueued = false;
+
+  time_engine_client *current = this->first_client, *prev = NULL;
+  while (current && current != client)
+  {
+    current = current->next;
+  }
+  if (prev)
+    prev->next = client->next;
+  else
+    this->first_client = client->next;
+
+  return true;
+}
+
 void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
 {
 #ifdef __VP_USE_SYSTEMC
@@ -95,6 +114,8 @@ void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
   if (started) sync_event.notify();
 #endif
 
+  // FIXME we should also check if the time is smaller that the one used
+  // to previously enqueue the engine
   if (client->is_enqueued) return;
 
   client->is_enqueued = true;
@@ -111,6 +132,40 @@ void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
   else first_client = client;
   client->next = current;
 }
+
+bool vp::clock_engine::dequeue_from_engine()
+{
+  if (this->is_running())
+    return false;
+
+  this->engine->dequeue(this);
+
+  return true;
+}
+
+void vp::clock_engine::reenqueue_to_engine()
+{
+  this->engine->enqueue(this, this->next_event_time);
+}
+
+void vp::clock_engine::apply_frequency(int frequency)
+{
+  if (frequency > 0)
+  {
+    bool reenqueue = this->dequeue_from_engine();
+    int64_t period = this->period;
+
+    this->freq = frequency;
+    this->period = 1e12 / this->freq;
+    if (reenqueue && period > 0)
+    {
+      int cycles = (this->next_event_time - this->get_time()) / period;
+      this->next_event_time = cycles*this->period;
+      this->reenqueue_to_engine();
+    }
+  }
+}
+
 
 void vp::clock_engine::update()
 {
@@ -137,6 +192,7 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
   // enqueue it to the global time engine.
   enqueue_to_engine(cycle*period);
 
+  // FIXME
   if (cycle < CLOCK_EVENT_QUEUE_SIZE)
   {
     enqueue_to_cycle(event, cycle);

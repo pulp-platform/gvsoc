@@ -25,6 +25,7 @@
 #include <vp/itf/jtag.hpp>
 #include <vp/itf/cpi.hpp>
 #include <vp/itf/hyper.hpp>
+#include <vp/itf/clock.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -138,14 +139,15 @@ private:
   static void hyper_cs_sync(void *__this, int cs, int active, int id);
 
 
-  static void ref_clock_sync(void *__this, int value);
+  static void ref_clock_sync(void *__this, bool value);
+  static void ref_clock_set_frequency(void *, int64_t value);
 
   vp::trace     trace;
   vp::io_slave in;
 
   vector<Pad_group *> groups;
-  vp::wire_slave<int>    ref_clock_pad_itf;
-  vp::wire_master<int>    ref_clock_itf;
+  vp::clock_slave    ref_clock_pad_itf;
+  vp::clock_master    ref_clock_itf;
 
   vp::trace ref_clock_trace;
 
@@ -394,15 +396,17 @@ vp::io_req_status_e padframe::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
-void padframe::ref_clock_sync(void *__this, int value)
+void padframe::ref_clock_sync(void *__this, bool value)
 {
   padframe *_this = (padframe *)__this;
   _this->ref_clock_trace.event((uint8_t *)&value);
+  _this->ref_clock_itf.sync(value);
+}
 
-  if (_this->ref_clock_itf.is_bound())
-  {
-    _this->ref_clock_itf.sync(value);
-  }
+void padframe::ref_clock_set_frequency(void *__this, int64_t value)
+{
+  padframe *_this = (padframe *)__this;
+  _this->ref_clock_itf.set_frequency(value);
 }
 
 int padframe::build()
@@ -413,6 +417,7 @@ int padframe::build()
   new_slave_port("in", &in);
 
   ref_clock_pad_itf.set_sync_meth(&padframe::ref_clock_sync);
+  ref_clock_pad_itf.set_set_frequency_meth(&padframe::ref_clock_set_frequency);
   new_slave_port("ref_clock_pad", &this->ref_clock_pad_itf);
 
   new_master_port("ref_clock", &this->ref_clock_itf);

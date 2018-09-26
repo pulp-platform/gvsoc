@@ -60,6 +60,8 @@ namespace vp {
 
     inline void stop_engine(int status);
 
+    bool dequeue(time_engine_client *client);
+
     void enqueue(time_engine_client *client, int64_t time);
 
     int64_t get_time() { return time; }
@@ -125,7 +127,13 @@ namespace vp {
 
   protected:
     time_engine_client *next;
+
+    // This gives the time of the next event.
+    // It is only valid when the client is not the currently active one,
+    // and is then updated either when the client is not the active one
+    // anymore or when the client is enqueued to the engine.
     int64_t next_event_time = 0;
+
     vp::time_engine *engine;
     bool running = false;
     bool is_enqueued = false;

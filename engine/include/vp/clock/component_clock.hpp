@@ -72,6 +72,8 @@ namespace vp {
 
     inline int64_t get_period();
 
+    inline int64_t get_frequency();
+
     inline time_engine *get_engine();
 
   protected:

@@ -20,6 +20,7 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/clk.hpp>
+#include <vp/itf/clock.hpp>
 #include <vp/clock/clock_engine.hpp>
 
 class clock_domain : public vp::clock_engine
@@ -33,27 +34,35 @@ public:
 
   void pre_start();
 
+
 private:
+
+  static inline void set_frequency(void *__this, int64_t frequency);
 
   vp::clk_master out;
 
-
+  vp::clock_slave clock_in;
 };
 
 
 clock_domain::clock_domain(const char *config)
 : vp::clock_engine(config)
 {
+  this->apply_frequency(get_config_int("frequency"));  
+}
 
-  freq = get_config_int("frequency");
-
-  period = 1e12 / freq;
-  
+void clock_domain::set_frequency(void *__this, int64_t frequency)
+{
+  clock_domain *_this = (clock_domain *)__this;
+  _this->apply_frequency(frequency);
 }
 
 int clock_domain::build()
 {
   new_master_port("out", &out);
+
+  clock_in.set_set_frequency_meth(&clock_domain::set_frequency);
+  new_slave_port("clock_in", &clock_in);
   return 0;
 }
 
@@ -64,7 +73,7 @@ void clock_domain::pre_start()
 
 
 vp::clock_engine::clock_engine(const char *config)
-  : vp::time_engine_client(config), cycles(0)
+  : vp::time_engine_client(config), cycles(0), period(0), freq(0)
 {
   delayed_queue = NULL;
   for (int i=0; i<CLOCK_EVENT_QUEUE_SIZE; i++)

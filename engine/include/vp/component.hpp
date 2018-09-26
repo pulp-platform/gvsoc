@@ -127,7 +127,7 @@ namespace vp {
     void set_services(int nb_services, const char *name[], void *services[]);
 
 
-    trace *get_trace() { return &this->root_trace; }
+    inline trace *get_trace() { return &this->root_trace; }
 
     std::vector<vp::component *> get_childs() { return childs; }
 
