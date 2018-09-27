@@ -14,7 +14,7 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
   pulp/hwpe/xne pulp/icache_ctrl pulp/cluster pulp/event_unit \
   pulp/chips/pulp pulp/mchan pulp/padframe pulp/adv_dbg_unit \
   pulp/chips/oprecompkw pulp/chips/oprecompkw_sa pulp/chips/bigpulp \
-  pulp/chips/wolfe pulp/pmu pulp/chips/gap pulp/chips/multino \
+  pulp/chips/wolfe pulp/chips/usoc_v1 pulp/pmu pulp/chips/gap pulp/chips/multino \
   devices/hyperchip
 
 
