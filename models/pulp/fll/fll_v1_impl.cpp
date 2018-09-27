@@ -87,6 +87,10 @@ void fll::ref_clock_sync(void *__this, bool value)
 {
   fll *_this = (fll *)__this;
 
+  if (value == false)
+    return;
+
+  _this->get_trace()->msg("Received ref clock\n");
   _this->fll_check_state();
 
   // DCO freq is the number of pulses so we have to divide by 2
@@ -139,7 +143,7 @@ void fll::fll_check_state()
 
   int frequency = (int)(this->dco_freq / (1 << this->conf1_reg.clock_out_divider) * 1000000);
 
-
+  this->get_trace()->msg("Setting new frequency (frequency: %d Hz)\n", frequency);
   this->fll_clock_itf.set_frequency(frequency);
 }
 

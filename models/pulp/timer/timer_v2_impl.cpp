@@ -101,8 +101,8 @@ void timer::sync()
   }
   else
   {
-    if (is_enabled[0]) value[0] += cycles;
-    if (is_enabled[1]) value[1] += cycles;
+    if (is_enabled[0] && !ref_clock[0]) value[0] += cycles;
+    if (is_enabled[1] && !ref_clock[1]) value[1] += cycles;
   }
 }
 
@@ -130,7 +130,10 @@ uint64_t timer::get_compare_value(bool is_64, int counter)
 uint64_t timer::get_value(bool is_64, int counter)
 {
   if (is_64) return *(uint64_t *)value;
-  else return value[counter];
+  else 
+    {
+      return value[counter];
+    }
 }
 
 void timer::set_value(bool is_64, int counter, uint64_t new_value)
@@ -204,9 +207,16 @@ void timer::ref_clock_sync(void *__this, bool value)
   if (value)
   {
     if (_this->ref_clock[0])
+    {
+      _this->trace.msg("Updating counter due to ref clock raising edge (counter: 0)\n");
       _this->value[0]++;
+    }
+
     if (_this->ref_clock[1])
+    {
+      _this->trace.msg("Updating counter due to ref clock raising edge (counter: 1)\n");
       _this->value[1]++;
+    }
   }
 
   _this->check_state();

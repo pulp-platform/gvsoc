@@ -53,7 +53,7 @@ void Clock::raise_edge()
 {
   if (this->clock_itf.is_bound()) {
     this->get_trace()->msg("Changing clock level (level: %d)\n", value);
-    //this->clock_itf.sync(value);
+    this->clock_itf.sync(value);
     this->value ^= 1;
     this->event_enqueue(this->event, 1); 
   }
