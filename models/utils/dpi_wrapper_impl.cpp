@@ -196,13 +196,13 @@ void dpi_task::start()
 void dpi_periodic_handler::start()
 {
   this->wait_evt = top->event_new(this, dpi_periodic_handler::entry_stub);
-  this->top->event_enqueue(this->wait_evt, this->period);
+  this->top->event_enqueue(this->wait_evt, 1);
 }
 
 void dpi_periodic_handler::entry_stub(void *__this, vp::clock_event *event)
 {
   dpi_periodic_handler *_this = (dpi_periodic_handler *)__this;
-  _this->top->event_enqueue(_this->wait_evt, _this->period);
+  _this->top->event_enqueue(_this->wait_evt, 1);
   dpi_exec_periodic_handler(_this->id);
 }
 

@@ -102,6 +102,8 @@ namespace vp {
 
   protected:
 
+    void flush_delayed_queue();
+
     inline void enqueue_to_cycle(clock_event *event, int64_t cycles)
     {
       int cycle = (current_cycle + cycles) & CLOCK_EVENT_QUEUE_MASK;
@@ -136,6 +138,8 @@ namespace vp {
     // to recompute the numer of cycles when the engine is updated by an
     // external event.
     int64_t stop_time = 0;
+
+    bool must_flush_delayed_queue;
   };    
 
 };

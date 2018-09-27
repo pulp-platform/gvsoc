@@ -48,7 +48,7 @@ private:
 clock_domain::clock_domain(const char *config)
 : vp::clock_engine(config)
 {
-  this->apply_frequency(get_config_int("frequency"));  
+  this->apply_frequency(get_config_int("frequency"));
 }
 
 void clock_domain::set_frequency(void *__this, int64_t frequency)
@@ -73,7 +73,7 @@ void clock_domain::pre_start()
 
 
 vp::clock_engine::clock_engine(const char *config)
-  : vp::time_engine_client(config), cycles(0), period(0), freq(0)
+  : vp::time_engine_client(config), cycles(0), period(0), freq(0), must_flush_delayed_queue(true)
 {
   delayed_queue = NULL;
   for (int i=0; i<CLOCK_EVENT_QUEUE_SIZE; i++)

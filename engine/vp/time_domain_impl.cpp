@@ -259,6 +259,9 @@ void vp::time_engine::run_loop()
 
     if (current)
     {
+      first_client = current->next;
+      current->is_enqueued = false;
+
       // Update the global engine time with the current event time
       this->time = current->next_event_time;
 
@@ -333,7 +336,7 @@ void vp::time_engine::run_loop()
     
         int64_t time = current->exec();
 
-        time_engine_client *next = current->next;
+        time_engine_client *next = first_client;
 
         // Shortcut to quickly continue with the same client
         if (likely(time != -1))
@@ -348,6 +351,8 @@ void vp::time_engine::run_loop()
             }
             else
             {
+              current->next = first_client;
+              first_client = current;
               current->next_event_time = time;
               break;
             }
@@ -357,8 +362,6 @@ void vp::time_engine::run_loop()
         // Otherwise remove it, reenqueue it and continue with the next one.
         // We can optimize a bit the operation as we already know
         // who to schedule next.
-        first_client = next;
-        current->is_enqueued = false;
 
         if (time != -1)
         {
@@ -376,7 +379,14 @@ void vp::time_engine::run_loop()
 
         current->running = false;
 
-        current = next;
+        current = first_client;
+        if (current)
+        {
+          vp_assert(first_client->next_event_time >= get_time(), NULL, "event time is before vp time\n");
+
+          first_client = current->next;
+          current->is_enqueued = false;
+        }
 
   #endif
 
