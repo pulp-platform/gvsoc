@@ -536,6 +536,34 @@ extern "C" int dpi_wait_ps(void *handle, int64_t t)
   return dpi->wait_ps(t);
 }
 
+extern "C" int64_t dpi_time(void *handle, int64_t t)
+{
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  return dpi->get_clock()->get_time();
+}
+
+extern "C" int dpi_wait_task_event(void *handle)
+{
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  dpi->wait_event();
+  return 0;
+}
+
+extern "C" void dpi_raise_task_event(void *handle)
+{
+  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+}
+
+extern "C" int dpi_wait_task_event_timeout(void *handle, int64_t t)
+{
+  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+  return 0;
+}
+
+extern "C" void dpi_gpio_set_data(void *handle, int data)
+{
+  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+}
 
 extern "C" void dpi_qspim_set_data(void *handle, int data)
 {
