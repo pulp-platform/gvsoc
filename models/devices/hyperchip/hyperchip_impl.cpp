@@ -191,13 +191,14 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
     else
     {
       this->top->trace.msg("Received data byte (value: 0x%x)\n", data);
-      this->data[address] = data;
+      //this->data[address] = data;
     }
   }
 }
 
 int Hyperflash::preload_file(char *path)
 {
+  this->top->get_trace()->msg("Preloading memory with stimuli file (path: %s)\n", path);
   FILE *file = fopen(path, "r");
   if (file == NULL) {
     printf("Unable to open stimulus file (path: %s, error: %s)\n", path, strerror(errno));

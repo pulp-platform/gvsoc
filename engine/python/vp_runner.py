@@ -67,7 +67,7 @@ class Runner(Platform):
         if comps_conf is not None:
             comps = comps_conf.get_dict()
 
-        if self.get_json().get_child_str('**/loader/boot/mode') == 'rom':
+        if self.get_json().get_child_str('**/loader/boot/mode').find('rom') != -1:
 
             boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/pulp_chip_family').get())
 
@@ -88,6 +88,10 @@ class Runner(Platform):
                 archi=self.tree.get('**/pulp_chip_family').get(),
                 flashType=self.tree.get('**/runner/flash_type').get()):
                 return -1
+
+        if self.get_json().get('**/efuse') is not None:
+            efuse = runner.stim_utils.Efuse(self.get_json(), verbose=self.tree.get('**/runner/verbose').get())
+            efuse.gen_stim_txt('efuse_preload.data')
 
         return 0
 
@@ -123,8 +127,11 @@ class Runner(Platform):
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
-        if self.get_json().get_child_str('**/loader/boot/mode') == 'rom':
+        if self.get_json().get_child_str('**/loader/boot/mode').find('rom') != -1:
             self.get_json().get('**/soc/rom').set('stim_file', 'stimuli/rom.bin')
+
+        if self.get_json().get('**/efuse') is not None:
+            self.get_json().get('**/soc/efuse').set('stim_file', 'efuse_preload.data')
 
         if self.gen_flash_stimuli:
             if self.get_json().get('**/spiflash') is not None:

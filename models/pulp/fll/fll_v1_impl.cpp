@@ -186,7 +186,8 @@ vp::io_req_status_e fll::conf1_req(int reg_offset, int size, bool is_write, uint
   return vp::io_req_status_e::IO_REQ_OK;
 }
 
-vp::io_req_status_e fll::conf2_req(int reg_offset, int size, bool is_write, uint8_t *data) {
+vp::io_req_status_e fll::conf2_req(int reg_offset, int size, bool is_write, uint8_t *data)
+{
   if (!is_write)
   {
     memcpy(data, &(((uint8_t *)&this->conf2_reg)[reg_offset]), size);

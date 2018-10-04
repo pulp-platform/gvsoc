@@ -5,7 +5,7 @@ PULP_PROPERTIES += udma/version timer/version stdout/version soc_eu/version \
 	fc_itc/version icache_ctrl/version xne/version fll/version event_unit/version \
 	cluster_ctrl/version pulp_chip soc/cluster dma/version udma/spim/version \
 	udma/cpi/version padframe/version pulp_chip_family pmu/version \
-	udma/hyper/version
+	udma/hyper/version efuse/version
 
 properties := $(foreach prop,$(PULP_PROPERTIES), --property=$(prop))
 
@@ -15,7 +15,8 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
   pulp/hwpe/xne pulp/icache_ctrl pulp/cluster pulp/event_unit \
   pulp/chips/pulp pulp/mchan pulp/padframe pulp/adv_dbg_unit \
   pulp/chips/oprecompkw pulp/chips/oprecompkw_sa pulp/chips/bigpulp \
-  pulp/chips/wolfe pulp/chips/usoc_v1 pulp/pmu pulp/chips/gap pulp/chips/multino \
+  pulp/chips/wolfe pulp/chips/usoc_v1 pulp/pmu pulp/chips/gap \
+  pulp/chips/multino pulp/efuse \
   devices/hyperchip devices/spiflash
 
 
