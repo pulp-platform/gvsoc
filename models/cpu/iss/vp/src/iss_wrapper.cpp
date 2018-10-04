@@ -22,8 +22,8 @@
 #include <vp/itf/io.hpp>
 #include "iss.hpp"
 #include <algorithm>
-#define HAVE_DECL_BASENAME 1
-#include "trace_debugger.h"
+//#define HAVE_DECL_BASENAME 1
+//#include "trace_debugger.h"
 
 #define HALT_CAUSE_EBREAK    0
 #define HALT_CAUSE_ECALL     1
