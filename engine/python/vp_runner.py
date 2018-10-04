@@ -63,11 +63,11 @@ class Runner(Platform):
 
     def prepare(self):
         comps = []
-        comps_conf = self.get_json().get('**/fs/files')
+        comps_conf = self.get_json().get('**/flash/fs/files')
         if comps_conf is not None:
             comps = comps_conf.get_dict()
 
-        if self.get_json().get_child_str('**/loader/boot/mode').find('rom') != -1:
+        if self.get_json().get_child_str('**/runner/boot-mode').find('rom') != -1:
 
             boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/pulp_chip_family').get())
 
@@ -122,12 +122,12 @@ class Runner(Platform):
             self.get_json().get('**/jtag_proxy').set('active', True)
             self.get_json().get('gvsoc').set('use_external_bridge', True)
 
-        if not bridge and self.get_json().get_child_str('**/loader/boot/mode') != 'bridge' and self.get_json().get_child_str('**/loader/boot/mode') != 'rom':
+        if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode') != 'rom':
             binaries = self.get_json().get('**/loader/binaries').get_dict()
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
-        if self.get_json().get_child_str('**/loader/boot/mode').find('rom') != -1:
+        if self.get_json().get_child_str('**/runner/boot-mode').find('rom') != -1:
             self.get_json().get('**/soc/rom').set('stim_file', 'stimuli/rom.bin')
 
         if self.get_json().get('**/efuse') is not None:
@@ -138,7 +138,7 @@ class Runner(Platform):
                 self.get_json().get('**/spiflash').set('stim_file', self.get_flash_preload_file())
 
 
-        if self.get_json().get_child_str('**/loader/boot/mode') != 'rom' and not bridge:
+        if self.get_json().get_child_str('**/runner/boot-mode') != 'rom' and not bridge:
             set_pc_addr = self.get_json().get_child_int('**/loader/set_pc_addr')
             if set_pc_addr != None:
                 self.get_json().get('**/plt_loader').set('set_pc_addr', '0x%x' % set_pc_addr)
