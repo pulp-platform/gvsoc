@@ -107,8 +107,8 @@ void Udma_channel::push_ready_req(vp::io_req *req)
   current_cmd->received_size += req->get_size();
 
   trace.msg("Received\n");
-  trace.msg("Received data from L2 (cmd: %p, data_size: 0x%x, transfer_size: 0x%x, received_size: 0x%x)\n",
-    current_cmd, req->get_size(), current_cmd->size, current_cmd->received_size);
+  trace.msg("Received data from L2 (cmd: %p, data_size: 0x%x, transfer_size: 0x%x, received_size: 0x%x, value: 0x%x)\n",
+    current_cmd, req->get_size(), current_cmd->size, current_cmd->received_size, *(uint32_t *)req->get_data());
 
   handle_ready_req(req);
 }

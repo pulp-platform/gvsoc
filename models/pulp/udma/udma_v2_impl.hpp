@@ -221,6 +221,8 @@ private:
 
   uint32_t spi_tx_pending_word;   // Word being flushed to spi pads
   int      spi_tx_pending_bits;   // Tell how many bits are ready to be sent to SPI pads
+  bool spi_tx_quad;
+  bool spi_tx_byte_align;
 
   bool     has_tx_pending_word;   // Tell if a TX pending word is present
   uint32_t tx_pending_word;       // Word received by last L2 req
@@ -229,7 +231,6 @@ private:
   vp::io_req *pending_req;
   uint32_t command;
   int cs;
-  bool gen_eot;
   bool gen_eot_with_evt;
 };
 
@@ -248,6 +249,7 @@ protected:
   vp::qspim_master qspim_itf;
   int clkdiv;
   bool waiting_rx;
+  bool waiting_tx;
   bool is_full_duplex;
   int byte_align;
   int qpi;

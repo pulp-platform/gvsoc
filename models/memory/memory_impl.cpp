@@ -196,6 +196,8 @@ void memory::start()
 
   mem_data = new uint8_t[size];
 
+
+  // Special option to check for uninitialized accesses
   if (check)
   {
     check_mem = new uint8_t[(size + 7)/8];
@@ -205,7 +207,29 @@ void memory::start()
     check_mem = NULL;
   }
 
+
+  // Initialize the memory with a special value to detect uninitialized
+  // variables
   memset(mem_data, 0x57, size);
+
+
+  // Preload the memory
+  js::config *stim_file_conf = this->get_js_config()->get("stim_file");
+  if (stim_file_conf != NULL)
+  {
+    string path = stim_file_conf->get_str();
+    trace.msg("Preloading memory with stimuli file (path: %s)\n", path.c_str());
+
+    FILE *file = fopen(path.c_str(), "rb");
+    if (file == NULL)
+    {
+      this->trace.fatal("Unable to open stim file: %s, %s\n", path.c_str(), strerror(errno));
+    }
+    if (fread(this->mem_data, 1, size, file) == 0)
+    {
+      this->trace.fatal("Failed to read stim file: %s, %s\n", path.c_str(), strerror(errno));
+    }
+  }
 
   this->leakage_power.power_on();
   this->idle_power.power_on();

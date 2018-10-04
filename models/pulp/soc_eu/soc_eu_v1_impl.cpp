@@ -22,6 +22,7 @@
 #include <vp/itf/io.hpp>
 #include <stdio.h>
 #include <vp/itf/wire.hpp>
+#include <vp/itf/clock.hpp>
 #include <string.h>
 #include <archi/soc_eu/soc_eu_v1.h>
 
@@ -40,6 +41,7 @@ public:
 private:
 
   static void event_in_sync(void *__this, int event);
+  static void ref_clock_sync(void *_this, bool value);
   void trigger_event(int event);
   void reset();
   vp::wire_master<int>    fc_event_itf;
@@ -48,11 +50,14 @@ private:
 
   int nb_fc_events;
   int first_fc_event;
+  int ref_clock_event;
 
   vp::trace     trace;
   vp::io_slave in;
 
   vp::wire_slave<int>      event_in_itf;
+  vp::clock_slave          ref_clock;
+  vp::wire_master<bool>     ref_clock_event_itf;
 
   unsigned int fc_event_mask[2];
   unsigned int cl_event_mask[2];
@@ -182,11 +187,23 @@ void soc_eu::event_in_sync(void *__this, int event)
   _this->trigger_event(event);
 }
 
+void soc_eu::ref_clock_sync(void *__this, bool value)
+{
+  soc_eu *_this = (soc_eu *)__this;
+  _this->trace.msg("Received ref clock event, generating event (event: %d)\n", _this->ref_clock_event);
+  _this->ref_clock_event_itf.sync(true);
+  _this->trigger_event(_this->ref_clock_event);
+}
+
 int soc_eu::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&soc_eu::req);
   new_slave_port("input", &in);
+
+  this->ref_clock_event = this->get_config_int("ref_clock_event");
+  this->ref_clock.set_sync_meth(&soc_eu::ref_clock_sync);
+  this->new_slave_port("ref_clock", &this->ref_clock);
 
   event_in_itf.set_sync_meth(&soc_eu::event_in_sync);
   new_slave_port("event_in", &event_in_itf);
@@ -194,6 +211,7 @@ int soc_eu::build()
   nb_fc_events = get_config_int("properties/nb_fc_events");
   first_fc_event = get_config_int("properties/first_fc_event");
 
+  new_master_port("ref_clock_event", &ref_clock_event_itf);
   new_master_port("fc_event_itf", &fc_event_itf);
   new_master_port("pr_event_itf", &pr_event_itf);
   new_master_port("cl_event_itf", &cl_event_itf);

@@ -1,4 +1,5 @@
-ROOT_VP_BUILD_DIR ?= $(CURDIR)/build
+BUILD_DIR ?= $(CURDIR)/build
+ROOT_VP_BUILD_DIR ?= $(BUILD_DIR)
 
 PULP_PROPERTIES += udma/version timer/version stdout/version soc_eu/version \
 	fc_itc/version icache_ctrl/version xne/version fll/version event_unit/version \
@@ -15,7 +16,7 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
   pulp/chips/pulp pulp/mchan pulp/padframe pulp/adv_dbg_unit \
   pulp/chips/oprecompkw pulp/chips/oprecompkw_sa pulp/chips/bigpulp \
   pulp/chips/wolfe pulp/chips/usoc_v1 pulp/pmu pulp/chips/gap pulp/chips/multino \
-  devices/hyperchip
+  devices/hyperchip devices/spiflash
 
 
 -include $(ROOT_VP_BUILD_DIR)/props.mk

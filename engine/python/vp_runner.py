@@ -21,6 +21,7 @@ import vp.trace_engine
 import vp.power_engine
 import vp_core
 import plptree
+import runner.stim_utils
 
 from plp_platform import *
 import plp_flash_stimuli
@@ -41,10 +42,23 @@ class Runner(Platform):
             self.system_tree = plptree.get_configs_from_file(
                 self.config.args.configFile)[0]
 
+        self.__prepare_env()
+
+    def __prepare_env(self):
+
+        self.gen_flash_stimuli = False
+
+        comps_conf = self.get_json().get('**/fs/files')
+
+        if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
+
+            self.gen_flash_stimuli = True
+
+
 
 
     def get_flash_preload_file(self):
-        return os.path.join(os.getcwd(), 'flash_preload_file.bin')
+        return os.path.join(os.getcwd(), 'stimuli/flash.bin')
 
 
     def prepare(self):
@@ -53,8 +67,18 @@ class Runner(Platform):
         if comps_conf is not None:
             comps = comps_conf.get_dict()
 
+        if self.get_json().get_child_str('**/loader/boot/mode') == 'rom':
 
-        if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
+            boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/pulp_chip_family').get())
+
+            stim = runner.stim_utils.stim(verbose=self.get_json().get_child_bool('**/runner/verbose'))
+            stim.add_binary(boot_binary)
+            stim.add_area(self.get_json().get_child_int('**/rom/base'), self.get_json().get_child_int('**/rom/size'))
+            stim.gen_stim_bin('stimuli/rom.bin')
+
+
+
+        if self.gen_flash_stimuli:
 
             if plp_flash_stimuli.genFlashImage(
                 raw_stim=self.get_flash_preload_file(),
@@ -94,10 +118,17 @@ class Runner(Platform):
             self.get_json().get('**/jtag_proxy').set('active', True)
             self.get_json().get('gvsoc').set('use_external_bridge', True)
 
-        if not bridge and self.get_json().get_child_str('**/loader/boot/mode') != 'bridge':
+        if not bridge and self.get_json().get_child_str('**/loader/boot/mode') != 'bridge' and self.get_json().get_child_str('**/loader/boot/mode') != 'rom':
             binaries = self.get_json().get('**/loader/binaries').get_dict()
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
+
+        if self.get_json().get_child_str('**/loader/boot/mode') == 'rom':
+            self.get_json().get('**/soc/rom').set('stim_file', 'stimuli/rom.bin')
+
+        if self.gen_flash_stimuli:
+            if self.get_json().get('**/spiflash') is not None:
+                self.get_json().get('**/spiflash').set('stim_file', self.get_flash_preload_file())
 
 
         if self.get_json().get_child_str('**/loader/boot/mode') != 'rom' and not bridge:

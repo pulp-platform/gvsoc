@@ -49,12 +49,14 @@ void Spim_periph_v2::reset()
 {
   Udma_periph::reset();
   this->waiting_rx = false;
+  this->waiting_tx = false;
   this->is_full_duplex = false;
   this->cmd_pending_bits = 0;
   this->nb_received_bits = 0;
   this->rx_pending_word = 0x57575757;
   this->tx_pending_word = 0x57575757;
   this->spi_rx_pending_bits = 0;
+  this->clkdiv = 0;
 }
 
   
@@ -78,7 +80,7 @@ void Spim_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int dat
 
 void Spim_tx_channel::check_state()
 {
-  if (this->has_tx_pending_word && !pending_word_event->is_enqueued() && !this->periph->waiting_rx)
+  if (this->has_tx_pending_word && !pending_word_event->is_enqueued() && !this->periph->waiting_rx && !this->periph->waiting_tx)
   {
     top->event_enqueue(pending_word_event, 1);
   }
@@ -121,7 +123,7 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   Spim_tx_channel *_this = (Spim_tx_channel *)__this;
   bool raised_edge = false;
 
-  if (_this->periph->spi_rx_pending_bits > 0)
+  if (_this->periph->spi_rx_pending_bits > 0 && (_this->spi_tx_pending_bits == 0 || _this->periph->is_full_duplex))
   {
     int nb_bits = _this->periph->qpi ? 4 : 1;
     _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
@@ -164,10 +166,11 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   }
   if (_this->spi_tx_pending_bits > 0)
   {
-    if (!_this->periph->byte_align && _this->spi_tx_pending_bits == 32) _this->spi_tx_pending_word = __bswap_32(_this->spi_tx_pending_word);
+    if (!_this->spi_tx_byte_align && _this->spi_tx_pending_bits == 32) _this->spi_tx_pending_word = __bswap_32(_this->spi_tx_pending_word);
 
-    int nb_bits = _this->periph->qpi ? 4 : 1;
+    int nb_bits = _this->spi_tx_quad ? 4 : 1;
     _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
+
     unsigned int bits = ARCHI_REG_FIELD_GET(_this->spi_tx_pending_word, 32 - nb_bits, nb_bits);
     _this->spi_tx_pending_word <<= nb_bits;
     _this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x)\n", nb_bits, bits);
@@ -186,10 +189,9 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
     }
     _this->spi_tx_pending_bits -= nb_bits;
 
-    if (_this->spi_tx_pending_bits <= 0 && _this->gen_eot)
+    if (_this->periph->waiting_tx && _this->spi_tx_pending_bits <= 0)
     {
-      _this->gen_eot = false;
-      _this->handle_eot();
+      _this->periph->waiting_tx = false;
     }
   }
 
@@ -250,29 +252,47 @@ void Spim_tx_channel::handle_data(uint32_t data)
     case SPI_CMD_SEND_CMD_ID: {
       unsigned short cmd = (data >> SPI_CMD_SEND_CMD_CMD_OFFSET) & ((1<<SPI_CMD_SEND_CMD_CMD_WIDTH)-1);
       unsigned int size = ((data>>SPI_CMD_SEND_CMD_SIZE_OFFSET) & ((1<<SPI_CMD_SEND_CMD_SIZE_WIDTH)-1)) + 1;
-      int qpi = (data>>SPI_CMD_SEND_CMD_QPI_OFFSET) & 0x1;
-      trace.msg("Received command SEND_CMD (cmd: 0x%x, size: %d, qpi: %d)\n", cmd, size, qpi);
+      this->periph->qpi = (data>>SPI_CMD_SEND_CMD_QPI_OFFSET) & 0x1;
+      trace.msg("Received command SEND_CMD (cmd: 0x%x, size: %d, qpi: %d)\n", cmd, size, this->periph->qpi);
+      if (this->spi_tx_pending_bits == 0)
+      {
+        this->spi_tx_pending_word = cmd << 16;
+        this->spi_tx_pending_bits = size;
+        this->spi_tx_quad = this->periph->qpi;
+        this->spi_tx_byte_align = this->periph->byte_align;
+      }
+      else
+      {
+        handled_all = false;
+        this->periph->waiting_tx = true;     
+      }
       break;
     }
 
     case SPI_CMD_SEND_ADDR_ID: {
-      #if 0
-      if (waitWord) {
-        int64_t latency = 0;
-        trace.msg("Received address: 0x%x\n", pendingWord);
-        if (checkCs(cmdCs)) break;
-
-        pendingWord = swapData(pendingWord, 4);
-
-        spiPorts[cmdCs]->bsData((uint8_t *)&pendingWord, addrSize, &latency);
-        waitWord = 0;
-      } else {
-        #endif
+      if (this->periph->cmd_pending_bits <= 0)
+      {
         uint32_t addr_size = ((data >> SPI_CMD_SEND_ADDR_SIZE_OFFSET) & ((1<<SPI_CMD_SEND_ADDR_SIZE_WIDTH)-1)) + 1;
-        int qpi = (data>>SPI_CMD_SEND_ADDR_QPI_OFFSET) & 0x1;
-        trace.msg("Received command SEND_ADDR (size: %d, qpi: %d)\n", addr_size, qpi);
-        //waitWord = 1;
-      //}
+        this->periph->qpi = (data>>SPI_CMD_SEND_ADDR_QPI_OFFSET) & 0x1;
+        trace.msg("Received command SEND_ADDR (size: %d, qpi: %d)\n", addr_size, this->periph->qpi);
+        this->periph->cmd_pending_bits = addr_size;
+      }
+      else
+      {
+        if (this->spi_tx_pending_bits > 0)
+        {
+          handled_all = false;
+          this->periph->waiting_tx = true;
+        }
+        else
+        {
+          this->spi_tx_quad = this->periph->qpi;
+          this->spi_tx_byte_align = true;
+          this->spi_tx_pending_word = this->tx_pending_word;
+          this->spi_tx_pending_bits = this->periph->cmd_pending_bits;
+          this->periph->cmd_pending_bits = 0;
+        }
+      }
       break;
     }
 
@@ -307,6 +327,8 @@ void Spim_tx_channel::handle_data(uint32_t data)
         else
         {
           int nb_bits = this->periph->cmd_pending_bits > 32 ? 32 : this->periph->cmd_pending_bits;
+          this->spi_tx_byte_align = this->periph->byte_align;
+          this->spi_tx_quad = this->periph->qpi;
           this->spi_tx_pending_word = this->tx_pending_word;
           this->spi_tx_pending_bits = nb_bits;
           this->periph->cmd_pending_bits -= nb_bits;
@@ -363,6 +385,8 @@ void Spim_tx_channel::handle_data(uint32_t data)
         else
         {
           int nb_bits = this->periph->cmd_pending_bits > 32 ? 32 : this->periph->cmd_pending_bits;
+          this->spi_tx_byte_align = this->periph->byte_align;
+          this->spi_tx_quad = this->periph->qpi;
           this->spi_tx_pending_word = this->tx_pending_word;
           this->spi_tx_pending_bits = nb_bits;
           this->periph->cmd_pending_bits -= nb_bits;
@@ -401,7 +425,11 @@ void Spim_tx_channel::handle_data(uint32_t data)
       this->gen_eot_with_evt = (data >> SPI_CMD_EOT_GEN_EVT_OFFSET) & 1;
       trace.msg("Received command EOT (evt: %d)\n", this->gen_eot_with_evt);
       if (this->spi_tx_pending_bits > 0)
-        this->gen_eot = true;
+      {
+
+        handled_all = false;
+        this->periph->waiting_tx = true;
+      }
       else
         this->handle_eot();
       break;
@@ -487,7 +515,6 @@ void Spim_tx_channel::reset()
   this->next_bit_cycle = -1;
   this->has_tx_pending_word = false;
   this->spi_tx_pending_bits = 0;
-  this->gen_eot = false;
 }
 
 void Spim_rx_channel::reset()

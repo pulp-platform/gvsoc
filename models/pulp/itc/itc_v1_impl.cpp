@@ -95,6 +95,11 @@ void itc::itc_status_setValue(uint32_t value)
 {
   trace.msg("Updated irq status (value: 0x%x)\n", value);
   status = value;
+
+  if (nb_free_events != nb_fifo_events && ((this->status >> fifo_irq) & 1) == 0) {
+    itc_status_setValue(status | (1<<fifo_irq));
+  }
+
   check_state();
 }
 
@@ -260,9 +265,10 @@ vp::io_req_status_e itc::req(void *__this, vp::io_req *req)
 void itc::soc_event_sync(void *__this, int event)
 {
   itc *_this = (itc *)__this;
-  _this->trace.msg("Received soc event (event: %d)\n", event);
+  _this->trace.msg("Received soc event (event: %d, fifo elems: %d)\n", event, _this->nb_fifo_events - _this->nb_free_events);
 
   if (_this->nb_free_events == 0) {
+    _this->trace.msg("FIFO is full, dropping event\n");
     return;
   }
 
