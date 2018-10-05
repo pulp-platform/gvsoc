@@ -96,10 +96,6 @@ void itc::itc_status_setValue(uint32_t value)
   trace.msg("Updated irq status (value: 0x%x)\n", value);
   status = value;
 
-  if (nb_free_events != nb_fifo_events && ((this->status >> fifo_irq) & 1) == 0) {
-    itc_status_setValue(status | (1<<fifo_irq));
-  }
-
   check_state();
 }
 

@@ -105,6 +105,14 @@ public:
   int active_cs;
 };
 
+class Wire_group : public Pad_group
+{
+public:
+  Wire_group(std::string name) : Pad_group(name) {}
+  vp::wire_slave<int> slave;
+  vp::wire_master<int> master;
+};
+
 class padframe : public vp::component
 {
 
@@ -138,6 +146,7 @@ private:
   static void hyper_sync_cycle(void *__this, int data, int id);
   static void hyper_cs_sync(void *__this, int cs, int active, int id);
 
+  static void wire_sync(void *__this, int value, int id);
 
   static void ref_clock_sync(void *__this, bool value);
   static void ref_clock_set_frequency(void *, int64_t value);
@@ -381,6 +390,12 @@ void padframe::hyper_cs_sync(void *__this, int cs, int active, int id)
   }
 }
 
+void padframe::wire_sync(void *__this, int value, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Wire_group *group = static_cast<Wire_group *>(_this->groups[id]);
+  group->master.sync(value);  
+}
 
 
 vp::io_req_status_e padframe::req(void *__this, vp::io_req *req)
@@ -539,6 +554,28 @@ int padframe::build()
           new_master_port(name + "_cs" + std::to_string(i) + "_pad", cs_itf);
           group->cs_master.push_back(cs_itf);
         }
+        nb_itf++;
+      }
+      else if (type == "wire")
+      {
+        Wire_group *group = new Wire_group(name);
+        this->groups.push_back(group);
+        vp::config *is_master_config = config->get("is_master");
+        vp::config *is_slave_config = config->get("is_slave");
+
+        if (is_master_config != NULL && is_master_config->get_bool())
+        {
+          this->new_master_port(name + "_pad", &group->master);
+          group->slave.set_sync_meth_muxed(&padframe::wire_sync, nb_itf);
+          this->new_slave_port(name, &group->slave);
+        }
+        else if (is_slave_config != NULL && is_slave_config->get_bool())
+        {
+          this->new_master_port(name, &group->master);
+          group->slave.set_sync_meth_muxed(&padframe::wire_sync, nb_itf);
+          this->new_slave_port(name + "_pad", &group->slave);
+        }
+
         nb_itf++;
       }
       else

@@ -41,6 +41,7 @@ public:
 private:
 
   void reset();
+  static void bootsel_sync(void *__this, int value);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -50,6 +51,7 @@ private:
   vp::wire_master<bool> cluster_power_irq_itf;
   vp::wire_master<bool> cluster_clock_gate_irq_itf;
   vp::wire_master<int>  event_itf;
+  vp::wire_slave<int>   bootsel_itf;
 
   int cluster_power_event;
   int cluster_clock_gate_event;
@@ -59,6 +61,7 @@ private:
   uint32_t pmu_bypass;
   bool cluster_power;
   bool cluster_clock_gate;
+  int bootsel;
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
@@ -96,6 +99,13 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       {
         _this->clock->stop_engine(_this->core_status & 0x7fffffff);
       }
+    }
+  }
+  else if (offset == APB_SOC_PADS_CONFIG)
+  {
+    if (!is_write)
+    {
+      *(uint32_t *)data = _this->bootsel;
     }
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
@@ -168,11 +178,20 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
+void apb_soc_ctrl::bootsel_sync(void *__this, int value)
+{
+  apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
+  _this->bootsel = value;
+}
+
 int apb_soc_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&apb_soc_ctrl::req);
   new_slave_port("input", &in);
+
+  bootsel_itf.set_sync_meth(&apb_soc_ctrl::bootsel_sync);
+  new_slave_port("bootsel", &bootsel_itf);
 
   new_master_port("bootaddr", &this->bootaddr_itf);
 
@@ -188,6 +207,7 @@ int apb_soc_ctrl::build()
   cluster_clock_gate_event = this->get_js_config()->get("cluster_clock_gate_event")->get_int();
 
   core_status = 0;
+  this->bootsel = 0;
 
   return 0;
 }
