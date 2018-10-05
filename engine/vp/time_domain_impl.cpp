@@ -256,7 +256,6 @@ void vp::time_engine::run_loop()
 
     time_engine_client *current = first_client;
 
-
     if (current)
     {
       first_client = current->next;
@@ -354,6 +353,8 @@ void vp::time_engine::run_loop()
               current->next = first_client;
               first_client = current;
               current->next_event_time = time;
+              current->is_enqueued = true;
+              current->running = false;
               break;
             }
           }
@@ -379,6 +380,8 @@ void vp::time_engine::run_loop()
 
         current->running = false;
 
+        if (!run_req) break;
+
         current = first_client;
         if (current)
         {
@@ -390,7 +393,7 @@ void vp::time_engine::run_loop()
 
   #endif
 
-        if (!current || !run_req) break;
+        if (!current) break;
 
         // Update the global engine time with the current event time
         this->time = current->next_event_time;

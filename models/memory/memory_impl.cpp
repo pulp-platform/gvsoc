@@ -224,10 +224,12 @@ void memory::start()
     if (file == NULL)
     {
       this->trace.fatal("Unable to open stim file: %s, %s\n", path.c_str(), strerror(errno));
+      return;
     }
     if (fread(this->mem_data, 1, size, file) == 0)
     {
       this->trace.fatal("Failed to read stim file: %s, %s\n", path.c_str(), strerror(errno));
+      return;
     }
   }
 
