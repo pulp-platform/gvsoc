@@ -89,8 +89,16 @@ void vp::component_trace::post_post_build()
 
 void vp::trace::dump_header()
 {
+  int64_t time = -1;
+  int64_t cycles = -1;
+  if (comp->get_clock())
+  {
+    time = comp->get_clock()->get_time();
+    cycles = comp->get_clock()->get_cycles();
+  }
+
   int max_trace_len = comp->traces.get_trace_manager()->get_max_path_len();
-  fprintf(stdout, "%ld: %ld: [\033[34m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, name.c_str());
+  fprintf(stdout, "%ld: %ld: [\033[34m%-*.*s\033[0m] ", time, cycles, max_trace_len, max_trace_len, name.c_str());
 }
 
 void vp::trace::dump_warning_header()
