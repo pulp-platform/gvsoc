@@ -22,8 +22,6 @@
 #include <vp/itf/io.hpp>
 #include "iss.hpp"
 #include <algorithm>
-//#define HAVE_DECL_BASENAME 1
-//#include "trace_debugger.h"
 
 #define HALT_CAUSE_EBREAK    0
 #define HALT_CAUSE_ECALL     1
@@ -33,11 +31,44 @@
 #define HALT_CAUSE_HALT      15
 #define HALT_CAUSE_STEP      15
 
+#ifdef USE_TRDB
+
+#define trdb_get_packet(ptr,member) \
+  ((struct tr_packet *)(((char *)(ptr)) - ((size_t) &(((struct tr_packet *)0)->member))))
+
+
+static inline void trdb_record_instruction(iss_wrapper *_this, iss_insn_t *insn)
+{
+  struct tr_instr instr;
+  instr.valid = true;
+  instr.exception = false;
+  instr.iaddr = insn->addr;
+  instr.instr = insn->opcode;
+  instr.compressed = insn->size == 2;
+  
+  if (trdb_compress_trace_step(_this->trdb, &_this->trdb_packet_list, &instr))
+  {
+    struct tr_packet *packet = trdb_get_packet(_this->trdb_packet_list.next, list);
+    size_t nb_bits = 0;
+    int alignment = 0;
+    trdb_serialize_packet(_this->trdb, packet, &nb_bits, alignment, _this->trdb_pending_word);
+    //printf("Got nb bits %ld %lx\n", nb_bits, (*(uint64_t *)_this->trdb_pending_word) & ((1<<nb_bits)-1));
+    trdb_free_packet_list(&_this->trdb_packet_list);
+    INIT_LIST_HEAD(&_this->trdb_packet_list);
+  }
+}
+
+#else
+
+#define trdb_record_instruction
+
+#endif
+
 
 #define EXEC_INSTR_COMMON(_this, event, func) \
 do { \
+  \
   _this->trace.msg("Executing instruction\n"); \
- \
   if (_this->pc_trace_event.get_event_active()) \
   { \
     _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr); \
@@ -47,7 +78,9 @@ do { \
   _this->insn_power.account_event(); \
  } \
  \
+  iss_insn_t *insn = _this->cpu.current_insn; \
   int cycles = func(_this); \
+  trdb_record_instruction(_this, insn); \
   if (cycles >= 0) \
   { \
     _this->enqueue_next_instr(cycles); \
@@ -530,6 +563,10 @@ void iss_wrapper::start()
   irq_req = -1;
   wakeup_latency = 0;
 
+#ifdef USE_TRDB
+  this->trdb = trdb_new();
+  INIT_LIST_HEAD(&this->trdb_packet_list);
+#endif
 
   this->leakage_power.power_on();
 

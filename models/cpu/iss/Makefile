@@ -4,6 +4,11 @@ COMMON_SRCS = cpu/iss/vp/src/iss_wrapper.cpp cpu/iss/src/iss.cpp cpu/iss/src/ins
 
 COMMON_CFLAGS = -DRISCV=1 -DRISCY -I$(CURDIR)/cpu/iss/include -I$(CURDIR)/cpu/iss/vp/include -I$(CURDIR)/cpu/iss/flexfloat -march=native -fno-strict-aliasing
 
+ifdef USE_TRDB
+COMMON_CFLAGS += -DUSE_TRDB=1
+COMMON_LDFLAGS = -ltrdb -lbfd -lopcodes -liberty -lz
+endif
+
 
 define declare_iss_isa_build
 
@@ -21,6 +26,7 @@ IMPLEMENTATIONS += cpu/iss/iss_$(1)
 
 cpu/iss/iss_$(1)_SRCS += $(COMMON_SRCS)
 cpu/iss/iss_$(1)_CFLAGS += $(COMMON_CFLAGS)
+cpu/iss/iss_$(1)_LDFLAGS += $(COMMON_LDFLAGS)
 
 endef
 

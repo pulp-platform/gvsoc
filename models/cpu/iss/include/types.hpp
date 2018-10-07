@@ -279,6 +279,7 @@ typedef struct {
 
 typedef struct iss_insn_s {
   iss_addr_t addr;
+  iss_reg_t opcode;
   iss_insn_t *(*fast_handler)(iss_t *, iss_insn_t*);
   iss_insn_t *(*handler)(iss_t *, iss_insn_t*);
   iss_insn_t *(*hwloop_handler)(iss_t *, iss_insn_t*);

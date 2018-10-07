@@ -25,6 +25,11 @@
 #include <vp/itf/io.hpp>
 #include <vp/itf/wire.hpp>
 
+#ifdef USE_TRDB
+#define HAVE_DECL_BASENAME 1
+#include "trace_debugger.h"
+#endif
+
 class iss_wrapper : public vp::component
 {
 
@@ -91,6 +96,12 @@ public:
 
   vp::trace     pc_trace_event;
   
+#ifdef USE_TRDB
+  trdb_ctx *trdb;
+  struct list_head trdb_packet_list;
+  uint8_t trdb_pending_word[16];
+#endif
+
 private:
 
   vp::clock_event *current_event;

@@ -258,6 +258,8 @@ iss_insn_t *iss_decode_pc_noexec(iss_t *iss, iss_insn_t *insn)
     return insn;
   }
 
+  insn->opcode = opcode;
+
 
   if (iss_insn_trace_active(iss))
   {
