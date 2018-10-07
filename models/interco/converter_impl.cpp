@@ -49,6 +49,8 @@ private:
 
   vp::io_req_status_e process_req(vp::io_req *req);
 
+  vp::io_req_status_e process_pending_req(vp::io_req *req);
+
   void check_state();
 
 
@@ -106,7 +108,7 @@ void converter::event_handler(void *__this, vp::clock_event *event)
         _this->stalled_req = req->get_next();
         req->get_resp_port()->grant(req);
 
-        _this->process_req(req);
+        _this->process_pending_req(req);
       }
     }
   }
@@ -129,7 +131,7 @@ void converter::check_state()
   }
 }
 
-vp::io_req_status_e converter::process_req(vp::io_req *req)
+vp::io_req_status_e converter::process_pending_req(vp::io_req *req)
 {
   uint64_t offset = req->get_addr();
   uint64_t size = req->get_size();
@@ -137,13 +139,6 @@ vp::io_req_status_e converter::process_req(vp::io_req *req)
   bool is_write = req->get_is_write();
 
   int mask = output_align - 1;
-
-  // Simple case where the request fit, just forward it
-  if ((offset & ~mask) == ((offset + size - 1) & ~mask))
-  {
-    trace.msg("No conversion applied, forwarding request (req: %p)\n", req);
-    return out.req_forward(req);
-  }
 
   ongoing_req = req;
   ongoing_size = size;
@@ -165,6 +160,25 @@ vp::io_req_status_e converter::process_req(vp::io_req *req)
   }
 
   return vp::IO_REQ_PENDING;
+}
+
+vp::io_req_status_e converter::process_req(vp::io_req *req)
+{
+  uint64_t offset = req->get_addr();
+  uint64_t size = req->get_size();
+  uint8_t *data = req->get_data();
+  bool is_write = req->get_is_write();
+
+  int mask = output_align - 1;
+
+  // Simple case where the request fit, just forward it
+  if ((offset & ~mask) == ((offset + size - 1) & ~mask))
+  {
+    trace.msg("No conversion applied, forwarding request (req: %p)\n", req);
+    return out.req_forward(req);
+  }
+
+  return this->process_pending_req(req);
 }
 
 vp::io_req_status_e converter::req(void *__this, vp::io_req *req)

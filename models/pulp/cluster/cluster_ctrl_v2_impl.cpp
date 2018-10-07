@@ -213,6 +213,7 @@ vp::io_req_status_e cluster_ctrl::bootaddr_req(int core, bool is_write, uint32_t
   if (is_write)
   {
     trace.msg("Setting boot address (core: %d, addr: 0x%x)\n", core, *data);
+
     cores[core].bootaddr_itf.sync(*data);
     cores[core].bootaddr = *data;
   }
