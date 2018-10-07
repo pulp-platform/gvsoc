@@ -326,6 +326,8 @@ int itc::build()
     new_slave_port("in_event_" + std::to_string(i), &in_event_itf[i]);
   }
 
+  this->reset();
+
   return 0;
 }
 
