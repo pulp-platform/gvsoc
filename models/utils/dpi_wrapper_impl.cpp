@@ -478,6 +478,10 @@ extern "C" void dpi_uart_rx_edge(void *handle, int data)
   itf->sync(data);
 }
 
+extern "C" void dpi_i2s_set_data(void *handle, int data)
+{
+}
+
 extern "C" void dpi_cpi_edge(void *handle, int pclk, int href, int vsync, int data)
 {
   vp::cpi_master *itf = cpi_masters[(int)(long)handle];
