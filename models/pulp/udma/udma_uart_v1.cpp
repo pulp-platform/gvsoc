@@ -19,10 +19,8 @@
  */
 
 
-#define ARCHI_UDMA_HAS_UART 1
-
 #include "udma_v2_impl.hpp"
-#include "archi/udma/udma_periph_v2.h"
+#include "archi/udma/uart/udma_uart_v1.h"
 #include "archi/utils.h"
 #include "vp/itf/uart.hpp"
 
