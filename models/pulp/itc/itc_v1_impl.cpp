@@ -243,16 +243,16 @@ vp::io_req_status_e itc::req(void *__this, vp::io_req *req)
   if (size != 4) return vp::IO_REQ_INVALID;
 
   switch (offset) {
-    case ARCHI_ITC_MASK_OFFSET:       return _this->itc_mask_ioReq       (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_MASK_SET_OFFSET:   return _this->itc_mask_set_ioReq   (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_MASK_CLR_OFFSET:   return _this->itc_mask_clr_ioReq   (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_STATUS_OFFSET:     return _this->itc_status_ioReq     (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_STATUS_SET_OFFSET: return _this->itc_status_set_ioReq (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_STATUS_CLR_OFFSET: return _this->itc_status_clr_ioReq (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_ACK_OFFSET:        return _this->itc_ack_ioReq        (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_ACK_SET_OFFSET:    return _this->itc_ack_set_ioReq    (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_ACK_CLR_OFFSET:    return _this->itc_ack_clr_ioReq    (offset, (uint32_t *)data, size, is_write);
-    case ARCHI_ITC_FIFO_OFFSET:       return _this->itc_fifo_ioReq       (offset, (uint32_t *)data, size, is_write);
+    case ITC_MASK_OFFSET:       return _this->itc_mask_ioReq       (offset, (uint32_t *)data, size, is_write);
+    case ITC_MASK_SET_OFFSET:   return _this->itc_mask_set_ioReq   (offset, (uint32_t *)data, size, is_write);
+    case ITC_MASK_CLR_OFFSET:   return _this->itc_mask_clr_ioReq   (offset, (uint32_t *)data, size, is_write);
+    case ITC_STATUS_OFFSET:     return _this->itc_status_ioReq     (offset, (uint32_t *)data, size, is_write);
+    case ITC_STATUS_SET_OFFSET: return _this->itc_status_set_ioReq (offset, (uint32_t *)data, size, is_write);
+    case ITC_STATUS_CLR_OFFSET: return _this->itc_status_clr_ioReq (offset, (uint32_t *)data, size, is_write);
+    case ITC_ACK_OFFSET:        return _this->itc_ack_ioReq        (offset, (uint32_t *)data, size, is_write);
+    case ITC_ACK_SET_OFFSET:    return _this->itc_ack_set_ioReq    (offset, (uint32_t *)data, size, is_write);
+    case ITC_ACK_CLR_OFFSET:    return _this->itc_ack_clr_ioReq    (offset, (uint32_t *)data, size, is_write);
+    case ITC_FIFO_OFFSET:       return _this->itc_fifo_ioReq       (offset, (uint32_t *)data, size, is_write);
   }
 
   return vp::IO_REQ_OK;
