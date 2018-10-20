@@ -225,7 +225,7 @@ vp::io_req_status_e fll::req(void *__this, vp::io_req *req)
 {
   fll *_this = (fll *)__this;
   
-  vp::io_req_status_e err;
+  vp::io_req_status_e err = vp::IO_REQ_INVALID;
   uint64_t offset = req->get_addr();
   uint8_t *data = req->get_data();
   uint64_t size = req->get_size();

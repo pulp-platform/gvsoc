@@ -26,6 +26,7 @@
 
 #include "archi/chips/gap/apb_soc.h"
 
+
 class apb_soc_ctrl : public vp::component
 {
 
