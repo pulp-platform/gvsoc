@@ -47,6 +47,7 @@ private:
 
   void soft_reset();
   void update_calendar();
+  void check_interrupts();
 
   static void ref_clock_sync(void *__this, bool value);
 
@@ -93,13 +94,14 @@ private:
   Rtc_ctrlT           ctrl_reg;
   Rtc_clk_ctrlT       clk_ctrl_reg;
   Rtc_irq_ctrlT       irq_ctrl_reg;
-  Rtc_irq_maskT       irq_mask_ctrl;
+  Rtc_irq_maskT       irq_mask_reg;
+  Rtc_irq_maskT       irq_flag_reg;
   Rtc_calend_ctrlT    calend_ctrl_reg;
   Rtc_calend_timeT    calendar_time;
   Rtc_calend_dateT    calendar_date;
   Rtc_alarm_ctrlT     alarm_ctrl_reg;
-  unsigned int        alarm_time;
-  unsigned int        alarm_date;
+  Rtc_calend_timeT    alarm_time;
+  Rtc_calend_dateT    alarm_date;
   Rtc_cntDwn_ctrlT    cntdwn_ctrl;
   unsigned int        cntdwn_init;
   unsigned int        cntdwn_timer;
@@ -113,6 +115,8 @@ private:
   
   unsigned int calendar_time_reset;
   unsigned int calendar_date_reset;
+
+  unsigned int last_irq_state;
 };
 
 
@@ -124,6 +128,20 @@ rtc::rtc(const char *config)
 }
 
 
+
+void rtc::check_interrupts()
+{
+  this->get_trace()->msg("Checking interrupts (flags: 0x%x, mask: 0x%x, last_state: 0x%x)\n",
+    this->irq_flag_reg.raw, this->irq_mask_reg.raw, this->last_irq_state);
+
+  unsigned int new_irq_state = this->irq_flag_reg.raw & ~this->irq_mask_reg.raw;
+  if (new_irq_state != this->last_irq_state)
+  {
+    this->get_trace()->msg("Generating soc event (id: %d)\n", this->irq_soc_event);
+    this->last_irq_state = new_irq_state;
+    this->event_itf.sync(this->irq_soc_event);
+  }
+}
 
 void rtc::update_calendar()
 {
@@ -210,11 +228,45 @@ void rtc::update_calendar()
 
   if (~this->alarm_ctrl_reg.alarm1_En)
   {
-    if (this->calendar_date.raw == this->alarm_date &&
-      this->calendar_time.raw == this->alarm_time)
+    int reached = false;
+
+    if (!this->alarm_ctrl_reg.alarm1_mode)
     {
-      this->get_trace()->msg("Reached alarm\n");
-      this->event_itf.sync(this->irq_soc_event);
+      reached = this->calendar_date.raw == this->alarm_date.raw &&
+        this->calendar_time.raw == this->alarm_time.raw;
+    }
+    else
+    {
+      reached = true;
+
+      switch (this->alarm_ctrl_reg.alarm1_conf)
+      {
+        case 8: reached &= this->calendar_date.month_0 == this->alarm_date.month_0
+          && this->calendar_date.month_1 == this->alarm_date.month_1;
+        case 7: reached &= this->calendar_date.day_0 == this->alarm_date.day_0
+          && this->calendar_date.day_1 == this->alarm_date.day_1;
+        case 6: reached &= this->calendar_time.hour_0 == this->alarm_time.hour_0
+          && this->calendar_time.hour_1 == this->alarm_time.hour_1;
+        case 5: reached &= this->calendar_time.minute_0 == this->alarm_time.minute_0
+          && this->calendar_time.minute_1 == this->alarm_time.minute_1;
+        case 4: reached &= this->calendar_time.second_0 == this->alarm_time.second_0
+          && this->calendar_time.second_1 == this->alarm_time.second_1;
+          break;
+      }
+    }
+
+    if (reached)
+    {
+      // Disabled the alarm in case we are in single-shot mode
+      if (!this->alarm_ctrl_reg.alarm1_mode)
+        this->alarm_ctrl_reg.alarm1_En = 1;
+
+      // Register the interrupt in the flags and check if we must generate
+      // soc event
+      this->get_trace()->msg("Reached alarm, raising interrupt (mask: 0x%x)\n",
+        RTC_Irq_Alarm1_Flag);
+      this->irq_flag_reg.raw |= RTC_Irq_Alarm1_Flag;
+      this->check_interrupts();
     }
   }
 
@@ -223,8 +275,10 @@ void rtc::update_calendar()
     this->cntdwn_timer--;
     if (this->cntdwn_timer == 0)
     {
-      this->get_trace()->msg("Reached countdown\n");
-      this->event_itf.sync(this->irq_soc_event);
+      this->get_trace()->msg("Reached countdown, raising interrupt (mask: 0x%x)\n",
+        RTC_Irq_Timer1_Flag);
+      this->irq_flag_reg.raw |= RTC_Irq_Timer1_Flag;
+      this->check_interrupts();
 
       if (this->cntdwn_ctrl.cntDwn1_mode == 1)
         this->cntdwn_timer = this->cntdwn_init;
@@ -262,8 +316,8 @@ void rtc::soft_reset()
   this->calendar_time.raw = this->calendar_time_reset;
   this->calendar_date.raw = this->calendar_date_reset;
   this->alarm_ctrl_reg.raw = 0x00660003;
-  this->alarm_time = 0x00000000;
-  this->alarm_date = 0x00000000;
+  this->alarm_time.raw = 0x00000000;
+  this->alarm_date.raw = 0x00000000;
   this->cntdwn_ctrl.raw = 0x00000003;
   this->cntdwn_init = 0xffffffff;
 }
@@ -286,7 +340,10 @@ void rtc::handle_ctrl_access()
       this->ctrl_reg.rtc_sb, this->ctrl_reg.cal_En, this->ctrl_reg.soft_rst);
 
     if (this->ctrl_reg.soft_rst)
+    {
       this->soft_reset();
+      this->ctrl_reg.soft_rst = 0;
+    }
   }
 }
 
@@ -315,14 +372,31 @@ void rtc::handle_irq_ctrl_access()
 
 void rtc::handle_irq_mask_access()
 {
-  
+  if (!this->apb_ctrl_reg.apb_load)
+    this->apb_data_reg = this->irq_mask_reg.raw;
+  else
+  {
+    this->irq_mask_reg.raw = this->apb_data_reg;
+    this->get_trace()->msg("Writing irq mask register (alarm_mask: %d, timer_mask: %d, calib_mask: %d)\n",
+      this->irq_mask_reg.alarm1_masked, this->irq_mask_reg.alarm1_masked, this->irq_mask_reg.alarm1_masked);
+
+    this->check_interrupts();
+  }
 }
 
 
 
 void rtc::handle_irq_flag_access()
 {
-  
+  if (!this->apb_ctrl_reg.apb_load)
+    this->apb_data_reg = this->irq_flag_reg.raw;
+  else
+  {
+    this->irq_flag_reg.raw &= ~this->apb_data_reg;
+    this->last_irq_state &= ~this->apb_data_reg;
+    this->get_trace()->msg("Writing irq flag register (alarm_mask: %d, timer_mask: %d, calib_mask: %d)\n",
+      this->irq_flag_reg.alarm1_masked, this->irq_flag_reg.alarm1_masked, this->irq_flag_reg.alarm1_masked);
+  }
 }
 
 
@@ -387,10 +461,10 @@ void rtc::handle_alarm_ctrl_access()
 void rtc::handle_alarm1_time_access()
 {
   if (!this->apb_ctrl_reg.apb_load)
-    this->apb_data_reg = this->alarm_time;
+    this->apb_data_reg = this->alarm_time.raw;
   else
   {
-    this->alarm_time = this->apb_data_reg;
+    this->alarm_time.raw = this->apb_data_reg;
     this->get_trace()->msg("Writing alarm time register (value: 0x%x)\n",
       this->alarm_time);
   }
@@ -401,10 +475,10 @@ void rtc::handle_alarm1_time_access()
 void rtc::handle_alarm1_date_access()
 {
   if (!this->apb_ctrl_reg.apb_load)
-    this->apb_data_reg = this->alarm_date;
+    this->apb_data_reg = this->alarm_date.raw;
   else
   {
-    this->alarm_date = this->apb_data_reg;
+    this->alarm_date.raw = this->apb_data_reg;
     this->get_trace()->msg("Writing alarm date register (value: 0x%x)\n",
       this->alarm_date);
   }
@@ -641,6 +715,9 @@ int rtc::build()
 void rtc::reset()
 {
   this->apb_ctrl_reg.raw = 0;
+  this->irq_mask_reg.raw = 0x00001031;
+  this->irq_flag_reg.raw = 0x00000000;
+  this->last_irq_state = 0;
   this->soft_reset();
 }
 
