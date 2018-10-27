@@ -107,17 +107,35 @@ vp::io_req_status_e efuse::reg_req(int reg_id, int size, bool is_write, uint8_t 
     return vp::IO_REQ_INVALID;
 
   if (is_write)
-    return vp::IO_REQ_INVALID;
-
-  this->get_trace()->msg("Reading efuse (id: %d, value: 0x%x)\n", reg_id, this->efuse_regs[reg_id]);
-
-  if (this->current_cmd != EFUSE_CMD_READ)
   {
-    this->warning.warning("Reading efuse when the read command is not set\n");
-    return vp::IO_REQ_INVALID;
-  }
+    this->get_trace()->msg("Writing efuse (id: %d, bit: %d)\n", reg_id, *data);
 
-  memcpy(data, &(this->efuse_regs[reg_id]), size);
+    if (this->current_cmd != EFUSE_CMD_WRITE)
+    {
+      this->warning.warning("Writing efuse when the write command is not set\n");
+      return vp::IO_REQ_INVALID;
+    }
+
+    if (((this->efuse_regs[reg_id]) >> (*data)) & 1)
+    {
+      this->warning.warning("Writing efuse while it has already been programmed (id: %d, bit: %d)\n", reg_id, *data);
+      return vp::IO_REQ_INVALID;
+    }
+
+    this->efuse_regs[reg_id] |= 1 << *data;
+  }
+  else
+  {
+    this->get_trace()->msg("Reading efuse (id: %d, value: 0x%x)\n", reg_id, this->efuse_regs[reg_id]);
+
+    if (this->current_cmd != EFUSE_CMD_READ)
+    {
+      this->warning.warning("Reading efuse when the read command is not set\n");
+      return vp::IO_REQ_INVALID;
+    }
+
+    memcpy(data, &(this->efuse_regs[reg_id]), size);
+  }
 
   return vp::IO_REQ_OK;
 }
@@ -153,7 +171,7 @@ vp::io_req_status_e efuse::req(void *__this, vp::io_req *req)
   }
 
   if (offset >= EFUSE_REGS_OFFSET)  
-    return _this->reg_req(offset - EFUSE_REGS_OFFSET, size, is_write, data);
+    return _this->reg_req((offset - EFUSE_REGS_OFFSET)/4, size, is_write, data);
 
 error:
   _this->get_trace()->msg("FLL invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
