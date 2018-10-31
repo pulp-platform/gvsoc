@@ -69,7 +69,7 @@ class Runner(Platform):
 
         if self.get_json().get_child_str('**/runner/boot-mode').find('rom') != -1:
 
-            boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/pulp_chip_family').get())
+            boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/chip/name').get())
 
             stim = runner.stim_utils.stim(verbose=self.get_json().get_child_bool('**/runner/verbose'))
             stim.add_binary(boot_binary)

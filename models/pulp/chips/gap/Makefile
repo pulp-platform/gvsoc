@@ -1,4 +1,4 @@
-ifeq '$(pulp_chip)' 'gap'
+ifeq '$(pulp_chip_family)' 'gap'
 
 IMPLEMENTATIONS += pulp/chips/gap/apb_soc_impl
 COMPONENTS += pulp/chips/gap/apb_soc

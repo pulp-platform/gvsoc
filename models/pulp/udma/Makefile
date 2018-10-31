@@ -1,5 +1,5 @@
 ifeq '$(udma/version)' '2'
-IMPLEMENTATIONS += pulp/udma/udma_v2_$(pulp_chip)_impl
+IMPLEMENTATIONS += pulp/udma/udma_v2_$(pulp_chip_family)_impl
 COMPONENTS += pulp/udma/udma_v2
 pulp/udma/udma_v2_$(pulp_chip)_impl_SRCS += pulp/udma/udma_v2_impl.cpp
 pulp/udma/udma_v2_$(pulp_chip)_impl_SRCS += pulp/udma/udma_uart_v1.cpp

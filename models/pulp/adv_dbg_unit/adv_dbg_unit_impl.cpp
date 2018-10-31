@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vp/itf/jtag.hpp>
+#include <vp/itf/wire.hpp>
 
 #define TCLK_BIT (1)
 #define TRST_BIT (2)
@@ -32,6 +33,7 @@
 
 #define IDCODE_INSTR 1
 #define USER_INSTR   4
+#define CONFREG_INSTR   7
 
 #define INSTR_LENGTH 4
 
@@ -79,6 +81,9 @@ typedef struct {
   int tclk;
   int module;
   uint32_t id_reg;
+  uint32_t confreg_reg;
+  uint32_t confreg_out_reg;
+  uint32_t confreg_soc;
   uint32_t instr; // TODO check how many bits there are in real hardware
   uint32_t capture_instr;
   uint32_t ctrl_reg;
@@ -108,10 +113,14 @@ private:
   void burst_cmd(int word_bytes, int is_read, uint64_t command);
   void capture_dr();
   void shift_dr();
+  static void confreg_soc_sync(void *__this, uint32_t value);
 
   vp::trace     trace;
   vp::trace     debug;
   vp::jtag_slave jtag_itf;
+
+  vp::wire_slave<uint32_t> confreg_soc_itf;
+  vp::wire_master<uint32_t> confreg_ext_itf;
 
   vp::io_req req;
 
@@ -138,6 +147,7 @@ void adv_dbg_unit::tap_init() {
   tap.state = TAP_STATE_TEST_LOGIC_RESET;
   tap.tclk = 0;
   tap.id_reg = 1;
+  tap.confreg_reg = 0;
   tap.instr = IDCODE_INSTR;
   tap_reset();
   debug.msg("Updating instruction (newInstr: IDCODE)\n");
@@ -146,6 +156,7 @@ void adv_dbg_unit::tap_init() {
 static string get_instr_name(uint32_t instr) {
   if (instr == IDCODE_INSTR) return "IDCODE";
   else if (instr == USER_INSTR) return "USER";
+  else if (instr == CONFREG_INSTR) return "CONFREG";
   else return "UNKNOWN";
 }
 
@@ -257,7 +268,13 @@ void adv_dbg_unit::module_cmd(uint64_t dev_command)
 
 void adv_dbg_unit::update_dr()
 {
-  if (tap.instr == USER_INSTR) {
+  if (tap.instr == CONFREG_INSTR)
+  {
+    this->tap.confreg_out_reg = this->tap.confreg_soc;
+    this->confreg_ext_itf.sync(this->tap.confreg_reg);
+  }
+  else if (tap.instr == USER_INSTR)
+  {
     uint64_t command = dev.command;
     dev.command = 0;
     if (command & (1ULL<<63)) {
@@ -275,6 +292,9 @@ void adv_dbg_unit::capture_dr()
       //cpuCtrl[0]->regAccess(-1, 1, &tap.ctrl_reg);
   } else if (tap.module == 0) {
     tap.ctrl_reg = 0;
+    if (tap.instr == CONFREG_INSTR) {
+      tap.confreg_out_reg = tap.confreg_soc;
+    }
   }
 }
 
@@ -296,10 +316,18 @@ static uint32_t adbg_compute_crc(uint32_t crc_in, uint32_t data_in, int length_b
 
 void adv_dbg_unit::shift_dr()
 {
-  if (tap.instr == IDCODE_INSTR) {
+  if (tap.instr == CONFREG_INSTR) {
+    tap.confreg_reg = (tap.confreg_reg >> 1) | (tdi << 3);
+    tdo = tap.confreg_out_reg & 1;
+    tap.confreg_out_reg >>= 1;
+    //vpi_out = tap.id_reg & 1;
+  }
+  else if (tap.instr == IDCODE_INSTR)
+  {
     tap.id_reg = (tap.id_reg >> 1) | (tdi << 31);
     //vpi_out = tap.id_reg & 1;
-  } else if (tap.instr == USER_INSTR) {
+  }
+  else if (tap.instr == USER_INSTR) {
 
     if (dev.do_burst) { 
       static uint32_t crc_calc;
@@ -491,7 +519,7 @@ void adv_dbg_unit::tap_update(int tms, int tclk) {
       break;
     case TAP_STATE_UPDATE_IR:
       tap.instr = tap.capture_instr;
-      debug.msg("Updating instruction (newInstr: %s)\n", get_instr_name(tap.instr).c_str());
+      debug.msg("Updating instruction (newInstr: %d, name: %s)\n", tap.instr, get_instr_name(tap.instr).c_str());
       if (tms) tap.state = TAP_STATE_SELECT_DR_SCAN;
       else tap.state = TAP_STATE_RUN_TEST_IDLE;
       break;
@@ -540,10 +568,21 @@ void adv_dbg_unit::sync_cycle(void *__this, int tdi, int tms, int trst)
   _this->tck_edge(0, tdi, tms, trst);
 }
 
+void adv_dbg_unit::confreg_soc_sync(void *__this, uint32_t value)
+{
+  adv_dbg_unit *_this = (adv_dbg_unit *)__this;
+  _this->tap.confreg_soc = value;
+}
+
 int adv_dbg_unit::build()
 {
   traces.new_trace("trace", &trace, vp::TRACE);
   traces.new_trace("debug", &debug, vp::DEBUG);
+
+  this->new_master_port("confreg_ext", &this->confreg_ext_itf);
+
+  confreg_soc_itf.set_sync_meth(&adv_dbg_unit::confreg_soc_sync);
+  this->new_slave_port("confreg_soc", &this->confreg_soc_itf);
 
   jtag_itf.set_sync_meth(&adv_dbg_unit::sync);
   jtag_itf.set_sync_cycle_meth(&adv_dbg_unit::sync_cycle);

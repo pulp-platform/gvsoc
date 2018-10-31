@@ -184,7 +184,7 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
       else entry = entry->left;
     }
 
-    if (entry && (offset < entry->base || offset + size - 1 > entry->base + entry->size - 1)) {
+    if (entry && (offset < entry->base || offset - 1 >= entry->base + entry->size - 1)) {
       entry = NULL;
     }
   }
@@ -335,7 +335,11 @@ int router::build()
       itf->set_resp_meth(&router::response);
       itf->set_grant_meth(&router::grant);
       new_master_port(mapping.first, itf);
-      entry->itf = itf;
+
+      if (mapping.first == "error")
+        entry->itf = NULL;
+      else
+        entry->itf = itf;
 
       vp::config *conf;
       conf = config->get("base");

@@ -109,7 +109,12 @@ static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint
   req->set_size(size);
   req->set_is_write(is_write);
   req->set_data(data);
-  return _this->fetch.req(req);
+  if (_this->fetch.req(req))
+  {
+    _this->trace.force_warning("Unimplemented pending fetch request\n");
+    return -1;
+  }
+  return 0;
 }
 
 static inline int iss_irq_ack(iss_t *iss, int irq)
