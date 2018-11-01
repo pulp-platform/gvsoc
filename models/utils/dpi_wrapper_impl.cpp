@@ -50,10 +50,17 @@ typedef struct {
   vp::trace trace;
 } cpi_handle_t;
 
+typedef struct {
+  void *handle;
+  vp::wire_master<bool> *itf;
+} ctrl_handle_t;
+
 class dpi_wrapper;
 class dpi_task;
 
 static vector<vp::jtag_master *> jtag_masters;
+
+static vector<ctrl_handle_t *> ctrl_handles;
 
 static vector<vp::uart_slave *> uart_slaves;
 static vector<uart_handle_t *> uart_handles;
@@ -146,6 +153,7 @@ private:
   vector<dpi_task *> tasks;
   vector<dpi_periodic_handler *> handlers;
   dpi_task * first_waiting_task = NULL;
+  vp::wire_master<bool> chip_reset_itf;
 
   bool event_raised = false;
   vp::clock_event *wakeup_evt;
@@ -310,6 +318,9 @@ int dpi_wrapper::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
 
+
+  this->new_master_port("chip_reset", &this->chip_reset_itf);
+
   void *config_handle = dpi_config_get_from_file(getenv("PULP_CONFIG_FILE"));
 
   if (config_handle == NULL) return 0;
@@ -430,6 +441,10 @@ int dpi_wrapper::build()
         }
         else if (strcmp(itf_type, "CTRL") == 0)
         {
+          ctrl_handle_t *handle = new ctrl_handle_t;
+          handle->handle = dpi_ctrl_bind(dpi_model, itf_name, ctrl_handles.size());
+          handle->itf = &this->chip_reset_itf;
+          ctrl_handles.push_back(handle);
 //            i_comp.ctrl_bind(itf_name, ctrl_infos[itf_id].itf);
         }
 
@@ -458,8 +473,13 @@ void dpi_wrapper::start()
   }
 }
 
-extern "C" void dpi_ctrl_reset_edge(void *handle, int reset)
+extern "C" void dpi_ctrl_reset_edge(void *_handle, int reset)
 {
+  ctrl_handle_t *handle = ctrl_handles[(int)(long)_handle];
+  if (handle->itf->is_bound())
+  {
+    handle->itf->sync(reset);
+  }
 }
 
 extern "C" void dpi_jtag_tck_edge(void *handle, int tck, int tdi, int tms, int trst, int *tdo)

@@ -70,9 +70,21 @@ void vp::component_clock::clk_reg(component *_this, component *clock)
   }
 }
 
-void vp::component_clock::reset_sync(void *_this, bool active)
+void vp::component::reset_all()
 {
-  printf("RESET SYNC\n");
+  this->reset();
+  
+  for (auto& x: this->childs)
+  {
+    x->reset_all();
+  }
+}
+
+void vp::component_clock::reset_sync(void *__this, bool active)
+{
+  component *_this = (component *)__this;
+  if (active)
+    _this->reset_all();
 }
 
 

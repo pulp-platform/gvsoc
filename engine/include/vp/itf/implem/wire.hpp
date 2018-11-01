@@ -78,7 +78,8 @@ namespace vp {
     // request. 
     // First synchronize the target engine in case it was left behind,
     // and then generate the normal call with the mux ID using the saved handler
-    _this->remote_port->get_owner()->get_clock()->sync();
+    if ( _this->remote_port->get_owner()->get_clock())
+      _this->remote_port->get_owner()->get_clock()->sync();
     return _this->sync_meth_freq_cross((component *)_this->slave_context_for_freq_cross, value);
   }
 

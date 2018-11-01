@@ -532,7 +532,7 @@ class component(component_trace):
         if self.impl is not None:
             self.impl.build()
 
-        ports = [ ['clock', False] ]
+        ports = [ ['clock', False], ['reset', False] ]
 
         for port_desc in ports:
             port = port_desc[0]

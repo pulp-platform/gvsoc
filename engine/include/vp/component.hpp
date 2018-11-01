@@ -107,6 +107,8 @@ namespace vp {
 
     void pre_start_all();
 
+    void reset_all();
+
     void new_master_port(std::string name, master_port *port);
 
     void new_master_port(void *comp, std::string name, master_port *port);
