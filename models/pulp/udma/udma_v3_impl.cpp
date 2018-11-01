@@ -539,7 +539,7 @@ vp::io_req_status_e udma::periph_req(vp::io_req *req, uint64_t offset)
     return vp::IO_REQ_INVALID;
   }
 
-  return periphs[periph_id]->req(req, offset - UDMA_PERIPH_OFFSET(periph_id));
+  return periphs[periph_id]->req(req, offset - (UDMA_PERIPH_OFFSET(periph_id) - UDMA_FIRST_CHANNEL_OFFSET));
 }
 
 

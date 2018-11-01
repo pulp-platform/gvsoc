@@ -32,6 +32,7 @@ Spim_periph_v3::Spim_periph_v3(udma *top, int id, int itf_id) : Udma_periph(top,
 
   channel0 = new Spim_v3_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
   channel1 = new Spim_v3_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
+  channel2 = new Spim_v3_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 2, itf_name + "_cmd");
 
   qspim_itf.set_sync_meth(&Spim_periph_v3::slave_sync);
   top->new_master_port(this, itf_name, &qspim_itf);
@@ -505,6 +506,11 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
   }
   
   this->handle_ready_reqs();
+}
+
+vp::io_req_status_e Spim_periph_v3::custom_req(vp::io_req *req, uint64_t offset)
+{
+  return this->channel2->req(req, offset);
 }
 
 void Spim_v3_tx_channel::reset()
