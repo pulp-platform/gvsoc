@@ -109,9 +109,13 @@ static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint
   req->set_size(size);
   req->set_is_write(is_write);
   req->set_data(data);
-  if (_this->fetch.req(req))
+  vp::io_req_status_e err = _this->fetch.req(req);
+  if (err != vp::IO_REQ_OK)
   {
-    _this->trace.force_warning("Unimplemented pending fetch request\n");
+    if (err == vp::IO_REQ_INVALID)
+      _this->trace.force_warning("Unimplemented invalid fetch request (addr: 0x%x, size: 0x%x)\n", addr, size);
+    else
+      _this->trace.force_warning("Unimplemented pending fetch request (addr: 0x%x, size: 0x%x)\n", addr, size);
     return -1;
   }
   return 0;

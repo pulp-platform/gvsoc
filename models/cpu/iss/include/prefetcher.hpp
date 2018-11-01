@@ -34,8 +34,17 @@ static inline iss_opcode_t prefetcher_fill(iss_t *iss, iss_addr_t addr);
 static inline iss_opcode_t prefetcher_fill(iss_t *iss, iss_addr_t addr)
 {
   iss_prefetcher_t *prefetcher = &iss->cpu.prefetcher;
+  // TODO this is a temporary work-around until the vp can split all fetch requests
+  // There is currently a bug when we fetch a line which is partly in bank1 and
+  // partly in shared banks on wolfe
+#if 0
   iss_fetch_req(iss, addr, prefetcher->data, ISS_PREFETCHER_SIZE, false);
-  prefetcher->addr = addr;
+#else
+  uint32_t addr_low = addr & ~(ISS_PREFETCHER_SIZE/2-1);
+  iss_fetch_req(iss, addr_low, prefetcher->data, ISS_PREFETCHER_SIZE/2, false);
+  iss_fetch_req(iss, addr_low + ISS_PREFETCHER_SIZE/2, ((uint8_t *)prefetcher->data) + ISS_PREFETCHER_SIZE/2, ISS_PREFETCHER_SIZE/2, false);
+#endif
+  prefetcher->addr = addr_low;
 }
 
 static inline iss_opcode_t prefetcher_get_word(iss_t *iss, iss_addr_t addr)
@@ -46,7 +55,7 @@ static inline iss_opcode_t prefetcher_get_word(iss_t *iss, iss_addr_t addr)
   if (index< 0 || index + ISS_OPCODE_MAX_SIZE > ISS_PREFETCHER_SIZE)
   {
     prefetcher_fill(iss, addr);
-    index = 0;
+    index = addr - prefetcher->addr;
   }
 
   return *(iss_opcode_t *)&prefetcher->data[index];
