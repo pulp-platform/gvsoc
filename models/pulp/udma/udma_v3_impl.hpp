@@ -179,90 +179,6 @@ private:
 
 
 
-/*
- * SPIM
- */
-
-class Spim_periph_v2;
-
-
-class Spim_rx_channel : public Udma_rx_channel
-{
-public:
-  Spim_rx_channel(udma *top, Spim_periph_v2 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
-
-  void reset();
-
-  void handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask);
-
-private:
-  Spim_periph_v2 *periph;
-};
-
-
-class Spim_tx_channel : public Udma_tx_channel
-{
-public:
-  Spim_tx_channel(udma *top, Spim_periph_v2 *periph, int id, string name);
-  void handle_ready_reqs();
-  void check_state();
-
-private:
-  void reset();
-  static void handle_pending_word(void *__this, vp::clock_event *event);
-  static void handle_spi_pending_word(void *__this, vp::clock_event *event);
-  void handle_eot();
-  void handle_data(uint32_t data);
-
-  vp::clock_event *pending_word_event;
-  vp::clock_event *pending_spi_word_event;
-
-  Spim_periph_v2 *periph;
-
-  uint32_t spi_tx_pending_word;   // Word being flushed to spi pads
-  int      spi_tx_pending_bits;   // Tell how many bits are ready to be sent to SPI pads
-  bool spi_tx_quad;
-  bool spi_tx_byte_align;
-
-  bool     has_tx_pending_word;   // Tell if a TX pending word is present
-  uint32_t tx_pending_word;       // Word received by last L2 req
-  uint32_t rx_pending_word;
-  int64_t next_bit_cycle;
-  vp::io_req *pending_req;
-  uint32_t command;
-  int cs;
-  bool gen_eot_with_evt;
-};
-
-
-class Spim_periph_v2 : public Udma_periph
-{
-  friend class Spim_tx_channel;
-  friend class Spim_rx_channel;
-
-public:
-  Spim_periph_v2(udma *top, int id, int itf_id);
-  static void slave_sync(void *_this, int data_0, int data_1, int data_2, int data_3, int mask);
-  void reset();
-
-protected:
-  vp::qspim_master qspim_itf;
-  int clkdiv;
-  bool waiting_rx;
-  bool waiting_tx;
-  bool is_full_duplex;
-  int byte_align;
-  int qpi;
-  int cmd_pending_bits;
-  int nb_received_bits;
-  uint32_t rx_pending_word;
-  uint32_t tx_pending_word;
-  int eot_event;
-  
-  int      spi_rx_pending_bits;   // Tell how many bits should be received from spi pads
-
-};
-
 
 
 
@@ -635,5 +551,7 @@ private:
   vp::wire_master<int>    event_itf;
 };
 
+
+#include "udma_spim_v3.hpp"
 
 #endif

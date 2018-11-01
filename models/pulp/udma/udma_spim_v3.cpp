@@ -18,7 +18,7 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
-#include "udma_v2_impl.hpp"
+#include "udma_v3_impl.hpp"
 #include "archi/udma/spim/udma_spim_v2.h"
 #include "archi/utils.h"
 #include "vp/itf/qspim.hpp"
@@ -26,14 +26,14 @@
 
 
 
-Spim_periph::Spim_periph(udma *top, int id, int itf_id) : Udma_periph(top, id)
+Spim_periph_v3::Spim_periph_v3(udma *top, int id, int itf_id) : Udma_periph(top, id)
 {
   std::string itf_name = "spim" + std::to_string(itf_id);
 
-  channel0 = new Spim_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
-  channel1 = new Spim_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
+  channel0 = new Spim_v3_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
+  channel1 = new Spim_v3_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
 
-  qspim_itf.set_sync_meth(&Spim_periph::slave_sync);
+  qspim_itf.set_sync_meth(&Spim_periph_v3::slave_sync);
   top->new_master_port(this, itf_name, &qspim_itf);
 
   js::config *config = this->top->get_js_config()->get("spim/eot_events");
@@ -43,7 +43,7 @@ Spim_periph::Spim_periph(udma *top, int id, int itf_id) : Udma_periph(top, id)
     this->eot_event = -1;
 }
 
-void Spim_periph::reset()
+void Spim_periph_v3::reset()
 {
   Udma_periph::reset();
   this->waiting_rx = false;
@@ -58,13 +58,13 @@ void Spim_periph::reset()
 }
 
   
-void Spim_periph::slave_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask)
+void Spim_periph_v3::slave_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask)
 {
-  Spim_periph *_this = (Spim_periph *)__this;
-  (static_cast<Spim_rx_channel *>(_this->channel0))->handle_rx_bits(data_0, data_1, data_2, data_3, mask);
+  Spim_periph_v3 *_this = (Spim_periph_v3 *)__this;
+  (static_cast<Spim_v3_rx_channel *>(_this->channel0))->handle_rx_bits(data_0, data_1, data_2, data_3, mask);
 }
 
-void Spim_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask)
+void Spim_v3_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask)
 {
   if (this->periph->qpi)
   {
@@ -76,7 +76,7 @@ void Spim_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int dat
   }
 }
 
-void Spim_tx_channel::check_state()
+void Spim_v3_tx_channel::check_state()
 {
   if (this->has_tx_pending_word && !pending_word_event->is_enqueued() && !this->periph->waiting_rx && !this->periph->waiting_tx)
   {
@@ -95,16 +95,16 @@ void Spim_tx_channel::check_state()
 }
 
 
-Spim_tx_channel::Spim_tx_channel(udma *top, Spim_periph *periph, int id, string name)
+Spim_v3_tx_channel::Spim_v3_tx_channel(udma *top, Spim_periph_v3 *periph, int id, string name)
 : Udma_tx_channel(top, id, name), periph(periph)
 {
-  pending_word_event = top->event_new(this, Spim_tx_channel::handle_pending_word);
+  pending_word_event = top->event_new(this, Spim_v3_tx_channel::handle_pending_word);
 
-  pending_spi_word_event = top->event_new(this, Spim_tx_channel::handle_spi_pending_word);
+  pending_spi_word_event = top->event_new(this, Spim_v3_tx_channel::handle_spi_pending_word);
 }
 
 
-void Spim_tx_channel::handle_ready_reqs()
+void Spim_v3_tx_channel::handle_ready_reqs()
 {
   if (!this->has_tx_pending_word && !ready_reqs->is_empty())
   {
@@ -116,9 +116,9 @@ void Spim_tx_channel::handle_ready_reqs()
   }
 }
 
-void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *event)
+void Spim_v3_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *event)
 {
-  Spim_tx_channel *_this = (Spim_tx_channel *)__this;
+  Spim_v3_tx_channel *_this = (Spim_v3_tx_channel *)__this;
   bool raised_edge = false;
 
   if (_this->periph->spi_rx_pending_bits > 0 && (_this->spi_tx_pending_bits == 0 || _this->periph->is_full_duplex))
@@ -137,7 +137,7 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
     {
       if (!_this->periph->byte_align) _this->periph->rx_pending_word = __bswap_32(_this->periph->rx_pending_word);
 
-      (static_cast<Spim_rx_channel *>(_this->periph->channel0))->push_data((uint8_t *)&_this->periph->rx_pending_word, 4);
+      (static_cast<Spim_v3_rx_channel *>(_this->periph->channel0))->push_data((uint8_t *)&_this->periph->rx_pending_word, 4);
       
       _this->periph->nb_received_bits = 0;
       _this->rx_pending_word = 0x57575757;
@@ -196,15 +196,15 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   _this->check_state();
 }
 
-void Spim_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
+void Spim_v3_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 {
-  Spim_tx_channel *_this = (Spim_tx_channel *)__this;
+  Spim_v3_tx_channel *_this = (Spim_v3_tx_channel *)__this;
 
   _this->handle_data(_this->tx_pending_word);
   _this->check_state();
 }
 
-void Spim_tx_channel::handle_eot()
+void Spim_v3_tx_channel::handle_eot()
 {
   if (!periph->qspim_itf.is_bound())
     trace.warning("Trying to set chip select to unbound QSPIM interface\n");
@@ -217,7 +217,7 @@ void Spim_tx_channel::handle_eot()
   }
 }
 
-void Spim_tx_channel::handle_data(uint32_t data)
+void Spim_v3_tx_channel::handle_data(uint32_t data)
 {
   if (this->periph->cmd_pending_bits <= 0)
   {
@@ -507,7 +507,7 @@ void Spim_tx_channel::handle_data(uint32_t data)
   this->handle_ready_reqs();
 }
 
-void Spim_tx_channel::reset()
+void Spim_v3_tx_channel::reset()
 {
   Udma_tx_channel::reset();
   this->next_bit_cycle = -1;
@@ -515,7 +515,7 @@ void Spim_tx_channel::reset()
   this->spi_tx_pending_bits = 0;
 }
 
-void Spim_rx_channel::reset()
+void Spim_v3_rx_channel::reset()
 {
   Udma_rx_channel::reset();
 }

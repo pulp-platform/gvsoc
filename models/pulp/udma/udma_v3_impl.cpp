@@ -655,7 +655,7 @@ int udma::build()
         trace.msg("Instantiating SPIM channel (id: %d, offset: 0x%x)\n", id, offset);
         if (version == 3)
         {
-          Spim_periph *periph = new Spim_periph(this, id, j);
+          Spim_periph_v3 *periph = new Spim_periph_v3(this, id, j);
           periphs[id] = periph;
         }
         else
