@@ -119,6 +119,17 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
         {
           iss_insn_t *next = insn_cache_get_decoded(iss, insn->addr + insn->size);
 
+          bool stall = false;
+
+          // We can stall the next instruction either if latency is superior
+          // to 2 (due to number of pipeline stages) or if there is a data
+          // dependency
+          if (darg->u.reg.latency > 2)
+          {
+            next->latency = darg->u.reg.latency - 1;
+            stall = true;
+          }
+
           // Go through the registers and set the handler to the stall handler
           // in case we find a register dependency so that we can properly
           // handle the stall
@@ -126,12 +137,18 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
           {
             if (next->in_regs[j] == arg->u.reg.index)
             {
-              next->stall_handler = next->handler;
-              next->stall_fast_handler = next->fast_handler;
-              next->handler = iss_exec_stalled_insn;
-              next->fast_handler = iss_exec_stalled_insn_fast;
+              stall = true;
+              next->latency = darg->u.reg.latency;
               break;
             }
+          }
+
+          if (stall)
+          {
+            next->stall_handler = next->handler;
+            next->stall_fast_handler = next->fast_handler;
+            next->handler = iss_exec_stalled_insn;
+            next->fast_handler = iss_exec_stalled_insn_fast;
           }
 
         }

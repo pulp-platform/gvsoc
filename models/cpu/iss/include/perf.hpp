@@ -37,9 +37,9 @@ static inline void iss_perf_account_taken_branch(iss_t *iss)
   iss->cpu.state.insn_cycles += 2;  
 }
 
-static inline void iss_perf_account_ld_stall(iss_t *iss)
+static inline void iss_perf_account_dependency_stall(iss_t *iss, int latency)
 {
-  iss->cpu.state.insn_cycles += 1;  
+  iss->cpu.state.insn_cycles += latency - 1;
 }
 
 static inline void iss_perf_account_jump(iss_t *iss)

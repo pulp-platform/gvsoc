@@ -299,6 +299,8 @@ typedef struct iss_insn_s {
   iss_insn_t *(*saved_handler)(iss_t *, iss_insn_t*);
   iss_insn_t *branch;
 
+  int latency;
+
 } iss_insn_t;
 
 typedef struct iss_insn_block_s {

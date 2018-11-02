@@ -57,13 +57,13 @@ static inline iss_insn_t *iss_exec_insn(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *iss_exec_stalled_insn_fast(iss_t *iss, iss_insn_t *insn)
 {
-  iss_perf_account_ld_stall(iss);
+  iss_perf_account_dependency_stall(iss, insn->latency);
   return iss_exec_insn_handler(iss, insn, insn->stall_fast_handler);
 }
 
 static inline iss_insn_t *iss_exec_stalled_insn(iss_t *iss, iss_insn_t *insn)
 {
-  iss_perf_account_ld_stall(iss);
+  iss_perf_account_dependency_stall(iss, insn->latency);
   iss_pccr_account_event(iss, CSR_PCER_LD_STALL, 1);
   return iss_exec_insn_handler(iss, insn, insn->stall_handler);
 }

@@ -168,6 +168,7 @@ public:
 protected:
   Udma_channel *channel0 = NULL;
   Udma_channel *channel1 = NULL;
+  Udma_channel *channel2 = NULL;
   udma *top;
 
 private:

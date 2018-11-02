@@ -102,7 +102,6 @@ public:
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
 
 protected:
-  Udma_channel *channel2 = NULL;
   vp::qspim_master qspim_itf;
   int clkdiv;
   bool waiting_rx;

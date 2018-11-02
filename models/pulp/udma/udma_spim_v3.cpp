@@ -19,7 +19,7 @@
  */
 
 #include "udma_v3_impl.hpp"
-#include "archi/udma/spim/udma_spim_v2.h"
+#include "archi/udma/spim/udma_spim_v3.h"
 #include "archi/utils.h"
 #include "vp/itf/qspim.hpp"
 
@@ -248,14 +248,14 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
       break;
     }
 
-    case SPI_CMD_SEND_CMD_ID: {
-      unsigned short cmd = (data >> SPI_CMD_SEND_CMD_CMD_OFFSET) & ((1<<SPI_CMD_SEND_CMD_CMD_WIDTH)-1);
-      unsigned int size = ((data>>SPI_CMD_SEND_CMD_SIZE_OFFSET) & ((1<<SPI_CMD_SEND_CMD_SIZE_WIDTH)-1)) + 1;
-      this->periph->qpi = (data>>SPI_CMD_SEND_CMD_QPI_OFFSET) & 0x1;
-      trace.msg("Received command SEND_CMD (cmd: 0x%x, size: %d, qpi: %d)\n", cmd, size, this->periph->qpi);
+    case SPI_CMD_SEND_BITS_ID: {
+      unsigned short bits = (data >> SPI_CMD_SEND_BITS_BITS_OFFSET) & ((1<<SPI_CMD_SEND_BITS_BITS_WIDTH)-1);
+      unsigned int size = ((data>>SPI_CMD_SEND_BITS_SIZE_OFFSET) & ((1<<SPI_CMD_SEND_BITS_SIZE_WIDTH)-1)) + 1;
+      this->periph->qpi = (data>>SPI_CMD_SEND_BITS_QPI_OFFSET) & 0x1;
+      trace.msg("Received command SEND_BITS (bits: 0x%x, size: %d, qpi: %d)\n", bits, size, this->periph->qpi);
       if (this->spi_tx_pending_bits == 0)
       {
-        this->spi_tx_pending_word = cmd << 16;
+        this->spi_tx_pending_word = bits << (32 - size);
         this->spi_tx_pending_bits = size;
         this->spi_tx_quad = this->periph->qpi;
         this->spi_tx_byte_align = this->periph->byte_align;
@@ -339,12 +339,14 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
     case SPI_CMD_RX_DATA_ID: {
       if (this->periph->cmd_pending_bits <= 0)
       {
-        unsigned int bits = ((data >> SPI_CMD_RX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_RX_DATA_SIZE_WIDTH)-1))+1;
+        unsigned int size = ((data >> SPI_CMD_RX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_RX_DATA_SIZE_WIDTH)-1))+1;
+        unsigned int bitsword = ((data >> SPI_CMD_RX_DATA_BITSWORD_OFFSET) & ((1<<SPI_CMD_RX_DATA_BITSWORD_WIDTH)-1))+1;
+        unsigned int wordtrans = ((data >> SPI_CMD_RX_DATA_WORDTRANS_OFFSET) & ((1<<SPI_CMD_RX_DATA_WORDTRANS_WIDTH)-1))+1;
         this->periph->byte_align = (data >> SPI_CMD_RX_DATA_BYTE_ALIGN_OFFSET) & 1;
         this->periph->qpi = ARCHI_REG_FIELD_GET(data, SPI_CMD_RX_DATA_QPI_OFFSET, 1);
-        trace.msg("Received command RX_DATA (size: %d, byte_align: %d, qpi: %d)\n", bits, periph->byte_align, this->periph->qpi);
-        this->periph->cmd_pending_bits = bits;
-        this->periph->spi_rx_pending_bits = bits;
+        trace.msg("Received command RX_DATA (size: %d, byte_align: %d, qpi: %d, bitsword: %d, wordtrans: %d)\n", size, periph->byte_align, this->periph->qpi, bitsword, wordtrans);
+        this->periph->cmd_pending_bits = size*bitsword;
+        this->periph->spi_rx_pending_bits = size*bitsword;
         this->periph->waiting_rx = true;
       }
 
@@ -369,7 +371,7 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
       if (this->periph->cmd_pending_bits <= 0)
       {
         unsigned int bits = ((data >> SPI_CMD_FUL_SIZE_OFFSET) & ((1<<SPI_CMD_FUL_SIZE_WIDTH)-1))+1;
-        this->periph->byte_align = (data >> SPI_CMD_FUL_BYTE_ALIGN_OFFSET) & 1;
+        //this->periph->byte_align = (data >> SPI_CMD_FUL_BYTE_ALIGN_OFFSET) & 1;
         trace.msg("Received command FULL_DUPLEX (size: %d, byte_align: %d)\n", bits, periph->byte_align);
         this->periph->cmd_pending_bits = bits;
         this->periph->spi_rx_pending_bits = bits;

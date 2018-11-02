@@ -308,6 +308,8 @@ void Udma_periph::reset()
     channel0->reset();
   if (channel1)
     channel1->reset();
+  if (channel2)
+    channel2->reset();
 }
 
 
