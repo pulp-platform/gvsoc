@@ -19,7 +19,7 @@
  */
 
 
-#include "udma_v2_impl.hpp"
+#include "udma_impl.hpp"
 #include "archi/udma/uart/udma_uart_v1.h"
 #include "archi/utils.h"
 #include "vp/itf/uart.hpp"

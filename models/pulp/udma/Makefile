@@ -1,3 +1,5 @@
+pulp/udma/udma_v$(udma/version)_$(pulp_chip)_impl_CFLAGS += -DUDMA_VERSION=$(udma/version)
+
 ifeq '$(udma/version)' '2'
 IMPLEMENTATIONS += pulp/udma/udma_v2_$(pulp_chip_family)_impl
 COMPONENTS += pulp/udma/udma_v2
