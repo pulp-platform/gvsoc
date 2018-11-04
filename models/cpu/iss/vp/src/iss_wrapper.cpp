@@ -496,6 +496,12 @@ int iss_wrapper::build()
   this->new_reg("bootaddr", &this->bootaddr_reg, get_config_int("boot_addr"));
   this->new_reg("fetch_enable", &this->fetch_enable_reg, get_js_config()->get("fetch_enable")->get_bool());
   this->new_reg("is_active", &this->is_active_reg, false);
+  this->new_reg("stalled", &this->stalled, false);
+  this->new_reg("wfi", &this->wfi, false);
+  this->new_reg("misaligned_access", &this->misaligned_access, false);
+  this->new_reg("halted", &this->halted, false);
+  this->new_reg("step_mode", &this->step_mode, false);
+  this->new_reg("do_step", &this->do_step, false);
 
   power.new_event("power_insn", &insn_power, this->get_js_config()->get("**/insn"), &power_trace);
   power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace);

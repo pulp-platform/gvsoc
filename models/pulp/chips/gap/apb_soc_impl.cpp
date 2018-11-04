@@ -125,7 +125,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
     }
     else
     {
-      *(uint32_t *)data = _this->jtag_reg_ext;
+      *(uint32_t *)data = _this->jtag_reg_ext << APB_SOC_JTAG_REG_EXT_BIT;
     }
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
