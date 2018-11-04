@@ -624,8 +624,8 @@ class component(component_trace):
 
     def reset_all(self):
 
-        for build in self.sub_comps:
-            build.reset_all()
+        #for build in self.sub_comps:
+        #    build.reset_all()
 
         self.trace.msg('Resetting component')
 

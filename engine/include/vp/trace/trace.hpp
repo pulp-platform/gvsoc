@@ -67,6 +67,7 @@ namespace vp {
     inline bool get_active() { return is_active; }
     inline bool get_event_active() { return is_event_active; }
   #endif
+    bool is_active = false;
 
     int width;
     int bytes;
@@ -78,7 +79,6 @@ namespace vp {
     component *comp;
     trace_engine *trace_manager;
     FILE *trace_file;
-    bool is_active = false;
     bool is_event_active = false;
     string name;
     uint8_t *buffer = NULL;

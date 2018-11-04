@@ -39,6 +39,8 @@ public:
 
   int build();
   void start();
+  void pre_reset();
+  void reset();
 
   static void data_grant(void *_this, vp::io_req *req);
   static void data_response(void *_this, vp::io_req *req);
@@ -88,6 +90,16 @@ public:
   vp::trace     csr_trace;
   vp::trace     perf_counter_trace;
 
+  vp::reg_32    bootaddr_reg;
+  vp::reg_1     fetch_enable_reg;
+  vp::reg_1     is_active_reg;
+  vp::reg_1     stalled;
+  vp::reg_1     wfi;
+  vp::reg_1     misaligned_access;
+  vp::reg_1     halted;
+  vp::reg_1     step_mode;
+  vp::reg_1     do_step;
+
   vp::power_trace power_trace;
 
   vp::power_source insn_power;
@@ -111,14 +123,6 @@ private:
 
   int irq_req;
 
-  bool is_active = false;
-  bool fetch_enable = false;
-  bool stalled = false;
-  bool wfi = false;
-  bool misaligned_access = false;
-  bool halted = false;
-  bool step_mode = false;
-  bool do_step = false;
   int halt_cause;
   int64_t wakeup_latency;
   iss_reg_t hit_reg = 0;
@@ -137,8 +141,6 @@ private:
   vp::wire_slave<bool>     halt_itf;
   vp::wire_master<bool>     halt_status_itf;
 
-  iss_addr_t bootaddr;
-
   static void bootaddr_sync(void *_this, uint32_t value);
   static void fetchen_sync(void *_this, bool active);
   static void halt_sync(void *_this, bool active);
@@ -148,7 +150,7 @@ private:
 \
 inline void iss_wrapper::enqueue_next_instr(int64_t cycles)
 {
-  if (is_active)
+  if (is_active_reg.get())
   {
     trace.msg("Enqueue next instruction (cycles: %ld)\n", cycles);
     event_enqueue(current_event, cycles);
@@ -161,7 +163,7 @@ void iss_wrapper::exec_misaligned(void *__this, vp::clock_event *event)
   if (_this->data_req_aligned(_this->misaligned_addr, _this->misaligned_data,
     _this->misaligned_size, _this->misaligned_is_write) == vp::IO_REQ_OK)
   {
-    _this->misaligned_access = false;
+    _this->misaligned_access.set(false);
     iss_exec_insn_resume(_this);
     _this->enqueue_next_instr(_this->io_req.get_latency() + 1);
   }

@@ -12,7 +12,9 @@ VP_COMP_PYBIND_FLAGS := $(shell python3-config --includes)
 
 VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -I$(PULP_SDK_WS_INSTALL)/include $(VP_COMP_PYBIND_FLAGS)
 VP_COMP_CPPFLAGS=-std=c++11
-VP_COMP_LDFLAGS=-O2 -g -shared -L$(PULP_SDK_WS_INSTALL)/lib -lpulpvp
+VP_COMP_LDFLAGS=-O2 -g -shared -L$(PULP_SDK_WS_INSTALL)/lib
+VP_COMP_STD_LDFLAGS=-lpulpvp
+VP_COMP_DBG_LDFLAGS=-lpulpvp-debug
 
 VP_COMP_CFLAGS += -Werror -Wfatal-errors
 VP_COMP_LDFLAGS += -Werror -Wfatal-errors
@@ -52,7 +54,7 @@ $(VP_BUILD_DIR)/$(1)/%.o: %.c $($(1)_DEPS)
 
 $(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT): $($(1)_OBJS) $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
-	$(CPP) $($(1)_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS)
+	$(CPP) $($(1)_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS) $(VP_COMP_STD_LDFLAGS)
 
 $(VP_PY_INSTALL_PATH)/$(1)$(VP_COMP_EXT): $(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT)
 	install -D $$^ $$@
@@ -80,7 +82,7 @@ $(VP_BUILD_DIR)/$(1)/debug/%.o: %.c $($(1)_DEPS)
 
 $(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT): $($(1)_DBG_OBJS) $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
-	$(CPP) $($(1)_DBG_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS)
+	$(CPP) $($(1)_DBG_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS) $(VP_COMP_DBG_LDFLAGS)
 
 $(VP_PY_INSTALL_PATH)/debug/$(1)$(VP_COMP_EXT): $(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT)
 	install -D $$^ $$@

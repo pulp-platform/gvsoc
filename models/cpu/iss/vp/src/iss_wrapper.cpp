@@ -87,14 +87,14 @@ do { \
   } \
   else \
   { \
-    if (_this->misaligned_access) \
+    if (_this->misaligned_access.get()) \
     { \
       _this->event_enqueue(_this->misaligned_event, _this->misaligned_latency); \
     } \
     else \
     { \
-      _this->is_active = false; \
-      _this->stalled = true;     \
+      _this->is_active_reg.set(false); \
+      _this->stalled.set(true);     \
     } \
   } \
 } while(0)
@@ -118,9 +118,9 @@ void iss_wrapper::exec_instr_check_all(void *__this, vp::clock_event *event)
   }
 
   EXEC_INSTR_COMMON(_this, event, iss_exec_step_nofetch_perf);
-  if (_this->step_mode)
+  if (_this->step_mode.get())
   {
-    _this->do_step = false;
+    _this->do_step.set(false);
     _this->hit_reg |= 1;
     _this->set_halt_mode(true, HALT_CAUSE_HALT);
     _this->check_state();
@@ -147,10 +147,10 @@ void iss_wrapper::data_grant(void *__this, vp::io_req *req)
 void iss_wrapper::data_response(void *__this, vp::io_req *req)
 {
   iss_t *_this = (iss_t *)__this;
-  _this->stalled = false;
+  _this->stalled.set(false);
   _this->wakeup_latency = req->get_latency();
-  if (_this->misaligned_access)
-    _this->misaligned_access = false;
+  if (_this->misaligned_access.get())
+    _this->misaligned_access.set(false);
   else
   {
     // First call the ISS to finish the instruction
@@ -174,18 +174,18 @@ void iss_wrapper::bootaddr_sync(void *__this, uint32_t value)
 {
   iss_t *_this = (iss_t *)__this;
   _this->trace.msg("Setting boot address (value: 0x%x)\n", value);
-  _this->bootaddr = value;
-  iss_irq_set_vector_table(_this, _this->bootaddr);
+  _this->bootaddr_reg.set(value);
+  iss_irq_set_vector_table(_this, _this->bootaddr_reg.get());
 }
 
 void iss_wrapper::fetchen_sync(void *__this, bool active)
 {
   iss_t *_this = (iss_t *)__this;
   _this->trace.msg("Setting fetch enable (active: %d)\n", active);
-  _this->fetch_enable = active;
+  _this->fetch_enable_reg.set(active);
   if (active)
   {
-    iss_pc_set(_this, _this->bootaddr + 0x80);
+    iss_pc_set(_this, _this->bootaddr_reg.get() + 0x80);
   }
   _this->check_state();
 }
@@ -196,19 +196,19 @@ void iss_wrapper::set_halt_mode(bool halted, int cause)
 {
   this->halt_cause = cause;
 
-  if (this->halted && !halted)
+  if (this->halted.get() && !halted)
   {
     this->get_clock()->release();
   }
-  else if (!this->halted && halted)
+  else if (!this->halted.get() && halted)
   {
     this->get_clock()->retain();
   }
 
-  this->halted = halted;
+  this->halted.set(halted);
  
   if (this->halt_status_itf.is_bound()) 
-    this->halt_status_itf.sync(this->halted);
+    this->halt_status_itf.sync(this->halted.get());
 }
 
 
@@ -242,14 +242,15 @@ void iss_wrapper::check_state()
 
   current_event = check_all_event;
 
-  if (!is_active)
+  if (!is_active_reg.get())
   {
-    if (!halted && fetch_enable && !stalled && (!wfi || irq_req != -1))
+    if (!halted.get() && fetch_enable_reg.get() && !stalled.get() && (!wfi.get() || irq_req != -1))
     {
-      wfi = false;
-      is_active = true;
-      if (step_mode)
-        do_step = true;
+      wfi.set(false);
+      is_active_reg.set(true);
+
+      if (step_mode.get())
+        do_step.set(true);
       enqueue_next_instr(1 + this->wakeup_latency);
 
       if (this->cpu.csr.pcmr & CSR_PCMR_ACTIVE && this->cpu.csr.pcer & (1<<CSR_PCER_CYCLES))
@@ -262,20 +263,22 @@ void iss_wrapper::check_state()
   }
   else
   {
-    if (halted && !do_step)
+    if (halted.get() && !do_step.get())
     {
-      is_active = false;
+      is_active_reg.set(false);
       this->halt_core();
     }
-    else if (wfi)
+    else if (wfi.get())
     {
       if (irq_req == -1)
-        is_active = false;
+      {
+        is_active_reg.set(false);
+      }
       else
-        wfi = false;
+        wfi.set(false);
     }
 
-    if (!is_active)
+    if (!is_active_reg.get())
     {
       if (event->is_enqueued())
       {
@@ -299,7 +302,7 @@ int iss_wrapper::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int siz
   int size0 = addr1 - addr;
   int size1 = size - size0;
   
-  misaligned_access = true;
+  misaligned_access.set(true);
 
   // Remember the access properties for the second access
   misaligned_size = size1;
@@ -332,7 +335,7 @@ void iss_wrapper::irq_check()
 
 void iss_wrapper::wait_for_interrupt()
 {
-  wfi = true;
+  wfi.set(true);
   check_state();
 }
 
@@ -343,7 +346,7 @@ void iss_wrapper::irq_req_sync(void *__this, int irq)
   _this->irq_req = irq;
   _this->irq_check();
   iss_irq_req(_this, irq);
-  _this->wfi = false;
+  _this->wfi.set(false);
   _this->check_state();
 }
 
@@ -377,7 +380,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
   }
   else if (offset >= 0x2000)
   {
-    if (!_this->halted)
+    if (!_this->halted.get())
     {
       _this->trace.warning("Trying to access debug registers while core is not halted\n");
       return vp::IO_REQ_INVALID;
@@ -392,7 +395,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
         iss_cache_flush(_this);
         _this->npc = *(iss_reg_t *)data;
         iss_pc_set(_this, _this->npc);
-        _this->wfi = false;
+        _this->wfi.set(false);
         _this->check_state();
       }
       else
@@ -415,7 +418,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
     offset -= 0x400;
     int reg_id = offset / 4;
 
-    if (!_this->halted)
+    if (!_this->halted.get())
     {
       _this->trace.warning("Trying to access GPR while core is not halted\n");
       return vp::IO_REQ_INVALID;
@@ -440,13 +443,13 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
         _this->trace.msg("Writing DBG_CTRL (value: 0x%x, halt: %d, step: %d)\n", *(iss_reg_t *)data, halt_mode, step_mode);
 
         _this->set_halt_mode(halt_mode, HALT_CAUSE_HALT);
-        _this->step_mode = step_mode;
+        _this->step_mode.set(step_mode);
 
         _this->check_state();
       }
       else
       {
-        *(iss_reg_t *)data = (_this->halted << 16) | _this->step_mode;
+        *(iss_reg_t *)data = (_this->halted.get() << 16) | _this->step_mode.get();
       }
     }
     else if (offset == 0x04)
@@ -490,6 +493,10 @@ int iss_wrapper::build()
 
   power.new_trace("power_trace", &power_trace);
 
+  this->new_reg("bootaddr", &this->bootaddr_reg, get_config_int("boot_addr"));
+  this->new_reg("fetch_enable", &this->fetch_enable_reg, get_js_config()->get("fetch_enable")->get_bool());
+  this->new_reg("is_active", &this->is_active_reg, false);
+
   power.new_event("power_insn", &insn_power, this->get_js_config()->get("**/insn"), &power_trace);
   power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace);
   power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
@@ -530,10 +537,6 @@ int iss_wrapper::build()
   check_all_event = event_new(iss_wrapper::exec_instr_check_all);
   misaligned_event = event_new(iss_wrapper::exec_misaligned);
 
-  this->fetch_enable = get_js_config()->get("fetch_enable")->get_bool();
-
-  this->bootaddr = get_config_int("boot_addr");
-
   this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
   string isa = get_config_str("isa");
   //transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
@@ -555,10 +558,7 @@ void iss_wrapper::start()
 
   if (iss_open(this)) throw logic_error("Error while instantiating the ISS");
 
-  iss_pc_set(this, get_config_int("boot_addr") + 0x80);
-  iss_irq_set_vector_table(this, get_config_int("boot_addr"));
-
-  trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable, is_active, get_config_int("boot_addr"));
+  trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable_reg.get(), is_active_reg.get(), get_config_int("boot_addr"));
 
   irq_req = -1;
   wakeup_latency = 0;
@@ -569,6 +569,22 @@ void iss_wrapper::start()
 #endif
 
   this->leakage_power.power_on();
+}
+
+void iss_wrapper::pre_reset()
+{
+  if (this->is_active_reg.get())
+  {
+    this->event_cancel(this->current_event);
+  }
+}
+
+void iss_wrapper::reset()
+{
+  iss_reset(this);
+
+  iss_pc_set(this, this->bootaddr_reg.get() + 0x80);
+  iss_irq_set_vector_table(this, this->bootaddr_reg.get());
 
   check_state();
 }

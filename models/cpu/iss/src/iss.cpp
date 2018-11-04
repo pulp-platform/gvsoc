@@ -251,6 +251,14 @@ static int iss_parse_isa(iss_t *iss)
   return 0;
 }
 
+void iss_reset(iss_t *iss)
+{
+  for (int i=0; i<ISS_NB_TOTAL_REGS; i++)
+  {
+    iss->cpu.regfile.regs[i] = 0;
+  }
+}
+
 int iss_open(iss_t *iss)
 {
   iss_isa_pulpv2_init(iss);

@@ -72,6 +72,7 @@ class iss;
 
 #define ISS_NB_REGS  32
 #define ISS_NB_FREGS 32
+#define ISS_NB_TOTAL_REGS (ISS_NB_REGS + ISS_NB_FREGS)
 
 #define ISS_PREFETCHER_SIZE (ISS_OPCODE_MAX_SIZE*16)
 

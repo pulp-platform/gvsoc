@@ -49,8 +49,104 @@ extern char vp_error[];
 namespace vp {
 
   class config;
-
   class clock_engine;
+  class component;
+
+  class reg
+  {
+
+    public:
+      void init(vp::component *top, std::string name, int bits, uint8_t *value, uint8_t *reset_val);
+      void reset();
+
+      inline void set(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+      inline void set_1(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
+      inline void set_8(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
+      inline void set_16(uint16_t value) { *(uint16_t *)this->value_bytes = value; }
+      inline void set_32(uint32_t value) { *(uint32_t *)this->value_bytes = value; }
+      inline void set_64(uint64_t value) { *(uint64_t *)this->value_bytes = value; }
+
+      inline uint8_t *get() { return this->value_bytes; }
+      inline uint8_t  get_1 () { return *(uint8_t *)this->value_bytes; }
+      inline uint8_t  get_8 () { return *(uint8_t *)this->value_bytes; }
+      inline uint16_t get_16() { return *(uint16_t *)this->value_bytes; }
+      inline uint32_t get_32() { return *(uint32_t *)this->value_bytes; }
+      inline uint64_t get_64() { return *(uint64_t *)this->value_bytes; }
+
+    protected:
+      int nb_bytes;
+      int bits;
+      uint8_t *reset_value_bytes;
+      uint8_t *value_bytes;
+      std::string name;
+      component *top;
+      vp::trace trace;
+  };
+
+  class reg_1: public reg
+  {
+  public:
+    void init(vp::component *top, std::string name, uint8_t *reset_val);
+
+    inline uint8_t get() { return this->value; }
+    inline void set(uint8_t value) { this->trace.msg("Setting register (value: 0x%x)\n", value); this->value = value; }
+
+  private:
+    uint8_t value;
+
+  };
+
+  class reg_8: public reg
+  {
+  public:
+    void init(vp::component *top, std::string name, uint8_t *reset_val);
+
+    inline uint8_t get() { return this->value; }
+    inline void set(uint8_t value) { this->value = value; }
+
+  private:
+    uint8_t value;
+
+  };
+
+  class reg_16: public reg
+  {
+  public:
+    void init(vp::component *top, std::string name, uint8_t *reset_val);
+
+    inline uint16_t get() { return this->value; }
+    inline void set(uint16_t value) { this->value = value; }
+
+  private:
+    uint16_t value;
+
+  };
+
+  class reg_32: public reg
+  {
+  public:
+    void init(vp::component *top, std::string name, uint8_t *reset_val);
+
+    inline uint32_t get() { return this->value; }
+    inline void set(uint32_t value) { this->value = value; }
+
+  private:
+    uint32_t value;
+
+  };
+
+  class reg_64: public reg
+  {
+  public:
+    void init(vp::component *top, std::string name, uint8_t *reset_val);
+
+    inline uint64_t get() { return this->value; }
+    inline void set(uint64_t value) { this->value = value; }
+
+  private:
+    uint64_t value;
+
+  };
 
   class component : public component_clock
   {
@@ -64,6 +160,7 @@ namespace vp {
     virtual void pre_start() {}
     virtual void start() {}
     virtual void stop() {}
+    virtual void pre_reset() {}
     virtual void reset() {}
     virtual void load() {}
     virtual void elab();
@@ -128,6 +225,12 @@ namespace vp {
 
     void set_services(int nb_services, const char *name[], void *services[]);
 
+    void new_reg(std::string name, vp::reg *reg, int bits, uint8_t *reset_val);
+    void new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val);
+    void new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val);
+    void new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_val);
+    void new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_val);
+    void new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_val);
 
     inline trace *get_trace() { return &this->root_trace; }
 
@@ -162,6 +265,7 @@ namespace vp {
     component *parent = NULL;
 
     vector<std::function<void()>> pre_start_callbacks;
+    vector<vp::reg *> regs;
 
   };
 

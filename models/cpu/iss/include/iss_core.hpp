@@ -40,6 +40,7 @@ static inline void iss_exec_insn_resume(iss_t *iss);
 
 
 int iss_open(iss_t *iss);
+void iss_reset(iss_t *iss);
 void iss_start(iss_t *iss);
 
 
