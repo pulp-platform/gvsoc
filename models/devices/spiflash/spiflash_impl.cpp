@@ -33,6 +33,7 @@
 #define CMD_PP            0x02
 #define CMD_QIOR          0xEB
 #define CMD_QIOR_4B       0xEC
+#define CMD_READ          0x0C
 #define CMD_SND_MODE_BYTE 0x0A
 
 class spiflash;
@@ -82,6 +83,7 @@ public:
   void start();
 
   static void quad_read(void *__this, int data_0, int data_1, int data_2, int data_3);
+  static void single_read(void *__this, int data_0, int data_1, int data_2, int data_3);
   static void write_any_register(void *__this, int data_0, int data_1, int data_2, int data_3);
 
 protected:
@@ -137,6 +139,7 @@ static command_t commands_descs[] = {
   { CMD_PP           , "page program"        , NULL                          },
   { CMD_QIOR         , "quad IO read"        , NULL                          },
   { CMD_QIOR_4B      , "quad IO read"        , &spiflash::quad_read          },
+  { CMD_READ         , "IO read"             , &spiflash::single_read        },
 };
 
 
@@ -166,6 +169,36 @@ void spiflash::quad_read(void *__this, int data_0, int data_1, int data_2, int d
   }
 
   if (_this->pending_bits >= 40)
+  {
+    if (_this->pending_bits % 8 == 0)
+    {
+      if (_this->current_addr >= _this->size) {
+        _this->warning.warning("Received out-of-bound request (address: 0x%x, memSize: 0x%x)\n", _this->current_addr, _this->size);
+        return;
+      }
+
+      _this->pending_word = _this->mem_data[_this->current_addr++];
+    }
+  }
+
+  _this->send_bits();
+
+}
+
+void spiflash::single_read(void *__this, int data_0, int data_1, int data_2, int data_3)
+{
+  spiflash *_this = (spiflash *)__this;
+
+  _this->enqueue_bits(data_0, data_1, data_2, data_3);
+
+  if (_this->pending_bits == 32)
+  {
+    _this->current_addr = _this->pending_word;
+    _this->read = true;
+    _this->trace.msg("Received address (address: 0x%x)\n", _this->current_addr);
+  }
+
+  if (_this->pending_bits >= 32)
   {
     if (_this->pending_bits % 8 == 0)
     {
@@ -213,7 +246,7 @@ void spiflash::send_bits()
       unsigned int value = (this->pending_word >> 7) & 0x1;
       this->pending_word <<= 1;
       this->trace.msg("Sending single data (data_0: %d)\n", value);
-      this->in_itf.sync(0, value, 0, 0, 1);
+      this->in_itf.sync(0, value, 0, 0, 2);
     }
     else
     {
