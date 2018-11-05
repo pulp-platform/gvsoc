@@ -63,9 +63,10 @@ private:
   uint32_t core_status;
   uint32_t bootaddr;
   uint32_t pmu_bypass;
-  uint32_t jtag_reg_ext;
   bool cluster_power;
   bool cluster_clock_gate;
+
+  vp::reg_32     jtag_reg_ext;
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
@@ -125,7 +126,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
     }
     else
     {
-      *(uint32_t *)data = _this->jtag_reg_ext << APB_SOC_JTAG_REG_EXT_BIT;
+      *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
     }
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
@@ -201,7 +202,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 void apb_soc_ctrl::confreg_ext_sync(void *__this, uint32_t value)
 {
   apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
-  _this->jtag_reg_ext = value;
+  _this->jtag_reg_ext.set(value);
 }
 
 int apb_soc_ctrl::build()
@@ -224,6 +225,8 @@ int apb_soc_ctrl::build()
   this->new_slave_port("confreg_ext", &this->confreg_ext_itf);
 
   this->new_master_port("confreg_soc", &this->confreg_soc_itf);
+
+  this->new_reg("jtag_reg_ext", &this->jtag_reg_ext, 0);
 
   cluster_power_event = this->get_js_config()->get("cluster_power_event")->get_int();
   cluster_clock_gate_event = this->get_js_config()->get("cluster_clock_gate_event")->get_int();
