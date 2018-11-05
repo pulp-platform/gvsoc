@@ -212,7 +212,11 @@ void efuse::start()
     char buffer[this->nb_regs*8*2 + 10];
 
     FILE *file = fopen(path.c_str(), "r");
-    if (fread(buffer, 1, this->nb_regs*8*2 + 10, file) == 0) goto error;
+    if (file == NULL)
+      goto error;
+
+    if (fread(buffer, 1, this->nb_regs*8*2 + 10, file) == 0)
+      goto error;
 
     char *str = strtok(buffer, " ");
     int index = 0;
@@ -232,7 +236,7 @@ void efuse::start()
   return;
 
 error:
-  this->warning.warning("Unable to load stimuli file: %s: %s\n", path.c_str(), strerror(errno));
+  this->warning.fatal("Unable to load stimuli file: %s: %s\n", path.c_str(), strerror(errno));
   return;
 }
 
