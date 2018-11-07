@@ -26,6 +26,7 @@
 #include "vp/itf/qspim.hpp"
 #include "vp/itf/jtag.hpp"
 #include "vp/itf/uart.hpp"
+#include "vp/itf/i2c.hpp"
 #include "vp/itf/cpi.hpp"
 #include "vp/itf/wire.hpp"
 #include <vector>
@@ -38,6 +39,13 @@ typedef struct {
   void *handle;
   vp::trace tx_trace;
 } uart_handle_t;
+
+typedef struct {
+  void *handle;
+  vp::i2c_slave itf;
+  vp::trace scl_trace;
+  vp::trace sda_trace;
+} i2c_handle_t;
 
 typedef struct {
   void *handle;
@@ -65,6 +73,7 @@ static vector<ctrl_handle_t *> ctrl_handles;
 static vector<vp::uart_slave *> uart_slaves;
 static vector<uart_handle_t *> uart_handles;
 static vector<qspim_handle_t *> qspim_handles;
+static vector<i2c_handle_t *> i2c_handles;
 
 static vector<vp::cpi_master *> cpi_masters;
 static vector<cpi_handle_t *> cpi_handles;
@@ -142,6 +151,8 @@ private:
   static void qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
   static void qspim_cs_sync(void *__this, bool active, int id);
   static void jtag_sync(void *__this, int tdo, int id);
+  static void i2c_sync(void *__this, int scl, int sda, int id);
+  static void i2c_sync_cycle(void *__this, int sda, int id);
   static void uart_sync(void *__this, int data, int id);
   static void cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id);
   static void wakeup_handler(void *__this, vp::clock_event *event);
@@ -314,6 +325,20 @@ void dpi_wrapper::uart_sync(void *__this, int data, int id)
   dpi_uart_edge(uart_handles[id]->handle, _this->get_clock()->get_time(), data);
 }
 
+void dpi_wrapper::i2c_sync(void *__this, int scl, int sda, int id)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  i2c_handles[id]->sda_trace.event((uint8_t *)&sda);
+  dpi_i2c_edge(i2c_handles[id]->handle, _this->get_clock()->get_time(), scl, sda);
+}
+
+void dpi_wrapper::i2c_sync_cycle(void *__this, int sda, int id)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  i2c_handles[id]->sda_trace.event((uint8_t *)&sda);
+  dpi_i2c_edge(i2c_handles[id]->handle, _this->get_clock()->get_time(), 0, sda);
+}
+
 int dpi_wrapper::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -427,6 +452,24 @@ int dpi_wrapper::build()
           traces.new_trace_event(itf_name + std::to_string(itf_id) + "/tx", &handle->tx_trace, 1);
 
         }
+        else if (strcmp(itf_type, "I2C") == 0)
+        {
+          i2c_handle_t *handle = new i2c_handle_t;
+          handle->itf.set_sync_meth_muxed(&dpi_wrapper::i2c_sync, itf_id);
+          handle->itf.set_sync_cycle_meth_muxed(&dpi_wrapper::i2c_sync_cycle, itf_id);
+          new_slave_port(itf_name + std::to_string(itf_id), &handle->itf);
+          i2c_handles.reserve(itf_id + 1);
+          i2c_handles[itf_id] = handle;
+
+          handle->handle = dpi_i2c_bind(dpi_model, itf_name, itf_id);
+          if (handle->handle == NULL)
+          {
+            snprintf(vp_error, VP_ERROR_SIZE, "Failed to bind I2C interface (name: %s)\n", itf_name);
+            return -1;
+          }
+          traces.new_trace_event(itf_name + std::to_string(itf_id) + "/tx", &handle->sda_trace, 1);
+
+        }
         else if (strcmp(itf_type, "CPI") == 0)
         {
           vp::cpi_master *itf = new vp::cpi_master();
@@ -496,6 +539,12 @@ extern "C" void dpi_uart_rx_edge(void *handle, int data)
 {
   vp::uart_slave *itf = uart_slaves[(int)(long)handle];
   itf->sync(data);
+}
+
+extern "C" void dpi_i2c_rx_edge(void *handle, int sda)
+{
+  vp::i2c_slave *itf = &i2c_handles[(int)(long)handle]->itf;
+  itf->sync(sda);
 }
 
 extern "C" void dpi_i2s_set_data(void *handle, int data)

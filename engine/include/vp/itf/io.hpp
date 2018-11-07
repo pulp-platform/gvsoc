@@ -72,6 +72,9 @@ namespace vp {
     void set_size(uint64_t size) { this->size = size; }
     uint64_t get_size() { return size; }
 
+    void set_actual_size(uint64_t actual_size) { this->actual_size = actual_size; }
+    uint64_t get_actual_size() { return actual_size; }
+
     inline void set_latency(uint64_t latency) { this->latency = latency; }
     inline uint64_t get_latency() { return this->latency; }
     inline void inc_latency(uint64_t incr) { this->latency += incr; }
@@ -111,6 +114,7 @@ namespace vp {
     uint64_t addr;
     uint8_t *data;
     uint64_t size;
+    uint64_t actual_size;
     bool is_write;
     io_req_status_e status;
     io_slave *resp_port;

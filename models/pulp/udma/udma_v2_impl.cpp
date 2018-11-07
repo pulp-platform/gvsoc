@@ -368,6 +368,7 @@ bool Udma_transfer::prepare_req(vp::io_req *req)
   req->set_size(4);
 
   *(Udma_channel **)req->arg_get(0) = channel;
+  req->set_actual_size(remaining_size > 4 ? 4 : remaining_size);
 
   current_addr += 4;
   remaining_size -= 4;
@@ -685,6 +686,21 @@ int udma::build()
         if (version == 1)
         {
           Hyper_periph_v1 *periph = new Hyper_periph_v1(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
+#ifdef HAS_I2C
+      else if (strcmp(name.c_str(), "i2c") == 0)
+      {
+        trace.msg("Instantiating I2C channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 2)
+        {
+          I2c_periph_v2 *periph = new I2c_periph_v2(this, id, j);
           periphs[id] = periph;
         }
         else

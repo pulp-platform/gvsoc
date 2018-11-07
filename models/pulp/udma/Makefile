@@ -33,3 +33,8 @@ ifeq '$(udma/hyper/version)' '1'
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_HYPER
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_hyper_v1.cpp
 endif
+
+ifeq '$(udma/i2c/version)' '2'
+pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_I2C
+pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_i2c_v2.cpp
+endif

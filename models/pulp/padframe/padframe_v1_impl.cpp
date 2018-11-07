@@ -26,6 +26,7 @@
 #include <vp/itf/cpi.hpp>
 #include <vp/itf/hyper.hpp>
 #include <vp/itf/clock.hpp>
+#include <vp/itf/i2c.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -92,6 +93,16 @@ public:
   vp::trace rx_trace;
 };
 
+class I2c_group : public Pad_group
+{
+public:
+  I2c_group(std::string name) : Pad_group(name) {}
+  vp::i2c_slave slave;
+  vp::i2c_master master;
+  vp::trace scl_trace;
+  vp::trace sda_trace;
+};
+
 class Hyper_group : public Pad_group
 {
 public:
@@ -141,6 +152,10 @@ private:
 
   static void uart_chip_sync(void *__this, int data, int id);
   static void uart_master_sync(void *__this, int data, int id);
+
+  static void i2c_chip_sync(void *__this, int scl, int sda, int id);
+  static void i2c_chip_sync_cycle(void *__this, int sda, int id);
+  static void i2c_master_sync(void *__this, int data, int id);
 
   static void hyper_master_sync_cycle(void *__this, int data, int id);
   static void hyper_sync_cycle(void *__this, int data, int id);
@@ -341,6 +356,54 @@ void padframe::uart_master_sync(void *__this, int data, int id)
 }
 
 
+
+
+
+
+void padframe::i2c_chip_sync(void *__this, int scl, int sda, int id)
+{
+  padframe *_this = (padframe *)__this;
+  I2c_group *group = static_cast<I2c_group *>(_this->groups[id]);
+  group->scl_trace.event((uint8_t *)&scl);
+  group->sda_trace.event((uint8_t *)&sda);
+  if (!group->master.is_bound())
+  {
+    vp_warning_always(&_this->warning, "Trying to send I2C stream while pad is not connected (interface: %s)\n", group->name.c_str());
+  }
+  else
+  {
+    group->master.sync(scl, sda);
+  }
+}
+
+void padframe::i2c_chip_sync_cycle(void *__this, int sda, int id)
+{
+  padframe *_this = (padframe *)__this;
+  I2c_group *group = static_cast<I2c_group *>(_this->groups[id]);
+  group->sda_trace.event((uint8_t *)&sda);
+  if (!group->master.is_bound())
+  {
+    vp_warning_always(&_this->warning, "Trying to send I2C stream while pad is not connected (interface: %s)\n", group->name.c_str());
+  }
+  else
+  {
+    group->master.sync_cycle(sda);
+  }
+}
+
+void padframe::i2c_master_sync(void *__this, int sda, int id)
+{
+  padframe *_this = (padframe *)__this;
+  I2c_group *group = static_cast<I2c_group *>(_this->groups[id]);
+
+  group->sda_trace.event((uint8_t *)&sda);
+
+  group->slave.sync(sda);
+}
+
+
+
+
 void padframe::hyper_master_sync_cycle(void *__this, int data, int id)
 {
   padframe *_this = (padframe *)__this;
@@ -527,6 +590,19 @@ int padframe::build()
         this->groups.push_back(group);
         traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
         traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
+        nb_itf++;
+      }
+      else if (type == "i2c")
+      {
+        I2c_group *group = new I2c_group(name);
+        new_master_port(name + "_pad", &group->master);
+        new_slave_port(name, &group->slave);
+        group->master.set_sync_meth_muxed(&padframe::i2c_master_sync, nb_itf);
+        group->slave.set_sync_meth_muxed(&padframe::i2c_chip_sync, nb_itf);
+        group->slave.set_sync_cycle_meth_muxed(&padframe::i2c_chip_sync_cycle, nb_itf);
+        this->groups.push_back(group);
+        traces.new_trace_event(name + "/scl", &group->scl_trace, 1);
+        traces.new_trace_event(name + "/sda", &group->sda_trace, 1);
         nb_itf++;
       }
       else if (type == "hyper")

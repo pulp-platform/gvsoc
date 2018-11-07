@@ -28,6 +28,7 @@
 #include <vp/itf/cpi.hpp>
 #include <vp/itf/wire.hpp>
 #include <vp/itf/hyper.hpp>
+#include <vp/itf/i2c.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -264,6 +265,98 @@ protected:
 
 };
 
+
+
+
+/*
+ * I2C
+ */
+
+class I2c_periph_v2;
+
+class I2c_rx_channel : public Udma_rx_channel
+{
+public:
+  I2c_rx_channel(udma *top, I2c_periph_v2 *periph, int id, string name);
+  bool is_busy();
+  void handle_rx_bit(int bit);
+
+private:
+  void reset();
+  I2c_periph_v2 *periph;
+  uint8_t  pending_rx_byte;
+  int nb_received_bits;
+};
+
+
+class I2c_tx_channel : public Udma_tx_channel
+{
+public:
+  I2c_tx_channel(udma *top, I2c_periph_v2 *periph, int id, string name);
+  void handle_ready_reqs();
+  bool is_busy();
+
+private:
+  void reset();
+  void check_state();
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+
+  I2c_periph_v2 *periph;
+
+  vp::clock_event *pending_word_event;
+
+  uint32_t pending_word;
+  int pending_bits;
+  vp::io_req *pending_req;
+  int64_t next_bit_cycle;
+};
+
+
+typedef enum
+{
+  I2C_PERIPH_STATE_WAIT_CMD,
+  I2C_PERIPH_STATE_WAIT_CFG,
+  I2C_PERIPH_STATE_WR0,
+  I2C_PERIPH_STATE_WR1,
+  I2C_PERIPH_STATE_WAIT_RPT,
+  I2C_PERIPH_STATE_WAIT_RPT_CMD,
+  I2C_PERIPH_STATE_RD,
+  I2C_PERIPH_STATE_START0,
+  I2C_PERIPH_STATE_STOP0,
+  I2C_PERIPH_STATE_STOP1
+} i2c_periph_state_e;
+
+
+class I2c_periph_v2 : public Udma_periph
+{
+  friend class I2c_tx_channel;
+  friend class I2c_rx_channel;
+
+public:
+  I2c_periph_v2(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  void reset();
+
+protected:
+  vp::i2c_master i2c_itf;
+  i2c_periph_state_e state;
+  unsigned int pending_value;
+  int pending_value_bits;
+  int clkdiv;
+  int repeat_count;
+  bool waiting_rx;
+  unsigned int repeat_command;
+  int pending_rx_bit;
+  int prev_sda;
+  int prev_scl;
+
+private:
+  vp::io_req_status_e status_req(vp::io_req *req);
+  vp::io_req_status_e setup_req(vp::io_req *req);
+  static void rx_sync(void *, int data);
+
+  vp::trace     trace;
+};
 
 
 
