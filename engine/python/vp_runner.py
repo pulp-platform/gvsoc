@@ -67,7 +67,7 @@ class Runner(Platform):
         if comps_conf is not None:
             comps = comps_conf.get_dict()
 
-        if self.get_json().get_child_str('**/runner/boot-mode').find('rom') != -1:
+        if self.get_json().get('**/rom') != None:
 
             boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/chip/name').get())
 
@@ -122,12 +122,12 @@ class Runner(Platform):
             self.get_json().get('**/jtag_proxy').set('active', True)
             self.get_json().get('gvsoc').set('use_external_bridge', True)
 
-        if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode') != 'rom':
+        if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode') != 'rom' and self.get_json().get_child_str('**/runner/boot-mode') != 'jtag':
             binaries = self.get_json().get('**/loader/binaries').get_dict()
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
-        if self.get_json().get_child_str('**/runner/boot-mode').find('rom') != -1:
+        if self.get_json().get('**/rom') != None:
             self.get_json().get('**/soc/rom').set('stim_file', 'stimuli/rom.bin')
 
         if self.get_json().get('**/efuse') is not None:

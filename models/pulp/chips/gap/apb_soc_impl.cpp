@@ -226,12 +226,13 @@ int apb_soc_ctrl::build()
 
   this->new_master_port("confreg_soc", &this->confreg_soc_itf);
 
-  this->new_reg("jtag_reg_ext", &this->jtag_reg_ext, 0);
+  this->new_reg("jtag_reg_ext", &this->jtag_reg_ext, 0, false);
 
   cluster_power_event = this->get_js_config()->get("cluster_power_event")->get_int();
   cluster_clock_gate_event = this->get_js_config()->get("cluster_clock_gate_event")->get_int();
 
   core_status = 0;
+  this->jtag_reg_ext.set(0);
 
   return 0;
 }

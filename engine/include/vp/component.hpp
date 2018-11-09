@@ -225,12 +225,12 @@ namespace vp {
 
     void set_services(int nb_services, const char *name[], void *services[]);
 
-    void new_reg(std::string name, vp::reg *reg, int bits, uint8_t *reset_val);
-    void new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val);
-    void new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val);
-    void new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_val);
-    void new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_val);
-    void new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_val);
+    void new_reg_any(std::string name, vp::reg *reg, int bits, uint8_t *reset_val);
+    void new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val, bool reset=true);
+    void new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val, bool reset=true);
+    void new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_val, bool reset=true);
+    void new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_val, bool reset=true);
+    void new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_val, bool reset=true);
 
     inline trace *get_trace() { return &this->root_trace; }
 

@@ -719,39 +719,39 @@ void vp::component::pre_start_all()
   }
 }
 
-void vp::component::new_reg(std::string name, vp::reg *reg, int bits, uint8_t *reset_val)
+void vp::component::new_reg_any(std::string name, vp::reg *reg, int bits, uint8_t *reset_val)
 {
   reg->init(this, name, bits, NULL, reset_val);
   this->regs.push_back(reg);
 }
 
-void vp::component::new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val)
+void vp::component::new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val, bool reset)
 {
-  reg->init(this, name, (uint8_t *)&reset_val);
+  reg->init(this, name, reset ? (uint8_t *)&reset_val : NULL);
   this->regs.push_back(reg);
 }
 
-void vp::component::new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val)
+void vp::component::new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val, bool reset)
 {
-  reg->init(this, name, (uint8_t *)&reset_val);
+  reg->init(this, name, reset ? (uint8_t *)&reset_val : NULL);
   this->regs.push_back(reg);
 }
 
-void vp::component::new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_val)
+void vp::component::new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_val, bool reset)
 {
-  reg->init(this, name, (uint8_t *)&reset_val);
+  reg->init(this, name, reset ? (uint8_t *)&reset_val : NULL);
   this->regs.push_back(reg);
 }
 
-void vp::component::new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_val)
+void vp::component::new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_val, bool reset)
 {
-  reg->init(this, name, (uint8_t *)&reset_val);
+  reg->init(this, name, reset ? (uint8_t *)&reset_val : NULL);
   this->regs.push_back(reg);
 }
 
-void vp::component::new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_val)
+void vp::component::new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_val, bool reset)
 {
-  reg->init(this, name, (uint8_t *)&reset_val);
+  reg->init(this, name, reset ? (uint8_t *)&reset_val : NULL);
   this->regs.push_back(reg);
 }
 
@@ -761,20 +761,27 @@ void vp::reg::init(vp::component *top, std::string name, int bits, uint8_t *valu
   this->top = top;
   this->nb_bytes = (bits + 7) / 8;
   this->bits = bits;
-  this->reset_value_bytes = new uint8_t[this->nb_bytes];
+  if (reset_value)
+    this->reset_value_bytes = new uint8_t[this->nb_bytes];
+  else
+    this->reset_value_bytes = NULL;
   if (value)
     this->value_bytes = value;
   else
     this->value_bytes = new uint8_t[this->nb_bytes];
   this->name = name;
-  memcpy((void *)this->reset_value_bytes, (void *)reset_value, this->nb_bytes);
+  if (reset_value)
+    memcpy((void *)this->reset_value_bytes, (void *)reset_value, this->nb_bytes);
   top->traces.new_trace(name, &this->trace, vp::DEBUG);
 }
 
 void vp::reg::reset()
 {
-  this->trace.msg("Resetting register\n");
-  memcpy((void *)this->value_bytes, (void *)this->reset_value_bytes, this->nb_bytes);
+  if (this->reset_value_bytes)
+  {
+    this->trace.msg("Resetting register\n");
+    memcpy((void *)this->value_bytes, (void *)this->reset_value_bytes, this->nb_bytes);
+  }
 }
 
 void vp::reg_1::init(vp::component *top, std::string name, uint8_t *reset_val)
