@@ -55,13 +55,12 @@ class Runner(Platform):
 
             self.gen_flash_stimuli = True
 
-
         if self.get_json().get('**/rom') != None:
 
             self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/chip/name').get())
 
             if os.path.exists(self.boot_binary):
-                self.gen_rom_stimuli = False
+                self.gen_rom_stimuli = True
 
 
 
@@ -77,12 +76,10 @@ class Runner(Platform):
             comps = comps_conf.get_dict()
 
         if self.gen_rom_stimuli:
-
             stim = runner.stim_utils.stim(verbose=self.get_json().get_child_bool('**/runner/verbose'))
             stim.add_binary(self.boot_binary)
             stim.add_area(self.get_json().get_child_int('**/rom/base'), self.get_json().get_child_int('**/rom/size'))
             stim.gen_stim_bin('stimuli/rom.bin')
-
 
 
         if self.gen_flash_stimuli:
