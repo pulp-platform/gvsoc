@@ -47,12 +47,21 @@ class Runner(Platform):
     def __prepare_env(self):
 
         self.gen_flash_stimuli = False
+        self.gen_rom_stimuli = False
 
         comps_conf = self.get_json().get('**/fs/files')
 
         if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
 
             self.gen_flash_stimuli = True
+
+
+        if self.get_json().get('**/rom') != None:
+
+            self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/chip/name').get())
+
+            if os.path.exists(self.boot_binary):
+                self.gen_rom_stimuli = False
 
 
 
@@ -67,12 +76,10 @@ class Runner(Platform):
         if comps_conf is not None:
             comps = comps_conf.get_dict()
 
-        if self.get_json().get('**/rom') != None:
-
-            boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/chip/name').get())
+        if self.gen_rom_stimuli:
 
             stim = runner.stim_utils.stim(verbose=self.get_json().get_child_bool('**/runner/verbose'))
-            stim.add_binary(boot_binary)
+            stim.add_binary(self.boot_binary)
             stim.add_area(self.get_json().get_child_int('**/rom/base'), self.get_json().get_child_int('**/rom/size'))
             stim.gen_stim_bin('stimuli/rom.bin')
 
@@ -127,7 +134,7 @@ class Runner(Platform):
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
-        if self.get_json().get('**/rom') != None:
+        if self.gen_rom_stimuli:
             self.get_json().get('**/soc/rom').set('stim_file', 'stimuli/rom.bin')
 
         if self.get_json().get('**/efuse') is not None:
