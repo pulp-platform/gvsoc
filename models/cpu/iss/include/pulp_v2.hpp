@@ -1065,13 +1065,13 @@ static inline iss_insn_t *pv_shufflei1_b_sci_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *pv_shufflei2_b_sci_exec(iss_t *iss, iss_insn_t *insn)
 {
-  REG_SET(0, LIB_CALL2(lib_VEC_SHUFFLEI1_SCI_8, REG_GET(0), UIM_GET(0)));
+  REG_SET(0, LIB_CALL2(lib_VEC_SHUFFLEI2_SCI_8, REG_GET(0), UIM_GET(0)));
   return insn->next;
 }
 
 static inline iss_insn_t *pv_shufflei3_b_sci_exec(iss_t *iss, iss_insn_t *insn)
 {
-  REG_SET(0, LIB_CALL2(lib_VEC_SHUFFLEI1_SCI_8, REG_GET(0), UIM_GET(0)));
+  REG_SET(0, LIB_CALL2(lib_VEC_SHUFFLEI3_SCI_8, REG_GET(0), UIM_GET(0)));
   return insn->next;
 }
 

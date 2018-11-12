@@ -242,6 +242,7 @@ void apb_soc_ctrl::reset()
   pmu_bypass = 0;
   cluster_power = false;
   cluster_clock_gate = false;
+  this->confreg_soc_itf.sync(0);
 }
 
 void apb_soc_ctrl::start()

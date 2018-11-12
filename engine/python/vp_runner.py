@@ -84,13 +84,18 @@ class Runner(Platform):
 
         if self.gen_flash_stimuli:
 
+            encrypted = self.get_json().get_child_str('**/efuse/encrypted')
+            aes_key = self.get_json().get_child_str('**/efuse/aes_key')
+            aes_iv = self.get_json().get_child_str('**/efuse/aes_iv')
+
             if plp_flash_stimuli.genFlashImage(
                 raw_stim=self.get_flash_preload_file(),
                 bootBinary=self.get_json().get('**/loader/binaries').get_elem(0).get(),
                 comps=comps,
                 verbose=self.tree.get('**/runner/verbose').get(),
                 archi=self.tree.get('**/pulp_chip_family').get(),
-                flashType=self.tree.get('**/runner/flash_type').get()):
+                flashType=self.tree.get('**/runner/flash_type').get(),
+                encrypt=encrypted, aesKey=aes_key, aesIv=aes_iv):
                 return -1
 
         if self.get_json().get('**/efuse') is not None:
