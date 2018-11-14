@@ -660,7 +660,7 @@ vp::io_req_status_e rtc::req(void *__this, vp::io_req *req)
   uint64_t size = req->get_size();
   bool is_write = req->get_is_write();
 
-  _this->trace.msg("Rtc access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+  _this->trace.msg("RTC access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
   if (size != 4) return vp::IO_REQ_INVALID;
 
@@ -683,7 +683,7 @@ vp::io_req_status_e rtc::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 
 error:
-  _this->get_trace()->msg("RTC invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+  _this->warning.force_warning("RTC invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
   return vp::IO_REQ_INVALID;
 }
