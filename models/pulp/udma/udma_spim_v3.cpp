@@ -312,7 +312,7 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
       if (this->periph->cmd_pending_bits <= 0)
       {
         unsigned int bits = ((data >> SPI_CMD_TX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_TX_DATA_SIZE_WIDTH)-1))+1;
-        this->periph->byte_align = (data >> SPI_CMD_TX_DATA_BYTE_ALIGN_OFFSET) & 1;
+        //this->periph->byte_align = (data >> SPI_CMD_TX_DATA_BYTE_ALIGN_OFFSET) & 1;
         this->periph->qpi = ARCHI_REG_FIELD_GET(data, SPI_CMD_TX_DATA_QPI_OFFSET, 1);
         trace.msg("Received command TX_DATA (size: %d, byte_align: %d, qpi: %d)\n", bits, this->periph->byte_align, this->periph->qpi);
         this->periph->cmd_pending_bits = bits;
@@ -342,7 +342,7 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
         unsigned int size = ((data >> SPI_CMD_RX_DATA_SIZE_OFFSET) & ((1<<SPI_CMD_RX_DATA_SIZE_WIDTH)-1))+1;
         unsigned int bitsword = ((data >> SPI_CMD_RX_DATA_BITSWORD_OFFSET) & ((1<<SPI_CMD_RX_DATA_BITSWORD_WIDTH)-1))+1;
         unsigned int wordtrans = ((data >> SPI_CMD_RX_DATA_WORDTRANS_OFFSET) & ((1<<SPI_CMD_RX_DATA_WORDTRANS_WIDTH)-1))+1;
-        this->periph->byte_align = (data >> SPI_CMD_RX_DATA_BYTE_ALIGN_OFFSET) & 1;
+        //this->periph->byte_align = (data >> SPI_CMD_RX_DATA_BYTE_ALIGN_OFFSET) & 1;
         this->periph->qpi = ARCHI_REG_FIELD_GET(data, SPI_CMD_RX_DATA_QPI_OFFSET, 1);
         trace.msg("Received command RX_DATA (size: %d, byte_align: %d, qpi: %d, bitsword: %d, wordtrans: %d)\n", size, periph->byte_align, this->periph->qpi, bitsword, wordtrans);
         this->periph->cmd_pending_bits = size*bitsword;
