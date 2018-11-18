@@ -31,8 +31,8 @@ Hyper_periph_v1::Hyper_periph_v1(udma *top, int id, int itf_id) : Udma_periph(to
 
   top->traces.new_trace(itf_name, &trace, vp::DEBUG);
 
-  channel0 = new Hyper_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
-  channel1 = new Hyper_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
+  channel0 = new Hyper_rx_channel(top, this, UDMA_EVENT_ID(id), itf_name + "_rx");
+  channel1 = new Hyper_tx_channel(top, this, UDMA_EVENT_ID(id) + 1, itf_name + "_tx");
 
   this->hyper_itf.set_sync_cycle_meth(&Hyper_periph_v1::rx_sync);
   top->new_master_port(this, itf_name, &this->hyper_itf);

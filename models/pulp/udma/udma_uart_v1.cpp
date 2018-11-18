@@ -31,8 +31,8 @@ Uart_periph_v1::Uart_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top,
 
   top->traces.new_trace(itf_name, &trace, vp::DEBUG);
 
-  channel0 = new Uart_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
-  channel1 = new Uart_tx_channel(top, this, UDMA_CHANNEL_ID(id) + 1, itf_name + "_tx");
+  channel0 = new Uart_rx_channel(top, this, UDMA_EVENT_ID(id), itf_name + "_rx");
+  channel1 = new Uart_tx_channel(top, this, UDMA_EVENT_ID(id) + 1, itf_name + "_tx");
 
   top->new_master_port(this, itf_name, &uart_itf);
 

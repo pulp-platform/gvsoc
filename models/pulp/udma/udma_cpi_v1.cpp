@@ -31,7 +31,7 @@ Cpi_periph_v1::Cpi_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top, i
 
   top->traces.new_trace(itf_name, &trace, vp::DEBUG);
 
-  channel0 = new Cpi_rx_channel(top, this, UDMA_CHANNEL_ID(id), itf_name + "_rx");
+  channel0 = new Cpi_rx_channel(top, this, UDMA_EVENT_ID(id), itf_name + "_rx");
 
   top->new_slave_port(this, itf_name, &cpi_itf);
 
