@@ -531,8 +531,8 @@ int padframe::build()
         traces.new_trace_event(name + "/data_2", &group->data_2_trace, 1);
         traces.new_trace_event(name + "/data_3", &group->data_3_trace, 1);
         vp::config *nb_cs_config = config->get("nb_cs");
-        int nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
-        for (int i=0; i<nb_cs; i++)
+        group->nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
+        for (int i=0; i<group->nb_cs; i++)
         {
           vp::trace *trace = new vp::trace;
           traces.new_trace_event(name + "/cs_" + std::to_string(i), trace, 4);
@@ -614,8 +614,8 @@ int padframe::build()
         this->groups.push_back(group);
         traces.new_trace_event(name + "/data", &group->data_trace, 8);
         vp::config *nb_cs_config = config->get("nb_cs");
-        int nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
-        for (int i=0; i<nb_cs; i++)
+        group->nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
+        for (int i=0; i<group->nb_cs; i++)
         {
           vp::trace *trace = new vp::trace;
           traces.new_trace_event(name + "/cs_" + std::to_string(i), trace, 1);
