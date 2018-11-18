@@ -32,13 +32,13 @@ void Udma_rx_channel::push_data(uint8_t *data, int size)
 {
   if (current_cmd == NULL)
   {
-    top->warning.warning("Received data while there is no ready command\n");
+    top->warning.force_warning("Received data while there is no ready command\n");
     return;
   }
 
   if (size + this->pending_byte_index > 4)
   {
-    top->warning.warning("Trying to push more than 4 bytes from peripheral to udma core\n");
+    top->warning.force_warning("Trying to push more than 4 bytes from peripheral to udma core\n");
     return;
   }
 

@@ -34,7 +34,10 @@
 #define CMD_QIOR          0xEB
 #define CMD_QIOR_4B       0xEC
 #define CMD_READ          0x0C
+#define CMD_READ_SIMPLE   0x03
 #define CMD_SND_MODE_BYTE 0x0A
+#define CMD_RESET_ENABLE  0x66
+#define CMD_RESET         0x99
 
 class spiflash;
 
@@ -140,6 +143,9 @@ static command_t commands_descs[] = {
   { CMD_QIOR         , "quad IO read"        , NULL                          },
   { CMD_QIOR_4B      , "quad IO read"        , &spiflash::quad_read          },
   { CMD_READ         , "IO read"             , &spiflash::single_read        },
+  { CMD_READ_SIMPLE  , "IO read"             , &spiflash::single_read        },
+  { CMD_RESET_ENABLE , "Reset enable"        , NULL                          },
+  { CMD_RESET        , "Reset"               , NULL                          },
 };
 
 
@@ -173,7 +179,7 @@ void spiflash::quad_read(void *__this, int data_0, int data_1, int data_2, int d
     if (_this->pending_bits % 8 == 0)
     {
       if (_this->current_addr >= _this->size) {
-        _this->warning.warning("Received out-of-bound request (address: 0x%x, memSize: 0x%x)\n", _this->current_addr, _this->size);
+        _this->warning.force_warning("Received out-of-bound request (address: 0x%x, memSize: 0x%x)\n", _this->current_addr, _this->size);
         return;
       }
 
@@ -203,7 +209,7 @@ void spiflash::single_read(void *__this, int data_0, int data_1, int data_2, int
     if (_this->pending_bits % 8 == 0)
     {
       if (_this->current_addr >= _this->size) {
-        _this->warning.warning("Received out-of-bound request (address: 0x%x, memSize: 0x%x)\n", _this->current_addr, _this->size);
+        _this->warning.force_warning("Received out-of-bound request (address: 0x%x, memSize: 0x%x)\n", _this->current_addr, _this->size);
         return;
       }
 
@@ -303,7 +309,7 @@ void spiflash::handle_data(int data_0, int data_1, int data_2, int data_3)
       this->pending_command = this->commands[this->pending_command_id];
       if (this->pending_command == NULL)
       {
-        this->warning.warning("Received unknown command (cmd: 0x%x)\n", this->pending_command_id);
+        this->warning.force_warning("Received unknown command (cmd: 0x%x)\n", this->pending_command_id);
         this->start_command();
         return;
       }

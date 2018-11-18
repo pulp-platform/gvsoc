@@ -75,7 +75,6 @@ void Spim_periph_v3::slave_sync(void *__this, int data_0, int data_1, int data_2
 
 void Spim_periph_v3::check_state()
 {
-
   if ((this->spi_tx_pending_bits > 0 || (!this->is_full_duplex && this->spi_rx_pending_bits > 0)) && !this->pending_spi_word_event->is_enqueued())
   {
     int latency = 1;
@@ -251,7 +250,7 @@ void Spim_periph_v3::handle_spi_pending_word(void *__this, vp::clock_event *even
 
     if (!_this->qspim_itf.is_bound())
     {
-      _this->top->get_trace()->warning("Trying to receive from SPIM interface while it is not connected\n");
+      _this->top->warning.force_warning("Trying to receive from SPIM interface while it is not connected\n");
     }
     else
     {
@@ -321,7 +320,7 @@ void Spim_periph_v3::handle_spi_pending_word(void *__this, vp::clock_event *even
 
     if (!_this->qspim_itf.is_bound())
     {
-      _this->top->get_trace()->warning("Trying to send to SPIM interface while it is not connected\n");
+      _this->top->warning.force_warning("Trying to send to SPIM interface while it is not connected\n");
     }
     else
     {
@@ -368,7 +367,7 @@ void Spim_v3_cmd_channel::handle_eot(bool cs_keep)
   if (!cs_keep)
   {
     if (!periph->qspim_itf.is_bound())
-      trace.warning("Trying to set chip select to unbound QSPIM interface\n");
+      periph->top->warning.force_warning("Trying to set chip select to unbound QSPIM interface\n");
     else
     {
       trace.msg("Deactivating chip select\n");
@@ -380,6 +379,23 @@ void Spim_v3_cmd_channel::handle_eot(bool cs_keep)
   {
     this->top->trigger_event(this->periph->eot_event);
   }
+}
+
+bool Spim_periph_v3::push_rx_to_spi(int nb_bits, int qpi, int lsb_first, int bitsword, int wordtrans)
+{
+  if (this->spi_tx_pending_bits == 0)
+  {
+    this->top->get_trace()->msg("Forwarding read data to input buffer (nb_bits: %d, qpi: %d, lsb_first: %d, bitsword: %d, wordtrans: %d)\n", nb_bits, lsb_first, bitsword, wordtrans);
+
+    this->spi_qpi = this->qpi;
+    this->spi_lsb_first = this->lsb_first;
+    this->spi_bitsword = this->bitsword;
+    this->spi_wordtrans = this->wordtrans;
+    this->spi_rx_pending_bits = nb_bits;
+
+    return true;
+  }
+  return false;
 }
 
 bool Spim_periph_v3::push_tx_to_spi(uint32_t value, int nb_bits, int qpi, int lsb_first, int bitsword, int wordtrans)
@@ -410,9 +426,13 @@ bool Spim_v3_cmd_channel::push_tx_to_spi(uint32_t value, int nb_bits)
   return this->periph->push_tx_to_spi(value, nb_bits, this->qpi, this->lsb_first, this->bitsword, this->wordtrans);
 }
 
+bool Spim_v3_cmd_channel::push_rx_to_spi(int nb_bits)
+{
+  return this->periph->push_rx_to_spi(nb_bits, this->qpi, this->lsb_first, this->bitsword, this->wordtrans);
+}
+
 void Spim_v3_cmd_channel::handle_data(uint32_t data)
 {
-
   if (this->periph->cmd_pending_bits <= 0)
   {
     this->command = data >> SPI_CMD_ID_OFFSET;
@@ -435,7 +455,7 @@ void Spim_v3_cmd_channel::handle_data(uint32_t data)
       this->cs = (data >> SPI_CMD_SOT_CS_OFFSET) & ((1<<SPI_CMD_SOT_CS_WIDTH)-1);
       trace.msg("Handling command SOT (cs: %d)\n", this->cs);
       if (!periph->qspim_itf.is_bound())
-        trace.warning("Trying to set chip select to unbound QSPIM interface\n");
+        periph->top->warning.force_warning("Trying to set chip select to unbound QSPIM interface\n");
       else
         periph->qspim_itf.cs_sync(this->cs, 1);
       break;
@@ -498,18 +518,21 @@ void Spim_v3_cmd_channel::handle_data(uint32_t data)
         this->periph->qpi = ARCHI_REG_FIELD_GET(data, SPI_CMD_RX_DATA_QPI_OFFSET, 1);
         trace.msg("Handling command RX_DATA (raw: 0x%x, size: %d, lsb_first: %d, qpi: %d, bitsword: %d, wordtrans: %d)\n", data, size, periph->lsb_first, this->periph->qpi, this->periph->bitsword, this->periph->wordtrans);
         this->periph->cmd_pending_bits = size*(this->periph->bitsword + 1);
-        this->periph->spi_rx_pending_bits = size*(this->periph->bitsword + 1);
-
-        this->periph->waiting_rx = true;
 
         this->periph->rx_bit_offset = 0;
         this->periph->rx_counter_bits = 0;
         this->periph->rx_counter_transf = 0;
+      }
 
-        this->periph->spi_qpi = this->periph->qpi;
-        this->periph->spi_lsb_first = this->periph->lsb_first;
-        this->periph->spi_bitsword = this->periph->bitsword;
-        this->periph->spi_wordtrans = this->periph->wordtrans;
+      if (!this->push_rx_to_spi(this->periph->cmd_pending_bits))
+      {
+        handled_all = false;
+        this->periph->waiting_tx_flush = true;
+      }
+      else
+      {
+        this->periph->cmd_pending_bits = 0;
+        this->periph->waiting_rx = true;
       }
 
       //int size = (bits+7)/8;
@@ -629,7 +652,7 @@ void Spim_v3_cmd_channel::handle_data(uint32_t data)
     }
 
     default:
-      trace.warning("Received unknown SPI command: %x\n", command);
+      periph->top->warning.force_warning("Received unknown SPI command: %x\n", command);
   }
 
   #if 0

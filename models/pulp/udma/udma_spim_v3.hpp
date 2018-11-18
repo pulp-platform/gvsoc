@@ -94,6 +94,7 @@ private:
   void handle_eot(bool cs_keep);
   void handle_data(uint32_t data);
   bool push_tx_to_spi(uint32_t value, int nb_bits);
+  bool push_rx_to_spi(int nb_bits);
 
   vp::clock_event *pending_word_event;
 
@@ -129,6 +130,7 @@ public:
   static void handle_spi_pending_word(void *__this, vp::clock_event *event);
   void check_state();
   bool push_tx_to_spi(uint32_t value, int nb_bits, int qpi, int lsb_first, int bitsword, int wordtrans);
+  bool push_rx_to_spi(int nb_bits, int qpi, int lsb_first, int bitsword, int wordtrans);
 
 protected:
   vp::clock_event *pending_spi_word_event;
