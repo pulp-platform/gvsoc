@@ -197,14 +197,14 @@ void spiflash::single_read(void *__this, int data_0, int data_1, int data_2, int
 
   _this->enqueue_bits(data_0, data_1, data_2, data_3);
 
-  if (_this->pending_bits == 32)
+  if (_this->pending_bits == 24)
   {
-    _this->current_addr = _this->pending_word;
+    _this->current_addr = _this->pending_word & 0xffffff;
     _this->read = true;
     _this->trace.msg("Received address (address: 0x%x)\n", _this->current_addr);
   }
 
-  if (_this->pending_bits >= 32)
+  if (_this->pending_bits >= 24)
   {
     if (_this->pending_bits % 8 == 0)
     {
