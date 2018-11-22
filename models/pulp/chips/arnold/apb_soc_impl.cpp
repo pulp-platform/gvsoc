@@ -42,6 +42,7 @@ private:
 
   void reset();
   static void bootsel_sync(void *__this, int value);
+  static void confreg_ext_sync(void *__this, uint32_t value);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -50,9 +51,14 @@ private:
   vp::wire_master<int>  event_itf;
   vp::wire_slave<int>   bootsel_itf;
 
+  vp::wire_master<uint32_t> confreg_soc_itf;
+  vp::wire_slave<uint32_t> confreg_ext_itf;
+
   uint32_t core_status;
   uint32_t bootaddr;
   int bootsel;
+
+  vp::reg_32     jtag_reg_ext;
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
@@ -111,6 +117,17 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
     }
     else *(uint32_t *)data = _this->bootaddr;
   }
+  else if (offset == APB_SOC_JTAG_REG)
+  {
+    if (is_write)
+    {
+      _this->confreg_soc_itf.sync(*(uint32_t *)data);
+    }
+    else
+    {
+      *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
+    }
+  }
   else
   {
 
@@ -126,6 +143,12 @@ void apb_soc_ctrl::bootsel_sync(void *__this, int value)
   _this->bootsel = value;
 }
 
+void apb_soc_ctrl::confreg_ext_sync(void *__this, uint32_t value)
+{
+  apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
+  _this->jtag_reg_ext.set(value);
+}
+
 int apb_soc_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -139,8 +162,16 @@ int apb_soc_ctrl::build()
 
   new_master_port("event", &event_itf);
 
+  confreg_ext_itf.set_sync_meth(&apb_soc_ctrl::confreg_ext_sync);
+  this->new_slave_port("confreg_ext", &this->confreg_ext_itf);
+
+  this->new_master_port("confreg_soc", &this->confreg_soc_itf);
+
+  this->new_reg("jtag_reg_ext", &this->jtag_reg_ext, 0, false);
+
   core_status = 0;
   this->bootsel = 0;
+  this->jtag_reg_ext.set(0);
 
   return 0;
 }

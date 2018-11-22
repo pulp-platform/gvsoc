@@ -271,7 +271,14 @@ void adv_dbg_unit::update_dr()
   if (tap.instr == CONFREG_INSTR)
   {
     this->tap.confreg_out_reg = this->tap.confreg_soc;
-    this->confreg_ext_itf.sync(this->tap.confreg_reg);
+    if (this->confreg_ext_itf.is_bound())
+    {
+      this->confreg_ext_itf.sync(this->tap.confreg_reg);
+    }
+    else
+    {
+      this->warning.force_warning("Writing to JTAG reg while it is not connected\n");
+    }
   }
   else if (tap.instr == USER_INSTR)
   {
