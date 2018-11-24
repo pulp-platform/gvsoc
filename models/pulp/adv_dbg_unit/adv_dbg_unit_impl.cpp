@@ -129,6 +129,8 @@ private:
   int tdi;
   int tdo;
 
+  int confreg_length;
+
   vp::io_master io_itf;
 };
 
@@ -324,7 +326,7 @@ static uint32_t adbg_compute_crc(uint32_t crc_in, uint32_t data_in, int length_b
 void adv_dbg_unit::shift_dr()
 {
   if (tap.instr == CONFREG_INSTR) {
-    tap.confreg_reg = (tap.confreg_reg >> 1) | (tdi << 3);
+    tap.confreg_reg = (tap.confreg_reg >> 1) | (tdi << (this->confreg_length - 1));
     tdo = tap.confreg_out_reg & 1;
     tap.confreg_out_reg >>= 1;
     //vpi_out = tap.id_reg & 1;
@@ -585,6 +587,12 @@ int adv_dbg_unit::build()
 {
   traces.new_trace("trace", &trace, vp::TRACE);
   traces.new_trace("debug", &debug, vp::DEBUG);
+
+  this->confreg_length = 4;
+  if (get_js_config()->get("confreg_length") != NULL)
+  {
+    this->confreg_length = get_js_config()->get_child_int("confreg_length");
+  }
 
   this->new_master_port("confreg_ext", &this->confreg_ext_itf);
 
