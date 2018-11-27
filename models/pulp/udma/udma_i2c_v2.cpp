@@ -47,6 +47,8 @@ void I2c_periph_v2::reset()
   this->clkdiv = 0;
   this->repeat_count = 0;
   this->waiting_rx = false;
+  this->gen_ack = false;
+  this->waiting_pending_bits = true;
 }
 
 
@@ -105,22 +107,30 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 
     if (_this->periph->prev_scl)
     {
-      int bit = _this->periph->pending_rx_bit;
-
-      _this->periph->pending_value = (_this->periph->pending_value << 1) | bit;
-      _this->periph->pending_value_bits--;
-
       _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
 
-      _this->periph->trace.msg("Sampled bit (value: 0x%x, pending_value: 0x%x, pending_word_bits: %d)\n", bit, _this->periph->pending_value & 0xff, _this->periph->pending_value_bits);
-
-      if (_this->periph->pending_value_bits == 0)
+      if (_this->periph->gen_ack)
       {
-        _this->periph->trace.msg("Sampled byte, pushing to channel (value: 0x%x)\n", _this->periph->pending_value & 0xff);
-
-        (static_cast<I2c_rx_channel *>(_this->periph->channel0))->push_data((uint8_t *)&_this->periph->pending_value, 1);
-        
         _this->periph->waiting_rx = false;
+        _this->periph->gen_ack = false;
+      }
+      else
+      {
+        int bit = _this->periph->pending_rx_bit;
+
+        _this->periph->pending_value = (_this->periph->pending_value << 1) | bit;
+        _this->periph->pending_value_bits--;
+
+        _this->periph->trace.msg("Sampled bit (value: 0x%x, pending_value: 0x%x, pending_word_bits: %d)\n", bit, _this->periph->pending_value & 0xff, _this->periph->pending_value_bits);
+
+        if (_this->periph->pending_value_bits == 0)
+        {
+          _this->periph->trace.msg("Sampled byte, pushing to channel (value: 0x%x)\n", _this->periph->pending_value & 0xff);
+
+          (static_cast<I2c_rx_channel *>(_this->periph->channel0))->push_data((uint8_t *)&_this->periph->pending_value, 1);
+          
+          _this->periph->gen_ack = true;
+        }
       }
     }
   }
@@ -165,11 +175,13 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
           break;
         case I2C_CMD_START:
           _this->periph->state = I2C_PERIPH_STATE_START0;
+          _this->periph->waiting_pending_bits = false;
           bit = 1;
           scl = 1;
           break;
         case I2C_CMD_STOP:
           _this->periph->state = I2C_PERIPH_STATE_STOP0;
+          _this->periph->waiting_pending_bits = false;
           bit = 0;
           scl = 0;
           break;
@@ -178,6 +190,7 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
           _this->periph->pending_value_bits = 8;
           break;
         case I2C_CMD_RD_NACK:
+        case I2C_CMD_RD_ACK:
           _this->periph->state = I2C_PERIPH_STATE_WAIT_CMD;
           _this->periph->waiting_rx = true;
           _this->periph->pending_value_bits = 8;
@@ -226,7 +239,7 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 
       if (_this->periph->pending_value_bits == 0)
       {
-        _this->periph->state = I2C_PERIPH_STATE_WAIT_CMD;
+        _this->periph->state = I2C_PERIPH_STATE_ACK0;
         _this->pending_bits -= 8;
         _this->pending_word = _this->pending_word >> 8;
       }
@@ -234,6 +247,18 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
       {
         _this->periph->state = I2C_PERIPH_STATE_WR0;
       }
+    }
+    else if (_this->periph->state == I2C_PERIPH_STATE_ACK0)
+    {
+      scl = 0;
+      bit = 1;
+      _this->periph->state = I2C_PERIPH_STATE_ACK1;
+    }
+    else if (_this->periph->state == I2C_PERIPH_STATE_ACK1)
+    {
+      scl = 1;
+      bit = 1;
+      _this->periph->state = I2C_PERIPH_STATE_WAIT_CMD;
     }
     else if (_this->periph->state == I2C_PERIPH_STATE_WAIT_RPT)
     {
@@ -253,12 +278,14 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
     else if (_this->periph->state == I2C_PERIPH_STATE_START0)
     {
       _this->periph->state = I2C_PERIPH_STATE_WAIT_CMD;
+      _this->periph->waiting_pending_bits = true;
       bit = 0;
       scl = 1;
     }
     else if (_this->periph->state == I2C_PERIPH_STATE_STOP1)
     {
       _this->periph->state = I2C_PERIPH_STATE_WAIT_CMD;
+      _this->periph->waiting_pending_bits = true;
       bit = 1;
       scl = 1;
     }
@@ -292,7 +319,21 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
 
 void I2c_tx_channel::check_state()
 {
-  if ((this->pending_bits != 0 || this->periph->state != I2C_PERIPH_STATE_WAIT_CMD || this->periph->waiting_rx) && !pending_word_event->is_enqueued())
+  if (pending_word_event->is_enqueued())
+    return;
+
+  bool enqueue = false;
+
+  if (this->pending_bits != 0)
+    enqueue = true;
+
+  if (!this->periph->waiting_pending_bits)
+    enqueue = true;
+
+  if (this->periph->waiting_rx)
+    enqueue = true;
+
+  if (enqueue)
   {
     int latency = 1;
     int64_t cycles = this->top->get_clock()->get_cycles();
