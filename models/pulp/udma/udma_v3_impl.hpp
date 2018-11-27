@@ -232,6 +232,8 @@ typedef enum
   I2C_PERIPH_STATE_WAIT_CFG,
   I2C_PERIPH_STATE_WR0,
   I2C_PERIPH_STATE_WR1,
+  I2C_PERIPH_STATE_ACK0,
+  I2C_PERIPH_STATE_ACK1,
   I2C_PERIPH_STATE_WAIT_RPT,
   I2C_PERIPH_STATE_WAIT_RPT_CMD,
   I2C_PERIPH_STATE_RD,
@@ -259,6 +261,8 @@ protected:
   int clkdiv;
   int repeat_count;
   bool waiting_rx;
+  bool gen_ack;
+  bool waiting_pending_bits;
   unsigned int repeat_command;
   int pending_rx_bit;
   int prev_sda;
