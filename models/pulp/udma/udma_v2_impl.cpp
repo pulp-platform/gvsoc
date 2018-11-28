@@ -426,6 +426,7 @@ void udma::event_handler(void *__this, vp::clock_event *event)
     int err = _this->l2_itf.req(req);
     if (err == vp::IO_REQ_OK)
     {
+      _this->l2_itf.req_del(req);
     }
     else
     {
