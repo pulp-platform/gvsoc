@@ -197,10 +197,10 @@ string vp::time_engine::run()
 void vp::time_engine::start()
 {
 
-  js::config *item_conf = this->get_js_config()->get("**/gvsoc/use_external_bridge");
-  this->use_external_bridge = item_conf != NULL && item_conf->get_bool();
+  js::config *item_conf = this->get_js_config()->get("**/gvsoc/no_exit");
+  this->no_exit = item_conf != NULL && item_conf->get_bool();
 
-  if (this->use_external_bridge)
+  if (this->no_exit)
   {
     // In case the vp is connected to an external bridge, prevent the platform
     // from exiting in case there is no more events.

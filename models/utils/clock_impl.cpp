@@ -78,7 +78,7 @@ void Clock::start()
 {
   this->clock_itf.set_frequency(this->get_clock()->get_frequency() / 2);
 
-  this->raise_edge();
+  this->event_enqueue(this->event, 1);
 }
 
 extern "C" void *vp_constructor(const char *config)

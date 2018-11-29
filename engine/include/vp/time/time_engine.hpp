@@ -96,7 +96,7 @@ namespace vp {
     int64_t time = 0;
     int stop_status = -1;
     int retain_count = 0;
-    bool use_external_bridge;
+    bool no_exit;
 
 #ifdef __VP_USE_SYSTEMC
     sc_event sync_event;
@@ -144,7 +144,7 @@ namespace vp {
   // to the main python thread which will take care of stopping the engine.
   inline void vp::time_engine::stop_engine(bool force)
   {
-    if (force || !this->use_external_bridge)
+    if (force || !this->no_exit)
     {
       // In case the vp is connected to an external bridge, prevent the platform
       // from exiting unless a ctrl-c is hit

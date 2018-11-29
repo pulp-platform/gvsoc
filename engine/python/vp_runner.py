@@ -141,6 +141,9 @@ class Runner(Platform):
             self.get_json().get('**/jtag_proxy').set('active', True)
             self.get_json().get('gvsoc').set('use_external_bridge', True)
 
+            if not self.get_json().get_child_bool('**/runner/wait_pulp_run'):
+                self.get_json().get('gvsoc').set('no_exit', True)
+
         if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode') != 'rom' and self.get_json().get_child_str('**/runner/boot-mode') != 'jtag':
             binaries = self.get_json().get('**/loader/binaries').get_dict()
             for binary in binaries:
