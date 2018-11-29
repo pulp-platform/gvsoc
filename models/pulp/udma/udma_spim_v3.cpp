@@ -47,22 +47,26 @@ Spim_periph_v3::Spim_periph_v3(udma *top, int id, int itf_id) : Udma_periph(top,
   pending_spi_word_event = top->event_new(this, Spim_periph_v3::handle_spi_pending_word);
 }
 
-void Spim_periph_v3::reset()
+void Spim_periph_v3::reset(bool active)
 {
-  Udma_periph::reset();
-  this->waiting_rx = false;
-  this->waiting_tx = false;
-  this->waiting_tx_flush = false;
-  this->is_full_duplex = false;
-  this->cmd_pending_bits = 0;
-  this->nb_received_bits = 0;
-  this->rx_pending_word = 0x57575757;
-  this->tx_pending_word = 0x57575757;
-  this->spi_rx_pending_bits = 0;
-  this->clkdiv = 0;
-  this->next_bit_cycle = -1;
-  this->spi_tx_pending_bits = 0;
-  this->tx_pending_bits = 0;
+  Udma_periph::reset(active);
+
+  if (active)
+  {
+    this->waiting_rx = false;
+    this->waiting_tx = false;
+    this->waiting_tx_flush = false;
+    this->is_full_duplex = false;
+    this->cmd_pending_bits = 0;
+    this->nb_received_bits = 0;
+    this->rx_pending_word = 0x57575757;
+    this->tx_pending_word = 0x57575757;
+    this->spi_rx_pending_bits = 0;
+    this->clkdiv = 0;
+    this->next_bit_cycle = -1;
+    this->spi_tx_pending_bits = 0;
+    this->tx_pending_bits = 0;
+  }
 }
 
   
@@ -156,11 +160,15 @@ void Spim_v3_tx_channel::handle_data(uint32_t data)
 
 
 
-void Spim_v3_tx_channel::reset()
+void Spim_v3_tx_channel::reset(bool active)
 {
-  Udma_tx_channel::reset();
-  this->has_tx_pending_word = false;
-  this->periph->spi_tx_pending_bits = 0;
+  Udma_tx_channel::reset(active);
+
+  if (active)
+  {
+    this->has_tx_pending_word = false;
+    this->periph->spi_tx_pending_bits = 0;
+  }
 }
 
 
@@ -686,15 +694,23 @@ vp::io_req_status_e Spim_periph_v3::custom_req(vp::io_req *req, uint64_t offset)
   return this->channel2->req(req, offset);
 }
 
-void Spim_v3_cmd_channel::reset()
+void Spim_v3_cmd_channel::reset(bool active)
 {
-  Udma_tx_channel::reset();
-  this->has_tx_pending_word = false;
+  Udma_tx_channel::reset(active);
+
+  if (active)
+  {
+    this->has_tx_pending_word = false;
+  }
 }
 
-void Spim_v3_rx_channel::reset()
+void Spim_v3_rx_channel::reset(bool active)
 {
-  Udma_rx_channel::reset();
-  this->current_byte = 0;
-  this->current_bit = 0;
+  Udma_rx_channel::reset(active);
+
+  if (active)
+  {
+    this->current_byte = 0;
+    this->current_bit = 0;
+  }
 }

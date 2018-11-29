@@ -45,7 +45,7 @@ public:
 
   int build();
   void start();
-  void reset();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -267,14 +267,16 @@ int cluster_ctrl::build()
 
 void cluster_ctrl::start()
 {
-  this->reset();
 }
 
-void cluster_ctrl::reset()
+void cluster_ctrl::reset(bool active)
 {
-  this->dbg_halt_mask = 0;
-  this->dbg_halt_status = 0;
-  this->dbg_halt_status_sync = 0;
+  if (active)
+  {
+    this->dbg_halt_mask = 0;
+    this->dbg_halt_status = 0;
+    this->dbg_halt_status_sync = 0;
+  }
 }
 
 extern "C" void *vp_constructor(const char *config)

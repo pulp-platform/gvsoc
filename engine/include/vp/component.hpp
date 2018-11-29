@@ -57,7 +57,7 @@ namespace vp {
 
     public:
       void init(vp::component *top, std::string name, int bits, uint8_t *value, uint8_t *reset_val);
-      void reset();
+      void reset(bool active);
 
       inline void set(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
       inline void set_1(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
@@ -161,7 +161,7 @@ namespace vp {
     virtual void start() {}
     virtual void stop() {}
     virtual void pre_reset() {}
-    virtual void reset() {}
+    virtual void reset(bool active) {}
     virtual void load() {}
     virtual void elab();
     virtual string run() { return "error"; }
@@ -204,7 +204,7 @@ namespace vp {
 
     void pre_start_all();
 
-    void reset_all();
+    void reset_all(bool active);
 
     void new_master_port(std::string name, master_port *port);
 

@@ -47,7 +47,7 @@ private:
   static void ref_clock_sync(void *__this, bool value);
 
   void sync();
-  void reset();
+  void reset(bool active);
   void depack_config(int counter, uint32_t configuration);
   void timer_reset(int counter);
   vp::io_req_status_e handle_configure(int counter, uint32_t *data, unsigned int size, bool is_write);
@@ -382,22 +382,26 @@ int timer::build()
   return 0;
 }
 
-void timer::reset()
+void timer::reset(bool active)
 {
-  for (int i=0; i<2; i++)
+  if (active)
   {
-    value[i] = 0;
-    config[i] = 0;
-    compare_value[i] = 0;
-    depack_config(i, config[i]);
+    for (int i=0; i<2; i++)
+    {
+      value[i] = 0;
+      config[i] = 0;
+      compare_value[i] = 0;
+      depack_config(i, config[i]);
+    }
   }
-
-  sync_time = get_cycles();
+  else
+  {
+    sync_time = get_cycles();
+  }
 }
 
 void timer::start()
 {
-  reset();
 }
 
 extern "C" void *vp_constructor(const char *config)

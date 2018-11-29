@@ -36,12 +36,12 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
+
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
 private:
-
-  void reset();
 
   static void confreg_ext_sync(void *__this, uint32_t value);
 
@@ -237,17 +237,19 @@ int apb_soc_ctrl::build()
   return 0;
 }
 
-void apb_soc_ctrl::reset()
+void apb_soc_ctrl::reset(bool active)
 {
-  pmu_bypass = 0;
-  cluster_power = false;
-  cluster_clock_gate = false;
-  this->confreg_soc_itf.sync(0);
+  if (active)
+  {
+    pmu_bypass = 0;
+    cluster_power = false;
+    cluster_clock_gate = false;
+    this->confreg_soc_itf.sync(0);
+  }
 }
 
 void apb_soc_ctrl::start()
 {
-  this->reset();
 }
 
 extern "C" void *vp_constructor(const char *config)

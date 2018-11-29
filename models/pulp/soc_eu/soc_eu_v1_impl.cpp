@@ -35,6 +35,7 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -43,7 +44,6 @@ private:
   static void event_in_sync(void *__this, int event);
   static void ref_clock_sync(void *_this, bool value);
   void trigger_event(int event);
-  void reset();
   vp::wire_master<int>    fc_event_itf;
   vp::wire_master<int>    cl_event_itf;
   vp::wire_master<int>    pr_event_itf;
@@ -219,18 +219,20 @@ int soc_eu::build()
   return 0;
 }
 
-void soc_eu::reset()
+void soc_eu::reset(bool active)
 {
-  for (int i=0; i<2; i++) {
-    fc_event_mask[i] = 0xffffffff;
-    cl_event_mask[i] = 0xffffffff;
-    pr_event_mask[i] = 0xffffffff;
+  if (active)
+  {
+    for (int i=0; i<2; i++) {
+      fc_event_mask[i] = 0xffffffff;
+      cl_event_mask[i] = 0xffffffff;
+      pr_event_mask[i] = 0xffffffff;
+    }
   }
 }
 
 void soc_eu::start()
 {
-  reset();
 }
 
 extern "C" void *vp_constructor(const char *config)

@@ -207,7 +207,7 @@ public:
 
   int build();
   void start();
-  void reset();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
   static vp::io_req_status_e demux_req(void *__this, vp::io_req *req, int core);
@@ -287,15 +287,18 @@ Event_unit::Event_unit(const char *config)
   nb_core = get_config_int("nb_core");
 }
 
-void Event_unit::reset()
+void Event_unit::reset(bool active)
 {
-  for (int i=0; i<nb_core; i++)
+  if (active)
   {
-    core_eu[i].reset();
+    for (int i=0; i<nb_core; i++)
+    {
+      core_eu[i].reset();
+    }
+    dispatch->reset();
+    barrier_unit->reset();
+    mutex->reset();
   }
-  dispatch->reset();
-  barrier_unit->reset();
-  mutex->reset();
 }
 
 vp::io_req_status_e Event_unit::req(void *__this, vp::io_req *req)
@@ -626,8 +629,6 @@ int Event_unit::build()
   {
     core_eu[i].build(this, i);
   }
-
-  reset();
 
   return 0;
 }

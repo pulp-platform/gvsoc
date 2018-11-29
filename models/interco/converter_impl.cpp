@@ -33,7 +33,7 @@ public:
   converter(const char *config);
 
   int build();
-  void reset();
+  void reset(bool active);
 
 
 private:
@@ -245,11 +245,14 @@ extern "C" void *vp_constructor(const char *config)
 }
 
 
-void converter::reset()
+void converter::reset(bool active)
 {
-  pending_req = NULL;
-  ready_cycle = 0;
-  ongoing_req = NULL;
-  ongoing_size = 0;
-  stalled_req = NULL;
+  if (active)
+  {
+    pending_req = NULL;
+    ready_cycle = 0;
+    ongoing_req = NULL;
+    ongoing_size = 0;
+    stalled_req = NULL;
+  }
 }

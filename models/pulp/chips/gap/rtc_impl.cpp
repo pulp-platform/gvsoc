@@ -43,7 +43,7 @@ public:
 
 private:
 
-  void reset();
+  void reset(bool active);
 
   void soft_reset();
   void update_calendar();
@@ -712,20 +712,22 @@ int rtc::build()
 
 
 
-void rtc::reset()
+void rtc::reset(bool active)
 {
-  this->apb_ctrl_reg.raw = 0;
-  this->irq_mask_reg.raw = 0x00001031;
-  this->irq_flag_reg.raw = 0x00000000;
-  this->last_irq_state = 0;
-  this->soft_reset();
+  if (active)
+  {
+    this->apb_ctrl_reg.raw = 0;
+    this->irq_mask_reg.raw = 0x00001031;
+    this->irq_flag_reg.raw = 0x00000000;
+    this->last_irq_state = 0;
+    this->soft_reset();
+  }
 }
 
 
 
 void rtc::start()
 {
-  this->reset();
 }
 
 

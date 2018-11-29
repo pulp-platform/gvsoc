@@ -39,7 +39,7 @@ public:
 
   int build();
   void start();
-  void reset();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -288,18 +288,21 @@ int fll::build()
 
 void fll::start()
 {
-  // TODO do the reset by hands until the framework is handling it
-  this->reset();
 }
 
-void fll::reset()
+void fll::reset(bool active)
 {
-  this->status_reg.raw     = this->status_reg_reset;
-  this->conf1_reg.raw      = this->conf1_reg_reset;
-  this->conf2_reg.raw      = this->conf2_reg_reset;
-  this->integrator_reg.raw = this->integrator_reg_reset;
-
-  this->fll_check_state();
+  if (active)
+  {
+    this->status_reg.raw     = this->status_reg_reset;
+    this->conf1_reg.raw      = this->conf1_reg_reset;
+    this->conf2_reg.raw      = this->conf2_reg_reset;
+    this->integrator_reg.raw = this->integrator_reg_reset;
+  }
+  else
+  {
+    this->fll_check_state();
+  }
 }
 
 extern "C" void *vp_constructor(const char *config)

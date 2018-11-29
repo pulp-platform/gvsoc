@@ -40,7 +40,7 @@ public:
 
 private:
 
-  void reset();
+  void reset(bool active);
   static void bootsel_sync(void *__this, int value);
   static void confreg_ext_sync(void *__this, uint32_t value);
 
@@ -176,13 +176,12 @@ int apb_soc_ctrl::build()
   return 0;
 }
 
-void apb_soc_ctrl::reset()
+void apb_soc_ctrl::reset(bool active)
 {
 }
 
 void apb_soc_ctrl::start()
 {
-  this->reset();
 }
 
 extern "C" void *vp_constructor(const char *config)

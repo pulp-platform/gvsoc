@@ -34,7 +34,7 @@ public:
 
   int build();
   void start();
-  void reset();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -166,13 +166,12 @@ int pmu::build()
   return 0;
 }
 
-void pmu::reset()
+void pmu::reset(bool active)
 {
 }
 
 void pmu::start()
 {
-  reset();
 }
 
 extern "C" void *vp_constructor(const char *config)

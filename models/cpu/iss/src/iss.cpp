@@ -259,6 +259,13 @@ void iss_reset(iss_t *iss)
   }
 
   iss_cache_flush(iss);
+  
+  iss->cpu.prev_insn = NULL;
+  iss->cpu.state.hw_counter_en = 0;
+
+  iss_irq_init(iss);
+
+  iss_csr_init(iss);
 }
 
 int iss_open(iss_t *iss)
@@ -271,12 +278,6 @@ int iss_open(iss_t *iss)
   prefetcher_init(iss);
 
   iss->cpu.regfile.regs[0] = 0;
-  iss->cpu.prev_insn = NULL;
-  iss->cpu.state.hw_counter_en = 0;
-
-  iss_irq_init(iss);
-
-  iss_csr_init(iss);
 
   iss_init(iss);
 

@@ -167,7 +167,7 @@ class default_implementation_class(object):
         self.module.vp_pre_start.argtypes = [ctypes.c_void_p]
 
         self.implem_reset = self.module.vp_reset
-        self.module.vp_reset.argtypes = [ctypes.c_void_p]
+        self.module.vp_reset.argtypes = [ctypes.c_void_p, ctypes.c_int]
 
         self.implem_load = self.module.vp_load
         self.module.vp_load.argtypes = [ctypes.c_void_p]
@@ -233,8 +233,8 @@ class default_implementation_class(object):
     def start(self):
         return self.implem_start(self.instance)
 
-    def reset(self):
-        return self.implem_reset(self.instance)
+    def reset(self, active):
+        return self.implem_reset(self.instance, active)
 
     def load(self):
         return self.implem_load(self.instance)
@@ -549,7 +549,7 @@ class component(component_trace):
     def start(self):
         pass
 
-    def reset(self):
+    def reset(self, active):
         pass
 
     def load(self):
@@ -622,17 +622,17 @@ class component(component_trace):
 
         return 0
 
-    def reset_all(self):
+    def reset_all(self, active):
 
         #for build in self.sub_comps:
         #    build.reset_all()
 
         self.trace.msg('Resetting component')
 
-        self.reset()
+        self.reset(active)
 
         if self.impl is not None:
-            self.impl.reset()
+            self.impl.reset(active)
 
         return 0
 

@@ -159,6 +159,7 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
 protected:
   static vp::io_req_status_e req(void *__this, vp::io_req *req, int id);
@@ -176,7 +177,6 @@ protected:
 
 private:
 
-  void reset();
   static void check_queue_handler(void *_this, vp::clock_event *event);
   static void check_ext_read_handler(void *_this, vp::clock_event *event);
   static void check_ext_write_handler(void *_this, vp::clock_event *event);
@@ -1130,43 +1130,45 @@ int mchan::build()
 
 void mchan::start()
 {
-  reset();
 }
 
-void mchan::reset()
+void mchan::reset(bool active)
 {
-  free_counter_mask = (1 << MCHAN_NB_COUNTERS) - 1;
-
-  for (int i=0; i<MCHAN_NB_COUNTERS; i++)
+  if (active)
   {
-    pending_bytes[i] = 0;
-  }
+    free_counter_mask = (1 << MCHAN_NB_COUNTERS) - 1;
 
-  for (int i=0; i<nb_channels; i++)
-  {
-    channels[i]->reset();
-  }
+    for (int i=0; i<MCHAN_NB_COUNTERS; i++)
+    {
+      pending_bytes[i] = 0;
+    }
 
-  for (int i=0; i<nb_loc_ports; i++)
-  {
-    loc_port_ready_cycle[i] = 0;
-  }
+    for (int i=0; i<nb_channels; i++)
+    {
+      channels[i]->reset();
+    }
 
-  first_alloc_pending_req = NULL;
-  last_alloc_pending_req = NULL;
-  nb_core_read_cmd = 0;
-  nb_core_write_cmd = 0;
-  sched_core_queue = 0;
-  nb_pending_ext_read_req = 0;
-  nb_pending_ext_write_req = 0;
-  pending_read_cmds->init();
-  pending_write_cmds->init();
-  pending_write_reqs->init();
-  current_ext_read_cmd = NULL;
-  current_ext_write_cmd = NULL;
-  current_loc_cmd = NULL;
-  pending_loc_read_req = NULL;
-  ext_is_stalled = false;
+    for (int i=0; i<nb_loc_ports; i++)
+    {
+      loc_port_ready_cycle[i] = 0;
+    }
+
+    first_alloc_pending_req = NULL;
+    last_alloc_pending_req = NULL;
+    nb_core_read_cmd = 0;
+    nb_core_write_cmd = 0;
+    sched_core_queue = 0;
+    nb_pending_ext_read_req = 0;
+    nb_pending_ext_write_req = 0;
+    pending_read_cmds->init();
+    pending_write_cmds->init();
+    pending_write_reqs->init();
+    current_ext_read_cmd = NULL;
+    current_ext_write_cmd = NULL;
+    current_loc_cmd = NULL;
+    pending_loc_read_req = NULL;
+    ext_is_stalled = false;
+  }
 }
 
 void Mchan_cmd::init()

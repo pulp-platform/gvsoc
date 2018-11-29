@@ -45,7 +45,7 @@ class Spim_v3_rx_channel : public Udma_rx_channel
 public:
   Spim_v3_rx_channel(udma *top, Spim_periph_v3 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
 
-  void reset();
+  void reset(bool active);
 
   void handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask);
 
@@ -65,7 +65,7 @@ public:
   void check_state();
 
 private:
-  void reset();
+  void reset(bool active);
   Spim_periph_v3 *periph;
 
   static void handle_pending_word(void *__this, vp::clock_event *event);
@@ -89,7 +89,7 @@ public:
   void check_state();
 
 private:
-  void reset();
+  void reset(bool active);
   static void handle_pending_word(void *__this, vp::clock_event *event);
   void handle_eot(bool cs_keep);
   void handle_data(uint32_t data);
@@ -125,7 +125,7 @@ class Spim_periph_v3 : public Udma_periph
 public:
   Spim_periph_v3(udma *top, int id, int itf_id);
   static void slave_sync(void *_this, int data_0, int data_1, int data_2, int data_3, int mask);
-  void reset();
+  void reset(bool active);
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
   static void handle_spi_pending_word(void *__this, vp::clock_event *event);
   void check_state();

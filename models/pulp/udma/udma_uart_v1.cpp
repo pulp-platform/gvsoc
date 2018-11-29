@@ -40,17 +40,21 @@ Uart_periph_v1::Uart_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top,
 }
  
 
-void Uart_periph_v1::reset()
+void Uart_periph_v1::reset(bool active)
 {
-  Udma_periph::reset();
-  this->set_setup_reg(0);
-  this->rx_pe = 0;
-  this->tx = 0;
-  this->rx = 0;
-  this->clkdiv = 0;
-  this->parity = 0;
-  this->stop_bits = 1;
-  this->bit_length = 5;
+  Udma_periph::reset(active);
+
+  if (active)
+  {
+    this->set_setup_reg(0);
+    this->rx_pe = 0;
+    this->tx = 0;
+    this->rx = 0;
+    this->clkdiv = 0;
+    this->parity = 0;
+    this->stop_bits = 1;
+    this->bit_length = 5;
+  }
 }
 
 
@@ -256,14 +260,18 @@ void Uart_tx_channel::handle_ready_reqs()
 
 
 
-void Uart_tx_channel::reset()
+void Uart_tx_channel::reset(bool active)
 {
-  Udma_tx_channel::reset();
-  this->state = UART_TX_STATE_START;
-  this->next_bit_cycle = -1;
-  this->sent_bits = 0;
-  this->pending_bits = 0;
-  this->stop_bits = 0;
+  Udma_tx_channel::reset(active);
+
+  if (active)
+  {
+    this->state = UART_TX_STATE_START;
+    this->next_bit_cycle = -1;
+    this->sent_bits = 0;
+    this->pending_bits = 0;
+    this->stop_bits = 0;
+  }
 }
 
 
@@ -278,11 +286,15 @@ Uart_rx_channel::Uart_rx_channel(udma *top, Uart_periph_v1 *periph, int id, stri
 {
 }
 
-void Uart_rx_channel::reset()
+void Uart_rx_channel::reset(bool active)
 {
-  Udma_rx_channel::reset();
-  this->state = UART_RX_STATE_WAIT_START;
-  this->nb_received_bits = 0;
+  Udma_rx_channel::reset(active);
+
+  if (active)
+  {
+    this->state = UART_RX_STATE_WAIT_START;
+    this->nb_received_bits = 0;
+  }
 }
 
 void Uart_rx_channel::handle_rx_bit(int bit)

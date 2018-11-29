@@ -40,15 +40,19 @@ I2c_periph_v2::I2c_periph_v2(udma *top, int id, int itf_id) : Udma_periph(top, i
 }
  
 
-void I2c_periph_v2::reset()
+void I2c_periph_v2::reset(bool active)
 {
-  Udma_periph::reset();
-  this->state = I2C_PERIPH_STATE_WAIT_CMD;
-  this->clkdiv = 0;
-  this->repeat_count = 0;
-  this->waiting_rx = false;
-  this->gen_ack = false;
-  this->waiting_pending_bits = true;
+  Udma_periph::reset(active);
+
+  if (active)
+  {
+    this->state = I2C_PERIPH_STATE_WAIT_CMD;
+    this->clkdiv = 0;
+    this->repeat_count = 0;
+    this->waiting_rx = false;
+    this->gen_ack = false;
+    this->waiting_pending_bits = true;
+  }
 }
 
 
@@ -360,11 +364,15 @@ void I2c_tx_channel::handle_ready_reqs()
 
 
 
-void I2c_tx_channel::reset()
+void I2c_tx_channel::reset(bool active)
 {
-  Udma_tx_channel::reset();
-  this->next_bit_cycle = -1;
-  this->pending_bits = 0;
+  Udma_tx_channel::reset(active);
+
+  if (active)
+  {
+    this->next_bit_cycle = -1;
+    this->pending_bits = 0;
+  }
 }
 
 
@@ -379,10 +387,13 @@ I2c_rx_channel::I2c_rx_channel(udma *top, I2c_periph_v2 *periph, int id, string 
 {
 }
 
-void I2c_rx_channel::reset()
+void I2c_rx_channel::reset(bool active)
 {
-  Udma_rx_channel::reset();
-  this->nb_received_bits = 0;
+  Udma_rx_channel::reset(active);
+  if (active)
+  {
+    this->nb_received_bits = 0;
+  }
 }
 
 void I2c_rx_channel::handle_rx_bit(int bit)

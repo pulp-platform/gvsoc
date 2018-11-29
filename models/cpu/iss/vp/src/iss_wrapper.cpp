@@ -566,9 +566,6 @@ void iss_wrapper::start()
 
   trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable_reg.get(), is_active_reg.get(), get_config_int("boot_addr"));
 
-  irq_req = -1;
-  wakeup_latency = 0;
-
 #ifdef USE_TRDB
   this->trdb = trdb_new();
   INIT_LIST_HEAD(&this->trdb_packet_list);
@@ -585,14 +582,22 @@ void iss_wrapper::pre_reset()
   }
 }
 
-void iss_wrapper::reset()
+void iss_wrapper::reset(bool active)
 {
-  iss_reset(this);
+  if (active)
+  {
+    this->irq_req = -1;
+    this->wakeup_latency = 0;
 
-  iss_pc_set(this, this->bootaddr_reg.get() + 0x80);
-  iss_irq_set_vector_table(this, this->bootaddr_reg.get());
+    iss_reset(this);
+  }
+  else
+  {
+    iss_pc_set(this, this->bootaddr_reg.get() + 0x80);
+    iss_irq_set_vector_table(this, this->bootaddr_reg.get());
 
-  check_state();
+    check_state();
+  }
 }
 
 

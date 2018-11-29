@@ -33,6 +33,8 @@ public:
   itc(const char *config);
 
   int build();
+  void reset(bool active);
+
 
 private:
 
@@ -52,8 +54,6 @@ private:
   void itc_status_setValue(uint32_t value);
 
   void check_state();
-
-  void reset();
 
   static void irq_ack_sync(void *__this, int irq);
   static void in_event_sync(void *__this, bool active, int id);
@@ -326,23 +326,24 @@ int itc::build()
     new_slave_port("in_event_" + std::to_string(i), &in_event_itf[i]);
   }
 
-  this->reset();
-
   return 0;
 }
 
 
-void itc::reset()
+void itc::reset(bool active)
 {
-  status = 0;
-  mask   = 0;
-  ack    = 0;
+  if (active)
+  {
+    status = 0;
+    mask   = 0;
+    ack    = 0;
 
-  sync_irq = -1;
+    sync_irq = -1;
 
-  nb_free_events = nb_fifo_events;
-  fifo_event_head = 0;
-  fifo_event_tail = 0;
+    nb_free_events = nb_fifo_events;
+    fifo_event_head = 0;
+    fifo_event_tail = 0;
+  }
 }
 
 

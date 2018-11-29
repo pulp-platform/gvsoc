@@ -43,18 +43,22 @@ Spim_periph_v2::Spim_periph_v2(udma *top, int id, int itf_id) : Udma_periph(top,
     this->eot_event = -1;
 }
 
-void Spim_periph_v2::reset()
+void Spim_periph_v2::reset(bool active)
 {
-  Udma_periph::reset();
-  this->waiting_rx = false;
-  this->waiting_tx = false;
-  this->is_full_duplex = false;
-  this->cmd_pending_bits = 0;
-  this->nb_received_bits = 0;
-  this->rx_pending_word = 0x57575757;
-  this->tx_pending_word = 0x57575757;
-  this->spi_rx_pending_bits = 0;
-  this->clkdiv = 0;
+  Udma_periph::reset(active);
+
+  if (active)
+  {
+    this->waiting_rx = false;
+    this->waiting_tx = false;
+    this->is_full_duplex = false;
+    this->cmd_pending_bits = 0;
+    this->nb_received_bits = 0;
+    this->rx_pending_word = 0x57575757;
+    this->tx_pending_word = 0x57575757;
+    this->spi_rx_pending_bits = 0;
+    this->clkdiv = 0;
+  }
 }
 
   
@@ -507,15 +511,19 @@ void Spim_tx_channel::handle_data(uint32_t data)
   this->handle_ready_reqs();
 }
 
-void Spim_tx_channel::reset()
+void Spim_tx_channel::reset(bool active)
 {
-  Udma_tx_channel::reset();
-  this->next_bit_cycle = -1;
-  this->has_tx_pending_word = false;
-  this->spi_tx_pending_bits = 0;
+  Udma_tx_channel::reset(active);
+
+  if (active)
+  {
+    this->next_bit_cycle = -1;
+    this->has_tx_pending_word = false;
+    this->spi_tx_pending_bits = 0;
+  }
 }
 
-void Spim_rx_channel::reset()
+void Spim_rx_channel::reset(bool active)
 {
-  Udma_rx_channel::reset();
+  Udma_rx_channel::reset(active);
 }

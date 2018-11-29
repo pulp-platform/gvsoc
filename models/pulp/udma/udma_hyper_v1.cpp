@@ -52,14 +52,18 @@ Hyper_periph_v1::Hyper_periph_v1(udma *top, int id, int itf_id) : Udma_periph(to
 }
  
 
-void Hyper_periph_v1::reset()
+void Hyper_periph_v1::reset(bool active)
 {
-  Udma_periph::reset();
-  memset(this->regs, 0, sizeof(unsigned int)*HYPER_NB_REGS);
-  this->clkdiv = 0;
-  this->pending_tx = false;
-  this->pending_rx = false;
-  this->current_cmd = NULL;
+  Udma_periph::reset(active);
+
+  if (active)
+  {
+    memset(this->regs, 0, sizeof(unsigned int)*HYPER_NB_REGS);
+    this->clkdiv = 0;
+    this->pending_tx = false;
+    this->pending_rx = false;
+    this->current_cmd = NULL;
+  }
 }
 
 
@@ -260,9 +264,9 @@ Hyper_tx_channel::Hyper_tx_channel(udma *top, Hyper_periph_v1 *periph, int id, s
 
 
 
-void Hyper_tx_channel::reset()
+void Hyper_tx_channel::reset(bool active)
 {
-  Udma_tx_channel::reset();
+  Udma_tx_channel::reset(active);
 }
 
 void Hyper_tx_channel::handle_ready_reqs()
@@ -275,9 +279,9 @@ Hyper_rx_channel::Hyper_rx_channel(udma *top, Hyper_periph_v1 *periph, int id, s
 {
 }
 
-void Hyper_rx_channel::reset()
+void Hyper_rx_channel::reset(bool active)
 {
-  Udma_rx_channel::reset();
+  Udma_rx_channel::reset(active);
 }
 
 void Hyper_rx_channel::handle_rx_data(int data)

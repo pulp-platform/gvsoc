@@ -70,7 +70,7 @@ void vp::component_clock::clk_reg(component *_this, component *clock)
   }
 }
 
-void vp::component::reset_all()
+void vp::component::reset_all(bool active)
 {
   this->get_trace()->msg("Reset\n");
 
@@ -78,22 +78,21 @@ void vp::component::reset_all()
   
   for (auto reg: this->regs)
   {
-    reg->reset();
+    reg->reset(active);
   }
 
-  this->reset();
+  this->reset(active);
   
   for (auto& x: this->childs)
   {
-    x->reset_all();
+    x->reset_all(active);
   }
 }
 
 void vp::component_clock::reset_sync(void *__this, bool active)
 {
   component *_this = (component *)__this;
-  if (active)
-    _this->reset_all();
+  _this->reset_all(active);
 }
 
 
@@ -775,12 +774,15 @@ void vp::reg::init(vp::component *top, std::string name, int bits, uint8_t *valu
   top->traces.new_trace(name, &this->trace, vp::DEBUG);
 }
 
-void vp::reg::reset()
+void vp::reg::reset(bool active)
 {
-  if (this->reset_value_bytes)
+  if (active)
   {
-    this->trace.msg("Resetting register\n");
-    memcpy((void *)this->value_bytes, (void *)this->reset_value_bytes, this->nb_bytes);
+    if (this->reset_value_bytes)
+    {
+      this->trace.msg("Resetting register\n");
+      memcpy((void *)this->value_bytes, (void *)this->reset_value_bytes, this->nb_bytes);
+    }
   }
 }
 
@@ -876,9 +878,9 @@ extern "C" void vp_start(void *comp)
   ((vp::component *)comp)->start();
 }
 
-extern "C" void vp_reset(void *comp)
+extern "C" void vp_reset(void *comp, int active)
 {
-  ((vp::component *)comp)->reset_all();
+  ((vp::component *)comp)->reset_all(active);
 }
 
 extern "C" void vp_stop(void *comp)

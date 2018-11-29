@@ -35,12 +35,11 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
 private:
-
-  void reset();
 
   vp::trace     trace;
   vp::io_slave in;
@@ -144,15 +143,17 @@ int apb_soc_ctrl::build()
   return 0;
 }
 
-void apb_soc_ctrl::reset()
+void apb_soc_ctrl::reset(bool active)
 {
-  cluster_power = false;
-  cluster_clock_gate = false;
+  if (active)
+  {
+    cluster_power = false;
+    cluster_clock_gate = false;
+  }
 }
 
 void apb_soc_ctrl::start()
 {
-  this->reset();
 }
 
 extern "C" void *vp_constructor(const char *config)

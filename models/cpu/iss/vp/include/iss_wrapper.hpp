@@ -40,7 +40,7 @@ public:
   int build();
   void start();
   void pre_reset();
-  void reset();
+  void reset(bool active);
 
   static void data_grant(void *_this, vp::io_req *req);
   static void data_response(void *_this, vp::io_req *req);

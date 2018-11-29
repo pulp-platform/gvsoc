@@ -84,7 +84,7 @@ class Udma_channel
 public:
   Udma_channel(udma *top, int id, std::string name);
   virtual vp::io_req_status_e req(vp::io_req *req, uint64_t offset);
-  virtual void reset();
+  virtual void reset(bool active);
   virtual bool is_tx() { return false; }
   void set_next(Udma_channel *next) { this->next = next; }
   Udma_channel *get_next() { return next; }
@@ -136,7 +136,7 @@ class Udma_rx_channel : public Udma_channel
 public:
   Udma_rx_channel(udma *top, int id, string name) : Udma_channel(top, id, name) {}
   bool is_tx() { return false; }
-  void reset();
+  void reset(bool active);
   void push_data(uint8_t *data, int size);
 
 private:
@@ -163,7 +163,7 @@ class Udma_periph
 public:
   Udma_periph(udma *top, int id);
   vp::io_req_status_e req(vp::io_req *req, uint64_t offset);
-  virtual void reset();
+  virtual void reset(bool active);
   void clock_gate(bool is_on);
 
 protected:
@@ -193,7 +193,7 @@ class Spim_rx_channel : public Udma_rx_channel
 public:
   Spim_rx_channel(udma *top, Spim_periph_v2 *periph, int id, string name) : Udma_rx_channel(top, id, name), periph(periph) {}
 
-  void reset();
+  void reset(bool active);
 
   void handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask);
 
@@ -210,7 +210,7 @@ public:
   void check_state();
 
 private:
-  void reset();
+  void reset(bool active);
   static void handle_pending_word(void *__this, vp::clock_event *event);
   static void handle_spi_pending_word(void *__this, vp::clock_event *event);
   void handle_eot();
@@ -245,7 +245,7 @@ class Spim_periph_v2 : public Udma_periph
 public:
   Spim_periph_v2(udma *top, int id, int itf_id);
   static void slave_sync(void *_this, int data_0, int data_1, int data_2, int data_3, int mask);
-  void reset();
+  void reset(bool active);
 
 protected:
   vp::qspim_master qspim_itf;
@@ -282,7 +282,7 @@ public:
   void handle_rx_bit(int bit);
 
 private:
-  void reset();
+  void reset(bool active);
   I2c_periph_v2 *periph;
   uint8_t  pending_rx_byte;
   int nb_received_bits;
@@ -297,7 +297,7 @@ public:
   bool is_busy();
 
 private:
-  void reset();
+  void reset(bool active);
   void check_state();
   static void handle_pending_word(void *__this, vp::clock_event *event);
 
@@ -337,7 +337,7 @@ class I2c_periph_v2 : public Udma_periph
 public:
   I2c_periph_v2(udma *top, int id, int itf_id);
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
-  void reset();
+  void reset(bool active);
 
 protected:
   vp::i2c_master i2c_itf;
@@ -386,7 +386,7 @@ public:
   void handle_rx_bit(int bit);
 
 private:
-  void reset();
+  void reset(bool active);
   Uart_periph_v1 *periph;
   uart_rx_state_e state;
   int parity;
@@ -412,7 +412,7 @@ public:
   bool is_busy();
 
 private:
-  void reset();
+  void reset(bool active);
   void check_state();
   static void handle_pending_word(void *__this, vp::clock_event *event);
 
@@ -439,7 +439,7 @@ class Uart_periph_v1 : public Udma_periph
 public:
   Uart_periph_v1(udma *top, int id, int itf_id);
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
-  void reset();
+  void reset(bool active);
 
   int parity;
   int bit_length;
@@ -476,7 +476,7 @@ public:
   Cpi_rx_channel(udma *top, Cpi_periph_v1 *periph, int id, string name);
 
 private:
-  void reset();
+  void reset(bool active);
   Cpi_periph_v1 *periph;
 };
 
@@ -487,7 +487,7 @@ class Cpi_periph_v1 : public Udma_periph
 public:
   Cpi_periph_v1(udma *top, int id, int itf_id);
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
-  void reset();
+  void reset(bool active);
   void handle_sof();
 
 protected:
@@ -562,7 +562,7 @@ public:
   void handle_ready();
 
 private:
-  void reset();
+  void reset(bool active);
   Hyper_periph_v1 *periph;
 };
 
@@ -589,7 +589,7 @@ protected:
   void handle_ready_reqs();
 
 private:
-  void reset();
+  void reset(bool active);
 
   Hyper_periph_v1 *periph;
 
@@ -605,7 +605,7 @@ public:
   Hyper_periph_v1(udma *top, int id, int itf_id);
   vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
   static void rx_sync(void *__this, int data);
-  void reset();
+  void reset(bool active);
   static void handle_pending_word(void *__this, vp::clock_event *event);
   void check_state();
   void handle_ready_reqs();
@@ -691,6 +691,7 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
   void enqueue_ready(Udma_channel *channel);
 
@@ -707,7 +708,6 @@ protected:
 
 private:
 
-  void reset();
   void check_state();
 
   vp::io_req_status_e conf_req(vp::io_req *req, uint64_t offset);

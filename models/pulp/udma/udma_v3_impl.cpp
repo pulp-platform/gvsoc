@@ -61,10 +61,14 @@ void Udma_rx_channel::push_data(uint8_t *data, int size)
   }
 }
 
-void Udma_rx_channel::reset()
+void Udma_rx_channel::reset(bool active)
 {
-  Udma_channel::reset();
-  pending_byte_index = 0;
+  Udma_channel::reset(active);
+
+  if (active)
+  {
+    pending_byte_index = 0;
+  }
 }
 
 
@@ -273,11 +277,14 @@ bool Udma_channel::prepare_req(vp::io_req *req)
 
 
 
-void Udma_channel::reset()
+void Udma_channel::reset(bool active)
 {
-  current_cmd = NULL;
-  continuous_mode = 0;
-  transfer_size = 0;
+  if (active)
+  {
+    current_cmd = NULL;
+    continuous_mode = 0;
+    transfer_size = 0;
+  }
 }
 
 
@@ -301,15 +308,19 @@ void Udma_periph::clock_gate(bool new_is_on)
 
 
 
-void Udma_periph::reset()
+void Udma_periph::reset(bool active)
 {
-  is_on = false;
+  if (active)
+  {
+    is_on = false;
+  }
+
   if (channel0)
-    channel0->reset();
+    channel0->reset(active);
   if (channel1)
-    channel1->reset();
+    channel1->reset(active);
   if (channel2)
-    channel2->reset();
+    channel2->reset(active);
 }
 
 
@@ -737,17 +748,19 @@ int udma::build()
 
 void udma::start()
 {
-  reset();
 }
 
-void udma::reset()
+void udma::reset(bool active)
 {
-  clock_gating = 0;
+  if (active)
+  {
+    clock_gating = 0;
+  }
 
   for (int i=0; i<nb_periphs; i++)
   {
     if (periphs[i] != NULL)
-      periphs[i]->reset();
+      periphs[i]->reset(active);
   }
 
 }

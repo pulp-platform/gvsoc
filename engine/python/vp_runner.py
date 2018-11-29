@@ -227,7 +227,9 @@ class Runner(Platform):
 
         trace_engine.final_bind()
 
-        trace_engine.reset_all()
+        trace_engine.reset_all(True)
+
+        trace_engine.reset_all(False)
 
         trace_engine.load_all()
 
