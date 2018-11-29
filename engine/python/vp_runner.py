@@ -25,6 +25,7 @@ import runner.stim_utils
 
 from plp_platform import *
 import plp_flash_stimuli
+import shlex
 
 
 class Runner(Platform):
@@ -108,7 +109,16 @@ class Runner(Platform):
 
         autorun_conf = self.tree.get('**/debug_bridge/autorun')
         if autorun_conf is not None and autorun_conf.get_bool() and not self.config.getOption('reentrant'):
-            os.execlp('pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s' % self.config.getOption('configFile'))
+
+            options = self.tree.get_child_str('**/debug_bridge/options')
+            if options is None:
+                options  = ''
+
+            cmd_options = ['pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s' % self.config.getOption('configFile'), '--options=%s' % options]
+            if self.get_json().get_child_bool('**/runner/wait_pulp_run'):
+                cmd_options.append('--wait-pulp-run')
+
+            os.execlp(*cmd_options)
 
         system = self.system_tree
         if self.system_tree.get_config('system') is not None:

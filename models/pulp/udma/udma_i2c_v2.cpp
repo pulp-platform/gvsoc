@@ -198,7 +198,7 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
         case I2C_CMD_RPT:
           _this->periph->state = I2C_PERIPH_STATE_WAIT_RPT;
           break;
-        default: _this->periph->trace.warning("Unknown command (value: 0x%x)\n", command);
+        default: _this->periph->trace.force_warning("Unknown command (value: 0x%x)\n", command);
       }
     }
     else if (_this->periph->state == I2C_PERIPH_STATE_WAIT_CFG)
@@ -294,7 +294,7 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
     {
       if (!_this->periph->i2c_itf.is_bound())
       {
-        _this->top->get_trace()->warning("Trying to send to I2C interface while it is not connected\n");
+        _this->top->warning.force_warning("Trying to send to I2C interface while it is not connected\n");
       }
       else
       {

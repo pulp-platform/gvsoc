@@ -257,6 +257,8 @@ void iss_reset(iss_t *iss)
   {
     iss->cpu.regfile.regs[i] = 0;
   }
+
+  iss_cache_flush(iss);
 }
 
 int iss_open(iss_t *iss)
