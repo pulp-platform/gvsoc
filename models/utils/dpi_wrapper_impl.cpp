@@ -521,7 +521,7 @@ extern "C" void dpi_ctrl_reset_edge(void *_handle, int reset)
   ctrl_handle_t *handle = ctrl_handles[(int)(long)_handle];
   if (handle->itf->is_bound())
   {
-    handle->itf->sync(reset ^ 1);
+    handle->itf->sync(reset);
   }
 }
 

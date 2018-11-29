@@ -229,7 +229,8 @@ class Runner(Platform):
 
         trace_engine.reset_all(True)
 
-        trace_engine.reset_all(False)
+        if not self.get_json().get_child_bool('**/gvsoc/use_external_bridge'):
+            trace_engine.reset_all(False)
 
         trace_engine.load_all()
 
