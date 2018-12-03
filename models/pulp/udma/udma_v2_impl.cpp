@@ -448,6 +448,7 @@ void udma::event_handler(void *__this, vp::clock_event *event)
   if (!_this->ready_tx_channels->is_empty() && !_this->l2_read_reqs->is_empty())
   {
     vp::io_req *req = _this->l2_read_reqs->pop();
+
     Udma_channel *channel = _this->ready_tx_channels->pop();
     if (!channel->prepare_req(req))
     {
