@@ -49,6 +49,7 @@ private:
   vp::io_slave in;
 
   vp::wire_master<uint32_t> bootaddr_itf;
+  vp::wire_master<bool> cluster_reset_itf;
   vp::wire_master<bool> cluster_power_itf;
   vp::wire_master<bool> cluster_power_irq_itf;
   vp::wire_master<bool> cluster_clock_gate_irq_itf;
@@ -63,6 +64,7 @@ private:
   uint32_t core_status;
   uint32_t bootaddr;
   uint32_t pmu_bypass;
+  bool cluster_reset;
   bool cluster_power;
   bool cluster_clock_gate;
 
@@ -150,7 +152,18 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       _this->pmu_bypass = *(uint32_t *)data;
 
       bool new_cluster_power = (_this->pmu_bypass >> 3) & 1;
+      bool new_cluster_reset = (_this->pmu_bypass >> 13) & 1;
       bool new_cluster_clock_gate = (_this->pmu_bypass >> 10) & 1;
+
+      if (_this->cluster_reset != new_cluster_reset)
+      {
+        if (_this->cluster_reset_itf.is_bound())
+        {
+          _this->cluster_reset_itf.sync(~new_cluster_reset);
+        }
+
+        _this->cluster_reset = new_cluster_reset;
+      }
 
       if (_this->cluster_power != new_cluster_power)
       {
@@ -217,6 +230,8 @@ int apb_soc_ctrl::build()
 
   new_master_port("cluster_power", &cluster_power_itf);
 
+  new_master_port("cluster_reset", &cluster_reset_itf);
+
   new_master_port("cluster_power_irq", &cluster_power_irq_itf);
 
   new_master_port("cluster_clock_gate_irq", &cluster_clock_gate_irq_itf);
@@ -243,6 +258,7 @@ void apb_soc_ctrl::reset(bool active)
   {
     pmu_bypass = 0;
     cluster_power = false;
+    cluster_reset = false;
     cluster_clock_gate = false;
     this->confreg_soc_itf.sync(0);
   }

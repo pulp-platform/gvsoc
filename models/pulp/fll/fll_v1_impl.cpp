@@ -91,7 +91,6 @@ void fll::ref_clock_sync(void *__this, bool value)
     return;
 
   _this->get_trace()->msg("Received ref clock\n");
-  _this->fll_check_state();
 
   // DCO freq is the number of pulses so we have to divide by 2
   _this->status_reg.actual_mult_factor = _this->dco_freq * 1000000 / 32768 / 2;
@@ -105,12 +104,17 @@ void fll::ref_clock_sync(void *__this, bool value)
     int integrator = (_this->integrator_reg.state_int_part << 10) | _this->integrator_reg.state_fract_part;
     int integrator_output = integrator + delta_ext_amp;
 
+
+    _this->get_trace()->msg("Adapting DCO input (factor: %d, actual_factor: %d)\n", _this->conf1_reg.mult_factor, _this->status_reg.actual_mult_factor);
+
     _this->integrator_reg.state_int_part = integrator_output >> 10;
     _this->integrator_reg.state_fract_part = integrator_output;
 
     _this->conf1_reg.dco_input = _this->integrator_reg.state_int_part;
 
   }
+
+  _this->fll_check_state();
 }
 
 double fll::get_dco_frequency(int dco_input)
