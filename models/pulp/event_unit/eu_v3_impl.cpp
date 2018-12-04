@@ -1200,10 +1200,7 @@ Dispatch_unit::Dispatch_unit(Event_unit *top)
     }
     else if (offset == EU_DISPATCH_TEAM_CONFIG)
     {
-      if (is_write)
-        config = *data;
-      else
-        *data = config;
+      config = *data;
       return vp::IO_REQ_OK;
     }
     else
