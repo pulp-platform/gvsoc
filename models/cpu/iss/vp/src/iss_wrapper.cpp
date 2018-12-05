@@ -182,8 +182,9 @@ void iss_wrapper::fetchen_sync(void *__this, bool active)
 {
   iss_t *_this = (iss_t *)__this;
   _this->trace.msg("Setting fetch enable (active: %d)\n", active);
+  int old_val = _this->fetch_enable_reg.get();
   _this->fetch_enable_reg.set(active);
-  if (active)
+  if (!old_val && active)
   {
     iss_pc_set(_this, _this->bootaddr_reg.get() + 0x80);
   }
