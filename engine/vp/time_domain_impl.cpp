@@ -283,7 +283,7 @@ void vp::time_engine::run_loop()
         current->running = false;
 
         // And reenqueue it in case it has events in the future
-        if (time != -1)
+        if (time > 0)
         {
           current->next_event_time = time + this->time;
           time_engine_client *client = first_client, *prev = NULL;
@@ -338,7 +338,7 @@ void vp::time_engine::run_loop()
         time_engine_client *next = first_client;
 
         // Shortcut to quickly continue with the same client
-        if (likely(time != -1))
+        if (likely(time > 0))
         {
           time += this->time;
           if (likely((!next || next->next_event_time >= time)))
@@ -364,7 +364,7 @@ void vp::time_engine::run_loop()
         // We can optimize a bit the operation as we already know
         // who to schedule next.
 
-        if (time != -1)
+        if (time > 0)
         {
           current->next_event_time = time;
           time_engine_client *client = next->next, *prev = next;

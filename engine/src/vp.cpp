@@ -193,12 +193,32 @@ void vp::clock_engine::apply_frequency(int frequency)
       this->next_event_time = cycles*this->period;
       this->reenqueue_to_engine();
     }
+    else if (period == 0)
+    {
+      // Case where the clock engine was clock-gated
+      // We need to reenqueue the engine in case it has pending events
+      if (this->has_events())
+      {
+        // Compute the time of the next event based on the new frequency
+        this->next_event_time = (this->get_next_event()->get_cycle() - this->get_cycles())*this->period;
+
+        this->reenqueue_to_engine();
+      }
+    }
+  }
+  else if (frequency == 0)
+  {
+    this->dequeue_from_engine();
+    this->period = 0;
   }
 }
 
 
 void vp::clock_engine::update()
 {
+  if (this->period == 0)
+    return;
+
   int64_t diff = this->get_time() - this->stop_time;
 
 #ifdef __VP_USE_SYSTEMC
@@ -223,7 +243,8 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
 
   // First check if we have to enqueue it to the global time engine in case we
   // were not running.
-  enqueue_to_engine(cycle*period);
+  if (this->period != 0)
+    enqueue_to_engine(cycle*period);
 
   // Check if we can enqueue to the fast circular queue in case were not
   // running.
@@ -254,6 +275,28 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
   return event;
 }
 
+vp::clock_event *vp::clock_engine::get_next_event()
+{
+  // There is no quick way of getting the next event.
+  // We have to first check if there is an event in the circular buffer
+  // and if not in the delayed queue
+  if (this->nb_enqueued_to_cycle)
+  {
+    for (int i=0; i<CLOCK_EVENT_QUEUE_SIZE; i++)
+    {
+      int cycle = (current_cycle + i) & CLOCK_EVENT_QUEUE_MASK;
+      vp::clock_event *event = event_queue[cycle];\
+      if (event)
+      {
+        return event;
+      }
+    }
+    vp_assert(false, 0, "Didn't find any event in circular buffer while it is not empty");
+  }
+
+  return this->delayed_queue;
+}
+
 void vp::clock_engine::cancel(vp::clock_event *event)
 {
   uint64_t cycle_diff = event->cycle - get_cycles();
@@ -282,9 +325,14 @@ void vp::clock_engine::cancel(vp::clock_event *event)
     if (prev)
       prev->next = event->next;
     else
+    {
       event_queue[cycle] = event->next;
+      this->nb_enqueued_to_cycle--;
+    }
   }
   event->enqueued = false;
+  if (!this->has_events())
+    this->dequeue_from_engine();
 }
 
 void vp::clock_engine::flush_delayed_queue()
@@ -309,6 +357,9 @@ void vp::clock_engine::flush_delayed_queue()
 
 int64_t vp::clock_engine::exec()
 {
+  vp_assert(this->has_events(), NULL, "Executing clock engine while it has no event\n");
+  vp_assert(this->get_next_event(), NULL, "Executing clock engine while it has no next event\n");
+
   // The clock engine has a circular buffer of events to be executed.
   // Events longer than the buffer as put temporarly in a queue.
   // Everytime we start again at the beginning of the buffer, we need
@@ -319,23 +370,27 @@ int64_t vp::clock_engine::exec()
     this->flush_delayed_queue();
   }
 
+  vp_assert(this->get_next_event(), NULL, "Executing clock engine while it has no next event\n");
+
   // Now take all events available at the current cycle and execute them all without returning
   // to the main engine to execute them faster. 
   clock_event *current = event_queue[current_cycle];
 
-  //printf("[%ld] %p ENGINE EXEC CYCLE %d first %p %d\n", get_time(), this, current_cycle, current, nb_enqueued_to_cycle);
+  //printf("[%p] CLOCK ENGINE EXEC exec event %p\n", this, current);
+  //printf("[%ld] %p ENGINE EXEC CYCLE %d first %p %d next %p\n", get_time(), this, current_cycle, current, nb_enqueued_to_cycle, this->get_next_event());
 
   while (likely(current != NULL))
   {
     //printf("HANDLING EVENT %p meth %p\n", current, current->meth);
     clock_event *next = current->next;
+
+    event_queue[current_cycle] = next;
     current->enqueued = false;
     nb_enqueued_to_cycle--;
 
     current->meth(current->_this, current);
     current = next;
   }
-  event_queue[current_cycle] = NULL;
 
   // Now we need to tell the time engine when is the next event.
   // The most likely is that there is an event in the circular buffer, 

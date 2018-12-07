@@ -95,7 +95,7 @@ namespace vp {
       ((vp::trace *)(trace_ptr))->fatal(msg);      \
     else                                           \
     {                                              \
-      fprintf(stderr, "ASSERT FAILED: %s", msg);   \
+      fprintf(stdout, "ASSERT FAILED: %s", msg);   \
       abort();                                     \
     }                                              \
   }
@@ -105,8 +105,8 @@ namespace vp {
       ((vp::trace *)(trace_ptr))->force_warning(msg);      \
     else                                           \
     {                                              \
-      fprintf(stderr, "WARNING: ");                \
-      fprintf(stderr, msg);                        \
+      fprintf(stdout, "WARNING: ");                \
+      fprintf(stdout, msg);                        \
       abort();                                     \
     }
 

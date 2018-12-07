@@ -77,6 +77,8 @@ namespace vp {
     inline void retain() { engine->retain(); }
     inline void release() { engine->release(); }
 
+    vp::clock_event *get_next_event();
+
     void event_del(component_clock *comp, clock_event *event)
     {
       delete event;
@@ -99,6 +101,8 @@ namespace vp {
     int64_t get_period() { return period; }
 
     int64_t get_frequency() { return freq; }
+
+    bool has_events() { return this->nb_enqueued_to_cycle || this->delayed_queue; }
 
   protected:
 

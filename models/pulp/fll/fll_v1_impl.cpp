@@ -71,6 +71,10 @@ private:
   vp::clock_slave ref_clock_itf;
   vp::clock_master fll_clock_itf;
   vp::io_slave in;
+
+  int nb_stability_cycles;
+  int locked;
+  int dco_input;
 };
 
 fll::fll(const char *config)
@@ -110,7 +114,7 @@ void fll::ref_clock_sync(void *__this, bool value)
     _this->integrator_reg.state_int_part = integrator_output >> 10;
     _this->integrator_reg.state_fract_part = integrator_output;
 
-    _this->conf1_reg.dco_input = _this->integrator_reg.state_int_part;
+    _this->dco_input = _this->integrator_reg.state_int_part;
 
   }
 
@@ -132,20 +136,56 @@ double fll::get_dco_frequency(int dco_input)
 
 void fll::fll_check_state()
 {
-  if (this->conf1_reg.mode == 0)
+  this->dco_freq = this->get_dco_frequency(this->dco_input);
+
+  this->get_trace()->msg("Setting DCO frequency (frequency: %f MHz, dco_in: %d)\n", this->dco_freq, this->dco_input);
+
+  int frequency = (int)(this->dco_freq / (1 << this->conf1_reg.clock_out_divider) * 1000000);
+
+  if (this->conf1_reg.mode == 1 && this->conf1_reg.output_lock_enable)
   {
-    // Stand-alone mode.
-    // There is no feedback loop, the output frequency is directly determined
-    // from the DCO input.
-    this->dco_freq = this->get_dco_frequency(this->conf1_reg.dco_input);
+    // Locked mode, check if the fll output must be asserted or de-asserted
+    int delta = this->conf1_reg.mult_factor - this->status_reg.actual_mult_factor;
+    if (delta < 0)
+      delta = -delta;
+
+    if (this->locked)
+    {
+      if (delta > this->conf2_reg.lock_tolerance)
+      {
+        this->nb_stability_cycles++;
+        this->get_trace()->msg("FLL frequency outside tolerance, increasing unstable cycles (unstable_cycles: %d, deassert_cycles: %d)\n", this->nb_stability_cycles, this->conf2_reg.de_assert_cycles);
+        if (this->nb_stability_cycles == this->conf2_reg.de_assert_cycles)
+        {
+          this->get_trace()->msg("Unlocking FLL\n");
+          this->locked = 0;
+          this->nb_stability_cycles = 0;
+        }
+      }
+    }
+    else
+    {
+      if (delta <= this->conf2_reg.lock_tolerance)
+      {
+        this->nb_stability_cycles++;
+        this->get_trace()->msg("FLL frequency within tolerance, increasing stable cycles (stable_cycles: %d, assert_cycles: %d)\n", this->nb_stability_cycles, this->conf2_reg.assert_cycles);
+        if (this->nb_stability_cycles == this->conf2_reg.assert_cycles)
+        {
+          this->get_trace()->msg("Locking FLL\n");
+          this->locked = 1;
+          this->nb_stability_cycles = 0;
+        }
+      }
+    }
+
+    if (!this->locked)
+      frequency = 0;
   }
   else
   {
-    // Normal mode
-    this->dco_freq = this->get_dco_frequency(this->conf1_reg.dco_input);
+    // Non-locked mode, just keep the frequency out of the oscillator
   }
 
-  int frequency = (int)(this->dco_freq / (1 << this->conf1_reg.clock_out_divider) * 1000000);
 
   this->get_trace()->msg("Setting new frequency (frequency: %d Hz)\n", frequency);
   this->fll_clock_itf.set_frequency(frequency);
@@ -185,6 +225,12 @@ vp::io_req_status_e fll::conf1_req(int reg_offset, int size, bool is_write, uint
 
     this->get_trace()->msg("Setting configuration 1 register (raw: 0x%x, mode: %d, lock: %d, div: %d, dco: %d, factor: %d)\n", this->conf1_reg.raw, this->conf1_reg.mode, this->conf1_reg.output_lock_enable, this->conf1_reg.clock_out_divider, this->conf1_reg.dco_input, this->conf1_reg.mult_factor);
 
+    if (this->conf1_reg.mode == 0)
+      this->dco_input = this->conf1_reg.dco_input;
+
+    // Writing to conf1 reg, whatever the mode, is unlocking the fll
+    this->locked = 0;
+
     this->fll_check_state();
   }
   return vp::io_req_status_e::IO_REQ_OK;
@@ -219,6 +265,10 @@ vp::io_req_status_e fll::integrator_req(int reg_offset, int size, bool is_write,
 
     this->get_trace()->msg("Setting integrator register (raw: 0x%x, integrator_int: %d, integrator_fract: %d)\n",
       this->integrator_reg.raw, this->integrator_reg.state_int_part, this->integrator_reg.state_fract_part);
+
+    // Writing to integrator register is unlocking the FLL only in close loop
+    if (this->conf1_reg.mode == 1)
+      this->locked = 0;
 
     this->fll_check_state();
   }
@@ -298,10 +348,13 @@ void fll::reset(bool active)
 {
   if (active)
   {
-    this->status_reg.raw     = this->status_reg_reset;
-    this->conf1_reg.raw      = this->conf1_reg_reset;
-    this->conf2_reg.raw      = this->conf2_reg_reset;
-    this->integrator_reg.raw = this->integrator_reg_reset;
+    this->status_reg.raw      = this->status_reg_reset;
+    this->conf1_reg.raw       = this->conf1_reg_reset;
+    this->conf2_reg.raw       = this->conf2_reg_reset;
+    this->integrator_reg.raw  = this->integrator_reg_reset;
+    this->nb_stability_cycles = 0;
+    this->locked              = 0;
+    this->dco_input = this->conf1_reg.dco_input;
   }
   else
   {
