@@ -132,7 +132,11 @@ namespace vp {
 
     if (port->next) port = port->next;
 
-    port->slave_port = new clock_slave();
+    clock_slave *slave_port = new clock_slave();
+
+    port->slave_port = NULL;
+
+    port->slave_port = slave_port;
     port->slave_port->set_context(port->get_context());
     port->slave_port->set_remote_context(port->get_context());
   }

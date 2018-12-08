@@ -213,7 +213,7 @@ void Uart_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
     {
       if (_this->periph->tx)
       {
-        _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
+        _this->next_bit_cycle = _this->periph->top->get_periph_clock()->get_cycles() + _this->periph->clkdiv + 2;
         _this->top->get_trace()->msg("Sending bit (value: %d)\n", bit);
         _this->periph->uart_itf.sync(bit);
       }
@@ -236,11 +236,11 @@ void Uart_tx_channel::check_state()
   if ((this->pending_bits != 0 || this->stop_bits) && !pending_word_event->is_enqueued())
   {
     int latency = 1;
-    int64_t cycles = this->top->get_clock()->get_cycles();
+    int64_t cycles = this->top->get_periph_clock()->get_cycles();
     if (next_bit_cycle > cycles)
       latency = next_bit_cycle - cycles;
 
-    top->event_enqueue(pending_word_event, latency);
+    top->get_periph_clock()->enqueue(pending_word_event, latency);
   }
 }
 

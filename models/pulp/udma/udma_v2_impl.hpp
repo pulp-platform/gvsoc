@@ -29,6 +29,7 @@
 #include <vp/itf/wire.hpp>
 #include <vp/itf/hyper.hpp>
 #include <vp/itf/i2c.hpp>
+#include <vp/itf/clk.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -701,6 +702,7 @@ public:
   void trigger_event(int event);
 
   vp::trace *get_trace() { return &this->trace; }
+  vp::clock_engine *get_periph_clock() { return this->periph_clock; }
 
 protected:
   vp::io_master l2_itf;
@@ -716,9 +718,14 @@ private:
   static void event_handler(void *__this, vp::clock_event *event);
   static void l2_grant(void *__this, vp::io_req *req);
   static void l2_response(void *__this, vp::io_req *req);
+  static void set_periph_clock_frequency(void *_this, int64_t frequency);
+  static void clk_reg(component *_this, component *clock);
 
-  vp::trace     trace;
-  vp::io_slave in;
+  vp::trace        trace;
+  vp::io_slave     in;
+  vp::clk_slave    periph_clock_itf;
+  vp::clock_engine *periph_clock;
+
   int nb_periphs;
   int l2_read_fifo_size;
   std::vector<Udma_periph *>periphs;

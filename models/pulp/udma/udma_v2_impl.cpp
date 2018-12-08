@@ -593,6 +593,12 @@ void udma::l2_response(void *__this, vp::io_req *req)
   _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
 }
 
+void udma::clk_reg(component *__this, component *clock)
+{
+  udma *_this = (udma *)__this;
+  _this->periph_clock = (vp::clock_engine *)clock;
+}
+
 int udma::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -600,6 +606,9 @@ int udma::build()
 
   in.set_req_meth(&udma::req);
   new_slave_port("input", &in);
+
+  this->periph_clock_itf.set_reg_meth(&udma::clk_reg);
+  new_slave_port("periph_clock", &this->periph_clock_itf);
 
   nb_periphs = get_config_int("nb_periphs");
   periphs.reserve(nb_periphs);
