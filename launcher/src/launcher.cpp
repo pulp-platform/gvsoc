@@ -81,7 +81,7 @@ void *gv_create(gv_conf_t *gv_conf, char *config_file)
 
 static void gv_process(gv_launcher_t *gv)
 {
-  add_option(gv, (char *)"--platform=vp");
+  add_option(gv, (char *)"--platform=gvsoc");
   add_option(gv, (char *)"--config-file");
   add_option(gv, gv->config_file);
   add_option(gv, NULL);
