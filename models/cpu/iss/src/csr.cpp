@@ -140,6 +140,7 @@ static bool fflags_write(iss_t *iss, unsigned int value) {
 
 static bool frm_read(iss_t *iss, iss_reg_t *value) {
   //printf("WARNING UNIMPLEMENTED CSR: frm\n");
+  *value = 0;
   return false;
 }
 

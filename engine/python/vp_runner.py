@@ -127,9 +127,8 @@ class Runner(Platform):
             os.execlp(*cmd_options)
 
         for config_opt in self.config.getOption('configOpt'):
-            key, value = config_opt.split(':')
-            self.system_tree.set(key, value)
-            self.get_json().user_set(key, value)
+            key, value = config_opt.split('=')
+            self.get_json().set(key, value)
 
 
         autorun = self.get_json().get('**/debug_bridge/autorun')
