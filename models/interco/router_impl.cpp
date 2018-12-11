@@ -319,13 +319,13 @@ int router::build()
   bandwidth = get_config_int("bandwidth");
   latency = get_config_int("latency");
 
-  vp::config *mappings = get_config()->get("mappings");
+  js::config *mappings = get_js_config()->get("mappings");
 
   if (mappings != NULL)
   {
     for (auto& mapping: mappings->get_childs())
     {
-      vp::config *config = mapping.second;
+      js::config *config = mapping.second;
 
       MapEntry *entry = new MapEntry();
       entry->target_name = mapping.first;
@@ -341,7 +341,7 @@ int router::build()
       else
         entry->itf = itf;
 
-      vp::config *conf;
+      js::config *conf;
       conf = config->get("base");
       if (conf) entry->base = conf->get_int();
       conf = config->get("size");

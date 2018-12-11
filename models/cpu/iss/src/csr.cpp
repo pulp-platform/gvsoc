@@ -591,6 +591,7 @@ static bool mepc_write(iss_t *iss, unsigned int value) {
 
 static bool mcause_read(iss_t *iss, iss_reg_t *value) {
   //*value = iss->cause[GVSIM_MODE_MACHINE];
+  *value = 0xb;
   return false;
 }
 

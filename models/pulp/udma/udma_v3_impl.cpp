@@ -643,12 +643,12 @@ int udma::build()
 
   trace.msg("Instantiating udma channels (nb_periphs: %d)\n", nb_periphs);
 
-  vp::config *interfaces = get_config()->get("interfaces");
+  js::config *interfaces = get_js_config()->get("interfaces");
 
-  for (int i=0; i<interfaces->get_nb_elem(); i++)
+  for (int i=0; i<interfaces->get_size(); i++)
   {
     std::string name = interfaces->get_elem(i)->get_str();
-    vp::config *interface = get_config()->get(name);
+    js::config *interface = get_js_config()->get(name);
 
     if (interface == NULL)
     {
@@ -657,8 +657,8 @@ int udma::build()
     }
 
     int nb_channels = interface->get("nb_channels")->get_int();
-    vp::config *ids = interface->get("ids");
-    vp::config *offsets = interface->get("offsets");
+    js::config *ids = interface->get("ids");
+    js::config *offsets = interface->get("offsets");
     int version = interface->get("version")->get_int();
 
     trace.msg("Instantiating interface (type: %s, nb_channels: %d, version: %d)\n", name.c_str(), nb_channels, version);

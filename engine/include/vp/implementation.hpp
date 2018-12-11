@@ -33,44 +33,26 @@ using namespace std;
 
 namespace vp {
 
-  inline config *component::get_config() {
-    return comp_config;
+
+  inline int component::get_config_int(std::string name, int index)
+  {
+    return get_js_config()->get(name)->get_elem(index)->get_int();
   }
 
 
-  inline int component::get_config_int(std::string name, int index) {
-    config *conf = get_config(name, index);
-    if (conf) return conf->get_int();
-    return 0;
+  inline int component::get_config_int(std::string name)
+  {
+    return get_js_config()->get_child_int(name);
   }
 
-
-  inline int component::get_config_int(std::string name) {
-    config *conf = get_config(name);
-    if (conf) return conf->get_int();
-    return 0;
+  inline bool component::get_config_bool(std::string name)
+  {
+    return get_js_config()->get_child_bool(name);
   }
 
-  inline bool component::get_config_bool(std::string name) {
-    config *conf = get_config(name);
-    if (conf) return conf->get_bool();
-    return false;
-  }
-
-  inline std::string component::get_config_str(std::string name) {
-    config *conf = get_config(name);
-    if (conf) return conf->get_str();
-    return "";
-  }
-
-  inline config *component::get_config(std::string name) {
-    return comp_config->get(name);
-  }
-
-  inline config *component::get_config(std::string name, int index) {
-    config *conf = comp_config->get(name);
-    if (conf == NULL) return NULL;
-    return conf->get_elem(index);
+  inline std::string component::get_config_str(std::string name)
+  {
+    return get_js_config()->get_child_str(name);
   }
 
 

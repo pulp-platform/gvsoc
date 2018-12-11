@@ -59,11 +59,11 @@ class component(vp.component):
         self.new_port('out')
         self.traces = []
 
-        config = self.get_config()
+        config = self.get_json()
         if config is not None:
-          self.impl.module.vp_trace_level(self.impl.instance, config.get('trace-level').encode('utf-8'))
-          self.reg_traces(config.get('trace'), 0)
-          self.reg_traces(config.get('event'), 1)
+          self.impl.module.vp_trace_level(self.impl.instance, config.get_child_str('trace-level').encode('utf-8'))
+          self.reg_traces(config.get_child_str('trace'), 0)
+          self.reg_traces(config.get_child_str('event'), 1)
 
     def pre_start(self):
         length = self.impl.module.vp_trace_exchange_max_path_len(self.impl.instance, self.max_path_len)

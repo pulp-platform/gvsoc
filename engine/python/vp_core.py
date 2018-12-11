@@ -470,12 +470,6 @@ class component(component_trace):
     def get_path(self):
         return self.path
 
-    def get_config(self, name=None):
-        if name is None:
-            return self.config
-        else:
-            return self.config.get_config(name)
-
     def get_json(self):
         return self.json_config
 
@@ -725,12 +719,11 @@ class component(component_trace):
 
     def create_comps(self, comps_tag, class_tag, default_class_name):
         js_config = self.get_json()
-        config = self.get_config()
         comps = js_config.get(comps_tag)
         if comps is not None:
             for comp_name in comps.get_dict():
-                comp_config = config.get_config(comp_name)
-                component = comp_config.get(class_tag)
+                comp_config = js_config.get(comp_name)
+                component = comp_config.get_child_str(class_tag)
                 if component is None:
                     component = default_class_name
 

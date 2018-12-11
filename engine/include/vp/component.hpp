@@ -170,8 +170,6 @@ namespace vp {
 
     void set_config(const char *config);
 
-    inline config *get_config();
-
     inline js::config *get_js_config() { return comp_js_config; }
 
     inline config *get_config(std::string name);
@@ -253,9 +251,7 @@ namespace vp {
     std::vector<component *> childs;
 
   private:
-    inline config *get_config(std::string name, int index);
 
-    config *comp_config;
     js::config *comp_js_config;
     trace root_trace;
 

@@ -27,17 +27,17 @@ class component(vp.component):
     def load(self):
 
 
-        binaries = self.get_config().get('load-binary_eval')
+        binaries = self.get_json().get_child_str('load-binary_eval')
         if binaries is not None:
             binaries = [eval(binaries)]
         else:
-            binaries = self.get_config().get('binaries')
+            binaries = self.get_json().get('binaries')
 
 
         elffile = None
 
         if binaries is not None:
-            for binary in binaries:
+            for binary in binaries.get_dict():
                 with open(binary, 'rb') as file:
                     elffile = ELFFile(file)
                     for segment in elffile.iter_segments():

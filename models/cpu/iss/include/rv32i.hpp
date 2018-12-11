@@ -619,6 +619,7 @@ static inline iss_insn_t *ecall_exec(iss_t *iss, iss_insn_t *insn)
 
   iss_handle_ecall(iss, insn);
 
+  return iss_except_raise(iss, ISS_EXCEPT_ECALL);
 #if 0
   if (!cpu->conf->useSyscalls) {
     triggerException(cpu, pc, EXCEPTION_ECALL);

@@ -30,25 +30,31 @@ import shlex
 
 class Runner(Platform):
 
-    def __init__(self, config, tree):
+    def __init__(self, config, js_config):
 
-        self.config = config
-        super(Runner, self).__init__(self.config, tree)
+        super(Runner, self).__init__(config, js_config)
 
-        systemConfig = self.config.args.config
-        if systemConfig is not None:
-            self.system_tree = plptree.get_configs_from_env(
-                self.config.args.configDef, systemConfig)
-        else:
-            self.system_tree = plptree.get_configs_from_file(
-                self.config.args.configFile)[0]
+        parser = config.getParser()
+
+        parser.add_argument("--binary", dest="binary", default=[], action="append",
+                            help='specify the binary to be loaded')
+
+        [args, otherArgs] = parser.parse_known_args()
+
+        self.addCommand('run', 'Run execution on GVSOC')
+        self.addCommand('prepare', 'Prepare binary for GVOSC')
 
         self.__prepare_env()
+
 
     def __prepare_env(self):
 
         self.gen_flash_stimuli = False
         self.gen_rom_stimuli = False
+
+        if self.config.getOption('binary') is not None:
+            for binary in self.config.getOption('binary'):
+                self.get_json().get('**/loader').set('binaries', binary)
 
         comps_conf = self.get_json().get('**/fs/files')
 
@@ -58,7 +64,7 @@ class Runner(Platform):
 
         if self.get_json().get('**/rom') != None:
 
-            self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.tree.get('**/chip/name').get())
+            self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.get_json().get('**/chip/name').get())
 
             if os.path.exists(self.boot_binary):
                 self.gen_rom_stimuli = True
@@ -93,36 +99,32 @@ class Runner(Platform):
                 raw_stim=self.get_flash_preload_file(),
                 bootBinary=self.get_json().get('**/loader/binaries').get_elem(0).get(),
                 comps=comps,
-                verbose=self.tree.get('**/runner/verbose').get(),
-                archi=self.tree.get('**/pulp_chip_family').get(),
-                flashType=self.tree.get('**/runner/flash_type').get(),
+                verbose=self.get_json().get('**/runner/verbose').get(),
+                archi=self.get_json().get('**/pulp_chip_family').get(),
+                flashType=self.get_json().get('**/runner/flash_type').get(),
                 encrypt=encrypted, aesKey=aes_key, aesIv=aes_iv):
                 return -1
 
         if self.get_json().get('**/efuse') is not None:
-            efuse = runner.stim_utils.Efuse(self.get_json(), verbose=self.tree.get('**/runner/verbose').get())
+            efuse = runner.stim_utils.Efuse(self.get_json(), verbose=self.get_json().get('**/runner/verbose').get())
             efuse.gen_stim_txt('efuse_preload.data')
 
         return 0
 
     def run(self):
 
-        autorun_conf = self.tree.get('**/debug_bridge/autorun')
+        autorun_conf = self.get_json().get('**/debug_bridge/autorun')
         if autorun_conf is not None and autorun_conf.get_bool() and not self.config.getOption('reentrant'):
 
-            options = self.tree.get_child_str('**/debug_bridge/options')
+            options = self.get_json().get_child_str('**/debug_bridge/options')
             if options is None:
                 options  = ''
 
-            cmd_options = ['pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s' % self.config.getOption('configFile'), '--options=%s' % options]
+            cmd_options = ['pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s' % self.config.getOption('config_file'), '--options=%s' % options]
             if self.get_json().get_child_bool('**/runner/wait_pulp_run'):
                 cmd_options.append('--wait-pulp-run')
 
             os.execlp(*cmd_options)
-
-        system = self.system_tree
-        if self.system_tree.get_config('system') is not None:
-          system = self.system_tree.get_config('system_tree')
 
         for config_opt in self.config.getOption('configOpt'):
             key, value = config_opt.split(':')
@@ -130,8 +132,8 @@ class Runner(Platform):
             self.get_json().user_set(key, value)
 
 
-        autorun = self.tree.get('**/debug_bridge/autorun')
-        bridge_active = self.tree.get('**/debug_bridge/active')
+        autorun = self.get_json().get('**/debug_bridge/autorun')
+        bridge_active = self.get_json().get('**/debug_bridge/active')
 
         bridge = autorun is not None and autorun.get_bool() or \
           self.get_json().get('**/gdb/active').get_bool() or \
@@ -187,14 +189,14 @@ class Runner(Platform):
 
         os.environ['PULP_CONFIG_FILE'] = os.path.join(os.getcwd(), 'plt_config.json')
 
-        top = system.get('vp_class')
+        top = self.get_json().get_child_str('system_tree/vp_class')
 
         if top is None:
             raise Exception("The specified configuration does not contain any"
                             " top component")
 
-        gvsoc_config = self.system_tree.get_config('gvsoc')
-        debug_mode = len(gvsoc_config.get('trace')) != 0 or len(gvsoc_config.get('event')) != 0
+        gvsoc_config = self.get_json().get('gvsoc')
+        debug_mode = len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
 
         trace_engine = vp.trace_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
@@ -207,13 +209,13 @@ class Runner(Platform):
         time_engine = power_engine.new(
             name=None,
             component='vp.time_domain',
-            config=system
+            config=self.get_json()
         )
 
         top_comp = time_engine.new(
             name='sys',
             component=top,
-            config=system.get_config('system_tree')
+            config=self.get_json().get('system_tree')
         )
 
         trace_engine.get_port('out').bind_to(top_comp.get_port('trace'))

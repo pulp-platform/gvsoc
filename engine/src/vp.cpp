@@ -43,8 +43,6 @@ vp::component::component(const char *config_string) : traces(*this), power(*this
 
 void vp::component::set_config(const char *config_string)
 {
-  comp_config = import_config(strdup(config_string));
-
   comp_js_config = js::import_config_from_string(strdup(config_string));
 }
 

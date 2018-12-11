@@ -502,13 +502,13 @@ int padframe::build()
 
   this->traces.new_trace_event("ref_clock", &this->ref_clock_trace, 1);
 
-  vp::config *groups = get_config()->get("groups");
+  js::config *groups = get_js_config()->get("groups");
 
   for (auto& group: groups->get_childs())
   {
     std::string name = group.first;
-    vp::config *config = group.second;
-    vp::config *type_config = config->get("type");
+    js::config *config = group.second;
+    js::config *type_config = config->get("type");
     if (type_config)
     {
       std::string type = type_config->get_str();
@@ -530,7 +530,7 @@ int padframe::build()
         traces.new_trace_event(name + "/data_1", &group->data_1_trace, 1);
         traces.new_trace_event(name + "/data_2", &group->data_2_trace, 1);
         traces.new_trace_event(name + "/data_3", &group->data_3_trace, 1);
-        vp::config *nb_cs_config = config->get("nb_cs");
+        js::config *nb_cs_config = config->get("nb_cs");
         group->nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
         for (int i=0; i<group->nb_cs; i++)
         {
@@ -613,7 +613,7 @@ int padframe::build()
         group->slave.set_cs_sync_meth_muxed(&padframe::hyper_cs_sync, nb_itf);
         this->groups.push_back(group);
         traces.new_trace_event(name + "/data", &group->data_trace, 8);
-        vp::config *nb_cs_config = config->get("nb_cs");
+        js::config *nb_cs_config = config->get("nb_cs");
         group->nb_cs = nb_cs_config ? nb_cs_config->get_int() : 1;
         for (int i=0; i<group->nb_cs; i++)
         {
@@ -636,8 +636,8 @@ int padframe::build()
       {
         Wire_group *group = new Wire_group(name);
         this->groups.push_back(group);
-        vp::config *is_master_config = config->get("is_master");
-        vp::config *is_slave_config = config->get("is_slave");
+        js::config *is_master_config = config->get("is_master");
+        js::config *is_slave_config = config->get("is_slave");
 
         if (is_master_config != NULL && is_master_config->get_bool())
         {
