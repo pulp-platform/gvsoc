@@ -20,4 +20,4 @@ import vp_core as vp
 
 class component(vp.component):
 
-    implementation = 'pulp.chips/gap/rtc_impl'
+    implementation = 'vendor/dolphin/rtc_impl'
