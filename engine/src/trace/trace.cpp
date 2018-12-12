@@ -153,6 +153,7 @@ void vp::trace_engine::stop()
   pthread_cond_broadcast(&cond);
   pthread_mutex_unlock(&mutex);
   this->thread->join();
+  fflush(NULL);
 }
 
 void vp::trace_engine::flush()
