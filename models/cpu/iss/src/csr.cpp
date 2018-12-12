@@ -591,13 +591,12 @@ static bool mepc_write(iss_t *iss, unsigned int value) {
 
 
 static bool mcause_read(iss_t *iss, iss_reg_t *value) {
-  //*value = iss->cause[GVSIM_MODE_MACHINE];
-  *value = 0xb;
+  *value = iss->cpu.csr.mcause;
   return false;
 }
 
 static bool mcause_write(iss_t *iss, unsigned int value) {
-  //iss->cause[GVSIM_MODE_MACHINE] = value;
+  iss->cpu.csr.mcause = value;
   return false;
 }
 
@@ -1274,4 +1273,5 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
 void iss_csr_init(iss_t *iss)
 {
   iss->cpu.csr.status = 0;
+  iss->cpu.csr.mcause = 0;
 }

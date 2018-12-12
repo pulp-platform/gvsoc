@@ -354,6 +354,7 @@ typedef struct iss_csr_s
   iss_reg_t status;
   iss_reg_t epc;
   iss_reg_t mtvec;
+  iss_reg_t mcause;
 #if defined(ISS_HAS_PERF_COUNTERS)
   iss_reg_t pccr[CSR_PCER_NB_EVENTS];
   iss_reg_t pcer;
