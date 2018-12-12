@@ -194,19 +194,19 @@ void *gv_ioreq_binding(void *handle, char *path, void *base, size_t size, gv_ior
   if(pipe(binding->snd_pipe) == -1) return NULL;
   if(pipe(binding->rcv_pipe) == -1) return NULL;
 
-  std::string str = "--config-opt=" + std::string(path) + "/rcv_fd:" + std::to_string(binding->snd_pipe[0]);
+  std::string str = "--config-opt=" + std::string(path) + "/rcv_fd=" + std::to_string(binding->snd_pipe[0]);
   add_option(gv, strdup((char *)str.c_str()));
 
-  str = "--config-opt=" + std::string(path) + "/snd_fd:" + std::to_string(binding->rcv_pipe[1]);
+  str = "--config-opt=" + std::string(path) + "/snd_fd=" + std::to_string(binding->rcv_pipe[1]);
   add_option(gv, strdup((char *)str.c_str()));
 
-  str = "--config-opt=" + std::string(path) + "/external_binding/base:" + std::to_string((int64_t)base);
+  str = "--config-opt=" + std::string(path) + "/external_binding/base=" + std::to_string((int64_t)base);
   add_option(gv, strdup((char *)str.c_str()));
 
-  str = "--config-opt=" + std::string(path) + "/external_binding/size:" + std::to_string(size);
+  str = "--config-opt=" + std::string(path) + "/external_binding/size=" + std::to_string(size);
   add_option(gv, strdup((char *)str.c_str()));
 
-  str = "--config-opt=" + std::string(path) + "/context:" + std::to_string((int64_t)binding);
+  str = "--config-opt=" + std::string(path) + "/context=" + std::to_string((int64_t)binding);
   add_option(gv, strdup((char *)str.c_str()));
 
   binding->gv = (gv_launcher_t *)handle;
