@@ -302,10 +302,7 @@ void vp::clock_engine::cancel(vp::clock_event *event)
   if (!event->is_enqueued())
     return;
 
-  printf("EVENT %p is_eneuqued %d delay queue %p\n", event, event->is_enqueued(), delayed_queue);
-
   int event_current_cycle = event->cycle & CLOCK_EVENT_QUEUE_MASK;
-  printf("%d %d %d\n", nb_enqueued_to_cycle, event_current_cycle, current_cycle);
   if (this->nb_enqueued_to_cycle == 0 || event_current_cycle < current_cycle)
   {
     vp::clock_event *current = delayed_queue, *prev = NULL;
