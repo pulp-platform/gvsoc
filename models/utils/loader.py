@@ -31,13 +31,13 @@ class component(vp.component):
         if binaries is not None:
             binaries = [eval(binaries)]
         else:
-            binaries = self.get_json().get('binaries')
+            binaries = self.get_json().get('binaries').get_dict()
 
 
         elffile = None
 
         if binaries is not None:
-            for binary in binaries.get_dict():
+            for binary in binaries:
                 with open(binary, 'rb') as file:
                     elffile = ELFFile(file)
                     for segment in elffile.iter_segments():

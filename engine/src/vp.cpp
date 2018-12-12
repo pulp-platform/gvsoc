@@ -260,7 +260,8 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
   else
   {
     vp::clock_event *current = delayed_queue, *prev = NULL;
-    while (current && current->cycle < cycle)
+    int64_t full_cycle = cycle + get_cycles();
+    while (current && current->cycle < full_cycle)
     {
       prev = current;
       current = current->next;
@@ -268,7 +269,7 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
     if (prev) prev->next = event;
     else delayed_queue = event;
     event->next = current;
-    event->cycle = cycle + get_cycles();
+    event->cycle = full_cycle;
   }
   return event;
 }
@@ -297,8 +298,15 @@ vp::clock_event *vp::clock_engine::get_next_event()
 
 void vp::clock_engine::cancel(vp::clock_event *event)
 {
-  uint64_t cycle_diff = event->cycle - get_cycles();
-  if (cycle_diff >= CLOCK_EVENT_QUEUE_SIZE)
+
+  if (!event->is_enqueued())
+    return;
+
+  printf("EVENT %p is_eneuqued %d delay queue %p\n", event, event->is_enqueued(), delayed_queue);
+
+  int event_current_cycle = event->cycle & CLOCK_EVENT_QUEUE_MASK;
+  printf("%d %d %d\n", nb_enqueued_to_cycle, event_current_cycle, current_cycle);
+  if (this->nb_enqueued_to_cycle == 0 || event_current_cycle < current_cycle)
   {
     vp::clock_event *current = delayed_queue, *prev = NULL;
     while (current != event)
@@ -313,7 +321,7 @@ void vp::clock_engine::cancel(vp::clock_event *event)
   }
   else
   {
-    int cycle = (current_cycle + cycle_diff) & CLOCK_EVENT_QUEUE_MASK;
+    int cycle = (current_cycle + event->cycle - this->get_cycles()) & CLOCK_EVENT_QUEUE_MASK;
     vp::clock_event *current = event_queue[cycle], *prev = NULL;
     while (current != event)
     {
@@ -373,9 +381,6 @@ int64_t vp::clock_engine::exec()
   // Now take all events available at the current cycle and execute them all without returning
   // to the main engine to execute them faster. 
   clock_event *current = event_queue[current_cycle];
-
-  //printf("[%p] CLOCK ENGINE EXEC exec event %p\n", this, current);
-  //printf("[%ld] %p ENGINE EXEC CYCLE %d first %p %d next %p\n", get_time(), this, current_cycle, current, nb_enqueued_to_cycle, this->get_next_event());
 
   while (likely(current != NULL))
   {

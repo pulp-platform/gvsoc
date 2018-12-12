@@ -240,11 +240,11 @@ vp::io_req_status_e timer::handle_configure(int counter, uint32_t *data, unsigne
     trace.msg("Modified configuration (timer: %d, enabled: %d, irq: %d, iem: %d, cmp-clr: %d, one-shot: %d, prescaler: %d, prescaler value: 0x%x, is64: %d)\n", 
       counter, is_enabled[counter], irq_enabled[counter], iem[counter], cmp_clr[counter], one_shot[counter], prescaler[counter], prescaler_value[counter], is_64);
 
-    if ((config[counter] >> PLP_TIMER_RESET_BIT) & 1) timer_reset(counter);
+    if ((config[counter] >> TIMER_CFG_LO_RESET_BIT) & 1) timer_reset(counter);
 
     // Put back reserved bits to 0 in case they were written
-    uint32_t setMask = (1 << PLP_TIMER_ENABLE_BIT) | (1 << PLP_TIMER_IRQ_ENABLE_BIT) | (1 << PLP_TIMER_IEM_BIT) | (1 << PLP_TIMER_CMP_CLR_BIT) | (1 << PLP_TIMER_ONE_SHOT_BIT) | (1 << PLP_TIMER_PRESCALER_ENABLE_BIT) | (((1 << PLP_TIMER_PRESCALER_VALUE_BITS)-1)<<PLP_TIMER_PRESCALER_VALUE_BITS);
-    if (counter == 0) setMask |= 1 << PLP_TIMER_64_BIT;
+    uint32_t setMask = (1 << TIMER_CFG_LO_ENABLE_BIT) | (1 << TIMER_CFG_LO_IRQEN_BIT) | (1 << TIMER_CFG_LO_IRQEN_BIT) | (1 << TIMER_CFG_LO_MODE_BIT) | (1 << TIMER_CFG_LO_ONE_S_BIT) | (1 << TIMER_CFG_LO_PEN_BIT) | (((1 << TIMER_CFG_LO_PVAL_WIDTH)-1)<<TIMER_CFG_LO_PVAL_BIT);
+    if (counter == 0) setMask |= 1 << TIMER_CFG_LO_CASC_BIT;
 
     config[counter] &= setMask;
 
@@ -252,7 +252,7 @@ vp::io_req_status_e timer::handle_configure(int counter, uint32_t *data, unsigne
   }
   else
   {
-    *data = (config[counter] & ~(1<<PLP_TIMER_ENABLE_BIT)) | (is_enabled[counter] << PLP_TIMER_ENABLE_BIT);
+    *data = (config[counter] & ~(1<<TIMER_CFG_LO_ENABLE_BIT)) | (is_enabled[counter] << TIMER_CFG_LO_ENABLE_BIT);
   }
 
   return vp::IO_REQ_OK;
@@ -291,15 +291,15 @@ vp::io_req_status_e timer::handle_compare(int counter, uint32_t *data, unsigned 
 
 void timer::depack_config(int counter, uint32_t configuration)
 {
-  is_enabled[counter] = (configuration >> PLP_TIMER_ENABLE_BIT) & 1;
-  irq_enabled[counter] = (configuration >> PLP_TIMER_IRQ_ENABLE_BIT) & 1;
-  iem[counter] = (configuration >> PLP_TIMER_IEM_BIT) & 1;
-  cmp_clr[counter] = (configuration >> PLP_TIMER_CMP_CLR_BIT) & 1;
-  one_shot[counter] = (configuration >> PLP_TIMER_ONE_SHOT_BIT) & 1;
-  prescaler[counter] = (configuration >> PLP_TIMER_PRESCALER_ENABLE_BIT) & 1;
-  ref_clock[counter] = (configuration >> PLP_TIMER_CLOCK_SOURCE_BIT) & 1;
-  prescaler_value[counter] = (configuration >> PLP_TIMER_PRESCALER_VALUE_BIT) & ((1<<PLP_TIMER_PRESCALER_VALUE_BITS)-1);
-  if (counter == 0) is_64 = (configuration >> PLP_TIMER_64_BIT) & 1;
+  is_enabled[counter] = (configuration >> TIMER_CFG_LO_ENABLE_BIT) & 1;
+  irq_enabled[counter] = (configuration >> TIMER_CFG_LO_IRQEN_BIT) & 1;
+  iem[counter] = (configuration >> TIMER_CFG_LO_IEM_BIT) & 1;
+  cmp_clr[counter] = (configuration >> TIMER_CFG_LO_MODE_BIT) & 1;
+  one_shot[counter] = (configuration >> TIMER_CFG_LO_ONE_S_BIT) & 1;
+  prescaler[counter] = (configuration >> TIMER_CFG_LO_PEN_BIT) & 1;
+  ref_clock[counter] = (configuration >> TIMER_CFG_LO_CCFG_BIT) & 1;
+  prescaler_value[counter] = (configuration >> TIMER_CFG_LO_PVAL_BIT) & ((1<<TIMER_CFG_LO_PVAL_WIDTH)-1);
+  if (counter == 0) is_64 = (configuration >> TIMER_CFG_LO_CASC_BIT) & 1;
 }
 
 vp::io_req_status_e timer::req(void *__this, vp::io_req *req)
@@ -321,41 +321,41 @@ vp::io_req_status_e timer::req(void *__this, vp::io_req *req)
 
   switch (offset) {
 
-    case PLP_TIMER_CFG_REG_HI:
+    case TIMER_CFG_HI_OFFSET:
       return  _this->handle_configure(1, (uint32_t *)data, size, is_write);
 
-    case PLP_TIMER_CFG_REG_LO:
+    case TIMER_CFG_LO_OFFSET:
       return  _this->handle_configure(0, (uint32_t *)data, size, is_write);
 
-    case PLP_TIMER_VALUE_HI:
+    case TIMER_CNT_HI_OFFSET:
       return  _this->handle_value(1, (uint32_t *)data, size, is_write);
 
-    case PLP_TIMER_VALUE_LO:
+    case TIMER_CNT_LO_OFFSET:
       return  _this->handle_value(0, (uint32_t *)data, size, is_write);
 
-    case PLP_TIMER_CMP_HI:
+    case TIMER_CMP_HI_OFFSET:
       return  _this->handle_compare(1, (uint32_t *)data, size, is_write);
 
-    case PLP_TIMER_CMP_LO:
+    case TIMER_CMP_LO_OFFSET:
       return  _this->handle_compare(0, (uint32_t *)data, size, is_write);
 
-    case PLP_TIMER_RESET_LOW: {
-      uint32_t configuration = _this->config[0] | (1<<PLP_TIMER_RESET_BIT);
+    case TIMER_RESET_LO_OFFSET: {
+      uint32_t configuration = _this->config[0] | (1<<TIMER_CFG_LO_RESET_BIT);
       return  _this->handle_configure(0, (uint32_t *)&configuration, 4, true);
     }
 
-    case PLP_TIMER_RESET_HIGH: {
-      uint32_t configuration = _this->config[1] | (1<<PLP_TIMER_RESET_BIT);
+    case TIMER_RESET_HI_OFFSET: {
+      uint32_t configuration = _this->config[1] | (1<<TIMER_CFG_LO_RESET_BIT);
       return  _this->handle_configure(1, (uint32_t *)&configuration, 4, true);
     }
 
-    case PLP_TIMER_START_LOW: {
-      uint32_t configuration = _this->config[0] | (1<<PLP_TIMER_ENABLE_BIT);
+    case TIMER_START_LO_OFFSET: {
+      uint32_t configuration = _this->config[0] | (1<<TIMER_CFG_LO_ENABLE_BIT);
       return  _this->handle_configure(0, (uint32_t *)&configuration, 4, true);
     }
 
-    case PLP_TIMER_START_HIGH: {
-      uint32_t configuration = _this->config[1] | (1<<PLP_TIMER_ENABLE_BIT);
+    case TIMER_START_HI_OFFSET: {
+      uint32_t configuration = _this->config[1] | (1<<TIMER_CFG_LO_ENABLE_BIT);
       return  _this->handle_configure(1, (uint32_t *)&configuration, 4, true);
     }
   }

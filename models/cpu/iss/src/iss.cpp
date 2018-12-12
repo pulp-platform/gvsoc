@@ -278,6 +278,7 @@ int iss_open(iss_t *iss)
   prefetcher_init(iss);
 
   iss->cpu.regfile.regs[0] = 0;
+  iss->cpu.current_insn = NULL;
 
   iss_init(iss);
 
