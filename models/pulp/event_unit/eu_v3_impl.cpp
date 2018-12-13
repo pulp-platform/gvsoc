@@ -138,7 +138,7 @@ public:
   vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core);
   void reset();
 
-  vp::io_req_status_e enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id);
+  vp::io_req_status_e enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id, bool is_caller=true);
 
   //Plp3_ckg *top;
   //gv::trace trace;
@@ -250,6 +250,7 @@ public:
   void check_wait_mask();
   void check_pending_req();
   vp::io_req_status_e wait_event(vp::io_req *req, Event_unit_core_state_e wait_state=CORE_STATE_WAITING_EVENT);
+  vp::io_req_status_e put_to_sleep(vp::io_req *req, Event_unit_core_state_e wait_state=CORE_STATE_WAITING_EVENT);
   Event_unit_core_state_e get_state() { return state; }
   void irq_ack_sync(int irq, int core);
   static void wakeup_handler(void *__this, vp::clock_event *event);
@@ -683,6 +684,13 @@ void Core_event_unit::check_wait_mask()
   }
 }
 
+vp::io_req_status_e Core_event_unit::put_to_sleep(vp::io_req *req, Event_unit_core_state_e wait_state)
+{
+  state = wait_state;
+  pending_req = req;
+  return vp::IO_REQ_PENDING;
+}
+
 vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core_state_e wait_state)
 {
   top->trace.msg("Wait request (status: 0x%x, evt_mask: 0x%x)\n", status, evt_mask);
@@ -712,9 +720,7 @@ vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core
   }
   else
   {
-    state = wait_state;
-    pending_req = req;
-    return vp::IO_REQ_PENDING;
+    return this->put_to_sleep(req, wait_state);
   }
 #else
   if (evt_mask & status)
@@ -1043,7 +1049,7 @@ vp::io_req_status_e Mutex_unit::req(vp::io_req *req, uint64_t offset, bool is_wr
  ****************/
 
 
-vp::io_req_status_e Dispatch_unit::enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id) {
+vp::io_req_status_e Dispatch_unit::enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id, bool is_caller) {
   Core_event_unit *core_eu = &top->core_eu[core_id];
 
   // Enqueue the request so that the core can be unstalled when a value is pushed
@@ -1053,7 +1059,10 @@ vp::io_req_status_e Dispatch_unit::enqueue_sleep(Dispatch *dispatch, vp::io_req 
   // Don't forget to remember to clear the event after wake-up by the dispatch event
   core_eu->clear_evt_mask = 1<<dispatch_event;
 
-  return core_eu->wait_event(req);
+  if (is_caller)
+    return core_eu->wait_event(req);
+  else
+    return core_eu->put_to_sleep(req);
 }
 
 
@@ -1149,7 +1158,7 @@ Dispatch_unit::Dispatch_unit(Event_unit *top)
 
               // And reenqueue to the next entry
               id = core[i].tail;
-              enqueue_sleep(&dispatches[id], pending_req, i);
+              enqueue_sleep(&dispatches[id], pending_req, i, false);
               top->trace.msg("Incrementing core counter to bypass entry (coreId: %d, newIndex: %d)\n", i, id);
             }
           }

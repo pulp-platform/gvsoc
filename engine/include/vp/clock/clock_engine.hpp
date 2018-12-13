@@ -49,6 +49,8 @@ namespace vp {
 
     inline clock_event *enqueue(clock_event *event, int64_t cycles)
     {
+      vp_assert(!event->enqueued, 0, "Enqueueing already enqueued event\n");
+
       event->enqueued = true;
 
       if (likely(is_running() && cycles < CLOCK_EVENT_QUEUE_SIZE))

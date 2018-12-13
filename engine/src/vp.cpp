@@ -279,6 +279,7 @@ vp::clock_event *vp::clock_engine::get_next_event()
   // There is no quick way of getting the next event.
   // We have to first check if there is an event in the circular buffer
   // and if not in the delayed queue
+
   if (this->nb_enqueued_to_cycle)
   {
     for (int i=0; i<CLOCK_EVENT_QUEUE_SIZE; i++)
@@ -290,7 +291,7 @@ vp::clock_event *vp::clock_engine::get_next_event()
         return event;
       }
     }
-    vp_assert(false, 0, "Didn't find any event in circular buffer while it is not empty");
+    vp_assert(false, 0, "Didn't find any event in circular buffer while it is not empty\n");
   }
 
   return this->delayed_queue;
@@ -328,10 +329,9 @@ void vp::clock_engine::cancel(vp::clock_event *event)
     if (prev)
       prev->next = event->next;
     else
-    {
       event_queue[cycle] = event->next;
-      this->nb_enqueued_to_cycle--;
-    }
+
+    this->nb_enqueued_to_cycle--;
   }
   event->enqueued = false;
   if (!this->has_events())
