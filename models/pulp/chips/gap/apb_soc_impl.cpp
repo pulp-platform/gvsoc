@@ -44,6 +44,9 @@ public:
 private:
 
   static void confreg_ext_sync(void *__this, uint32_t value);
+  static void wakeup_rtc_sync(void *__this, bool wakeup);
+  static void wakeup_gpio_sync(void *__this, unsigned int gpio);
+  void set_wakeup(int value);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -54,6 +57,10 @@ private:
   vp::wire_master<bool> cluster_power_irq_itf;
   vp::wire_master<bool> cluster_clock_gate_irq_itf;
   vp::wire_master<int>  event_itf;
+  vp::wire_slave<bool>  wakeup_rtc_itf;
+  vp::wire_slave<unsigned int>  wakeup_gpio_itf;
+  vp::wire_master<bool>  wakeup_out_itf;
+  vp::wire_master<unsigned int>  wakeup_seq_itf;
 
   vp::wire_master<uint32_t> confreg_soc_itf;
   vp::wire_slave<uint32_t> confreg_ext_itf;
@@ -68,13 +75,28 @@ private:
   bool cluster_power;
   bool cluster_clock_gate;
 
+  unsigned int extwake_sel;
+  unsigned int extwake_type;
+  unsigned int extwake_en;
+  unsigned int cfg_wakeup;
+  unsigned int extwake_sync;
+  unsigned int boot_type;
+
   vp::reg_32     jtag_reg_ext;
+
+  int wakeup;
 };
 
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
 : vp::component(config)
 {
 
+}
+
+void apb_soc_ctrl::set_wakeup(int value)
+{
+  this->wakeup = value;
+  this->wakeup_out_itf.sync(value);
 }
 
 vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
@@ -129,6 +151,24 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
     else
     {
       *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
+    }
+  }
+  else if (offset == APB_SOC_SLEEP_CONTROL)
+  {
+    if (is_write)
+    {
+      uint32_t value = *(uint32_t *)data;
+      _this->extwake_sel = (value >> 6) & 0x1f;   // GPIO selection for wakeup
+      _this->extwake_type = (value >> 11) & 0x3;  // GPIO wakeup type (raising edge, etc)
+      _this->extwake_en = (value >> 13) & 0x1;    // GPIO wakeup enabled
+      _this->cfg_wakeup = (value >> 14) & 0x3;    // PMU sequence used to wakeup
+      _this->boot_type = (value >> 18) & 0x3;
+      _this->wakeup_seq_itf.sync(_this->cfg_wakeup);
+    }
+    else
+    {
+      _this->set_wakeup(0);
+      *(uint32_t *)data = (_this->extwake_sel << 6) | (_this->extwake_type << 11) | (_this->extwake_en << 13) | (_this->cfg_wakeup << 14) | (_this->boot_type << 18);
     }
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
@@ -212,6 +252,50 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
+
+void apb_soc_ctrl::wakeup_gpio_sync(void *__this, unsigned int gpio)
+{
+  apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
+  if (_this->extwake_en)
+  {
+    int old_value = _this->extwake_sync;
+    _this->extwake_sync = (gpio >> _this->extwake_sel) & 1;
+
+    switch (_this->extwake_type)
+    {
+      case 0: {
+        if (old_value == 0 && _this->extwake_sync == 1)
+          _this->set_wakeup(1);
+        break;
+      }
+      case 1: {
+        if (old_value == 1 && _this->extwake_sync == 0)
+          _this->set_wakeup(1);
+        break;
+      }
+      case 2: {
+        if (_this->extwake_sync == 1)
+          _this->set_wakeup(1);
+        break;
+      }
+      case 3: {
+        if (_this->extwake_sync == 0)
+          _this->set_wakeup(1);
+        break;
+      }
+    }
+  }
+}
+
+void apb_soc_ctrl::wakeup_rtc_sync(void *__this, bool wakeup)
+{
+  apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
+  if (wakeup)
+  {
+    _this->set_wakeup(1);
+  }
+}
+
 void apb_soc_ctrl::confreg_ext_sync(void *__this, uint32_t value)
 {
   apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
@@ -225,16 +309,21 @@ int apb_soc_ctrl::build()
   new_slave_port("input", &in);
 
   new_master_port("bootaddr", &this->bootaddr_itf);
-
   new_master_port("event", &event_itf);
-
   new_master_port("cluster_power", &cluster_power_itf);
-
   new_master_port("cluster_reset", &cluster_reset_itf);
-
   new_master_port("cluster_power_irq", &cluster_power_irq_itf);
-
   new_master_port("cluster_clock_gate_irq", &cluster_clock_gate_irq_itf);
+
+  this->wakeup_rtc_itf.set_sync_meth(&apb_soc_ctrl::wakeup_rtc_sync);
+  new_slave_port("wakeup_rtc", &this->wakeup_rtc_itf);
+
+  this->wakeup_gpio_itf.set_sync_meth(&apb_soc_ctrl::wakeup_gpio_sync);
+  new_slave_port("wakeup_gpio", &this->wakeup_gpio_itf);
+  
+  new_master_port("wakeup_out", &this->wakeup_out_itf);
+
+  new_master_port("wakeup_seq", &this->wakeup_seq_itf);
 
   confreg_ext_itf.set_sync_meth(&apb_soc_ctrl::confreg_ext_sync);
   this->new_slave_port("confreg_ext", &this->confreg_ext_itf);
@@ -248,6 +337,17 @@ int apb_soc_ctrl::build()
 
   core_status = 0;
   this->jtag_reg_ext.set(0);
+
+  // This one is in the always-on domain and so it is reset only when the
+  // component is powered-up
+  this->wakeup = 0;
+  this->extwake_sel = 0;
+  this->extwake_type = 0;
+  this->extwake_en = 0;
+  this->cfg_wakeup = 0;
+  this->boot_type = 0;
+  this->extwake_sync = 0;
+
 
   return 0;
 }

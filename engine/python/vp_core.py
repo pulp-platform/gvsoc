@@ -55,7 +55,7 @@ class port(object):
 
     def bind_to(self, port, config=None):
         if port is not None:
-            self.comp.trace.msg('Creating binding (master: %s->%s, slave: %s->%s)' % (self.get_comp().name, self.name, port.get_comp().name, port.name))
+            self.comp.trace.msg('Binding composite master port (master: %s->%s, slave: %s->%s)' % (self.get_comp().name, self.name, port.get_comp().name, port.name))
             self.slaves.append(port)
             port.is_bound = True
 
@@ -76,7 +76,6 @@ class impl_master_port(object):
         self.is_bound_to_port = False
 
     def bind_to(self, port, config=None):
-
         if port is None:
             raise Exception("SLAVE IS NONE")
 
@@ -96,7 +95,7 @@ class impl_master_port(object):
             config = slave_desc[1]
 
             for port in slave.get_ports():
-                self.implem.parent.trace.msg('Creating implementation binding (master: %s->%s, slave: %s->%s)' % (self.implem.parent.name, self.name, port.implem.parent.name, port.name))
+                self.implem.parent.trace.msg('Binding implementation master port (master: %s->%s, slave: %s->%s)' % (self.implem.parent.name, self.name, port.implem.parent.name, port.name))
                 if config is not None:
                     config = str(config).replace('\'', '"').encode('utf-8')
 
@@ -770,7 +769,6 @@ class component(component_trace):
 
                 if slave_port is None:
                     raise Exception('Unknown slave port in binding: %s' % binding[1])
-
 
                 master_port.bind_to(slave_port)
 

@@ -59,14 +59,17 @@ namespace vp {
       void init(vp::component *top, std::string name, int bits, uint8_t *value, uint8_t *reset_val);
       void reset(bool active);
 
-      inline void set(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+      inline uint8_t *get_bytes() { return this->value_bytes; }
+      inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+      inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); }
       inline void set_1(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
       inline void set_8(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
       inline void set_16(uint16_t value) { *(uint16_t *)this->value_bytes = value; }
       inline void set_32(uint32_t value) { *(uint32_t *)this->value_bytes = value; }
       inline void set_64(uint64_t value) { *(uint64_t *)this->value_bytes = value; }
 
-      inline uint8_t *get() { return this->value_bytes; }
+      inline void read(int reg_offset, int size, uint8_t *value) { memcpy((void *)value, (void *)(this->value_bytes+reg_offset), size); }
+      inline void read(uint8_t *value) { memcpy((void *)value, (void *)this->value_bytes, this->nb_bytes); }
       inline uint8_t  get_1 () { return *(uint8_t *)this->value_bytes; }
       inline uint8_t  get_8 () { return *(uint8_t *)this->value_bytes; }
       inline uint16_t get_16() { return *(uint16_t *)this->value_bytes; }

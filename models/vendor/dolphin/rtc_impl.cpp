@@ -84,6 +84,7 @@ private:
   vp::trace             trace;
   vp::io_slave          in;
   vp::wire_master<int>  event_itf;
+  vp::wire_master<bool> irq_itf;
   vp::clock_slave       ref_clock_itf;
 
   Apb_rtc_ctrlT       apb_ctrl_reg;
@@ -140,6 +141,8 @@ void rtc::check_interrupts()
     this->get_trace()->msg("Generating soc event (id: %d)\n", this->irq_soc_event);
     this->last_irq_state = new_irq_state;
     this->event_itf.sync(this->irq_soc_event);
+    if (this->irq_itf.is_bound())
+      this->irq_itf.sync(true);
   }
 }
 
@@ -697,6 +700,7 @@ int rtc::build()
   this->new_slave_port("input", &this->in);
 
   this->new_master_port("event", &this->event_itf);
+  this->new_master_port("irq", &this->irq_itf);
 
   this->ref_clock_itf.set_sync_meth(&rtc::ref_clock_sync);
   this->new_slave_port("ref_clock", &this->ref_clock_itf);
