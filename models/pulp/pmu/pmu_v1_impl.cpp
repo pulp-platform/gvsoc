@@ -65,19 +65,6 @@ public:
   int nb_step;
 };
 
-typedef enum
-{
-  PMU_SCU_STATE_POWER_ON=0,
-  PMU_SCU_STATE_POWER_EXT=1,
-} pmu_scu_state_power_e;
-
-typedef enum
-{
-  PMU_SCU_STATE_VOLTAGE_LV=0,
-  PMU_SCU_STATE_VOLTAGE_NV=1,
-  PMU_SCU_STATE_VOLTAGE_RV=1,
-} pmu_scu_state_voltage_e;
-
 class pmu_icu_state
 {
 public:
@@ -184,6 +171,9 @@ private:
   int active_sequence_step;
   bool pending_access;
   int wakeup_seq;
+
+  int nb_interrupts;
+  int nb_icu;
 
   vp::clock_event *sequence_event;
 
@@ -653,6 +643,9 @@ int pmu::build()
 
   sequence_event = event_new(pmu::sequence_event_handle);
 
+  this->nb_interrupts = this->get_js_config()->get_child_int("nb_interrupts");
+  this->nb_icu = this->get_js_config()->get_child_int("nb_icu");
+
   for (int i=0; i<NB_PICL_SLAVES; i++)
   {
     this->picl_slaves[i] == NULL;
@@ -661,53 +654,11 @@ int pmu::build()
   this->wiu = new pmu_wiu(this);
   this->picl_slaves[0] = this->wiu;
 
-
-  for (int i=0; i<2; i++)
+  for (int i=0; i<this->nb_icu; i++)
   {
     pmu_icu *icu = new pmu_icu(this, i);
-    icu->set_state(0, MAESTRO_ICU_SUPPLY_ON,  MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_NV);
-    icu->set_state(1, MAESTRO_ICU_SUPPLY_ON,  MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_LV);
-    icu->set_state(2, MAESTRO_ICU_SUPPLY_EXT, MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_RV);
-    icu->set_state(3, MAESTRO_ICU_SUPPLY_RET, MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_RV);
-    icu->set_state(4, MAESTRO_ICU_SUPPLY_ON,  MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_NV);
-    icu->set_state(5, MAESTRO_ICU_SUPPLY_ON,  MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_LV);
     this->picl_slaves[i+2] = icu;
   }
-
-  this->boot_sequence.add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x00); //Start SoC in active mode Nominal Voltage
-  this->boot_sequence.add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x02); // Start cluster in Deep Sleep
-  this->boot_sequence.add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0xFF); // Seq. pos 2: No Interrupt Active
-  this->boot_sequence.add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xC0); //unmask IRQ 0
-
-  this->sequences[5].add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x02); // Seq. pos 0: Cluster Deep Sleep
-  this->sequences[5].add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x03); // Seq. pos 1: SoC Retentive
-  this->sequences[5].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0x00); // Seq. pos 2: Wakeup Interrupts Active
-  this->sequences[5].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xFF); //unmask IRQ 0
-
-  this->sequences[4].add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x02); // Seq. pos 0: Cluster Deep Sleep
-  this->sequences[4].add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x02); // Seq. pos 1: SoC Deep Sleep
-  this->sequences[4].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0x00); // Seq. pos 2: Wakeup Interrupts Active
-  this->sequences[4].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xFF); //unmask IRQ 0
-
-  this->sequences[3].add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x01); // Seq. pos 0: Soc Active LV
-  this->sequences[3].add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x01); // Seq. pos 1: Cluster active
-  this->sequences[3].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0xFF); // Seq. pos 2: No Interrupt Active
-  this->sequences[3].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xC0); //unmask IRQ 0
-
-  this->sequences[2].add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x00); // Seq. pos 0: Soc Active NV
-  this->sequences[2].add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x00); // Seq. pos 1: Cluster active
-  this->sequences[2].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0xFF); // Seq. pos 2: No Interrupt Active
-  this->sequences[2].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xC0); //unmask IRQ 0
-
-  this->sequences[1].add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x01); // Seq. pos 0: Soc Active LV
-  this->sequences[1].add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x02); // Seq. pos 1: Cluster Deep Sleep
-  this->sequences[1].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0xFF); // Seq. pos 2: No Interrupt Active
-  this->sequences[1].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xC0); //unmask IRQ 0
-
-  this->sequences[0].add_step(MAESTRO_ICU0_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x00); // Seq. pos 0: Soc Active NV
-  this->sequences[0].add_step(MAESTRO_ICU1_OFFSET, MAESTRO_ICU_CTRL_OFFSET, 0x02); // Seq. pos 1: Cluster Deep Sleep
-  this->sequences[0].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_0_OFFSET, 0xFF); // Seq. pos 2: No Interrupt Active
-  this->sequences[0].add_step(MAESTRO_WIU_OFFSET, MAESTRO_WIU_ISPMR_1_OFFSET, 0xC0); //unmask IRQ 0
 
   return 0;
 }
@@ -719,34 +670,68 @@ void pmu::reset(bool active)
     this->active_sequence = -1;
     this->pending_access = false;
     this->wakeup_seq = 0;
+
+    // These are the sequences corresponding to the interrupts
+    js::config *icrs_config = this->get_js_config()->get("icrs");
+    if (icrs_config != NULL)
+    {
+      for (int i=0; i<this->nb_interrupts; i++)
+      {
+        int icr_value = icrs_config->get_elem(i)->get_int();
+        this->trace.msg("Setting initial ICR value (icr: %d, value: 0x%x)\n", i, icr_value);
+        this->wiu->r_icr[i].set(icr_value);
+      }
+    }
   }
 
   this->wiu->reset(active);
-
-  // These are the sequences corresponding to the interrupts
-  // 0-7 are HW interrupts for RTC and GPIO wakeup in case the chip is sleeping
-  // 8-15 are SW interrupts to request mode change from SW (e.g. to change voltage)
-  this->wiu->r_icr[0].set(0);
-  this->wiu->r_icr[1].set(0);
-  this->wiu->r_icr[2].set(1);
-  this->wiu->r_icr[3].set(1);
-  this->wiu->r_icr[4].set(2);
-  this->wiu->r_icr[5].set(2);
-  this->wiu->r_icr[6].set(3);
-  this->wiu->r_icr[7].set(3);
-  this->wiu->r_icr[8].set(4);
-  this->wiu->r_icr[9].set(5);
-  this->wiu->r_icr[10].set(0);
-  this->wiu->r_icr[11].set(1);
-  this->wiu->r_icr[12].set(2);
-  this->wiu->r_icr[13].set(3);
-  this->wiu->r_icr[14].set(0);
-  this->wiu->r_icr[15].set(0);
-
 }
 
 void pmu::start()
 {
+  js::config *sequences = this->get_js_config()->get("regmap/sequences");
+  for (auto x: sequences->get_childs())
+  {
+    js::config *seq_config = x.second;
+    int id = seq_config->get_child_int("id");
+    js::config *cmd_config = seq_config->get("commands");
+    if (cmd_config != NULL)
+    {
+      for (int i=0; i<cmd_config->get_size(); i++)
+      {
+        js::config *step_config = cmd_config->get_elem(i);
+        int cs = step_config->get_elem(0)->get_int();
+        unsigned int offset = step_config->get_elem(1)->get_int();
+        unsigned int value = step_config->get_elem(2)->get_int();
+        std::string desc = step_config->get_elem(3)->get_str();
+        this->trace.msg("Recording sequence step (sequence: %d, cs: %d, offset: 0x%x, value: 0x%2.2x, desc: %s)\n", id, cs, offset, value, desc.c_str());
+        if (id == -1)
+          this->boot_sequence.add_step(cs, offset, value);
+        else
+          this->sequences[id].add_step(cs, offset, value);
+      }
+    }
+  }
+
+  for (int i=0; i<this->nb_icu; i++)
+  {
+    pmu_icu *icu = (pmu_icu *)this->picl_slaves[i+2];
+
+    js::config *icu_states_config = this->get_js_config()->get("icu_states");
+    if (icu_states_config != NULL)
+    {
+      for (int j=0; j<icu_states_config->get_size(); j++)
+      {
+        js::config *state = icu_states_config->get_elem(j);
+        int supply = state->get_elem(0)->get_int();
+        int freq = state->get_elem(1)->get_int();
+        int regu = state->get_elem(2)->get_int();
+        this->trace.msg("Recording ICU state (state: %d, supply: %d, freq: %d, regu: %d)\n", j, supply, freq, regu);
+        icu->set_state(j, supply,  freq, regu);
+      }
+    }
+  }
+
 }
 
 extern "C" void *vp_constructor(const char *config)
