@@ -309,10 +309,13 @@ int apb_soc_ctrl::build()
   new_slave_port("input", &in);
 
   new_master_port("bootaddr", &this->bootaddr_itf);
+
   new_master_port("event", &event_itf);
+
   new_master_port("cluster_power", &cluster_power_itf);
   new_master_port("cluster_reset", &cluster_reset_itf);
   new_master_port("cluster_power_irq", &cluster_power_irq_itf);
+
   new_master_port("cluster_clock_gate_irq", &cluster_clock_gate_irq_itf);
 
   this->wakeup_rtc_itf.set_sync_meth(&apb_soc_ctrl::wakeup_rtc_sync);
