@@ -200,9 +200,9 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 
       _this->pmu_bypass = *(uint32_t *)data;
 
-      bool new_cluster_power = (_this->pmu_bypass >> 3) & 1;
-      bool new_cluster_reset = (_this->pmu_bypass >> 13) & 1;
-      bool new_cluster_clock_gate = (_this->pmu_bypass >> 10) & 1;
+      bool new_cluster_power = (_this->pmu_bypass >> ARCHI_APB_SOC_BYPASS_CLUSTER_POWER_BIT) & 1;
+      bool new_cluster_reset = (_this->pmu_bypass >> ARCHI_APB_SOC_BYPASS_CLUSTER_CLOCK_BIT) & 1;
+      bool new_cluster_clock_gate = (_this->pmu_bypass >> ARCHI_APB_SOC_BYPASS_CLUSTER_RESET_BIT) & 1;
 
       if (_this->cluster_reset != new_cluster_reset)
       {
