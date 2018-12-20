@@ -53,6 +53,8 @@ namespace vp {
 
       event->enqueued = true;
 
+      // The event is enqueued directly into the circular buffer if it is
+      // close enough.
       if (likely(is_running() && cycles < CLOCK_EVENT_QUEUE_SIZE))
       {
         enqueue_to_cycle(event, cycles);
@@ -112,6 +114,8 @@ namespace vp {
 
     inline void enqueue_to_cycle(clock_event *event, int64_t cycles)
     {
+      // The position of one round of the circular buffer is always aligned
+      // on the buffer size.
       int cycle = (current_cycle + cycles) & CLOCK_EVENT_QUEUE_MASK;
       event->next = event_queue[cycle];
       event_queue[cycle] = event;

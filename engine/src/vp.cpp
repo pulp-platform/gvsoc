@@ -303,37 +303,56 @@ void vp::clock_engine::cancel(vp::clock_event *event)
   if (!event->is_enqueued())
     return;
 
-  int event_current_cycle = event->cycle & CLOCK_EVENT_QUEUE_MASK;
-  if (this->nb_enqueued_to_cycle == 0 || event_current_cycle < current_cycle)
-  {
-    vp::clock_event *current = delayed_queue, *prev = NULL;
-    while (current != event)
-    {
-      prev = current;
-      current = current->next;
-    }
-    if (prev)
-      prev->next = event->next;
-    else
-      delayed_queue = event->next;
-  }
-  else
-  {
-    int cycle = (current_cycle + event->cycle - this->get_cycles()) & CLOCK_EVENT_QUEUE_MASK;
-    vp::clock_event *current = event_queue[cycle], *prev = NULL;
-    while (current != event)
-    {
-      prev = current;
-      current = current->next;
-    }
-    if (prev)
-      prev->next = event->next;
-    else
-      event_queue[cycle] = event->next;
+  // There is no way to know if the event is enqueued into the circular buffer
+  // or in the delayed queue so first go through the delayed queue and if it is
+  // not found, look in the circular buffer
 
-    this->nb_enqueued_to_cycle--;
+  // First the delayed queue
+  vp::clock_event *current = delayed_queue, *prev = NULL;
+  while (current)
+  {
+    if (current == event)
+    {
+      if (prev)
+        prev->next = event->next;
+      else
+        delayed_queue = event->next;
+
+      goto end;
+    }
+
+    prev = current;
+    current = current->next;
   }
+
+  // Then in the circular buffer
+  for (int i=0; i<CLOCK_EVENT_QUEUE_SIZE; i++)
+  {
+    vp::clock_event *current = event_queue[i], *prev = NULL;
+    while (current)
+    {
+      if (current == event)
+      {
+        if (prev)
+          prev->next = event->next;
+        else
+          event_queue[i] = event->next;
+
+        this->nb_enqueued_to_cycle--;
+
+        goto end;
+      }
+
+      prev = current;
+      current = current->next;
+    }
+  }
+
+  vp_assert(0, NULL, "Didn't find event in any queue while canceling event\n");
+
+end:
   event->enqueued = false;
+
   if (!this->has_events())
     this->dequeue_from_engine();
 }
