@@ -105,7 +105,7 @@ private:
   Rtc_calend_dateT    alarm_date;
   Rtc_cntDwn_ctrlT    cntdwn_ctrl;
   unsigned int        cntdwn_init;
-  unsigned int        cntdwn_timer;
+  int        cntdwn_timer;
   Rtc_CKIN_divT       ckin_div_reg;
   Rtc_ref_clkT        ref_clk_reg;
 
@@ -276,7 +276,7 @@ void rtc::update_calendar()
   if (~this->cntdwn_ctrl.cntDwn1_En)
   {
     this->cntdwn_timer--;
-    if (this->cntdwn_timer == 0)
+    if (this->cntdwn_timer == -1)    // Dolphin RTC is counting specified count + 1
     {
       this->get_trace()->msg("Reached countdown, raising interrupt (mask: 0x%x)\n",
         RTC_Irq_Timer1_Flag);
