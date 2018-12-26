@@ -10,7 +10,7 @@ CC=gcc
 
 VP_COMP_PYBIND_FLAGS := $(shell python3-config --includes)
 
-VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -I$(PULP_SDK_WS_INSTALL)/include $(VP_COMP_PYBIND_FLAGS)
+VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -D__GVSOC__=1 -I$(PULP_SDK_WS_INSTALL)/include $(VP_COMP_PYBIND_FLAGS)
 VP_COMP_CPPFLAGS=-std=c++11
 VP_COMP_LDFLAGS=-O2 -g -shared -L$(PULP_SDK_WS_INSTALL)/lib
 VP_COMP_STD_LDFLAGS=-lpulpvp

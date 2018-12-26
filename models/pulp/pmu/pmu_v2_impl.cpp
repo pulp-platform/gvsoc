@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <vp/itf/wire.hpp>
 #include <string.h>
-#include "archi/maestro/maestro_v1_new.h"
+#include "archi/maestro/maestro_v2_new.h"
 
 #define NB_PICL_SLAVES 16
 

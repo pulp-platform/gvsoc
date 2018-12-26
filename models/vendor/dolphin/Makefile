@@ -1,4 +1,4 @@
-ifneq '$(rtc/version)' ''
+ifeq '$(rtc/version)' '1'
 
 IMPLEMENTATIONS += vendor/dolphin/rtc_impl
 COMPONENTS += vendor/dolphin/rtc

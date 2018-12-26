@@ -50,6 +50,7 @@ private:
   vp::trace     trace;
   vp::io_slave in;
 
+  vp::io_master rtc;
   vp::wire_master<uint32_t> bootaddr_itf;
   vp::wire_master<bool> cluster_reset_itf;
   vp::wire_master<bool> cluster_power_itf;
@@ -252,6 +253,11 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       *(uint32_t *)data = _this->pmu_bypass;
     }
   }
+  else if (offset >= APB_SOC_RTC_FIRST_REG_OFFSET && offset < APB_SOC_RTC_LAST_REG_OFFSET + 4)
+  {
+    req->set_addr(offset - APB_SOC_RTC_FIRST_REG_OFFSET);
+    return _this->rtc.req_forward(req);
+  }
   else
   {
 
@@ -327,6 +333,8 @@ int apb_soc_ctrl::build()
   new_slave_port("bootsel", &bootsel_itf);
 
   new_master_port("bootaddr", &this->bootaddr_itf);
+
+  new_master_port("rtc", &this->rtc);
 
   new_master_port("event", &event_itf);
 

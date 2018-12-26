@@ -60,8 +60,6 @@ namespace vp {
       void reset(bool active);
 
       inline uint8_t *get_bytes() { return this->value_bytes; }
-      inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
-      inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); }
       inline void set_1(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
       inline void set_8(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
       inline void set_16(uint16_t value) { *(uint16_t *)this->value_bytes = value; }
@@ -93,6 +91,9 @@ namespace vp {
 
     inline uint8_t get() { return this->value; }
     inline void set(uint8_t value) { this->trace.msg("Setting register (value: 0x%x)\n", value); this->value = value; }
+    inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+    inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
+    inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
 
   private:
     uint8_t value;
@@ -106,6 +107,11 @@ namespace vp {
 
     inline uint8_t get() { return this->value; }
     inline void set(uint8_t value) { this->value = value; }
+    inline void set_field(uint8_t value, int offset, int width) { this->value = (this->value & (((1<<width)-1)<<offset)) | (value << offset); }
+    inline uint8_t get_field(int offset, int width) { return (this->value >> offset) & ((1<<width)-1); }
+    inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+    inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
+    inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
 
   private:
     uint8_t value;
@@ -119,6 +125,11 @@ namespace vp {
 
     inline uint16_t get() { return this->value; }
     inline void set(uint16_t value) { this->value = value; }
+    inline void set_field(uint16_t value, int offset, int width) { this->value = (this->value & (((1<<width)-1)<<offset)) | (value << offset); }
+    inline uint16_t get_field(int offset, int width) { return (this->value >> offset) & ((1<<width)-1); }
+    inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+    inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
+    inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
 
   private:
     uint16_t value;
@@ -132,6 +143,11 @@ namespace vp {
 
     inline uint32_t get() { return this->value; }
     inline void set(uint32_t value) { this->value = value; }
+    inline void set_field(uint32_t value, int offset, int width) { this->value = (this->value & (((1<<width)-1)<<offset)) | (value << offset); }
+    inline uint32_t get_field(int offset, int width) { return (this->value >> offset) & ((1<<width)-1); }
+    inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+    inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
+    inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
 
   private:
     uint32_t value;
@@ -145,6 +161,9 @@ namespace vp {
 
     inline uint64_t get() { return this->value; }
     inline void set(uint64_t value) { this->value = value; }
+    inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
+    inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
+    inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
 
   private:
     uint64_t value;

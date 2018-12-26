@@ -17,7 +17,8 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
   pulp/chips/oprecompkw pulp/chips/oprecompkw_sa pulp/chips/bigpulp \
   pulp/chips/wolfe pulp/chips/vega pulp/chips/usoc_v1 pulp/pmu pulp/chips/gap \
   pulp/chips/multino pulp/efuse board pulp/chips/arnold \
-  devices/hyperchip devices/spiflash vendor/dolphin pulp/chips/pulpissimo_v2
+  devices/hyperchip devices/spiflash vendor/dolphin pulp/chips/pulpissimo_v2 \
+  pulp/rtc
 
 
 -include $(ROOT_VP_BUILD_DIR)/props.mk
