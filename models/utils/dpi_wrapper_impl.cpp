@@ -49,6 +49,12 @@ typedef struct {
 
 typedef struct {
   void *handle;
+  vp::wire_slave<bool> itf;
+  vp::trace trace;
+} gpio_handle_t;
+
+typedef struct {
+  void *handle;
   vp::qspim_slave *itf;
   vp::wire_slave<bool> *cs_itf;
 } qspim_handle_t;
@@ -77,6 +83,7 @@ static vector<i2c_handle_t *> i2c_handles;
 
 static vector<vp::cpi_master *> cpi_masters;
 static vector<cpi_handle_t *> cpi_handles;
+static vector<gpio_handle_t *> gpio_handles;
 
 static ucontext_t main_context;
 
@@ -145,7 +152,11 @@ public:
   vp::trace *get_trace() { return &trace; }
   void enqueue_waiting_for_event(dpi_task *task);
 
+  vp::clock_event *delayed_evt;
+
 private:
+
+  static void delayed_handler(void *__this, vp::clock_event *event);
 
   static void qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
   static void qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
@@ -154,6 +165,7 @@ private:
   static void i2c_sync(void *__this, int scl, int sda, int id);
   static void i2c_sync_cycle(void *__this, int sda, int id);
   static void uart_sync(void *__this, int data, int id);
+  static void gpio_sync(void *__this, bool data, int id);
   static void cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id);
   static void wakeup_handler(void *__this, vp::clock_event *event);
 
@@ -230,9 +242,15 @@ dpi_wrapper::dpi_wrapper(const char *config)
 : vp::component(config)
 {
   this->wakeup_evt = this->event_new(this, dpi_wrapper::wakeup_handler);
-
+  this->delayed_evt = this->event_new(this, dpi_wrapper::delayed_handler);
 }
 
+
+void dpi_wrapper::delayed_handler(void *__this, vp::clock_event *event)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  _this->raise_event();
+}
 
 void dpi_wrapper::wakeup_handler(void *__this, vp::clock_event *event)
 {
@@ -323,6 +341,13 @@ void dpi_wrapper::uart_sync(void *__this, int data, int id)
   dpi_wrapper *_this = (dpi_wrapper *)__this;
   uart_handles[id]->tx_trace.event((uint8_t *)&data);
   dpi_uart_edge(uart_handles[id]->handle, _this->get_clock()->get_time(), data);
+}
+
+void dpi_wrapper::gpio_sync(void *__this, bool data, int id)
+{
+  dpi_wrapper *_this = (dpi_wrapper *)__this;
+  gpio_handles[id]->trace.event((uint8_t *)&data);
+  dpi_gpio_edge(gpio_handles[id]->handle, _this->get_clock()->get_time(), data);
 }
 
 void dpi_wrapper::i2c_sync(void *__this, int scl, int sda, int id)
@@ -469,6 +494,22 @@ int dpi_wrapper::build()
           }
           traces.new_trace_event(itf_name + std::to_string(itf_id) + "/tx", &handle->sda_trace, 1);
 
+        }
+        else if (strcmp(itf_type, "GPIO") == 0)
+        {
+          gpio_handle_t *handle = new gpio_handle_t;
+          handle->itf.set_sync_meth_muxed(&dpi_wrapper::gpio_sync, itf_id);
+          new_slave_port(itf_name, &handle->itf);
+          gpio_handles.reserve(itf_id + 1);
+          gpio_handles[itf_id] = handle;
+
+          handle->handle = dpi_gpio_bind(dpi_model, itf_name, itf_id);
+          if (handle->handle == NULL)
+          {
+            snprintf(vp_error, VP_ERROR_SIZE, "Failed to bind gpio interface (name: %s)\n", itf_name);
+            return -1;
+          }
+          traces.new_trace_event(itf_name + std::to_string(itf_id), &handle->trace, 0);
         }
         else if (strcmp(itf_type, "CPI") == 0)
         {
@@ -624,18 +665,24 @@ extern "C" int dpi_wait_task_event(void *handle)
 
 extern "C" void dpi_raise_task_event(void *handle)
 {
-  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  dpi->raise_event();
 }
 
 extern "C" int dpi_wait_task_event_timeout(void *handle, int64_t t)
 {
-  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+  dpi_wrapper *dpi = (dpi_wrapper *)handle;
+  int64_t period = dpi->get_period();
+  int64_t cycles = (t + period - 1) / period;
+  dpi->event_enqueue(dpi->delayed_evt, cycles);
+  dpi->wait_event();
   return 0;
 }
 
 extern "C" void dpi_gpio_set_data(void *handle, int data)
 {
-  printf("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+  vp::wire_slave<bool> *itf = &gpio_handles[(int)(long)handle]->itf;
+  itf->sync(data);
 }
 
 extern "C" void dpi_qspim_set_data(void *handle, int data)

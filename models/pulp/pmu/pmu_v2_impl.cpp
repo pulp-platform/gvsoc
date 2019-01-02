@@ -646,13 +646,15 @@ int pmu::build()
   this->nb_interrupts = this->get_js_config()->get_child_int("nb_interrupts");
   this->nb_icu = this->get_js_config()->get_child_int("nb_icu");
 
+  int wiu_offset = this->get_js_config()->get_child_int("regmap/wiu/offset");
+
   for (int i=0; i<NB_PICL_SLAVES; i++)
   {
     this->picl_slaves[i] == NULL;
   }
 
   this->wiu = new pmu_wiu(this);
-  this->picl_slaves[0] = this->wiu;
+  this->picl_slaves[wiu_offset] = this->wiu;
 
   for (int i=0; i<this->nb_icu; i++)
   {

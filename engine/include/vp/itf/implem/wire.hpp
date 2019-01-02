@@ -24,6 +24,12 @@
 namespace vp {
 
   template<class T>
+  wire_master<T>::wire_master() : master_sync_meth_mux(NULL)
+  {
+    this->master_sync_meth = &wire_master<T>::sync_default;
+  }
+
+  template<class T>
   inline void wire_master<T>::bind_to(vp::port *_port, vp::config *config)
   {
     this->remote_port = _port;
@@ -38,15 +44,15 @@ namespace vp {
     else
     {
       wire_slave<T> *port = (wire_slave<T> *)_port;
-      if (port->sync_mux == NULL && port->sync_back_mux == NULL)
+      if (port->sync_meth_mux == NULL && port->sync_back_mux == NULL)
       {
         sync_back_meth = port->sync_back;
-        sync_meth = port->sync;
+        sync_meth = port->sync_meth;
         set_remote_context(port->get_context());
       }
       else
       {
-        sync_meth_mux = port->sync_mux;
+        sync_meth_mux = port->sync_meth_mux;
         sync_back_meth_mux = port->sync_back_mux;
         sync_meth = (void (*)(void *, T))&wire_master::sync_muxed;
         sync_back_meth = (void (*)(void *, T *))&wire_master::sync_back_muxed;
@@ -115,37 +121,66 @@ namespace vp {
   }
 
 
+  template<class T>
+  inline void wire_slave<T>::sync_muxed(wire_slave<T> *_this, T value)
+  {
+    return _this->master_sync_meth_mux(_this->master_comp_mux, value, _this->master_sync_mux);
+  }
 
   template<class T>
   inline void wire_slave<T>::bind_to(vp::port *_port, vp::config *config)
   {
     slave_port::bind_to(_port, config);
     wire_master<T> *port = (wire_master<T> *)_port;
+    port->slave_port = this;
+    if (port->master_sync_meth_mux == NULL)
+    {
+      this->master_sync_meth = port->master_sync_meth;
+      this->set_remote_context(port->get_context());
+    }
+    else
+    {
+      this->master_sync_meth_mux = port->master_sync_meth_mux;
+      this->master_sync_meth = (void (*)(void *, T))&wire_slave<T>::sync_muxed_stub;
 
-    if (port->next) port = port->next;
+      set_remote_context(this);
+      master_comp_mux = (vp::component *)port->get_context();
+      master_sync_mux = port->master_sync_mux_id;
+    }
+  }
 
-    port->slave_port = new wire_slave();
-    port->slave_port->set_context(port->get_context());
-    port->slave_port->set_remote_context(port->get_context());
+  template<class T>
+  inline void wire_master<T>::set_sync_meth(void (*meth)(void *, T))
+  {
+    master_sync_meth = meth;
+    master_sync_meth_mux = NULL;
+  }
+
+  template<class T>
+  inline void wire_master<T>::set_sync_meth_muxed(void (*meth)(void *, T, int), int id)
+  {
+    master_sync_meth = NULL;
+    master_sync_meth_mux = meth;
+    master_sync_mux_id = id;
   }
 
   template<class T>
   inline void wire_slave<T>::set_sync_meth(void (*meth)(void *, T))
   {
-    sync = meth;
-    sync_mux = NULL;
+    sync_meth = meth;
+    sync_meth_mux = NULL;
   }
 
   template<class T>
   inline void wire_slave<T>::set_sync_meth_muxed(void (*meth)(void *, T, int), int id)
   {
-    sync = NULL;
-    sync_mux = meth;
+    sync_meth = NULL;
+    sync_meth_mux = meth;
     sync_mux_id = id;
   }
 
   template<class T>
-  inline wire_slave<T>::wire_slave() : sync(NULL), sync_mux(NULL), sync_back(NULL), sync_back_mux(NULL) {
+  inline wire_slave<T>::wire_slave() : sync_meth(NULL), sync_meth_mux(NULL), sync_back(NULL), sync_back_mux(NULL), master_sync_meth_mux(NULL) {
   }
 
   template<class T>
@@ -162,6 +197,13 @@ namespace vp {
     sync_back_mux = meth;
     sync_back_mux_id = id;
   }
+
+  template<class T>
+  inline void wire_slave<T>::sync_muxed_stub(wire_slave *_this, T value)
+  {
+    _this->master_sync_meth_mux(_this->master_comp_mux, value, _this->master_sync_mux);
+  }
+
 };
 
 #endif

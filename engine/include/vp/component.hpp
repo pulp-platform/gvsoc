@@ -94,6 +94,13 @@ namespace vp {
     inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
     inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
+    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    {
+      if (is_write)
+        this->write(reg_offset, size, value);
+      else
+        this->read(reg_offset, size, value);
+    }
 
   private:
     uint8_t value;
@@ -112,6 +119,13 @@ namespace vp {
     inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
     inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
+    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    {
+      if (is_write)
+        this->write(reg_offset, size, value);
+      else
+        this->read(reg_offset, size, value);
+    }
 
   private:
     uint8_t value;
@@ -130,6 +144,13 @@ namespace vp {
     inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
     inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
+    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    {
+      if (is_write)
+        this->write(reg_offset, size, value);
+      else
+        this->read(reg_offset, size, value);
+    }
 
   private:
     uint16_t value;
@@ -148,6 +169,13 @@ namespace vp {
     inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
     inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
+    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    {
+      if (is_write)
+        this->write(reg_offset, size, value);
+      else
+        this->read(reg_offset, size, value);
+    }
 
   private:
     uint32_t value;
@@ -164,6 +192,13 @@ namespace vp {
     inline void write(uint8_t *value) { memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes); }
     inline void write(int reg_offset, int size, uint8_t *value) { memcpy((void *)(this->value_bytes+reg_offset), (void *)value, size); this->dump_after_write(); }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
+    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    {
+      if (is_write)
+        this->write(reg_offset, size, value);
+      else
+        this->read(reg_offset, size, value);
+    }
 
   private:
     uint64_t value;

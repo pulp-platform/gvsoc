@@ -36,7 +36,10 @@ namespace vp {
     friend class wire_slave<T>;
   public:
 
-    wire_master() {}
+    wire_master();
+
+    void set_sync_meth(void (*)(void *_this, T value));
+    void set_sync_meth_muxed(void (*)(void *_this, T value, int), int id);
 
     inline void sync(T value)
     {
@@ -69,6 +72,12 @@ namespace vp {
     void (*sync_meth_freq_cross)(void *, T value);
     void (*sync_back_meth_freq_cross)(void *, T *value);
 
+    void (*master_sync_meth)(void *comp, T value);
+    void (*master_sync_meth_mux)(void *comp, T value, int id);
+
+    // Default sync callback, just do nothing.
+    static inline void sync_default(void *, T value) {}
+
     vp::component *comp_mux;
     int sync_mux;
     int sync_back_mux;
@@ -76,6 +85,8 @@ namespace vp {
     wire_master<T> *next = NULL;
 
     void *slave_context_for_freq_cross;
+
+    int master_sync_mux_id;
   };
 
 
@@ -90,6 +101,11 @@ namespace vp {
 
     inline wire_slave();
 
+    inline void sync(T value)
+    {
+      this->master_sync_meth(this->get_remote_context(), value);
+    }
+
     void set_sync_meth(void (*)(void *_this, T value));
     void set_sync_meth_muxed(void (*)(void *_this, T value, int), int id);
 
@@ -101,16 +117,25 @@ namespace vp {
 
   private:
 
-    void (*sync)(void *comp, T value);
-    void (*sync_mux)(void *comp, T value, int id);
+    static inline void sync_muxed(wire_slave *_this, T value);
+    
+    static inline void sync_muxed_stub(wire_slave *_this, T value);
+
+    void (*sync_meth)(void *comp, T value);
+    void (*sync_meth_mux)(void *comp, T value, int id);
 
     void (*sync_back)(void *comp, T *value);
     void (*sync_back_mux)(void *comp, T *value, int id);
+
+    void (*master_sync_meth)(void *comp, T value);
+    void (*master_sync_meth_mux)(void *comp, T value, int id);
 
     int sync_mux_id;
 
     int sync_back_mux_id;
 
+    vp::component *master_comp_mux;
+    int master_sync_mux;
   };
 
 };
