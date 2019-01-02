@@ -44,7 +44,7 @@ private:
 
   static void confreg_ext_sync(void *__this, uint32_t value);
   static void wakeup_rtc_sync(void *__this, bool wakeup);
-  static void wakeup_gpio_sync(void *__this, unsigned int gpio);
+  static void wakeup_gpio_sync(void *__this, int value, int gpio);
   void set_wakeup(int value);
 
   vp::trace     trace;
@@ -57,9 +57,10 @@ private:
   vp::wire_master<bool> cluster_clock_gate_irq_itf;
   vp::wire_master<int>  event_itf;
   vp::wire_slave<bool>  wakeup_rtc_itf;
-  vp::wire_slave<unsigned int>  wakeup_gpio_itf;
   vp::wire_master<bool>  wakeup_out_itf;
   vp::wire_master<unsigned int>  wakeup_seq_itf;
+
+  std::vector<vp::wire_slave<int>> wakeup_gpio_itf;
 
   vp::wire_master<uint32_t> confreg_soc_itf;
   vp::wire_slave<uint32_t> confreg_ext_itf;
@@ -252,13 +253,14 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 }
 
 
-void apb_soc_ctrl::wakeup_gpio_sync(void *__this, unsigned int gpio)
+void apb_soc_ctrl::wakeup_gpio_sync(void *__this, int value, int gpio)
 {
   apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
-  if (_this->extwake_en)
+  if (_this->extwake_en && gpio == _this->extwake_sel)
   {
     int old_value = _this->extwake_sync;
-    _this->extwake_sync = (gpio >> _this->extwake_sel) & 1;
+
+    _this->extwake_sync = value;
 
     switch (_this->extwake_type)
     {
@@ -320,9 +322,13 @@ int apb_soc_ctrl::build()
   this->wakeup_rtc_itf.set_sync_meth(&apb_soc_ctrl::wakeup_rtc_sync);
   new_slave_port("wakeup_rtc", &this->wakeup_rtc_itf);
 
-  this->wakeup_gpio_itf.set_sync_meth(&apb_soc_ctrl::wakeup_gpio_sync);
-  new_slave_port("wakeup_gpio", &this->wakeup_gpio_itf);
-  
+  this->wakeup_gpio_itf.resize(32);
+  for (int i=0; i<32; i++)
+  {
+    this->wakeup_gpio_itf[i].set_sync_meth_muxed(&apb_soc_ctrl::wakeup_gpio_sync, i);
+    new_slave_port("wakeup_gpio" + std::to_string(i), &this->wakeup_gpio_itf[i]);
+  }
+
   new_master_port("wakeup_out", &this->wakeup_out_itf);
 
   new_master_port("wakeup_seq", &this->wakeup_seq_itf);
