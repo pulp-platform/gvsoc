@@ -46,7 +46,6 @@ cluster::cluster(const char *config)
 }
 
 
-
 int cluster::build()
 {
   if (this->power.new_trace("power_trace", &this->power_trace)) return -1;

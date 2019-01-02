@@ -1,4 +1,4 @@
-ifneq '$(soc/cluster)' ''
+ifneq '$(cluster/version)' ''
 
 ifeq '$(cluster_ctrl/version)' '2'
 IMPLEMENTATIONS += pulp/cluster/cluster_ctrl_v2_impl
