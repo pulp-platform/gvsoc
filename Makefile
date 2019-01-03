@@ -6,7 +6,7 @@ clean:
 	make -C models clean
 
 build:
-	install -D vp_models.mk $(PULP_SDK_INSTALL)/rules/vp_models.mk
+	install -D vp_models.mk $(INSTALL_DIR)/rules/vp_models.mk
 	make -C engine build
 	make -C launcher build
 	make -C models props

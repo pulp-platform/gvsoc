@@ -3,13 +3,13 @@ ROOT_VP_BUILD_DIR ?= $(BUILD_DIR)
 LAUNCHER_BUILD_DIR = $(ROOT_VP_BUILD_DIR)/launcher
 
 
--include $(PULP_SDK_HOME)/install/rules/vp_models.mk
+-include $(INSTALL_DIR)/rules/vp_models.mk
 
 
 CC = g++
 
-CFLAGS +=  -MMD -MP -O2 -g -fpic -std=c++11 -Werror -Wall -I$(PULP_SDK_WS_INSTALL)/include
-LDFLAGS += -O2 -g -shared -Werror -Wall -L$(PULP_SDK_HOME)/install/ws/lib -Wl,--whole-archive -ljson -Wl,--no-whole-archive
+CFLAGS +=  -MMD -MP -O2 -g -fpic -std=c++11 -Werror -Wall -I$(INSTALL_DIR)/include
+LDFLAGS += -O2 -g -shared -Werror -Wall -L$(INSTALL_DIR)/lib -Wl,--whole-archive -ljson -Wl,--no-whole-archive
 
 LAUNCHER_SRCS = src/launcher.cpp
 LAUNCHER_OBJS = $(patsubst src/%.cpp,$(LAUNCHER_BUILD_DIR)/%.o,$(patsubst src/%.c,$(LAUNCHER_BUILD_DIR)/%.o,$(LAUNCHER_SRCS)))
@@ -19,10 +19,10 @@ LAUNCHER_HEADERS += $(shell find include -name *.h)
 
 define declareInstallFile
 
-$(PULP_SDK_WS_INSTALL)/$(1): $(1)
+$(INSTALL_DIR)/$(1): $(1)
 	install -D $(1) $$@
 
-INSTALL_FILES += $(PULP_SDK_WS_INSTALL)/$(1)
+INSTALL_FILES += $(INSTALL_DIR)/$(1)
 
 endef
 
@@ -46,13 +46,13 @@ $(foreach file, $(LAUNCHER_HEADERS), $(eval $(call declareInstallFile,$(file))))
 
 
 
-$(PULP_SDK_WS_INSTALL)/lib/libpulpvplauncher.so: $(LAUNCHER_BUILD_DIR)/libpulpvplauncher.so
+$(INSTALL_DIR)/lib/libpulpvplauncher.so: $(LAUNCHER_BUILD_DIR)/libpulpvplauncher.so
 	install -D $^ $@
 
 
 headers: $(INSTALL_FILES)
 
-build: headers $(PULP_SDK_WS_INSTALL)/lib/libpulpvplauncher.so
+build: headers $(INSTALL_DIR)/lib/libpulpvplauncher.so
 
 clean:
 	rm -rf $(LAUNCHER_BUILD_DIR)

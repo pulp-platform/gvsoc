@@ -20,7 +20,6 @@ import vp.time_domain
 import vp.trace_engine
 import vp.power_engine
 import vp_core
-import plptree
 import runner.stim_utils
 
 from plp_platform import *
@@ -65,6 +64,8 @@ class Runner(Platform):
         if self.get_json().get('**/rom') != None:
 
             self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.get_json().get('**/chip/name').get())
+
+            print (self.boot_binary)
 
             if os.path.exists(self.boot_binary):
                 self.gen_rom_stimuli = True
@@ -179,8 +180,6 @@ class Runner(Platform):
             if self.get_json().get('**/flash') is not None:
                 self.get_json().get('**/flash').set('preload_file', self.get_flash_preload_file())
 
-
-        system = plptree.get_config_tree_from_dict(self.get_json().get_dict())
 
         with open('plt_config.json', 'w') as file:
             file.write(self.get_json().dump_to_string())

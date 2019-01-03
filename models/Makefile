@@ -18,12 +18,12 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
   pulp/chips/wolfe pulp/chips/vega pulp/chips/usoc_v1 pulp/pmu pulp/chips/gap \
   pulp/chips/multino pulp/efuse board pulp/chips/arnold \
   devices/hyperchip devices/spiflash vendor/dolphin pulp/chips/pulpissimo_v2 \
-  pulp/rtc pulp/gpio
+  pulp/rtc pulp/gpio pulp/chips/gap_rev1
 
 
 -include $(ROOT_VP_BUILD_DIR)/props.mk
 
--include $(PULP_SDK_HOME)/install/rules/vp_models.mk
+-include $(INSTALL_DIR)/rules/vp_models.mk
 
 props:
 	plpinfo mkgen --makefile=$(ROOT_VP_BUILD_DIR)/props.mk $(properties)
