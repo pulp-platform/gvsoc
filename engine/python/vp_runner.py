@@ -63,12 +63,15 @@ class Runner(Platform):
 
         if self.get_json().get('**/rom') != None:
 
-            self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.get_json().get('**/chip/name').get())
+            if self.get_json().get('**/soc/rom/stim_file') is not None:
+                self.get_json().get('**/soc/rom').set('stim_file', eval(self.get_json().get_str('**/soc/rom/stim_file')))
 
-            print (self.boot_binary)
+            else:
 
-            if os.path.exists(self.boot_binary):
-                self.gen_rom_stimuli = True
+                self.boot_binary = os.path.join(os.environ.get('PULP_SDK_INSTALL'), 'bin', 'boot-%s' % self.get_json().get('**/chip/name').get())
+
+                if os.path.exists(self.boot_binary):
+                    self.gen_rom_stimuli = True
 
 
 
