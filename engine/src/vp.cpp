@@ -846,6 +846,7 @@ void vp::reg::init(vp::component *top, std::string name, int bits, uint8_t *valu
   if (reset_value)
     memcpy((void *)this->reset_value_bytes, (void *)reset_value, this->nb_bytes);
   top->traces.new_trace(name, &this->trace, vp::DEBUG);
+  top->traces.new_trace_event(name + "/vcd", &this->reg_event, bits);
 }
 
 void vp::reg::reset(bool active)
