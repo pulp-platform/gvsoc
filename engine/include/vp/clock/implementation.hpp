@@ -23,6 +23,7 @@
 
 #include "vp/component.hpp"
 #include "vp/itf/clk.hpp"
+#include "vp/itf/wire.hpp"
 #include "vp/clock/clock_event.hpp"
 #include "vp/clock/component_clock.hpp"
 #include "vp/clock/clock_engine.hpp"

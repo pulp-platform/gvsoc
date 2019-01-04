@@ -24,7 +24,7 @@
 #include "vp/component.hpp"
 #include "vp/itf/clk.hpp"
 #include "vp/clock/clock_event.hpp"
-#include "vp/itf/wire.hpp"
+#include "vp/itf/implem/wire_class.hpp"
 
 using namespace std;
 
