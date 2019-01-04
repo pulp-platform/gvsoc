@@ -951,14 +951,23 @@ void mchan::check_loc_transfer_handler(void *__this, vp::clock_event *event)
 
     // Get the current write request coming from external port
     // and stop is nothing is there
-    vp::io_req *ext_req = _this->pending_write_reqs->get_first();
-    bool is_write = true;
-    if (ext_req == NULL)
+    vp::io_req *ext_req;
+    bool is_write;
+
+    if (i < 2)
+    {
+      ext_req = _this->pending_write_reqs->get_first();
+      if (ext_req == NULL)
+        continue;
+      is_write = true;
+    }
+    else
     {
       ext_req = _this->pending_loc_read_req;
+      if (ext_req == NULL)
+        continue;
       is_write = false;
     }
-    if (ext_req == NULL) break;
 
     // Extract access information from external request
 
