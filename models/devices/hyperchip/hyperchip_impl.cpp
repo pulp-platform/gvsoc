@@ -40,19 +40,38 @@
 class hyperchip;
 
 
+typedef enum {
+  HYPERFLASH_STATE_WAIT_CMD0,
+  HYPERFLASH_STATE_WAIT_CMD1,
+  HYPERFLASH_STATE_WAIT_CMD2,
+  HYPERFLASH_STATE_WAIT_CMD3,
+  HYPERFLASH_STATE_WAIT_CMD4,
+  HYPERFLASH_STATE_WAIT_CMD5,
+  HYPERFLASH_STATE_PROGRAM_START,
+  HYPERFLASH_STATE_PROGRAM,
+  HYPERFLASH_STATE_GET_STATUS_REG
+} hyperflash_state_e;
+
+
 class Hyperflash
 {
+  friend class hyperchip;
+
 public:
   Hyperflash(hyperchip *top, int size);
 
   void handle_access(int reg_access, int address, int read, uint8_t data);
   int preload_file(char *path);
 
-private:
+protected:
   hyperchip *top;
   int size;
   uint8_t *data;
   uint8_t *reg_data;
+
+  hyperflash_state_e state;
+  int pending_bytes;
+  uint16_t pending_cmd;
 };
 
 
@@ -169,6 +188,10 @@ Hyperflash::Hyperflash(hyperchip *top, int size) : top(top), size(size)
   this->reg_data = new uint8_t[REGS_AREA_SIZE];
   memset(this->reg_data, 0x57, REGS_AREA_SIZE);
   ((uint16_t *)this->reg_data)[0] = 0x8F1F;
+
+  this->state = HYPERFLASH_STATE_WAIT_CMD0;
+  this->pending_bytes = 0;
+  this->pending_cmd = 0;
 }
 
 
@@ -183,15 +206,101 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
   {
     if (read)
     {
-      uint8_t data = this->data[address];
+      uint8_t data;
+      if (this->state == HYPERFLASH_STATE_GET_STATUS_REG)
+      {
+        data = this->pending_cmd;
+        this->pending_bytes--;
+        this->pending_cmd >>= 8;
+        if (this->pending_bytes == 0)
+          this->state = HYPERFLASH_STATE_WAIT_CMD0;
+      }
+      else
+      {
+        data = this->data[address];
+      }
       this->top->trace.msg("Sending data byte (value: 0x%x)\n", data);
       this->top->in_itf.sync_cycle(data);
-
     }
     else
     {
-      this->top->trace.msg("Received data byte (value: 0x%x)\n", data);
-      //this->data[address] = data;
+      if (this->state == HYPERFLASH_STATE_PROGRAM)
+      {
+        this->top->trace.msg("Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
+        this->data[address] = data;
+      }
+      else
+      {
+        this->top->trace.msg("Received data byte (address: 0x%x, value: 0x%x)\n", address, data);
+
+        if (this->pending_bytes == 0)
+        {
+          this->pending_cmd = data;
+          this->pending_bytes = 1;
+        }
+        else
+        {
+          uint16_t cmd = this->pending_cmd | data << 8;
+
+          this->pending_cmd = 0;
+          this->pending_bytes = 0;
+
+          switch (this->state)
+          {
+            case HYPERFLASH_STATE_WAIT_CMD0:
+              if ((address >> 1) == 0x555 && cmd == 0xAA)
+              {
+                this->state = HYPERFLASH_STATE_WAIT_CMD1;
+              }
+              else if ((address >> 1) == 0x555 && cmd == 0x70)
+              {
+                this->state = HYPERFLASH_STATE_GET_STATUS_REG;
+                this->pending_bytes = 2;
+                this->pending_cmd = 0x80;
+              }
+            break;
+
+            case HYPERFLASH_STATE_WAIT_CMD1:
+              if ((address >> 1) == 0x2AA && cmd == 0x55)
+              {
+                this->state = HYPERFLASH_STATE_WAIT_CMD2;
+              }
+            break;
+
+            case HYPERFLASH_STATE_WAIT_CMD2:
+              if ((address >> 1) == 0x555 && cmd == 0xA0)
+              {
+                this->state = HYPERFLASH_STATE_PROGRAM_START;
+              }
+              else if ((address >> 1) == 0x555 && cmd == 0x80)
+              {
+                this->state = HYPERFLASH_STATE_WAIT_CMD3;
+              }
+            break;
+
+            case HYPERFLASH_STATE_WAIT_CMD3:
+              if ((address >> 1) == 0x555 && cmd == 0xAA)
+              {
+                this->state = HYPERFLASH_STATE_WAIT_CMD4;
+              }
+            break;
+
+            case HYPERFLASH_STATE_WAIT_CMD4:
+              if ((address >> 1) == 0x2AA && cmd == 0x55)
+              {
+                this->state = HYPERFLASH_STATE_WAIT_CMD5;
+              }
+            break;
+
+            case HYPERFLASH_STATE_WAIT_CMD5:
+              if ((address >> 1) == 0x555 && cmd == 0x10)
+              {
+                this->top->trace.msg("Erasing chip\n");
+              }
+            break;
+          }
+        }
+      }
     }
   }
 }
@@ -259,6 +368,18 @@ void hyperchip::cs_sync(void *__this, bool value)
 
   _this->state = HYPERCHIP_STATE_CA;
   _this->ca_count = 6;
+
+  if (value == 0)
+  {
+    if (_this->flash->state == HYPERFLASH_STATE_PROGRAM_START)
+    {
+      _this->flash->state = HYPERFLASH_STATE_PROGRAM;
+    }
+    else if (_this->flash->state == HYPERFLASH_STATE_PROGRAM)
+    {
+      _this->flash->state = HYPERFLASH_STATE_WAIT_CMD0;
+    }
+  }
 }
 
 int hyperchip::build()
