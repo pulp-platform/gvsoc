@@ -30,24 +30,25 @@ void check_perf_config_change(iss_t *iss, unsigned int pcer, unsigned int pcmr);
  */
 
 static bool ustatus_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: ustatus\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: ustatus\n");
+  *value = 0;
   return false;
 }
 
 static bool ustatus_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: ustatus\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: ustatus\n");
   return false;
 }
 
 
 
 static bool uie_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: uie\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: uie\n");
   return false;
 }
 
 static bool uie_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: uie\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: uie\n");
   return false;
 }
 
@@ -55,72 +56,73 @@ static bool uie_write(iss_t *iss, unsigned int value) {
 
 
 static bool utvec_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: utvec\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: utvec\n");
+  *value = 0;
   return false;
 }
 
 static bool utvec_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: utvec\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: utvec\n");
   return false;
 }
 
 
 
 static bool uscratch_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: uscratch\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: uscratch\n");
   return false;
 }
 
 static bool uscratch_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: uscratch\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: uscratch\n");
   return false;
 }
 
 
 
 static bool uepc_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: uepc\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: uepc\n");
   return false;
 }
 
 static bool uepc_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: uepc\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: uepc\n");
   return false;
 }
 
 
 
 static bool ucause_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: ucause\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: ucause\n");
   return false;
 }
 
 static bool ucause_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: ucause\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: ucause\n");
   return false;
 }
 
 
 
 static bool ubadaddr_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: ubadaddr\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: ubadaddr\n");
   return false;
 }
 
 static bool ubadaddr_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: ubadaddr\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: ubadaddr\n");
   return false;
 }
 
 
 
 static bool uip_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: uip\n");
+  printf("WARNING UNIMPLEMENTED CSR READ: uip\n");
   return false;
 }
 
 static bool uip_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: uip\n");
+  printf("WARNING UNIMPLEMENTED CSR WRITE: uip\n");
   return false;
 }
 
@@ -816,6 +818,7 @@ static bool mhpmevent_write(iss_t *iss, int id, unsigned int value) {
  */
 
 static bool umode_read(iss_t *iss, iss_reg_t *value) {
+  *value = 3;
   //*value = iss->state.mode;
   return false;
 }

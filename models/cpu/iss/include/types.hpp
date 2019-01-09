@@ -363,7 +363,7 @@ typedef struct iss_csr_s
 } iss_csr_t;
 
 
-#define PULPV2_HWLOOP_NB_REGS 6
+#define PULPV2_HWLOOP_NB_REGS 7
 
 typedef struct iss_pulpv2_s
 {

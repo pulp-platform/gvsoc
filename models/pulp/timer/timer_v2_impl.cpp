@@ -204,22 +204,30 @@ void timer::check_state()
 void timer::ref_clock_sync(void *__this, bool value)
 {
   timer *_this = (timer *)__this;
+  bool check = false;
+
   if (value)
   {
     if (_this->ref_clock[0])
     {
       _this->trace.msg("Updating counter due to ref clock raising edge (counter: 0)\n");
       _this->value[0]++;
+      check = true;
     }
 
     if (_this->ref_clock[1])
     {
       _this->trace.msg("Updating counter due to ref clock raising edge (counter: 1)\n");
       _this->value[1]++;
+      check = true;
     }
   }
 
-  _this->check_state();
+  if (check)
+  {
+    _this->sync();
+    _this->check_state();
+  }
 }
 
 void timer::timer_reset(int counter)

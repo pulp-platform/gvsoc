@@ -184,7 +184,7 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
       else entry = entry->left;
     }
 
-    if (entry && (offset < entry->base || offset - 1 >= entry->base + entry->size - 1)) {
+    if (entry && (offset < entry->base || offset > entry->base + entry->size - 1)) {
       entry = NULL;
     }
   }
