@@ -902,6 +902,7 @@ void Core_event_unit::wakeup_handler(void *__this, vp::clock_event *event)
 void Core_event_unit::irq_wakeup_handler(void *__this, vp::clock_event *event)
 {
   Core_event_unit *_this = (Core_event_unit *)__this;
+  _this->top->trace.msg("IRQ wakeup\n");
   _this->is_active.set(1);
   _this->check_state();
 }
@@ -933,6 +934,7 @@ void Core_event_unit::check_state()
       // the on-going synchronization.
       top->trace.msg("Activating clock for IRQ handling(core: %d)\n", core_id);
       top->event_enqueue(irq_wakeup_event, EU_WAKEUP_LATENCY);
+      sync_irq = -1;
     }
     else
     {

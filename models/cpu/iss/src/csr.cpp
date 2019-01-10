@@ -498,13 +498,14 @@ static bool mhartid_read(iss_t *iss, iss_reg_t *value) {
 
 
 static bool mstatus_read(iss_t *iss, iss_reg_t *value) {
-  *value = (iss->cpu.csr.status & ~(1<<3)) | (iss->cpu.irq.irq_enable << 3) | (0x3 << 11);
+  *value = (iss->cpu.csr.status & ~(1<<3)) | (iss->cpu.irq.irq_enable << 3) | (iss->cpu.irq.saved_irq_enable << 7) | (0x3 << 11);
   return false;
 }
 
 static bool mstatus_write(iss_t *iss, unsigned int value) {
   iss->cpu.csr.status = value & 0x88;
   iss_irq_enable(iss, (value >> 3) & 1);
+  iss->cpu.irq.saved_irq_enable = (value >> 7) & 1;
   return false;
 }
 
