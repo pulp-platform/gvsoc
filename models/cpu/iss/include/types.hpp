@@ -335,6 +335,8 @@ typedef struct iss_cpu_state_s {
   iss_reg_t vf0;
   iss_reg_t vf1;
 
+  iss_insn_t *elw_insn;
+
 } iss_cpu_state_t;
 
 typedef struct iss_config_s {

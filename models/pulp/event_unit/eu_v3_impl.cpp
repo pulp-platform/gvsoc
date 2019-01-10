@@ -187,7 +187,7 @@ private:
 
 typedef enum
 {
-  CORE_STATE_ACTIVE,
+  CORE_STATE_NONE,
   CORE_STATE_WAITING_EVENT,
   CORE_STATE_WAITING_BARRIER
 } Event_unit_core_state_e;
@@ -249,11 +249,13 @@ public:
   vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data);
   void check_wait_mask();
   void check_pending_req();
+  void cancel_pending_req();
   vp::io_req_status_e wait_event(vp::io_req *req, Event_unit_core_state_e wait_state=CORE_STATE_WAITING_EVENT);
   vp::io_req_status_e put_to_sleep(vp::io_req *req, Event_unit_core_state_e wait_state=CORE_STATE_WAITING_EVENT);
   Event_unit_core_state_e get_state() { return state; }
   void irq_ack_sync(int irq, int core);
   static void wakeup_handler(void *__this, vp::clock_event *event);
+  static void irq_wakeup_handler(void *__this, vp::clock_event *event);
 
   vp::io_slave demux_in;
 
@@ -277,6 +279,9 @@ private:
   vp::wire_slave<int>     irq_ack_itf;
 
   vp::clock_event *wakeup_event;
+  vp::clock_event *irq_wakeup_event;
+
+  vp::reg_1  is_active;
 
 };
 
@@ -424,10 +429,14 @@ void Core_event_unit::build(Event_unit *top, int core_id)
 {
   this->top = top;
   this->core_id = core_id;
+
+  this->top->new_reg("core_" + std::to_string(core_id) + "/active", &this->is_active, 1);
+
   demux_in.set_req_meth_muxed(&Event_unit::demux_req, core_id);
   top->new_slave_port("demux_in_" + std::to_string(core_id), &demux_in);
 
   wakeup_event = top->event_new((void *)this, Core_event_unit::wakeup_handler);
+  irq_wakeup_event = top->event_new((void *)this, Core_event_unit::irq_wakeup_handler);
 
   top->new_master_port("irq_req_" + std::to_string(core_id), &irq_req_itf);
 
@@ -672,6 +681,11 @@ void Core_event_unit::check_pending_req()
   pending_req->get_resp_port()->resp(pending_req);
 }
 
+void Core_event_unit::cancel_pending_req()
+{
+  pending_req = NULL;
+}
+
 
 
 void Core_event_unit::check_wait_mask()
@@ -687,6 +701,7 @@ void Core_event_unit::check_wait_mask()
 vp::io_req_status_e Core_event_unit::put_to_sleep(vp::io_req *req, Event_unit_core_state_e wait_state)
 {
   state = wait_state;
+  this->is_active.set(0);
   pending_req = req;
   return vp::IO_REQ_PENDING;
 }
@@ -872,47 +887,70 @@ void Core_event_unit::reset()
   irq_mask = 0;
   clear_evt_mask = 0;
   sync_irq = -1;
-  state = CORE_STATE_ACTIVE;
+  state = CORE_STATE_NONE;
 }
 
 void Core_event_unit::wakeup_handler(void *__this, vp::clock_event *event)
 {
   Core_event_unit *_this = (Core_event_unit *)__this;
   _this->top->trace.msg("Replying to core after wakeup (core: %d)\n", _this->core_id);
+  _this->is_active.set(1);
   _this->check_pending_req();
+  _this->check_state();
+}
 
+void Core_event_unit::irq_wakeup_handler(void *__this, vp::clock_event *event)
+{
+  Core_event_unit *_this = (Core_event_unit *)__this;
+  _this->is_active.set(1);
+  _this->check_state();
 }
 
 void Core_event_unit::check_state()
 {
   //top->trace.msg("Checking core state (coreId: %d, active: %d, waitingEvent: %d, status: 0x%llx, evtMask: 0x%llx, irqMask: 0x%llx)\n", coreId, active, waitingEvent, status, evtMask, irqMask);
 
-  uint32_t status_masked = status & irq_mask;
-  int irq = status_masked ? 31 - __builtin_clz(status_masked) : -1;
+  uint32_t status_irq_masked = status & irq_mask;
+  uint32_t status_evt_masked = status & evt_mask;
+  int irq = status_irq_masked ? 31 - __builtin_clz(status_irq_masked) : -1;
 
-  if (irq != sync_irq) {
-    top->trace.msg("Updating irq req (core: %d, irq: %d)\n", core_id, irq);
-    sync_irq = irq;
-    irq_req_itf.sync(irq);
-  }
-
-  switch (state)
+  if (this->is_active.get())
   {
-    case CORE_STATE_ACTIVE:
-    break;
-
-    case CORE_STATE_WAITING_EVENT:
-    case CORE_STATE_WAITING_BARRIER:
-    if (status & evt_mask)
-    {
-      top->trace.msg("Activating clock (core: %d)\n", core_id);
-      state = CORE_STATE_ACTIVE;
-      check_wait_mask();
-      top->event_enqueue(wakeup_event, EU_WAKEUP_LATENCY);
+    if (irq != sync_irq) {
+      top->trace.msg("Updating irq req (core: %d, irq: %d)\n", core_id, irq);
+      sync_irq = irq;
+      irq_req_itf.sync(irq);
     }
-    break;
   }
 
+  if (!this->is_active.get())
+  {
+    if (status_irq_masked && !status_evt_masked)
+    {
+      // There is an active IRQ but no event, the core must be be waken up
+      // just for the duration of the IRQ handler. The elw instruction will
+      // replay the access, so we must keep the state as it is to resume
+      // the on-going synchronization.
+      top->trace.msg("Activating clock for IRQ handling(core: %d)\n", core_id);
+      top->event_enqueue(irq_wakeup_event, EU_WAKEUP_LATENCY);
+    }
+    else
+    {
+      switch (state)
+      {
+        case CORE_STATE_WAITING_EVENT:
+        case CORE_STATE_WAITING_BARRIER:
+        if (status_evt_masked)
+        {
+          top->trace.msg("Activating clock (core: %d)\n", core_id);
+          state = CORE_STATE_NONE;
+          check_wait_mask();
+          top->event_enqueue(wakeup_event, EU_WAKEUP_LATENCY);
+        }
+        break;
+      }
+    }
+  }
 }
 
 

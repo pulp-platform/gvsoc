@@ -26,12 +26,21 @@ static inline void iss_irq_check(iss_t *iss)
   int req_irq = iss->cpu.irq.req_irq;
   if (req_irq != -1 && iss->cpu.irq.irq_enable)
   {
+    // In case we interrupt a pending elw, we need to replay after the irq
+    // handling
+    if (iss->cpu.state.elw_insn != NULL)
+    {
+      iss->cpu.current_insn = iss->cpu.state.elw_insn;
+      iss->cpu.state.elw_insn = NULL;
+    }
+
     iss->cpu.csr.epc = iss->cpu.current_insn->addr;
     iss->cpu.irq.saved_irq_enable = iss->cpu.irq.irq_enable;
     iss->cpu.irq.irq_enable = 0;
     iss->cpu.irq.req_irq = -1;
     iss->cpu.current_insn = iss->cpu.irq.vectors[req_irq];
     iss->cpu.csr.mcause |= 1<<31;
+
     iss_irq_ack(iss, req_irq);
   }
 }
@@ -40,6 +49,7 @@ static inline iss_insn_t *iss_irq_handle_mret(iss_t *iss)
 {
   iss_trigger_check_all(iss);
   iss->cpu.irq.irq_enable = iss->cpu.irq.saved_irq_enable;
+  iss->cpu.csr.mcause = 0;
   return insn_cache_get(iss, iss->cpu.csr.epc);
 
 }
@@ -53,6 +63,11 @@ static inline void iss_irq_enable(iss_t *iss, int enable)
 static inline void iss_irq_req(iss_t *iss, int irq)
 {
   iss->cpu.irq.req_irq = irq;
+
+  if (iss->cpu.state.elw_insn != NULL)
+  {
+    iss_unstall(iss);
+  }
 }
 
 static inline void iss_irq_set_vector_table(iss_t *iss, iss_addr_t base)

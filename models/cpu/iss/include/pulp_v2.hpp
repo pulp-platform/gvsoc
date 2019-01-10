@@ -684,7 +684,10 @@ static inline iss_insn_t *SW_RR_exec(iss_t *iss, iss_insn_t *insn)
 static inline iss_insn_t *p_elw_exec(iss_t *iss, iss_insn_t *insn)
 {
   uint32_t value = 0;
-  iss_lsu_load_perf(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
+  iss->cpu.state.elw_insn = insn;
+  iss_lsu_elw_perf(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
+  if (iss->cpu.state.insn_cycles != -1)
+    iss->cpu.state.elw_insn = NULL;
   return insn->next;
 }
 

@@ -262,6 +262,7 @@ void iss_reset(iss_t *iss)
   
   iss->cpu.prev_insn = NULL;
   iss->cpu.state.hw_counter_en = 0;
+  iss->cpu.state.elw_insn = NULL;
 
   iss_irq_init(iss);
 

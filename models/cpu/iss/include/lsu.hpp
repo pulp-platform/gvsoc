@@ -29,6 +29,12 @@ static inline void iss_lsu_load_perf(iss_t *iss, iss_insn_t *insn, iss_addr_t ad
   iss_lsu_load(iss, insn, addr, size, reg);
 }
 
+static inline void iss_lsu_elw_perf(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+  iss_pccr_account_event(iss, CSR_PCER_LD, 1);
+  iss_lsu_elw(iss, insn, addr, size, reg);
+}
+
 static inline void iss_lsu_load_signed_perf(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
 {
   iss_pccr_account_event(iss, CSR_PCER_LD, 1);

@@ -157,9 +157,20 @@ static inline void iss_csr_ext_counter_get(iss_t *iss, int id, unsigned int *val
   }
 }
 
+static inline void iss_unstall(iss_t *iss)
+{
+  iss->stalled.set(false);
+}
+
 static inline void iss_lsu_load_resume(iss_t *iss)
 {
   // Nothing to do, the zero-extension was done by initializing the register to 0
+}
+
+static inline void iss_lsu_elw_resume(iss_t *iss)
+{
+  // Clear pending elw to not replay it when the next interrupt occurs
+  iss->cpu.state.elw_insn = NULL;
 }
 
 static inline void iss_lsu_load_signed_resume(iss_t *iss)
@@ -179,6 +190,22 @@ static inline void iss_lsu_load(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, i
   else
   {
     iss->cpu.state.stall_callback = iss_lsu_load_resume;
+    iss->cpu.state.stall_reg = reg;
+    iss_exec_insn_stall(iss);
+  }
+}
+
+static inline void iss_lsu_elw(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+  iss_set_reg(iss, reg, 0);
+  if (!iss->data_req(addr, (uint8_t *)iss_reg_ref(iss, reg), size, false))
+  {
+    // We don't need to do anything as the target will write directly to the register
+    // and we the zero extension is already managed by the initial value
+  }
+  else
+  {
+    iss->cpu.state.stall_callback = iss_lsu_elw_resume;
     iss->cpu.state.stall_reg = reg;
     iss_exec_insn_stall(iss);
   }

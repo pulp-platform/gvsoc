@@ -30,13 +30,11 @@ void check_perf_config_change(iss_t *iss, unsigned int pcer, unsigned int pcmr);
  */
 
 static bool ustatus_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR READ: ustatus\n");
   *value = 0;
   return false;
 }
 
 static bool ustatus_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR WRITE: ustatus\n");
   return false;
 }
 
@@ -56,13 +54,11 @@ static bool uie_write(iss_t *iss, unsigned int value) {
 
 
 static bool utvec_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR READ: utvec\n");
   *value = 0;
   return false;
 }
 
 static bool utvec_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR WRITE: utvec\n");
   return false;
 }
 
