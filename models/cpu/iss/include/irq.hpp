@@ -30,6 +30,7 @@ static inline void iss_irq_check(iss_t *iss)
     // handling
     if (iss->cpu.state.elw_insn != NULL)
     {
+      iss_msg(iss, "Interrupting pending elw\n");
       iss->cpu.current_insn = iss->cpu.state.elw_insn;
       iss->cpu.state.elw_insn = NULL;
     }
@@ -43,6 +44,8 @@ static inline void iss_irq_check(iss_t *iss)
 
     iss_irq_ack(iss, req_irq);
   }
+
+  iss->cpu.state.elw_insn = NULL;
 }
 
 static inline iss_insn_t *iss_irq_handle_mret(iss_t *iss)
@@ -50,6 +53,7 @@ static inline iss_insn_t *iss_irq_handle_mret(iss_t *iss)
   iss_trigger_check_all(iss);
   iss->cpu.irq.irq_enable = iss->cpu.irq.saved_irq_enable;
   iss->cpu.csr.mcause = 0;
+
   return insn_cache_get(iss, iss->cpu.csr.epc);
 
 }
@@ -66,6 +70,7 @@ static inline void iss_irq_req(iss_t *iss, int irq)
 
   if (iss->cpu.state.elw_insn != NULL)
   {
+    iss_msg(iss, "Unstalling core due to IRQ\n");
     iss_unstall(iss);
   }
 }

@@ -35,7 +35,7 @@
 
 char vp_error[VP_ERROR_SIZE];
 
-vp::component::component(const char *config_string) : traces(*this), power(*this)
+vp::component::component(const char *config_string) : traces(*this), power(*this), reset_done_from_itf(false)
 {
   this->set_config(config_string);
 }
@@ -68,29 +68,39 @@ void vp::component_clock::clk_reg(component *_this, component *clock)
   }
 }
 
-void vp::component::reset_all(bool active)
+void vp::component::reset_all(bool active, bool from_itf)
 {
-  this->get_trace()->msg("Reset\n");
+  // Small hack to not propagate the reset from top level if the reset has
+  // already been done through the interface from another component.
+  // This should be all implemented with interfaces to better control
+  // the reset propagation.
+  this->reset_done_from_itf |= from_itf;
 
-  this->pre_reset();
-  
-  for (auto reg: this->regs)
+  if (from_itf || !this->reset_done_from_itf)
   {
-    reg->reset(active);
-  }
+    this->get_trace()->msg("Reset\n");
 
-  this->reset(active);
-  
-  for (auto& x: this->childs)
-  {
-    x->reset_all(active);
+    this->pre_reset();
+    
+    for (auto reg: this->regs)
+    {
+      reg->reset(active);
+    }
+
+    this->reset(active);
+    
+    for (auto& x: this->childs)
+    {
+      x->reset_all(active);
+    }
   }
 }
 
 void vp::component_clock::reset_sync(void *__this, bool active)
 {
   component *_this = (component *)__this;
-  _this->reset_all(active);
+  _this->reset_done_from_itf = true;
+  _this->reset_all(active, true);
 }
 
 

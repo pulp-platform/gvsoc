@@ -915,6 +915,8 @@ void Core_event_unit::check_state()
   uint32_t status_evt_masked = status & evt_mask;
   int irq = status_irq_masked ? 31 - __builtin_clz(status_irq_masked) : -1;
 
+  top->trace.msg("Checking core state (coreId: %d, active: %d, status: 0x%llx, evtMask: 0x%llx, irqMask: 0x%llx)\n", core_id, this->is_active.get(), status, evt_mask, irq_mask);
+
   if (this->is_active.get())
   {
     if (irq != sync_irq) {
@@ -933,8 +935,12 @@ void Core_event_unit::check_state()
       // replay the access, so we must keep the state as it is to resume
       // the on-going synchronization.
       top->trace.msg("Activating clock for IRQ handling(core: %d)\n", core_id);
-      top->event_enqueue(irq_wakeup_event, EU_WAKEUP_LATENCY);
-      sync_irq = -1;
+
+      if (!irq_wakeup_event->is_enqueued())
+      {
+        top->event_enqueue(irq_wakeup_event, EU_WAKEUP_LATENCY);
+        sync_irq = -1;
+      }
     }
     else
     {
@@ -947,7 +953,10 @@ void Core_event_unit::check_state()
           top->trace.msg("Activating clock (core: %d)\n", core_id);
           state = CORE_STATE_NONE;
           check_wait_mask();
-          top->event_enqueue(wakeup_event, EU_WAKEUP_LATENCY);
+          if (!wakeup_event->is_enqueued())
+          {
+            top->event_enqueue(wakeup_event, EU_WAKEUP_LATENCY);
+          }
         }
         break;
       }

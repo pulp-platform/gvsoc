@@ -332,7 +332,7 @@ namespace vp {
 
     void pre_start_all();
 
-    void reset_all(bool active);
+    void reset_all(bool active, bool from_itf=false);
 
     void new_master_port(std::string name, master_port *port);
 
@@ -392,6 +392,8 @@ namespace vp {
 
     vector<std::function<void()>> pre_start_callbacks;
     vector<vp::reg *> regs;
+
+    bool reset_done_from_itf;
 
   };
 

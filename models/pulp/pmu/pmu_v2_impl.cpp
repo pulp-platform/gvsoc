@@ -177,6 +177,7 @@ private:
 
   vp::clock_event *sequence_event;
 
+  vp::wire_master<int>  event_itf;
   vp::wire_slave<bool>          wakeup_itf;
   vp::wire_slave<unsigned int>  wakeup_seq_itf;
   vp::clk_slave    ref_clock_itf;
@@ -631,6 +632,8 @@ int pmu::build()
 
   this->new_reg("pctrl", &this->r_dlc_pctrl, 0x00000000);
   this->new_reg("rdata", &this->r_dlc_rdata, 0x00000000);
+
+  new_master_port("event", &event_itf);
 
   this->wakeup_itf.set_sync_meth(&pmu::wakeup_sync);
   new_slave_port("wakeup", &this->wakeup_itf);
