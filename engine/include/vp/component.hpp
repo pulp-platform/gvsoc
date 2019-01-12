@@ -74,7 +74,6 @@ namespace vp {
       inline uint32_t get_32() { return *(uint32_t *)this->value_bytes; }
       inline uint64_t get_64() { return *(uint64_t *)this->value_bytes; }
 
-    protected:
       int nb_bytes;
       int bits;
       uint8_t *reset_value_bytes;

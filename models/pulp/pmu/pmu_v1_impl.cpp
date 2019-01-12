@@ -80,6 +80,7 @@ public:
   pmu_icu(pmu *top, int index);
   void set_state(int index, int supply, int clock, int regulator);
   void start();
+  void reset(bool active);
 
   void handle_req(int addr, bool is_write, uint16_t pwdata);
   void icu_ctrl_req(bool is_write, uint16_t pwdata);
@@ -89,7 +90,7 @@ public:
 
 private:
   pmu *top;
-  vp::wire_master<bool>  reset;
+  vp::wire_master<bool>  reset_itf;
   pmu_icu_state states[16];
   int index;
   int current_supply_state;
@@ -356,7 +357,7 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
       if (_this->active_sequence_step == seq->nb_step)
         _this->active_sequence_step = -1;
 
-      _this->pctrl_req(0, 32, true, (uint8_t *)&reg.raw);
+      _this->pctrl_req(0, 4, true, (uint8_t *)&reg.raw);
     }
     else
     {
@@ -459,8 +460,8 @@ vp::io_req_status_e pmu::dlc_imcifr_req(int reg_offset, int size, bool is_write,
 
 void pmu_icu::start()
 {
-  if (this->reset.is_bound())
-    this->reset.sync(1);
+  if (this->reset_itf.is_bound())
+    this->reset_itf.sync(1);
 }
 
 void pmu_icu::set_state(int index, int supply, int clock, int regulator)
@@ -485,10 +486,10 @@ void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
   if (state->supply != MAESTRO_ICU_SUPPLY_ON)
   {
     this->top->trace.msg("Shutting down island (index: %d)\n", this->index);
-    if (this->reset.is_bound())
+    if (this->reset_itf.is_bound())
     {
       this->top->trace.msg("Asserting island reset (index: %d)\n", this->index);
-      this->reset.sync(1);
+      this->reset_itf.sync(1);
     }
   }
   else
@@ -498,10 +499,10 @@ void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
     // Be careful to not do the reset when the supply is already on
     if (this->current_supply_state != MAESTRO_ICU_SUPPLY_ON)
     {
-      if (this->reset.is_bound())
+      if (this->reset_itf.is_bound())
       {
         this->top->trace.msg("Releasing island reset (index: %d)\n", this->index);
-        this->reset.sync(0);
+        this->reset_itf.sync(0);
       }
     }
   }
@@ -596,12 +597,22 @@ error:
 pmu_icu::pmu_icu(pmu *top, int index)
 : pmu_picl_slave(top), top(top), index(index)
 {
-  top->new_master_port("icu" + std::to_string(index) + "_reset", &this->reset);
-  this->current_supply_state = MAESTRO_ICU_SUPPLY_EXT;
+  top->new_master_port("icu" + std::to_string(index) + "_reset", &this->reset_itf);
 
   for (int i=0; i<16; i++)
   {
     this->set_state(i, MAESTRO_ICU_SUPPLY_EXT, MAESTRO_ICU_CLK_FNONE, MAESTRO_ICU_REGU_OFF);
+  }
+}
+
+
+void pmu_icu::reset(bool active)
+{
+  if (active)
+  {
+    this->current_supply_state = MAESTRO_ICU_SUPPLY_EXT;
+    if (this->reset_itf.is_bound())
+      this->reset_itf.sync(true);
   }
 }
 
@@ -646,7 +657,7 @@ void pmu::ref_clock_reg(component *__this, component *clock)
 
 int pmu::build()
 {
-  traces.new_trace("trace", &trace, vp::DEBUG);
+  traces.new_trace("trace", & trace, vp::DEBUG);
   in.set_req_meth(&pmu::req);
   new_slave_port("input", &in);
 
@@ -705,6 +716,7 @@ void pmu::reset(bool active)
         this->wiu->r_icr[i].set(icr_value);
       }
     }
+
   }
 
   this->wiu->reset(active);
@@ -712,6 +724,12 @@ void pmu::reset(bool active)
   if (!active)
   {
     this->exec_sequence(&this->boot_sequence);
+  }
+
+  for (int i=0; i<this->nb_icu; i++)
+  {
+    pmu_icu *icu = (pmu_icu *)this->picl_slaves[i+2];
+    icu->reset(active);
   }
 }
 
