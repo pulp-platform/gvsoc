@@ -35,9 +35,6 @@ class Runner(Platform):
 
         parser = config.getParser()
 
-        parser.add_argument("--binary", dest="binary", default=[], action="append",
-                            help='specify the binary to be loaded')
-
         [args, otherArgs] = parser.parse_known_args()
 
         self.addCommand('run', 'Run execution on GVSOC')
@@ -51,10 +48,6 @@ class Runner(Platform):
         self.gen_flash_stimuli = False
         self.gen_rom_stimuli = False
 
-        if self.config.getOption('binary') is not None:
-            for binary in self.config.getOption('binary'):
-                self.get_json().get('**/loader').set('binaries', binary)
-
         comps_conf = self.get_json().get('**/fs/files')
 
         if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
@@ -64,7 +57,12 @@ class Runner(Platform):
         if self.get_json().get('**/rom') != None:
 
             if self.get_json().get('**/soc/rom/stim_file') is not None:
-                self.get_json().get('**/soc/rom').set('stim_file', eval(self.get_json().get_str('**/soc/rom/stim_file')))
+                try:
+                    rom_file = eval(self.get_json().get_str('**/soc/rom/stim_file'))
+                except:
+                    rom_file = self.get_json().get_str('**/soc/rom/stim_file')
+
+                self.get_json().get('**/soc/rom').set('stim_file', rom_file)
 
             else:
 
@@ -101,7 +99,7 @@ class Runner(Platform):
 
             if plp_flash_stimuli.genFlashImage(
                 raw_stim=self.get_flash_preload_file(),
-                bootBinary=self.get_json().get('**/loader/binaries').get_elem(0).get(),
+                bootBinary=self.get_json().get('**/runner/binaries').get_elem(0).get(),
                 comps=comps,
                 verbose=self.get_json().get('**/runner/verbose').get(),
                 archi=self.get_json().get('**/pulp_chip_family').get(),
@@ -120,19 +118,18 @@ class Runner(Platform):
         autorun_conf = self.get_json().get('**/debug_bridge/autorun')
         if autorun_conf is not None and autorun_conf.get_bool() and not self.config.getOption('reentrant'):
 
+            with open('autorun_config.json', 'w') as file:
+                file.write(self.get_json().dump_to_string())
+
             options = self.get_json().get_child_str('**/debug_bridge/options')
             if options is None:
                 options  = ''
 
-            cmd_options = ['pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s' % self.config.getOption('config_file'), '--options=%s' % options]
+            cmd_options = ['pulp-run-bridge', '--dir=%s' % self.config.getOption('dir'), '--config-file=%s/autorun_config.json' % self.config.getOption('dir'), '--options=%s' % options]
             if self.get_json().get_child_bool('**/runner/wait_pulp_run'):
                 cmd_options.append('--wait-pulp-run')
 
             os.execlp(*cmd_options)
-
-        for config_opt in self.config.getOption('configOpt'):
-            key, value = config_opt.split('=')
-            self.get_json().user_set(key, value)
 
 
         autorun = self.get_json().get('**/debug_bridge/autorun')
@@ -150,7 +147,7 @@ class Runner(Platform):
                 self.get_json().get('gvsoc').set('no_exit', True)
 
         if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode') != 'rom' and self.get_json().get_child_str('**/runner/boot-mode') != 'jtag':
-            binaries = self.get_json().get('**/loader/binaries').get_dict()
+            binaries = self.get_json().get('**/runner/binaries').get_dict()
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)
 
