@@ -21,10 +21,15 @@ import vp.trace_engine
 import vp.power_engine
 import vp_core
 import runner.stim_utils
+from os import listdir
+from os.path import isfile, join, isdir
 
 from plp_platform import *
 import plp_flash_stimuli
 import shlex
+import json_tools as js
+import pulp_config
+from prettytable import PrettyTable
 
 
 class Runner(Platform):
@@ -35,12 +40,68 @@ class Runner(Platform):
 
         parser = config.getParser()
 
+        parser.add_argument("--trace", dest="traces", default=[], action="append", help="Specify gvsoc trace")
+
+        parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
+
         [args, otherArgs] = parser.parse_known_args()
+
+        if 'devices' in args.command:
+
+            parser.add_argument("--device", dest="devices", default=[], action="append", help="Gives more information about specified devices when using command 'devices'")
+
+            [args, otherArgs] = parser.parse_known_args()
+
+        self.args = args
 
         self.addCommand('run', 'Run execution on GVSOC')
         self.addCommand('prepare', 'Prepare binary for GVOSC')
+        self.addCommand('devices', 'Show available devices')
 
         self.__prepare_env()
+
+        for trace in args.traces:
+            self.get_json().set('gvsoc/trace', trace)
+
+        for event in args.events:
+            self.get_json().set('gvsoc/event', event)
+
+
+    def devices(self):
+        devices = []
+        for path in js.get_paths():
+            for file in listdir(os.path.join(path, 'devices')):
+                if file.find('.json') != -1:
+                    local_path = os.path.join('devices', file)
+                    full_path = os.path.join(path, local_path)
+                    if isfile(full_path):
+                        config = pulp_config.get_config(file=full_path)
+
+                        doc = config.get_str('doc_rst')
+                        if doc is not None:
+                            doc_path = os.path.join(path, doc)
+                            devices.append([config, local_path, doc_path])
+
+        if len(self.args.devices) == 0:
+            x = PrettyTable(['Name', 'Path', 'Description', 'Supported platforms'])
+            x.align = 'l'
+
+            for device in devices:
+                config  = device[0]
+                x.add_row([config.get_str('name'), device[1], config.get_str('description'), ', '.join(config.get('platforms').get_dict())])
+
+            print (x)
+
+        else:
+            for device in devices:
+                if device[0].get_str('name') in self.args.devices:
+                    config  = device[0]
+                    doc_path = device[2]
+                    print ()
+                    with open(doc_path) as doc:
+                        print (doc.read())
+
+
 
 
     def __prepare_env(self):
@@ -97,9 +158,15 @@ class Runner(Platform):
             aes_key = self.get_json().get_child_str('**/efuse/aes_key')
             aes_iv = self.get_json().get_child_str('**/efuse/aes_iv')
 
+            binary = self.get_json().get('**/runner/binaries').get_dict()
+            if len(binary) > 0:
+                binary = binary[0]
+            else:
+                binary = None
+
             if plp_flash_stimuli.genFlashImage(
                 raw_stim=self.get_flash_preload_file(),
-                bootBinary=self.get_json().get('**/runner/binaries').get_elem(0).get(),
+                bootBinary=binary,
                 comps=comps,
                 verbose=self.get_json().get('**/runner/verbose').get(),
                 archi=self.get_json().get('**/pulp_chip_family').get(),
