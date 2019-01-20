@@ -229,7 +229,7 @@ void rtc::update_calendar()
     }
   }
 
-  if (~this->alarm_ctrl_reg.alarm1_En)
+  if (!this->alarm_ctrl_reg.alarm1_En)
   {
     int reached = false;
 
@@ -273,7 +273,7 @@ void rtc::update_calendar()
     }
   }
 
-  if (~this->cntdwn_ctrl.cntDwn1_En)
+  if (!this->cntdwn_ctrl.cntDwn1_En)
   {
     this->cntdwn_timer--;
     if (this->cntdwn_timer == -1)    // Dolphin RTC is counting specified count + 1
@@ -297,7 +297,7 @@ void rtc::ref_clock_sync(void *__this, bool value)
 {
   rtc *_this = (rtc *)__this;
 
-  if (value && ~_this->calend_ctrl_reg.calend_En)
+  if (value && !_this->ctrl_reg.rtc_sb)
   {
     _this->ref_clock_cycles++;
     if (_this->ref_clock_cycles >= _this->ckin_div_reg.divVal)
@@ -499,7 +499,7 @@ void rtc::handle_cntdown_ctrl_access()
     this->get_trace()->msg("Writing countdown control register (raw: 0x%x, en: %d, mode: %d)\n",
       this->cntdwn_ctrl.raw, this->cntdwn_ctrl.cntDwn1_En,
       this->cntdwn_ctrl.cntDwn1_mode);
-    if (~this->cntdwn_ctrl.cntDwn1_En)
+    if (!this->cntdwn_ctrl.cntDwn1_En)
     {
       this->cntdwn_timer = this->cntdwn_init;
     }

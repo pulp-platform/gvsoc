@@ -304,6 +304,7 @@ void Event_unit::reset(bool active)
     dispatch->reset();
     barrier_unit->reset();
     mutex->reset();
+    soc_event_unit->reset();
   }
 }
 

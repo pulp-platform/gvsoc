@@ -299,7 +299,8 @@ void dpi_wrapper::raise_event()
 void dpi_wrapper::raise_event_from_ext()
 {
   this->get_clock()->get_engine()->lock();
-  this->event_enqueue(this->wakeup_evt, 0);
+  if (!this->wakeup_evt->is_enqueued())
+    this->event_enqueue(this->wakeup_evt, 0);
   this->get_clock()->get_engine()->unlock();
 }
 
