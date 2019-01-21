@@ -324,7 +324,7 @@ int iss_wrapper::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int siz
   }
   else
   {
-    trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+    trace.force_warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
   }
 }
 
@@ -383,7 +383,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
   {
     if (!_this->halted.get())
     {
-      _this->trace.warning("Trying to access debug registers while core is not halted\n");
+      _this->trace.force_warning("Trying to access debug registers while core is not halted\n");
       return vp::IO_REQ_INVALID;
     }
 
@@ -405,7 +405,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
     else if (offset == 0x2004)
     {
       if (req->get_is_write())
-        _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+        _this->trace.force_warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
       else
         *(iss_reg_t *)data = _this->ppc;
     }
@@ -421,7 +421,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
 
     if (!_this->halted.get())
     {
-      _this->trace.warning("Trying to access GPR while core is not halted\n");
+      _this->trace.force_warning("Trying to access GPR while core is not halted\n");
       return vp::IO_REQ_INVALID;
     }
 
@@ -474,7 +474,7 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
   }
   else
   {
-    _this->trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+    _this->trace.force_warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
     return vp::IO_REQ_INVALID;
   }
 

@@ -89,6 +89,14 @@ static inline void iss_irq_set_vector_table(iss_t *iss, iss_addr_t base)
   }
 }
 
+static inline void iss_irq_build(iss_t *iss)
+{
+  for (int i=0; i<32; i++)
+  {
+    iss->cpu.irq.vectors[i] = NULL;
+  }
+}
+
 static inline void iss_irq_init(iss_t *iss)
 {
   iss->cpu.irq.irq_enable = 0;

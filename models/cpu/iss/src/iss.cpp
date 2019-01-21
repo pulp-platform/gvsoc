@@ -281,6 +281,8 @@ int iss_open(iss_t *iss)
   iss->cpu.regfile.regs[0] = 0;
   iss->cpu.current_insn = NULL;
 
+  iss_irq_build(iss);
+
   iss_init(iss);
 
   return 0;

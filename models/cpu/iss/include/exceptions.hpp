@@ -27,7 +27,10 @@ static inline iss_insn_t *iss_except_raise(iss_t *iss, int id)
   iss->cpu.irq.saved_irq_enable = iss->cpu.irq.irq_enable;
   iss->cpu.irq.irq_enable = 0;
   iss->cpu.csr.mcause = 0xb;
-  return iss->cpu.irq.vectors[32 + id];
+  iss_insn_t *insn = iss->cpu.irq.vectors[32 + id];
+  if (insn == NULL)
+    insn = insn_cache_get(iss, 0);
+  return insn;
 }
 
 #endif
