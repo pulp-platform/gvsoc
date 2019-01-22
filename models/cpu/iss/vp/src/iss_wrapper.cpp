@@ -565,6 +565,12 @@ void iss_wrapper::start()
 
   if (iss_open(this)) throw logic_error("Error while instantiating the ISS");
 
+  for (auto x:this->get_js_config()->get("**/debug_binaries")->get_elems())
+  {
+    iss_register_debug_info(this, x->get_str().c_str());
+  }
+
+
   trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable_reg.get(), is_active_reg.get(), get_config_int("boot_addr"));
 
 #ifdef USE_TRDB

@@ -43,6 +43,7 @@ int iss_open(iss_t *iss);
 void iss_reset(iss_t *iss);
 void iss_start(iss_t *iss);
 
+void iss_register_debug_info(iss_t *iss, const char *binary);
 
 void iss_pc_set(iss_t *iss, iss_addr_t value);
 

@@ -23,6 +23,7 @@
 
 iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn);
 void iss_trace_dump(iss_t *iss, iss_insn_t *insn);
+void iss_trace_init(iss_t *iss);
 
 
 static inline void iss_exec_insn_resume(iss_t *iss)

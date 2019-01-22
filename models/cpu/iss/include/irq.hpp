@@ -40,7 +40,7 @@ static inline void iss_irq_check(iss_t *iss)
     iss->cpu.irq.irq_enable = 0;
     iss->cpu.irq.req_irq = -1;
     iss->cpu.current_insn = iss->cpu.irq.vectors[req_irq];
-    iss->cpu.csr.mcause |= 1<<31;
+    iss->cpu.csr.mcause = (1<<31) | (unsigned int)req_irq;
 
     iss_irq_ack(iss, req_irq);
   }

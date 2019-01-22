@@ -40,6 +40,8 @@ class Runner(Platform):
 
         parser = config.getParser()
 
+        parser.add_argument("--debug-syms", dest="debug_syms", action="store_true", help="Activate debug symbol parsing, which can then be used for traces")
+
         parser.add_argument("--trace", dest="traces", default=[], action="append", help="Specify gvsoc trace")
 
         parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
@@ -109,6 +111,11 @@ class Runner(Platform):
         self.gen_flash_stimuli = False
         self.gen_rom_stimuli = False
 
+        if self.args.debug_syms:
+            for binary in self.get_json().get('**/runner/binaries').get_dict():
+                debug_binary = binary + '.debugInfo'
+                self.get_json().set('**/debug_binaries', debug_binary)
+
         comps_conf = self.get_json().get('**/fs/files')
 
         if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
@@ -140,6 +147,11 @@ class Runner(Platform):
 
 
     def prepare(self):
+
+        if self.args.debug_syms:
+            for binary in self.get_json().get('**/runner/binaries').get_dict():
+                os.system('pulp-pc-info --file %s --all-file %s' % (binary, binary + '.debugInfo'))
+
         comps = []
         comps_conf = self.get_json().get('**/flash/fs/files')
         if comps_conf is not None:

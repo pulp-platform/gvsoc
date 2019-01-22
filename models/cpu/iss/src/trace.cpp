@@ -20,6 +20,80 @@
 
 #include "iss.hpp"
 #include <string.h>
+#include <algorithm>
+
+#define PC_INFO_ARRAY_SIZE (64*1024)
+
+class iss_pc_info {
+public:
+  unsigned int base;
+  char *func;
+  char *inline_func;
+  char *file;
+  int line;
+  iss_pc_info *next;
+};
+
+static bool pc_infos_is_init = false;
+static iss_pc_info *pc_infos[PC_INFO_ARRAY_SIZE];
+static std::vector<std::string> binaries;
+
+static void add_pc_info(unsigned int base, char *func, char *inline_func, char *file, int line)
+{
+  iss_pc_info *pc_info = new iss_pc_info();
+
+  int index = base & (PC_INFO_ARRAY_SIZE - 1);
+  pc_info->next = pc_infos[index];
+  pc_infos[index] = pc_info;
+
+  pc_info->base = base;
+  pc_info->func = strdup(func);
+  pc_info->inline_func = strdup(inline_func);
+  pc_info->file = strdup(file);
+  pc_info->line = line;
+}
+
+static iss_pc_info *get_pc_info(unsigned int base)
+{
+  int index = base & (PC_INFO_ARRAY_SIZE - 1);
+
+  iss_pc_info *pc_info = pc_infos[index];
+
+  while (pc_info && pc_info->base != base)
+  {
+    pc_info = pc_info->next;
+  }
+
+  return pc_info;
+}
+
+void iss_register_debug_info(iss_t *iss, const char *binary)
+{
+  if (std::find(binaries.begin(), binaries.end(), std::string(binary)) != binaries.end())
+    return;
+
+  binaries.push_back(std::string(binary));
+
+  FILE *file = fopen(binary, "r");
+  if (file != NULL)
+  {
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    while ((read = getline(&line, &len, file)) != -1)
+    {
+      char *token = strtok(line, " ");
+      char *tokens[5];
+      int index = 0;
+      while (token)
+      {
+        tokens[index++] = token;
+        token = strtok(NULL, " ");
+      }
+      if (index == 5) add_pc_info(strtol(tokens[0], NULL, 16), tokens[1], tokens[2], tokens[3], atoi(tokens[4]));
+    }
+  }
+}
 
 static inline char iss_trace_get_mode(int mode) {
   switch (mode) {
@@ -173,20 +247,44 @@ static char *iss_trace_dump_arg(iss_t *iss, iss_insn_t *insn, char *buff, iss_in
   return buff;
 }
 
+static char *trace_dump_debug(iss_t *iss, iss_insn_t *insn, char *buff)
+{
+  char *name = (char *)"-";
+  char *file = (char *)"-";
+  uint32_t line = 0;
+  char *inline_func = (char *)"-";
+  iss_pc_info *pc_info = get_pc_info(insn->addr);
+  if (pc_info)
+  {
+    name = pc_info->func;
+    file = pc_info->file;
+    line = pc_info->line;
+    inline_func = pc_info->inline_func;
+  }
+
+  int len = snprintf(buff, 33, "%s:%d", inline_func, line);
+
+  for (int i=len; i<33; i++) sprintf(buff + i, " ");
+
+  return buff + 33;
+}
+
 static void iss_trace_dump_insn(iss_t *iss, iss_insn_t *insn, char *buff, int buffer_size, iss_insn_arg_t *saved_args, bool is_long, int mode) {
 
+  char *init_buff = buff;
   static int max_len = 20;
   static int max_arg_len = 17;
   int len;
-//
-//  trace_t *t = &pc->trace;
-//  buff = trace_dump_debug(cpu, pc, buff);
-//
+
+  if (binaries.size())
+    buff = trace_dump_debug(iss, insn, buff);
+
   if (is_long) {
     buff += sprintf(buff,  "%c %" PRIxFULLREG " ", iss_trace_get_mode(mode), insn->addr);
   }
 
   char *start_buff = buff;
+
   buff += sprintf(buff,  "%s ", insn->decoder_item->u.insn.label);
 
   if (is_long) {
@@ -278,6 +376,7 @@ void iss_trace_dump(iss_t *iss, iss_insn_t *insn)
   iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, true);
   
   iss_trace_dump_insn(iss, insn, buffer, 1024, iss->cpu.state.saved_args, true, 3);
+
   iss_insn_msg(iss, buffer);
 }
 
@@ -291,4 +390,13 @@ iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn)
     iss_trace_dump(iss, insn);
 
   return next_insn;
+}
+
+void iss_trace_init(iss_t *iss)
+{
+  if (!pc_infos_is_init)
+  {
+    pc_infos_is_init = true;
+    memset(pc_infos, 0, sizeof(pc_infos));
+  }
 }

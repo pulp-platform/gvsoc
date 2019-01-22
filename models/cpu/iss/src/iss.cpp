@@ -283,6 +283,8 @@ int iss_open(iss_t *iss)
 
   iss_irq_build(iss);
 
+  iss_trace_init(iss);
+
   iss_init(iss);
 
   return 0;
