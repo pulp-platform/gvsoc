@@ -70,6 +70,12 @@ vp::io_req_status_e injector::req(void *__this, vp::io_req *req)
 
   _this->trace.msg("IO access (offset: 0x%lx, size: 0x%lx, is_write: %d)\n", offset, size, req->get_is_write());
 
+  if (_this->snd_file == NULL)
+  {
+    _this->trace.force_warning("Accessing injector while it is not connected\n");
+    return vp::IO_REQ_INVALID;
+  }
+
   gv_ioreq_desc_t desc = { .type=GV_IOREQ_DESC_TYPE_REQUEST, .addr=(uint64_t)offset, .size=(uint64_t)size,
     .is_write=(int64_t)is_write, .timestamp=_this->get_time(), .response_cb=NULL, .response_context=NULL,
     .binding=(void *)_this->binding_context, .req=req
