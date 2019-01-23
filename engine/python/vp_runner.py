@@ -150,7 +150,8 @@ class Runner(Platform):
 
         if self.args.debug_syms:
             for binary in self.get_json().get('**/runner/binaries').get_dict():
-                os.system('pulp-pc-info --file %s --all-file %s' % (binary, binary + '.debugInfo'))
+                if os.system('pulp-pc-info --file %s --all-file %s' % (binary, binary + '.debugInfo')) != 0:
+                    raise Exception('Error while generating debug symbols information, make sure the toolchain and the binaries are accessible ')
 
         comps = []
         comps_conf = self.get_json().get('**/flash/fs/files')
