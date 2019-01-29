@@ -21,7 +21,18 @@ VP_COMP_LDFLAGS += -Werror -Wfatal-errors
 
 ifdef VP_USE_SYSTEMC
 VP_COMP_CFLAGS += -D__VP_USE_SYSTEMC -I$(SYSTEMC_HOME)/include
-endif
+ifdef VP_USE_SYSTEMC_DRAMSYS
+DRAMSYS = $(PWD)/platform/gvsoc/models/memory/dram.sys
+VP_COMP_CFLAGS += -D__VP_USE_SYSTEMC_DRAMSYS
+VP_COMP_CFLAGS += -D__DRAMSYS_PATH=\"$(DRAMSYS)\"
+VP_COMP_CFLAGS += -I$(DRAMSYS)/DRAMSys/library/src/simulation
+VP_COMP_CFLAGS += -I$(DRAMSYS)/DRAMSys/library/src/common/third_party/DRAMPower/src
+VP_COMP_CFLAGS += -I$(DRAMSYS)/DRAMSys/library/src/common/third_party/DRAMPower/src/libdrampower
+VP_COMP_LDFLAGS += -L$(DRAMSYS)/build/library -lDRAMSys
+VP_COMP_LDFLAGS += -L$(DRAMSYS)/DRAMSys/library/src/common/third_party/DRAMPower/src -ldrampower
+VP_COMP_LDFLAGS += -lsqlite3
+endif # VP_USE_SYSTEMC_DRAMSYS
+endif # VP_USE_SYSTEMC
 
 export PYTHONPATH := $(VP_INSTALL_PATH):$(INSTALL_DIR)/lib:$(PYTHONPATH)
 
