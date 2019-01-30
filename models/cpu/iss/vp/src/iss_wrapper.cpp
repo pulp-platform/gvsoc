@@ -186,7 +186,7 @@ void iss_wrapper::fetchen_sync(void *__this, bool active)
   _this->fetch_enable_reg.set(active);
   if (!old_val && active)
   {
-    iss_pc_set(_this, _this->bootaddr_reg.get() + 0x80);
+    iss_pc_set(_this, _this->bootaddr_reg.get() + _this->bootaddr_offset);
   }
   _this->check_state();
 }
@@ -544,6 +544,7 @@ int iss_wrapper::build()
   check_all_event = event_new(iss_wrapper::exec_instr_check_all);
   misaligned_event = event_new(iss_wrapper::exec_misaligned);
 
+  this->bootaddr_offset = get_config_int("bootaddr_offset");
   this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
   string isa = get_config_str("isa");
   //transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);

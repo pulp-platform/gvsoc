@@ -125,6 +125,7 @@ private:
 
   int halt_cause;
   int64_t wakeup_latency;
+  int bootaddr_offset;
   iss_reg_t hit_reg = 0;
 
   iss_reg_t ppc;
