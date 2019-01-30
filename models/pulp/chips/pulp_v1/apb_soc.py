@@ -20,4 +20,4 @@ import vp_core as vp
 
 class component(vp.component):
 
-    implementation = 'pulp.chips/pulpissimo_v2/apb_soc_impl'
+    implementation = 'pulp.chips/pulp_v1/apb_soc_impl'
