@@ -29,8 +29,14 @@
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/multi_passthrough_target_socket.h>
 #include <tlm_utils/multi_passthrough_initiator_socket.h>
+
 #include "ems_mm.h"
+#ifdef __VP_USE_SYSTEMC_DRAMSYS
+#include "DRAMSys.h"
+#else
 #include "ems_target.h"
+#endif /* __VP_USE_SYSTEMC_DRAMSYS */
+
 
 #define BYTES_PER_ACCESS            8
 #define ACCEPT_DELAY_PS             1000
@@ -106,7 +112,12 @@ private:
   int count = 0;
   vp::io_req *last_pending_reqs = NULL;
   ddr_module *sc_module;
+#ifdef __VP_USE_SYSTEMC_DRAMSYS
+  DRAMSys *dramSys;
+#else
   ems_target *target;
+#endif /* __VP_USE_SYSTEMC_DRAMSYS */
+
 };
 
 ddr::ddr(const char *config)
@@ -168,8 +179,15 @@ int ddr::build()
 void ddr::elab()
 {
     sc_module = new ddr_module("wrapper2", this);
+#ifdef __VP_USE_SYSTEMC_DRAMSYS
+    string resources = string(__DRAMSYS_PATH) + string("/DRAMSys/library/resources/");
+    string SimulationXML = resources + "simulations/ddr3-example.xml";
+    dramSys = new DRAMSys("DRAMSys", SimulationXML, resources);
+    sc_module->isocket.bind(dramSys->tSocket);
+#else
     target = new ems_target("target", ACCEPT_DELAY_PS, TARGET_LATENCY_PS, BYTES_PER_ACCESS);
     sc_module->isocket.bind(target->tsocket);
+#endif /* __VP_USE_SYSTEMC_DRAMSYS */
 }
 
 
