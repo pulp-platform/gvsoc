@@ -1274,4 +1274,7 @@ void iss_csr_init(iss_t *iss)
 {
   iss->cpu.csr.status = 0;
   iss->cpu.csr.mcause = 0;
+#if defined(ISS_HAS_PERF_COUNTERS)
+  iss->cpu.csr.pcmr = 3;
+#endif
 }

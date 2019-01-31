@@ -25,6 +25,7 @@
 
 static inline void iss_exec_insn_stall(iss_t *iss);
 static inline void iss_exec_insn_resume(iss_t *iss);
+static inline void iss_exec_insn_terminate(iss_t *iss);
 
 #include "utils.hpp"
 #include "iss_api.hpp"

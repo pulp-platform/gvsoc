@@ -150,12 +150,15 @@ void iss_wrapper::data_response(void *__this, vp::io_req *req)
   _this->stalled.set(false);
   _this->wakeup_latency = req->get_latency();
   if (_this->misaligned_access.get())
+  {
     _this->misaligned_access.set(false);
+  }
   else
   {
     // First call the ISS to finish the instruction
     _this->cpu.state.stall_callback(_this);
     iss_exec_insn_resume(_this);
+    iss_exec_insn_terminate(_this);
   }
   _this->check_state();
 }
@@ -319,7 +322,6 @@ int iss_wrapper::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int siz
     // that the access is pending as the instruction must be executed
     // only when the second access is finished.
     misaligned_latency = io_req.get_latency() + 1;
-    iss_exec_insn_stall(this);
     return vp::IO_REQ_PENDING;
   }
   else

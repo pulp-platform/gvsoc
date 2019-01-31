@@ -21,6 +21,8 @@
 #ifndef __CPU_ISS_ISS_INSN_EXEC_HPP
 #define __CPU_ISS_ISS_INSN_EXEC_HPP
 
+static inline int iss_exec_account_cycles(iss_t *iss, int cycles);
+
 iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn);
 void iss_trace_dump(iss_t *iss, iss_insn_t *insn);
 void iss_trace_init(iss_t *iss);
@@ -28,6 +30,13 @@ void iss_trace_init(iss_t *iss);
 
 static inline void iss_exec_insn_resume(iss_t *iss)
 {
+  iss->cpu.state.insn_cycles = iss->cpu.state.saved_insn_cycles;
+}
+
+static inline void iss_exec_insn_terminate(iss_t *iss)
+{
+  iss_exec_account_cycles(iss, iss->cpu.state.insn_cycles);
+
   if (iss_insn_trace_active(iss))
   {
     iss_trace_dump(iss, iss->cpu.stall_insn);
@@ -37,6 +46,7 @@ static inline void iss_exec_insn_resume(iss_t *iss)
 static inline void iss_exec_insn_stall(iss_t *iss)
 {
   iss->cpu.stall_insn = iss->cpu.current_insn;
+  iss->cpu.state.saved_insn_cycles = iss->cpu.state.insn_cycles;
   iss->cpu.state.insn_cycles = -1;
 }
 
@@ -98,19 +108,28 @@ static inline int iss_exec_switch_to_fast(iss_t *iss)
   return !iss->cpu.state.hw_counter_en && !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE);
 }
 
-static inline int iss_exec_step_nofetch_perf(iss_t *iss)
+static inline int iss_exec_account_cycles(iss_t *iss, int cycles)
 {
-  iss_irq_check(iss);
-  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn);
-  int cycles = iss->cpu.state.insn_cycles;
-
   if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE)
   {
     if (cycles >= 0 && (iss->cpu.csr.pcer & (1<<CSR_PCER_CYCLES)))
     {
       iss->cpu.csr.pccr[CSR_PCER_CYCLES] += cycles;
     }
+  }
+}
 
+static inline int iss_exec_step_nofetch_perf(iss_t *iss)
+{
+  iss_irq_check(iss);
+  ISS_EXEC_NO_FETCH_COMMON(iss,iss_exec_insn);
+
+  int cycles = iss->cpu.state.insn_cycles;
+
+  iss_exec_account_cycles(iss, iss->cpu.state.insn_cycles);
+
+  if (iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE)
+  {
     if (iss->cpu.csr.pcer & (1<<CSR_PCER_INSTR))
       iss->cpu.csr.pccr[CSR_PCER_INSTR] += 1;
   }

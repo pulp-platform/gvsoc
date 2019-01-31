@@ -35,9 +35,9 @@ static inline iss_insn_t *csrrw_exec(iss_t *iss, iss_insn_t *insn)
         REG_SET(0, value);
       }
   }
-  if (insn->in_regs[0] != 0) {
-    iss_csr_write(iss, UIM_GET(0), reg_value);
-  }
+
+  iss_csr_write(iss, UIM_GET(0), reg_value);
+
   return insn->next;
 }
 
@@ -52,7 +52,7 @@ static inline iss_insn_t *csrrc_exec(iss_t *iss, iss_insn_t *insn)
   { 
     if (insn->out_regs[0] != 0) REG_SET(0, value);
   }
-  if (insn->in_regs[0] != 0) iss_csr_write(iss, UIM_GET(0), value & ~reg_value);
+  iss_csr_write(iss, UIM_GET(0), value & ~reg_value);
   return insn->next;
 }
 
@@ -67,7 +67,7 @@ static inline iss_insn_t *csrrs_exec(iss_t *iss, iss_insn_t *insn)
   { 
     if (insn->out_regs[0] != 0) REG_SET(0, value);
   }
-  if (insn->in_regs[0] != 0) iss_csr_write(iss, UIM_GET(0), value | reg_value);
+  iss_csr_write(iss, UIM_GET(0), value | reg_value);
   return insn->next;
 }
 
