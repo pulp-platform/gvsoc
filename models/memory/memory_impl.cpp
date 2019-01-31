@@ -32,6 +32,7 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -44,9 +45,12 @@ private:
 
   uint64_t size = 0;
   bool check = false;
+  int width_bits = 0;
 
   uint8_t *mem_data;
   uint8_t *check_mem;
+
+  int64_t next_packet_start;
 
   bool power_trigger; 
 
@@ -88,6 +92,20 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
   uint64_t size = req->get_size();
 
   _this->trace.msg("Memory access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, req->get_is_write());
+
+  // Impact the memory bandwith on the packet
+  if (_this->width_bits != 0) {
+#define MAX(a,b) (((a)>(b))?(a):(b))
+    int duration = MAX(size >> _this->width_bits, 1);
+    req->set_duration(duration);
+    int64_t cycles = _this->get_cycles();
+    int64_t diff = _this->next_packet_start - cycles;
+    if (diff > 0) {
+      _this->trace.msg("Delayed packet (latency: %ld)\n", diff);
+      req->inc_latency(diff);
+    }
+    _this->next_packet_start = MAX(_this->next_packet_start, cycles) + duration;
+  }
 
   if (offset + size > _this->size) {
     //gv_trace_dumpWarning(&warning, "Received out-of-bound request (reqAddr: 0x%x, reqSize: 0x%x, memSize: 0x%x)\n", offset, size, this->size);
@@ -162,6 +180,14 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
   return vp::IO_REQ_OK;
 }
 
+void memory::reset(bool active)
+{
+  if (active)
+  {
+    this->next_packet_start = 0;
+  }
+}
+
 int memory::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -191,6 +217,7 @@ void memory::start()
 {
   size = get_config_int("size");
   check = get_config_bool("check");
+  width_bits = get_config_int("width_bits");
 
   trace.msg("Building memory (size: 0x%x, check: %d)\n", size, check);
 

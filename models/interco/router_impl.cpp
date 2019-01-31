@@ -267,13 +267,11 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
     if (duration > 1) latency += duration - 1;
 
     Perf_counter *counter = _this->counters[entry->id];
-  
-    // This counter is counting the number of cycles so it must at least 1 plus
-    // the latency
+
     if (isRead)
-      counter->read_stalls += latency + 1;
+      counter->read_stalls += latency;
     else
-      counter->write_stalls += latency + 1;
+      counter->write_stalls += latency;
   
     if (isRead)
       counter->nb_read++;
@@ -532,6 +530,7 @@ void Perf_counter::write_stalls_sync(void *__this, uint32_t value)
 void Perf_counter::stalls_sync_back(void *__this, uint32_t *value)
 {
   Perf_counter *_this = (Perf_counter *)__this;
+
   *value = _this->read_stalls + _this->write_stalls;
 }
 
