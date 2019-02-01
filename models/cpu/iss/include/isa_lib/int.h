@@ -1399,7 +1399,7 @@ static inline unsigned int lib_flexfloat_nmadd(iss_cpu_state_t *s, unsigned int 
   return flexfloat_get_bits(&ff_res);
 }
 
-static inline unsigned int setFFRoundingMode(unsigned int mode)
+static inline unsigned int setFFRoundingMode(iss_cpu_state_t *s, unsigned int mode)
 {
   int old = fegetround();
   switch (mode) {
@@ -1408,8 +1408,19 @@ static inline unsigned int setFFRoundingMode(unsigned int mode)
     case 2: fesetround(FE_DOWNWARD); break;
     case 3: fesetround(FE_UPWARD); break;
     case 4: printf("Unimplemented roudning mode nearest ties to max magnitude"); exit(-1); break;
+    case 7: fesetround(s->fcsr.frm); break;
   }
   return old;
+}
+
+static inline void set_fflags(iss_cpu_state_t *s, unsigned int fflags)
+{
+  s->fcsr.frm |= fflags;
+}
+
+static inline void clear_fflags(iss_cpu_state_t *s, unsigned int fflags)
+{
+  s->fcsr.frm &= ~fflags;
 }
 
 static inline void restoreFFRoundingMode(unsigned int mode)
@@ -1418,70 +1429,70 @@ static inline void restoreFFRoundingMode(unsigned int mode)
 }
 
 static inline unsigned int lib_flexfloat_madd_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_madd(s, a, b, c, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_msub_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_msub(s, a, b, c, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_nmadd_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_nmadd(s, a, b, c, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_nmsub_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_nmsub(s, a, b, c, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_add_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_add(s, a, b, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_sub_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_sub(s, a, b, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_mul_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_mul(s, a, b, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_div_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_div(s, a, b, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_avg_round(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   unsigned int result = lib_flexfloat_avg(s, a, b, e, m);
   restoreFFRoundingMode(old);
   return result;
 }
 
 static inline unsigned int lib_flexfloat_sqrt_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   ff_init_double(&ff_res, sqrt(ff_get_double(&ff_a)), env);
   restoreFFRoundingMode(old);
@@ -1517,7 +1528,7 @@ static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a,
 }
 
 static inline int64_t lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   int32_t result_int = double_to_int(ff_a.value);
   restoreFFRoundingMode(old);
@@ -1525,7 +1536,7 @@ static inline int64_t lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned 
 }
 
 static inline int64_t lib_flexfloat_cvt_wu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   int32_t result_int = double_to_uint(ff_a.value);
   restoreFFRoundingMode(old);
@@ -1533,7 +1544,7 @@ static inline int64_t lib_flexfloat_cvt_wu_ff_round(iss_cpu_state_t *s, unsigned
 }
 
 static inline int lib_flexfloat_cvt_ff_w_round(iss_cpu_state_t *s, int64_t a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   flexfloat_t ff_a;
   ff_init_int(&ff_a, a&0xffffffff, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
@@ -1541,7 +1552,7 @@ static inline int lib_flexfloat_cvt_ff_w_round(iss_cpu_state_t *s, int64_t a, ui
 }
 
 static inline unsigned int lib_flexfloat_cvt_ff_wu_round(iss_cpu_state_t *s, int64_t a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   flexfloat_t ff_a;
   ff_init_long(&ff_a, (uint32_t) a&0xffffffff, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
@@ -1549,7 +1560,7 @@ static inline unsigned int lib_flexfloat_cvt_ff_wu_round(iss_cpu_state_t *s, int
 }
 
 static inline int64_t lib_flexfloat_cvt_l_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   int64_t result_long = double_to_long(ff_a.value);
   restoreFFRoundingMode(old);
@@ -1557,7 +1568,7 @@ static inline int64_t lib_flexfloat_cvt_l_ff_round(iss_cpu_state_t *s, unsigned 
 }
 
 static inline uint64_t lib_flexfloat_cvt_lu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   uint64_t result_ulong = double_to_ulong(ff_a.value);
   restoreFFRoundingMode(old);
@@ -1565,7 +1576,7 @@ static inline uint64_t lib_flexfloat_cvt_lu_ff_round(iss_cpu_state_t *s, unsigne
 }
 
 static inline int lib_flexfloat_cvt_ff_l_round(iss_cpu_state_t *s, int64_t a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   flexfloat_t ff_a;
   ff_init_long(&ff_a, a, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
@@ -1573,7 +1584,7 @@ static inline int lib_flexfloat_cvt_ff_l_round(iss_cpu_state_t *s, int64_t a, ui
 }
 
 static inline unsigned int lib_flexfloat_cvt_ff_lu_round(iss_cpu_state_t *s, uint64_t a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   flexfloat_t ff_a;
   ff_init_long(&ff_a, a, (flexfloat_desc_t) {e,m});
   restoreFFRoundingMode(old);
@@ -1581,7 +1592,7 @@ static inline unsigned int lib_flexfloat_cvt_ff_lu_round(iss_cpu_state_t *s, uin
 }
 
 static inline int lib_flexfloat_cvt_ff_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t es, uint8_t ms, uint8_t ed, uint8_t md, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, es, ms)
   ff_cast(&ff_res, &ff_a, (flexfloat_desc_t) {ed,md});
   restoreFFRoundingMode(old);
@@ -1669,7 +1680,7 @@ static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int
 }
 
 static inline int lib_flexfloat_cvt_x_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   long int result_long = (long int) ff_a.value;
   restoreFFRoundingMode(old);
@@ -1677,7 +1688,7 @@ static inline int lib_flexfloat_cvt_x_ff_round(iss_cpu_state_t *s, unsigned int 
 }
 
 static inline unsigned int lib_flexfloat_cvt_xu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   long int result_long = (long int) ff_a.value;
   restoreFFRoundingMode(old);
@@ -1685,7 +1696,7 @@ static inline unsigned int lib_flexfloat_cvt_xu_ff_round(iss_cpu_state_t *s, uns
 }
 
 static inline int lib_flexfloat_cvt_ff_x_round(iss_cpu_state_t *s, int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   int sign_mask = 1U << (e+m);
   flexfloat_t ff_a;
   a &= (0x1 << (e+m+1))-1;
@@ -1696,7 +1707,7 @@ static inline int lib_flexfloat_cvt_ff_x_round(iss_cpu_state_t *s, int a, uint8_
 }
 
 static inline unsigned int lib_flexfloat_cvt_ff_xu_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
-  int old = setFFRoundingMode(round);
+  int old = setFFRoundingMode(s, round);
   flexfloat_t ff_a;
   a &= (0x1 << (e+m+1))-1;
   ff_init_long(&ff_a, (unsigned long) a, (flexfloat_desc_t) {e,m});

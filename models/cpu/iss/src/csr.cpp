@@ -125,38 +125,36 @@ static bool uip_write(iss_t *iss, unsigned int value) {
 
 
 static bool fflags_read(iss_t *iss, iss_reg_t *value) {
-  *value = 0;
+  *value = iss->cpu.state.fcsr.fflags.raw;
   return false;
 }
 
 static bool fflags_write(iss_t *iss, unsigned int value) {
-  value = 0;
+  iss->cpu.state.fcsr.fflags.raw = value;
   return false;
 }
 
 
 
 static bool frm_read(iss_t *iss, iss_reg_t *value) {
-  //printf("WARNING UNIMPLEMENTED CSR: frm\n");
-  *value = 0;
+  *value = iss->cpu.state.fcsr.frm;
   return false;
 }
 
 static bool frm_write(iss_t *iss, unsigned int value) {
-  //printf("WARNING UNIMPLEMENTED CSR: frm\n");
+  iss->cpu.state.fcsr.frm = value;
   return false;
 }
 
 
 
 static bool fcsr_read(iss_t *iss, iss_reg_t *value) {
-  printf("WARNING UNIMPLEMENTED CSR: fcsr\n");
-  *value = 0;
+  *value = iss->cpu.state.fcsr.raw;
   return false;
 }
 
 static bool fcsr_write(iss_t *iss, unsigned int value) {
-  printf("WARNING UNIMPLEMENTED CSR: fcsr\n");
+  iss->cpu.state.fcsr.raw = value;
   return false;
 }
 
