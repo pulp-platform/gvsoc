@@ -64,7 +64,11 @@ static inline bool iss_insn_trace_active(iss_t *iss)
 #endif
 }
 
+#define iss_fatal(iss, fmt, x...)
+
 #define iss_warning(iss, fmt, x...)
+
+#define iss_force_warning(iss, fmt, x...)
 
 #define iss_msg(iss, fmt, x...)
 

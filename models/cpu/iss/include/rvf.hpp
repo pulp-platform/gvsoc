@@ -29,6 +29,7 @@
 
 static inline iss_insn_t *flw_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_IN(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_load(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
   return insn->next;
 }
@@ -37,6 +38,7 @@ static inline iss_insn_t *flw_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *fsw_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_OUT(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_store(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_IN(1));
   return insn->next;
 }

@@ -385,6 +385,9 @@ typedef struct iss_csr_s
   iss_reg_t pcer;
   iss_reg_t pcmr;
 #endif
+  iss_reg_t stack_conf;
+  iss_reg_t stack_start;
+  iss_reg_t stack_end;
 } iss_csr_t;
 
 

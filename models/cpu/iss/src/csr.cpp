@@ -812,6 +812,48 @@ static bool mhpmevent_write(iss_t *iss, int id, unsigned int value) {
  *   PULP CSRS
  */
 
+static bool stack_conf_write(iss_t *iss, unsigned int value)
+{
+  iss->cpu.csr.stack_conf = value;
+
+  if (iss->cpu.csr.stack_conf)
+    iss_csr_msg(iss, "Activating stack checking (start: 0x%x, end: 0x%x)\n", iss->cpu.csr.stack_start, iss->cpu.csr.stack_end);
+  else
+    iss_csr_msg(iss, "Deactivating stack checking\n");
+
+  return false;
+}
+
+static bool stack_conf_read(iss_t *iss, unsigned int *value)
+{
+  *value = iss->cpu.csr.stack_conf;
+  return false;
+}
+
+static bool stack_start_write(iss_t *iss, unsigned int value)
+{
+  iss->cpu.csr.stack_start = value;
+  return false;
+}
+
+static bool stack_start_read(iss_t *iss, unsigned int *value)
+{
+  *value = iss->cpu.csr.stack_start;
+  return false;
+}
+
+static bool stack_end_write(iss_t *iss, unsigned int value)
+{
+  iss->cpu.csr.stack_end = value;
+  return false;
+}
+
+static bool stack_end_read(iss_t *iss, unsigned int *value)
+{
+  *value = iss->cpu.csr.stack_end;
+  return false;
+}
+
 static bool umode_read(iss_t *iss, iss_reg_t *value) {
   *value = 3;
   //*value = iss->state.mode;
@@ -1106,6 +1148,10 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     case 0xC10: status = umode_read(iss, value); break;
     case 0x014: status = mhartid_read(iss, value); break;
 
+    case CSR_STACK_CONF:  status = stack_conf_read(iss, value); break;
+    case CSR_STACK_START: status = stack_start_read(iss, value); break;
+    case CSR_STACK_END:   status = stack_end_read(iss, value); break;
+
     default:
 
 #if defined(ISS_HAS_PERF_COUNTERS)
@@ -1250,6 +1296,10 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
     case 0x311: return mscounteren_write(iss, value);
     case 0x312: return mhcounteren_write(iss, value);
 
+    case CSR_STACK_CONF:  return stack_conf_write(iss, value); break;
+    case CSR_STACK_START: return stack_start_write(iss, value); break;
+    case CSR_STACK_END:   return stack_end_write(iss, value); break;
+
   }
 
 #if defined(ISS_HAS_PERF_COUNTERS)
@@ -1275,4 +1325,5 @@ void iss_csr_init(iss_t *iss)
 #if defined(ISS_HAS_PERF_COUNTERS)
   iss->cpu.csr.pcmr = 3;
 #endif
+  iss->cpu.csr.stack_conf = 0;
 }

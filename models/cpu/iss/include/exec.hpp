@@ -105,7 +105,7 @@ static inline int iss_exec_step(iss_t *iss)
 
 static inline int iss_exec_switch_to_fast(iss_t *iss)
 {
-  return !iss->cpu.state.hw_counter_en && !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE);
+  return !iss->cpu.state.hw_counter_en && !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE) && !iss->cpu.csr.stack_conf;
 }
 
 static inline int iss_exec_account_cycles(iss_t *iss, int cycles)

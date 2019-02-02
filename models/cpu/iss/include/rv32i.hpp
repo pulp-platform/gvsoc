@@ -325,6 +325,7 @@ static inline iss_insn_t *lb_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lb_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_IN(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_load_signed_perf(iss, insn, REG_GET(0) + SIM_GET(0), 1, REG_OUT(0));
   return insn->next;
 }
@@ -339,6 +340,7 @@ static inline iss_insn_t *lh_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lh_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_IN(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_load_signed_perf(iss, insn, REG_GET(0) + SIM_GET(0), 2, REG_OUT(0));
   return insn->next;
 }
@@ -353,6 +355,7 @@ static inline iss_insn_t *lw_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lw_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_IN(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_load_perf(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
   return insn->next;
 }
@@ -367,6 +370,7 @@ static inline iss_insn_t *lbu_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lbu_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_IN(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_load_perf(iss, insn, REG_GET(0) + SIM_GET(0), 1, REG_OUT(0));
   return insn->next;
 }
@@ -381,6 +385,7 @@ static inline iss_insn_t *lhu_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *lhu_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_IN(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_load_perf(iss, insn, REG_GET(0) + SIM_GET(0), 2, REG_OUT(0));
   return insn->next;
 }
@@ -395,6 +400,7 @@ static inline iss_insn_t *sb_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *sb_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_OUT(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_store_perf(iss, insn, REG_GET(0) + SIM_GET(0), 1, REG_IN(1));
   return insn->next;
 }
@@ -409,6 +415,7 @@ static inline iss_insn_t *sh_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *sh_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_OUT(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_store_perf(iss, insn, REG_GET(0) + SIM_GET(0), 2, REG_IN(1));
   return insn->next;
 }
@@ -424,6 +431,7 @@ static inline iss_insn_t *sw_exec_fast(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *sw_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_lsu_check_stack_access(iss, REG_OUT(0), REG_GET(0) + SIM_GET(0));
   iss_lsu_store_perf(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_IN(1));
   return insn->next;
 }

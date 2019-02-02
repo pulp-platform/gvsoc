@@ -66,9 +66,19 @@ static bool iss_csr_ext_counter_is_bound(iss_t *iss, int id)
     iss->trace.msg(fmt, ##x); \
   } while(0)
 
+#define iss_force_warning(iss, fmt, x...) \
+  do { \
+    iss->trace.force_warning(fmt, ##x); \
+  } while(0)
+
 #define iss_warning(iss, fmt, x...) \
   do { \
     iss->trace.warning(fmt, ##x); \
+  } while(0)
+
+#define iss_fatal(iss, fmt, x...) \
+  do { \
+    iss->trace.fatal(fmt, ##x); \
   } while(0)
 
 #define iss_csr_msg(iss, fmt, x...) \
