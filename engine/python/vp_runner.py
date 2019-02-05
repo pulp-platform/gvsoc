@@ -68,7 +68,8 @@ def gen_gtkw_files(config, gv_config):
         os.remove('all.vcd')
 
     if len(gv_config.get('event').get()) != 0:
-        with open('view.gtkw', 'w') as file:
+        path = os.path.join(os.getcwd(), 'view.gtkw')
+        with open(path, 'w') as file:
             gtkw = vcd.gtkw.GTKWSave(file)
 
             gtkw.dumpfile('all.vcd')
@@ -89,6 +90,11 @@ def gen_gtkw_files(config, gv_config):
                     for i in range(0, nb_pe):
                         with gtkw.group('pe_%d' % i, closed=True):
                             gen_gtkw_core_traces(gtkw, 'sys.board.chip.cluster.pe%d' % i)
+
+        print ()
+        print ('A Gtkwave script has been generated and can be opened with the following command:')
+        print ('gtkwave ' + path)
+        print ()
 
 
     if gv_config.get_bool('**/vcd/gtkw'):
