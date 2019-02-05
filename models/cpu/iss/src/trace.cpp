@@ -439,7 +439,7 @@ iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn)
   {
     iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, false);
     
-    iss_insn_t *next_insn = iss_exec_insn_handler(iss, insn, insn->saved_handler);
+    next_insn = iss_exec_insn_handler(iss, insn, insn->saved_handler);
 
     if (!iss_exec_is_stalled(iss))
       iss_trace_dump(iss, insn);
