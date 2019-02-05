@@ -15,14 +15,6 @@
    limitations under the License.
 */
 
-/*
- * Author: Giuseppe Tagliavini
- * Email:  giuseppe.tagliavini@unibo.it
- * Date:   2017-07-28
- * Last Modified by:   Giuseppe Tagliavini
- * Last Modified date: 2018-05-09
- */
-
 /* C++ */
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +22,8 @@ extern "C" {
 
 #ifndef flexfloat_h
 #define flexfloat_h 1
+
+#include "flexfloat_config.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -40,11 +34,13 @@ extern "C" {
 #define FLEXFLOAT_ROUNDING
 #endif
 
-// Backend value precision
-#ifndef FLEXFLOAT_ON_SINGLE
-#define FLEXFLOAT_ON_SINGLE
+// Enable FP environment access for rounding and flags
+#if defined(FLEXFLOAT_ROUNDING) || defined(FLEXFLOAT_STATS)
+#include <fenv.h>
+#pragma STDC FENV_ACCESS ON
 #endif
 
+// Backend value precision
 #if !defined(FLEXFLOAT_ON_SINGLE) && !defined(FLEXFLOAT_ON_DOUBLE) && !defined(FLEXFLOAT_ON_QUAD)
 #error "A backend type must be specified (FLEXFLOAT_ON_SINGLE, FLEXFLOAT_ON_DOUBLE or FLEXFLOAT_ON_QUAD)"
 #endif
@@ -111,6 +107,22 @@ typedef __float128 fp_t;
 #define PRINTF_FORMAT "%.38Lf"
 #endif /* FLEXFLOAT_ON_QUAD */
 
+// Check support for exception flags if enabled
+#ifdef FLEXFLOAT_FLAGS
+#if FE_ALL_EXCEPT == 0
+#error "Exception flags were enabled with FLEXFLOAT_FLAGS, however the implementation does not support floating-point exceptions"
+#elif !defined(FE_DIVBYZERO)
+#error "Exception flags were enabled with FLEXFLOAT_FLAGS, however the implementation does not support FE_DIVBYZERO"
+#elif !defined(FE_INEXACT)
+#error "Exception flags were enabled with FLEXFLOAT_FLAGS, however the implementation does not support FE_INEXACT"
+#elif !defined(FE_INVALID)
+#error "Exception flags were enabled with FLEXFLOAT_FLAGS, however the implementation does not support FE_INVALID"
+#elif !defined(FE_OVERFLOW)
+#error "Exception flags were enabled with FLEXFLOAT_FLAGS, however the implementation does not support FE_OVERFLOW"
+#elif !defined(FE_UNDERFLOW)
+#error "Exception flags were enabled with FLEXFLOAT_FLAGS, however the implementation does not support FE_UNDERFLOW"
+#endif
+#endif
 
 // Helper macros
 
@@ -207,6 +219,7 @@ void ff_sub(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b);
 void ff_mul(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b);
 void ff_div(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b);
 void ff_acc(flexfloat_t *dest, const flexfloat_t *a);
+void ff_fma(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b, const flexfloat_t *c);
 
 
 // Relational operators
@@ -242,6 +255,7 @@ typedef struct {
     uint64_t sub;
     uint64_t mul;
     uint64_t div;
+    uint64_t fma;
     uint64_t cmp;
 } OpStats;
 
