@@ -891,10 +891,11 @@ void update_external_pccr(iss_t *iss, int id, unsigned int pcer, unsigned int pc
   unsigned int incr = 0;
   // Only update if the counter is active as the external signal may report 
   // a different value whereas the counter must remain the same
-  if ((pcer & CSR_PCER_EVENT_MASK(id)) && (pcmr & CSR_PCMR_ACTIVE))
+  if (((pcer & CSR_PCER_EVENT_MASK(id)) && (pcmr & CSR_PCMR_ACTIVE)) || iss_pccr_trace_active(iss, id))
   {
     iss_csr_ext_counter_get(iss, id, &incr);
     iss->cpu.csr.pccr[id] += incr;
+    iss_pccr_incr(iss, id, incr);
   }
   else {
     // Nothing to do if the counter is inactive, it will get reset so that

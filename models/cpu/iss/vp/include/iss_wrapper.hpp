@@ -68,6 +68,8 @@ public:
   void set_halt_mode(bool halted, int cause);
   void check_state();
 
+  void dump_debug_traces();
+
   inline void trigger_check_all() { current_event = check_all_event; }
 
   vp::io_master data;
@@ -107,6 +109,13 @@ public:
   vp::power_source leakage_power;
 
   vp::trace     pc_trace_event;
+  vp::trace     func_trace_event;
+  vp::trace     inline_trace_event;
+  vp::trace     line_trace_event;
+  vp::trace     file_trace_event;
+  vp::trace     pcer_trace_event[32];
+  vp::trace     insn_trace_event;
+  vp::trace     misaligned_req_event;
   
 #ifdef USE_TRDB
   trdb_ctx *trdb;

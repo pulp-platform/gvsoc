@@ -60,5 +60,6 @@ void iss_csr_init(iss_t *iss);
 bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value);
 bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value);
 
+int iss_trace_pc_info(iss_addr_t addr, const char **func, const char **inline_func, const char **file, int *line);
 
 #endif

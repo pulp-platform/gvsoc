@@ -21,6 +21,10 @@
 #ifndef __CPU_ISS_ISS_INSN_EXEC_HPP
 #define __CPU_ISS_ISS_INSN_EXEC_HPP
 
+#if defined(ISS_HAS_PERF_COUNTERS)
+void update_external_pccr(iss_t *iss, int id, unsigned int pcer, unsigned int pcmr);
+#endif
+
 static inline int iss_exec_account_cycles(iss_t *iss, int cycles);
 
 iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn);
@@ -105,7 +109,11 @@ static inline int iss_exec_step(iss_t *iss)
 
 static inline int iss_exec_switch_to_fast(iss_t *iss)
 {
+#ifdef VP_TRACE_ACTIVE
+  return false;
+#else
   return !iss->cpu.state.hw_counter_en && !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE) && !iss->cpu.csr.stack_conf;
+#endif
 }
 
 static inline int iss_exec_account_cycles(iss_t *iss, int cycles)
@@ -117,6 +125,18 @@ static inline int iss_exec_account_cycles(iss_t *iss, int cycles)
       iss->cpu.csr.pccr[CSR_PCER_CYCLES] += cycles;
     }
   }
+
+  iss_pccr_incr(iss, CSR_PCER_CYCLES, cycles);
+
+#if defined(ISS_HAS_PERF_COUNTERS)
+  for (int i=CSR_PCER_NB_INTERNAL_EVENTS; i<CSR_PCER_NB_EVENTS; i++)
+  {
+    if (iss_pccr_trace_active(iss, i))
+    {
+      update_external_pccr(iss, i, iss->cpu.csr.pcer, iss->cpu.csr.pcmr);
+    }
+  }
+#endif
 }
 
 static inline int iss_exec_step_nofetch_perf(iss_t *iss)
@@ -133,6 +153,7 @@ static inline int iss_exec_step_nofetch_perf(iss_t *iss)
     if (iss->cpu.csr.pcer & (1<<CSR_PCER_INSTR))
       iss->cpu.csr.pccr[CSR_PCER_INSTR] += 1;
   }
+  iss_pccr_incr(iss, CSR_PCER_INSTR, 1);
 
   return cycles;
 }

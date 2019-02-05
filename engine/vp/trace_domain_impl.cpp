@@ -60,7 +60,7 @@ private:
 
 
 vp::trace_engine::trace_engine(const char *config)
-  : vcd_dumper(this), vp::component(config), first_trace_to_dump(NULL)
+  : event_dumper(this), vp::component(config), first_trace_to_dump(NULL)
 {
 
   pthread_mutex_init(&mutex, NULL);
@@ -98,13 +98,15 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
     {
       if (event)
       {
-        vp::Vcd_trace *vcd_trace;
-        if (!trace->is_real)
-          vcd_trace = vcd_dumper.get_trace(full_path, this->events_file[index], trace->width);
+        vp::Event_trace *event_trace;
+        if (trace->is_real)
+          event_trace = event_dumper.get_trace_real(full_path, this->events_file[index]);
+        else if (trace->is_string)
+          event_trace = event_dumper.get_trace_string(full_path, this->events_file[index]);
         else
-          vcd_trace = vcd_dumper.get_trace_real(full_path, this->events_file[index]);
+          event_trace = event_dumper.get_trace(full_path, this->events_file[index], trace->width);
         trace->set_event_active(true);
-        trace->vcd_trace = vcd_trace;
+        trace->event_trace = event_trace;
       }
       else
         trace->set_active(true);

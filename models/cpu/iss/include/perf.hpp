@@ -29,6 +29,8 @@ static inline void iss_pccr_account_event(iss_t *iss, unsigned int event, int in
     iss->cpu.csr.pccr[event] += incr;
   }
 
+  iss_pccr_incr(iss, event, incr);
+
   //if (cpu->traceEvent) sim_trace_event_incr(cpu, event, incr);
 }
 

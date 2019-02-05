@@ -30,6 +30,31 @@ static inline void iss_handle_ecall(iss_t *iss, iss_insn_t *insn)
 
 }
 
+static inline void iss_pccr_incr(iss_t *iss, unsigned int event, int incr)
+{
+  static uint64_t zero = 0;
+  static uint64_t one = 1;
+  if (iss->pcer_trace_event[event].get_event_active())
+  {
+    iss->pcer_trace_event[event].event_pulse(incr*iss->get_period(), (uint8_t *)&one, (uint8_t *)&zero);
+  }
+}
+
+static inline int iss_pccr_trace_active(iss_t *iss, unsigned int event)
+{
+  return iss->pcer_trace_event[event].get_event_active() && iss->ext_counter[event].is_bound();
+}
+
+static inline int iss_insn_event_active(iss_t *iss)
+{
+  return iss->insn_trace_event.get_event_active();
+}
+
+static inline void iss_insn_event_dump(iss_t *iss, const char *msg)
+{
+  iss->insn_trace_event.event_string(msg, strlen(msg));
+}
+
 static inline void iss_set_halt_mode(iss_t *iss, bool halted, int cause)
 {
   iss->set_halt_mode(halted, cause);

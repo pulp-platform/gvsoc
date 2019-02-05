@@ -37,9 +37,23 @@ namespace vp {
   #endif
   }
 
-  inline void vp::trace::event_string(uint8_t *value, int size)
+  inline void vp::trace::event_pulse(int64_t duration, uint8_t *pulse_value, uint8_t *background_value)
   {
   #ifdef VP_TRACE_ACTIVE
+    if (is_event_active)
+    {
+      trace_manager->dump_event_pulse(this, comp->get_clock()->get_time(), comp->get_clock()->get_time() + duration, pulse_value, background_value, bytes);
+    }   
+  #endif
+  }
+
+  inline void vp::trace::event_string(std::string value, int size)
+  {
+  #ifdef VP_TRACE_ACTIVE
+    if (is_event_active)
+    {
+      trace_manager->dump_event_string(this, comp->get_clock()->get_time(), (uint8_t *)value.c_str(), size);
+    }   
   #endif
   }
 

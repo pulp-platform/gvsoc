@@ -73,6 +73,10 @@ do { \
   { \
     _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr); \
   } \
+  if (_this->func_trace_event.get_event_active() || _this->inline_trace_event.get_event_active() || _this->file_trace_event.get_event_active() || _this->line_trace_event.get_event_active()) \
+  { \
+    _this->dump_debug_traces(); \
+  } \
   if (_this->power_trace.get_active()) \
   { \
   _this->insn_power.account_event(); \
@@ -98,6 +102,20 @@ do { \
     } \
   } \
 } while(0)
+
+void iss_wrapper::dump_debug_traces()
+{
+  const char *func, *inline_func, *file;
+  int line;
+
+  if (!iss_trace_pc_info(this->cpu.current_insn->addr, &func, &inline_func, &file, &line))
+  {
+    this->func_trace_event.event_string(func, strlen(func));
+    this->inline_trace_event.event_string(inline_func, strlen(inline_func));
+    this->file_trace_event.event_string(file, strlen(file));
+    this->line_trace_event.event((uint8_t *)&line);
+  }
+}
 
 void iss_wrapper::exec_instr(void *__this, vp::clock_event *event)
 {
@@ -300,6 +318,9 @@ int iss_wrapper::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int siz
 
   decode_trace.msg("Misaligned data request (addr: 0x%lx, size: 0x%x, is_write: %d)\n", addr, size, is_write);
 
+  static uint8_t one = 1, zero = 0;
+  this->misaligned_req_event.event_pulse(this->get_period(), &one, &zero);
+
   // The access is a misaligned access
   // Change the event so that we can do the first access now and the next access
   // during the next cycle
@@ -493,6 +514,31 @@ int iss_wrapper::build()
   traces.new_trace("perf", &perf_counter_trace, vp::TRACE);
 
   traces.new_trace_event("pc", &pc_trace_event, 32);
+  traces.new_trace_event_string("asm", &insn_trace_event);
+  traces.new_trace_event_string("func", &func_trace_event);
+  traces.new_trace_event_string("inline_func", &inline_trace_event);
+  traces.new_trace_event_string("file", &file_trace_event);
+  traces.new_trace_event("line", &line_trace_event, 32);
+  traces.new_trace_event("misaligned", &misaligned_req_event, 1);
+
+  // TODO this should come from the config file as different chips may not have
+  // same counters
+  traces.new_trace_event("pcer_cycles", &pcer_trace_event[0], 1);
+  traces.new_trace_event("pcer_instr", &pcer_trace_event[1], 1);
+  traces.new_trace_event("pcer_ld_stall", &pcer_trace_event[2], 1);
+  traces.new_trace_event("pcer_jmp_stall", &pcer_trace_event[3], 1);
+  traces.new_trace_event("pcer_imiss", &pcer_trace_event[4], 1);
+  traces.new_trace_event("pcer_ld", &pcer_trace_event[5], 1);
+  traces.new_trace_event("pcer_st", &pcer_trace_event[6], 1);
+  traces.new_trace_event("pcer_jump", &pcer_trace_event[7], 1);
+  traces.new_trace_event("pcer_branch", &pcer_trace_event[8], 1);
+  traces.new_trace_event("pcer_taken_branch", &pcer_trace_event[9], 1);
+  traces.new_trace_event("pcer_rvc", &pcer_trace_event[10], 1);
+  traces.new_trace_event("pcer_ld_ext", &pcer_trace_event[11], 1);
+  traces.new_trace_event("pcer_st_ext", &pcer_trace_event[12], 1);
+  traces.new_trace_event("pcer_ld_ext_cycles", &pcer_trace_event[13], 1);
+  traces.new_trace_event("pcer_st_ext_cycles", &pcer_trace_event[14], 1);
+  traces.new_trace_event("pcer_tcdm_cont", &pcer_trace_event[15], 1);
 
   power.new_trace("power_trace", &power_trace);
 
@@ -598,6 +644,12 @@ void iss_wrapper::reset(bool active)
   {
     this->irq_req = -1;
     this->wakeup_latency = 0;
+
+    for (int i=0; i<CSR_PCER_NB_EVENTS; i++)
+    {
+      this->pcer_trace_event[i].event(NULL);
+    }
+    this->misaligned_req_event.event(NULL);
 
     iss_reset(this);
   }

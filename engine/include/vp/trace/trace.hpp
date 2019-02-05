@@ -22,7 +22,7 @@
 #define __VP_TRACE_TRACE_HPP__
 
 #include "vp/vp_data.hpp"
-#include "vp/trace/vcd_dumper.hpp"
+#include "vp/trace/event_dumper.hpp"
 #include <stdarg.h>
 
 namespace vp {
@@ -46,7 +46,8 @@ namespace vp {
     inline void fatal(const char *fmt, ...);
 
     inline void event(uint8_t *value);
-    inline void event_string(uint8_t *value, int size);
+    inline void event_pulse(int64_t duration, uint8_t *pulse_value, uint8_t *background_value);
+    inline void event_string(std::string value, int size);
     inline void event_real(double value);
     inline void event_real_pulse(int64_t duration, double pulse_value, double background_value);
     inline void event_real_delayed(double value);
@@ -71,8 +72,9 @@ namespace vp {
 
     int width;
     int bytes;
-    Vcd_trace *vcd_trace = NULL;
+    Event_trace *event_trace = NULL;
     bool is_real = false;
+    bool is_string = false;
 
   protected:
     int level;

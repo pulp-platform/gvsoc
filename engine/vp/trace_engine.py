@@ -65,6 +65,7 @@ class component(vp.component):
           self.reg_traces(config.get('trace').get_dict(), 0)
           self.reg_traces(config.get('event').get_dict(), 1)
 
+
     def pre_start(self):
         length = self.impl.module.vp_trace_exchange_max_path_len(self.impl.instance, self.max_path_len)
         if length > self.max_path_len:

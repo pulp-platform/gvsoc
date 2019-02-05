@@ -69,9 +69,11 @@ void vp::component_trace::new_trace_event_string(std::string name, trace *trace)
   trace_events[name] = trace;
   trace->comp = static_cast<vp::component *>(&top);
   trace->name = top.get_path() + "/" + name;
+  trace->is_string = true;
   trace->pending_timestamp = -1;
-  trace->buffer = new uint8_t[trace->bytes];
-  trace->buffer2 = new uint8_t[trace->bytes];
+  trace->bytes = 0;
+  trace->buffer = NULL;
+  trace->buffer2 = NULL;
 }
 
 void vp::component_trace::post_post_build()
@@ -170,18 +172,36 @@ void vp::trace_engine::flush()
 
 }
 
-void vp::trace_engine::dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes)
+void vp::trace_engine::dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes, bool include_size)
 {
   int size = bytes + sizeof(trace) + sizeof(timestamp);
+  if (include_size)
+    size += 4;
   char *event_buffer = this->get_event_buffer(size);
+
   *(vp::trace **)event_buffer = trace;
   event_buffer += sizeof(trace);
   *(int64_t *)event_buffer = timestamp;
   event_buffer += sizeof(timestamp);
-  if (bytes == 4)
-    *(uint32_t *)event_buffer = *(uint32_t *)event;
+
+  if (include_size)
+  {
+    *(int32_t *)event_buffer = bytes;
+    event_buffer += 4;
+  }
+
+  if (event)
+  {
+    if (bytes == 4)
+      *(uint32_t *)event_buffer = *(uint32_t *)event;
+    else
+      memcpy((void *)event_buffer, (void *)event, bytes);
+  }
   else
-    memcpy((void *)event_buffer, (void *)event, bytes);
+  {
+    memset((void *)event_buffer, 0, bytes);
+  }
+
 }
 
 
@@ -190,6 +210,14 @@ void vp::trace_engine::dump_event(vp::trace *trace, int64_t timestamp, uint8_t *
   this->check_pending_events(timestamp);
   
   this->dump_event_to_buffer(trace, timestamp, event, bytes);
+}
+
+
+void vp::trace_engine::dump_event_string(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes)
+{
+  this->check_pending_events(timestamp);
+
+  this->dump_event_to_buffer(trace, timestamp, event, bytes, true);
 }
 
 
@@ -273,9 +301,9 @@ void vp::trace_engine::dump_event_delayed(vp::trace *trace, int64_t timestamp, u
   this->dump_event_to_buffer(trace, timestamp, event, bytes);
 }
 
-void vp::trace_engine::flush_vcd_traces(int64_t timestamp)
+void vp::trace_engine::flush_Event_traces(int64_t timestamp)
 {
-  Vcd_trace *current = first_trace_to_dump;
+  Event_trace *current = first_trace_to_dump;
   while(current)
   {
     current->dump(timestamp);
@@ -326,11 +354,23 @@ void vp::trace_engine::vcd_routine()
 
       if (last_timestamp < timestamp)
       {
-        this->flush_vcd_traces(last_timestamp);
+        this->flush_Event_traces(last_timestamp);
         last_timestamp = timestamp;
       }
 
       event_buffer += sizeof(timestamp);
+
+      if (trace->is_string)
+      {
+        trace->bytes = *(int32_t *)event_buffer;
+        trace->width = trace->bytes * 8;
+        if (trace->event_trace)
+        {
+          trace->event_trace->width = trace->width;
+        }
+        event_buffer += 4;
+      }
+
       int bytes = trace->bytes;
       uint8_t event[bytes];
       memcpy((void *)&event, (void *)event_buffer, bytes);
@@ -338,14 +378,14 @@ void vp::trace_engine::vcd_routine()
 
       size += sizeof(trace) + bytes;
 
-      if (trace->vcd_trace)
+      if (trace->event_trace)
       {
-        trace->vcd_trace->reg(timestamp, event, trace->width);
-        if (!trace->vcd_trace->is_enqueued)
+        trace->event_trace->reg(timestamp, event, trace->width);
+        if (!trace->event_trace->is_enqueued)
         {
-          trace->vcd_trace->is_enqueued = true;
-          trace->vcd_trace->next = this->first_trace_to_dump;
-          this->first_trace_to_dump = trace->vcd_trace;
+          trace->event_trace->is_enqueued = true;
+          trace->event_trace->next = this->first_trace_to_dump;
+          this->first_trace_to_dump = trace->event_trace;
         }
       }
 
@@ -357,6 +397,6 @@ void vp::trace_engine::vcd_routine()
     pthread_mutex_unlock(&this->mutex);
   }
 
-  this->flush_vcd_traces(last_timestamp);
-  vcd_dumper.close();
+  this->flush_Event_traces(last_timestamp);
+  event_dumper.close();
 }

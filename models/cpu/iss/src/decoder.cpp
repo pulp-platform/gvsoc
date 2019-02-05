@@ -277,8 +277,7 @@ iss_insn_t *iss_decode_pc_noexec(iss_t *iss, iss_insn_t *insn)
 
   insn->opcode = opcode;
 
-
-  if (iss_insn_trace_active(iss))
+  if (iss_insn_trace_active(iss) || iss_insn_event_active(iss))
   {
     insn->saved_handler = insn->handler;
     insn->handler = iss_exec_insn_with_trace;

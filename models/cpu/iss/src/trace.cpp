@@ -69,6 +69,20 @@ static iss_pc_info *get_pc_info(unsigned int base)
   return pc_info;
 }
 
+int iss_trace_pc_info(iss_addr_t addr, const char **func, const char **inline_func, const char **file, int *line)
+{
+  iss_pc_info *info = get_pc_info(addr);
+  if (info == NULL)
+    return -1;
+
+  *func = info->func;
+  *inline_func = info->inline_func;
+  *file = info->file;
+  *line = info->line;
+
+  return 0;
+}
+
 void iss_register_debug_info(iss_t *iss, const char *binary)
 {
   if (std::find(binaries.begin(), binaries.end(), std::string(binary)) != binaries.end())
@@ -285,8 +299,10 @@ static void iss_trace_dump_insn(iss_t *iss, iss_insn_t *insn, char *buff, int bu
   static int max_arg_len = 17;
   int len;
 
-  if (binaries.size())
-    buff = trace_dump_debug(iss, insn, buff);
+  if (is_long) {
+    if (binaries.size())
+      buff = trace_dump_debug(iss, insn, buff);
+  }
 
   if (is_long) {
     buff += sprintf(buff,  "%c %" PRIxFULLREG " ", iss_trace_get_mode(mode), insn->addr);
@@ -326,15 +342,18 @@ static void iss_trace_dump_insn(iss_t *iss, iss_insn_t *insn, char *buff, int bu
     }
   }
 
-  prev_arg = NULL;
-  for (int i=0; i<nb_args; i++) {
-    buff = iss_trace_dump_arg_value(iss, insn, buff, &insn->args[i], &insn->decoder_item->u.insn.args[i], &saved_args[i], &prev_arg, 1, is_long);
-  }
-  for (int i=0; i<nb_args; i++) {
-    buff = iss_trace_dump_arg_value(iss, insn, buff, &insn->args[i], &insn->decoder_item->u.insn.args[i], &saved_args[i], &prev_arg, 0, is_long);
-  }
+  if (is_long)
+  {
+    prev_arg = NULL;
+    for (int i=0; i<nb_args; i++) {
+      buff = iss_trace_dump_arg_value(iss, insn, buff, &insn->args[i], &insn->decoder_item->u.insn.args[i], &saved_args[i], &prev_arg, 1, is_long);
+    }
+    for (int i=0; i<nb_args; i++) {
+      buff = iss_trace_dump_arg_value(iss, insn, buff, &insn->args[i], &insn->decoder_item->u.insn.args[i], &saved_args[i], &prev_arg, 0, is_long);
+    }
 
-  buff += sprintf(buff,  "\n");  
+    buff += sprintf(buff,  "\n");
+  }
 
 }
 
@@ -389,14 +408,47 @@ void iss_trace_dump(iss_t *iss, iss_insn_t *insn)
   iss_insn_msg(iss, buffer);
 }
 
+void iss_event_dump(iss_t *iss, iss_insn_t *insn)
+{
+  char buffer[1024];
+
+  iss_trace_dump_insn(iss, insn, buffer, 1024, iss->cpu.state.saved_args, false, 3);
+
+  char *current = buffer;
+  while (*current)
+  {
+    if (*current == ' ')
+      *current = '_';
+
+    current++;
+  }
+
+  iss_insn_event_dump(iss, buffer);
+}
+
 iss_insn_t *iss_exec_insn_with_trace(iss_t *iss, iss_insn_t *insn)
 {
-  iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, false);
-  
-  iss_insn_t *next_insn = iss_exec_insn_handler(iss, insn, insn->saved_handler);
+  iss_insn_t *next_insn;
 
-  if (!iss_exec_is_stalled(iss))
-    iss_trace_dump(iss, insn);
+  if (iss_insn_event_active(iss))
+  {
+    iss_event_dump(iss, insn);
+  }
+
+  if (iss_insn_trace_active(iss))
+  {
+    iss_trace_save_args(iss, insn, iss->cpu.state.saved_args, false);
+    
+    iss_insn_t *next_insn = iss_exec_insn_handler(iss, insn, insn->saved_handler);
+
+    if (!iss_exec_is_stalled(iss))
+      iss_trace_dump(iss, insn);
+  }
+  else
+  {
+    next_insn = iss_exec_insn_handler(iss, insn, insn->saved_handler);
+  }
+
 
   return next_insn;
 }

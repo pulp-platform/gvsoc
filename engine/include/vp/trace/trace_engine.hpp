@@ -29,7 +29,7 @@
 
 namespace vp {
 
-  #define TRACE_EVENT_BUFFER_SIZE (1<<10)
+  #define TRACE_EVENT_BUFFER_SIZE (1<<16)
   #define TRACE_EVENT_NB_BUFFER   4
 
   class trace_engine : public component
@@ -46,11 +46,13 @@ namespace vp {
 
     void dump_event(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 
+    void dump_event_string(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
+
     void dump_event_pulse(vp::trace *trace, int64_t timestamp, int64_t end_timestamp, uint8_t *pulse_event, uint8_t *event, int width);
 
     void dump_event_delayed(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 
-    Vcd_dumper vcd_dumper;
+    Event_dumper event_dumper;
 
   private:
     void enqueue_pending(vp::trace *trace, int64_t timestamp, uint8_t *event);
@@ -58,8 +60,8 @@ namespace vp {
     void vcd_routine();
     void flush();
     void check_pending_events(int64_t timestamp);
-    void dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes);
-    void flush_vcd_traces(int64_t timestamp);
+    void dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes, bool include_size=false);
+    void flush_Event_traces(int64_t timestamp);
 
     vector<char *> event_buffers;
     vector<char *> ready_event_buffers;
@@ -71,7 +73,7 @@ namespace vp {
     std::thread *thread;
     trace *first_pending_event;
 
-    Vcd_trace *first_trace_to_dump;
+    Event_trace *first_trace_to_dump;
   };
 
 };

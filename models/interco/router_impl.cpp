@@ -362,8 +362,8 @@ int router::build()
         counter->nb_read_itf.set_sync_meth(&Perf_counter::nb_read_sync);
         new_slave_port((void *)counter, "nb_read[" + std::to_string(entry->id) + "]", &counter->nb_read_itf);
 
-        counter->nb_write_itf.set_sync_back_meth(&Perf_counter::nb_read_sync_back);
-        counter->nb_write_itf.set_sync_meth(&Perf_counter::nb_read_sync);
+        counter->nb_write_itf.set_sync_back_meth(&Perf_counter::nb_write_sync_back);
+        counter->nb_write_itf.set_sync_meth(&Perf_counter::nb_write_sync);
         new_slave_port((void *)counter, "nb_write[" + std::to_string(entry->id) + "]", &counter->nb_write_itf);
 
         counter->read_stalls_itf.set_sync_back_meth(&Perf_counter::read_stalls_sync_back);

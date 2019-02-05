@@ -23,6 +23,7 @@ import vp_core
 import runner.stim_utils
 from os import listdir
 from os.path import isfile, join, isdir
+import os.path
 
 from plp_platform import *
 import plp_flash_stimuli
@@ -30,6 +31,70 @@ import shlex
 import json_tools as js
 import pulp_config
 from prettytable import PrettyTable
+
+import vcd.gtkw
+
+def gen_gtkw_core_traces(gtkw, path):
+    gtkw.trace(path + '.pc[31:0]', 'pc')
+    gtkw.trace(path + '.asm', 'asm')
+    gtkw.trace(path + '.func', 'func')
+    gtkw.trace(path + '.inline_func', 'inline_func')
+    gtkw.trace(path + '.file', 'file')
+    gtkw.trace(path + '.line[31:0]', 'line', datafmt='dec')
+    with gtkw.group('events', closed=True):
+        gtkw.trace(path + '.pcer_cycles', 'cycles')
+        gtkw.trace(path + '.pcer_instr', 'instr')
+        gtkw.trace(path + '.pcer_ld_stall', 'ld_stall')
+        gtkw.trace(path + '.pcer_jmp_stall', 'jmp_stall')
+        gtkw.trace(path + '.pcer_imiss', 'imiss')
+        gtkw.trace(path + '.pcer_ld', 'ld')
+        gtkw.trace(path + '.pcer_st', 'st')
+        gtkw.trace(path + '.pcer_jump', 'jump')
+        gtkw.trace(path + '.pcer_branch', 'branch')
+        gtkw.trace(path + '.pcer_taken_branch', 'taken_branch')
+        gtkw.trace(path + '.pcer_rvc', 'rvc')
+        gtkw.trace(path + '.pcer_ld_ext', 'ld_ext')
+        gtkw.trace(path + '.pcer_st_ext', 'st_ext')
+        gtkw.trace(path + '.pcer_ld_ext_cycles', 'ld_ext_cycles')
+        gtkw.trace(path + '.pcer_st_ext_cycles', 'st_ext_cycles')
+        gtkw.trace(path + '.pcer_tcdm_cont', 'tcdm_cont')
+        gtkw.trace(path + '.misaligned', 'misaligned')
+
+def gen_gtkw_files(config, gv_config):
+    nb_pe = config.get_int('**/cluster/nb_pe')
+
+    # Remove trace file so that we can switch between regular file and fifo
+    if os.path.exists('all.vcd'):
+        os.remove('all.vcd')
+
+    if len(gv_config.get('event').get()) != 0:
+        with open('view.gtkw', 'w') as file:
+            gtkw = vcd.gtkw.GTKWSave(file)
+
+            gtkw.dumpfile('all.vcd')
+
+            with gtkw.group('overview'):
+                with gtkw.group('fc'):
+                    gtkw.trace('sys.board.chip.soc.fc.pc[31:0]', 'fc:pc')
+
+                with gtkw.group('cluster'):
+                    for i in range(0, nb_pe):
+                        gtkw.trace('sys.board.chip.cluster.pe%d.pc[31:0]' % i, 'pe_%d:pc' % i)
+
+            with gtkw.group('chip', closed=True):
+                with gtkw.group('fc', closed=True):
+                    gen_gtkw_core_traces(gtkw, 'sys.board.chip.soc.fc')
+
+                with gtkw.group('cluster', closed=True):
+                    for i in range(0, nb_pe):
+                        with gtkw.group('pe_%d' % i, closed=True):
+                            gen_gtkw_core_traces(gtkw, 'sys.board.chip.cluster.pe%d' % i)
+
+
+    if gv_config.get_bool('**/vcd/gtkw'):
+        gv_config.set('vcd/format', 'vcd')
+        os.mkfifo('all.vcd')
+        vcd.gtkw.spawn_gtkwave_interactive('all.vcd', 'view.gtkw', quiet=False)
 
 
 class Runner(Platform):
@@ -40,11 +105,15 @@ class Runner(Platform):
 
         parser = config.getParser()
 
-        parser.add_argument("--debug-syms", dest="debug_syms", action="store_true", help="Activate debug symbol parsing, which can then be used for traces")
+        parser.add_argument("--no-debug-syms", dest="debug_syms", action="store_false", help="Deactivate debug symbol parsing, which can then be used for traces")
 
         parser.add_argument("--trace", dest="traces", default=[], action="append", help="Specify gvsoc trace")
 
         parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
+
+        parser.add_argument("--event-format", dest="format", default=None, help="Specify events format (vcd or fst)")
+
+        parser.add_argument("--gtkw", dest="gtkw", action="store_true", help="Dump events to pipe and open gtkwave in interactive mode")
 
         [args, otherArgs] = parser.parse_known_args()
 
@@ -67,6 +136,12 @@ class Runner(Platform):
 
         for event in args.events:
             self.get_json().set('gvsoc/event', event)
+
+        if args.format is not None:
+            self.get_json().set('gvsoc/vcd/format', args.format)
+
+        if args.gtkw:
+            self.get_json().set('gvsoc/vcd/gtkw', True)
 
 
     def devices(self):
@@ -275,6 +350,8 @@ class Runner(Platform):
 
         gvsoc_config = self.get_json().get('gvsoc')
         debug_mode = len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
+
+        gen_gtkw_files(self.get_json(), gvsoc_config)
 
         trace_engine = vp.trace_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
