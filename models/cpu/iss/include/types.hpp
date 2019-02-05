@@ -29,7 +29,11 @@
 #if defined(RISCY)
 #define ISS_HAS_PERF_COUNTERS 1
 #if defined(ISS_HAS_PERF_COUNTERS)
+#ifdef PCER_VERSION_2
+#include "archi/riscv/pcer_v2.h"
+#else
 #include "archi/riscv/pcer_v1.h"
+#endif
 #include "archi/riscv/priv_1_9.h"
 #endif
 #else
