@@ -15,18 +15,13 @@
    limitations under the License.
 */
 
-/*
- * Author: Giuseppe Tagliavini
- * Email:  giuseppe.tagliavini@unibo.it
- * Date:   2017-07-28
- * Last Modified by:   Giuseppe Tagliavini
- * Last Modified date: 2018-05-26
- */
 #include "flexfloat.h"
-#include "math.h"
+// To avoid manually discerning backend-type for calls from math.h
+#include <tgmath.h>
 
-#ifdef FLEXFLOAT_ROUNDING
+#if defined(FLEXFLOAT_ROUNDING)|| defined(FLEXFLOAT_FLAGS)
 #include <fenv.h>
+#pragma STDC FENV_ACCESS ON
 #endif
 
 #include "assert.h"
@@ -75,7 +70,6 @@ uint_t flexfloat_pack(flexfloat_desc_t desc, bool sign, int_fast16_t exp, uint_t
     {
         exp = (exp - bias) + BIAS;
     }
-
     return PACK(sign, exp, frac << (NUM_BITS_FRAC - desc.frac_bits));
 }
 
@@ -113,8 +107,8 @@ uint_t flexfloat_get_bits(flexfloat_t *a)
 
 #ifdef FLEXFLOAT_ROUNDING
 
-// check if rounding to nearest is required (the most significant bit of the discarded ones is 1)
-bool flexfloat_nearest_rounding(const flexfloat_t *a, int_fast16_t exp)
+// get rounding bit from backend value (first bit after represented LSB)
+bool flexfloat_round_bit(const flexfloat_t *a, int_fast16_t exp)
 {
     if(exp <= 0 && EXPONENT(CAST_TO_INT(a->value)) != 0)
     {
@@ -130,27 +124,46 @@ bool flexfloat_nearest_rounding(const flexfloat_t *a, int_fast16_t exp)
     }
 }
 
+// get sticky bit from backend value (logic OR of all bits after represented LSB except the round bit)
+bool flexfloat_sticky_bit(const flexfloat_t *a, int_fast16_t exp)
+{
+    if(exp <= 0 && EXPONENT(CAST_TO_INT(a->value)) != 0)
+    {
+        int shift = (- exp + 1);
+        uint_t denorm = 0;
+        if(shift < NUM_BITS)
+            denorm = ((CAST_TO_INT(a->value) & MASK_FRAC) | MASK_FRAC_MSB) >> shift;
+        return (denorm & (MASK_FRAC >> (a->desc.frac_bits + 1))) ||
+               ( ((denorm & MASK_FRAC) == 0)  && (CAST_TO_INT(a->value)!=0) );
+    }
+    else
+    {
+        return CAST_TO_INT(a->value) & (MASK_FRAC >> (a->desc.frac_bits + 1));
+    }
+}
+
+// check if rounding to nearest is required (the most significant bit of the discarded ones is 1)
+bool flexfloat_nearest_rounding(const flexfloat_t *a, int_fast16_t exp)
+{
+    if (flexfloat_round_bit(a, exp))
+        if (flexfloat_sticky_bit(a, exp)) // > ulp/2 away
+        {
+            return 1;
+        }
+        else // = ulp/2 away, round towards even result, decided by LSB of mantissa
+        {
+            if (exp <= 0) // denormal
+                return flexfloat_denorm_frac(a, exp) & 0x1;
+            return flexfloat_frac(a) & 0x1;
+        }
+    return 0; // < ulp/2 away
+}
+
 // check if rounding to +inf/-inf is required (at least one bit of the discarded ones is 1)
 bool flexfloat_inf_rounding(const flexfloat_t *a, int_fast16_t exp, bool sign, bool plus)
 {
-    if((plus && !sign) || (!plus && sign))
-    {
-        if(exp <= 0 && EXPONENT(CAST_TO_INT(a->value)) != 0)
-        {
-            int shift = (- exp + 1);
-            uint_t denorm = 0;
-            if(shift < NUM_BITS)
-                denorm = ( ((CAST_TO_INT(a->value) & MASK_FRAC)
-                           | MASK_FRAC_MSB)
-                         ) >> shift;
-            return (denorm & (MASK_FRAC >> (a->desc.frac_bits))) ||
-                   ( ((denorm & MASK_FRAC) == 0)  && (CAST_TO_INT(a->value)!=0) );
-        }
-        else
-        {
-            return CAST_TO_INT(a->value) & (MASK_FRAC >> (a->desc.frac_bits));
-        }
-    }
+    if (flexfloat_round_bit(a, exp) || flexfloat_sticky_bit(a, exp))
+        return (plus ^ sign);
     return 0;
 }
 
@@ -189,29 +202,21 @@ void flexfloat_sanitize(flexfloat_t *a)
     // Sign
     sign = flexfloat_sign(a);
 
-    // Denormalized backend value
-    if(EXPONENT(CAST_TO_INT(a->value)) == 0)
-    {
-        // Set to the smallest normalized value
-        if(a->desc.exp_bits < NUM_BITS_EXP)
-        {
-
-            CAST_TO_INT(a->value) = (sign == 0? SMALLEST_NORM_POS:
-                                                SMALLEST_NORM_NEG);
-        }
-    }
-
     // Exponent
     exp = flexfloat_exp(a);
-
-
-    // Exponent of NaN and Inf (target format)
-    inf_exp = flexfloat_inf_exp(a->desc);
 
 #ifdef FLEXFLOAT_ROUNDING
     // In these cases no rounding is needed
     if (!(exp == INF_EXP  || a->desc.frac_bits == NUM_BITS_FRAC))
     {
+#ifdef FLEXFLOAT_FLAGS
+        // Inexact results raise an exception
+        if(flexfloat_round_bit(a, exp) || flexfloat_sticky_bit(a, exp))
+            feraiseexcept(FE_INEXACT);
+        // As rounding uses FP operations, we don't want to tarnish the accrued flags
+        fexcept_t flags;
+        fegetexceptflag(&flags, FE_ALL_EXCEPT);
+#endif
         // Rounding mode
         int mode = fegetround();
         if(mode == FE_TONEAREST && flexfloat_nearest_rounding(a, exp))
@@ -229,6 +234,10 @@ void flexfloat_sanitize(flexfloat_t *a)
             int_t rounding_value = flexfloat_rounding_value(a, exp, sign);
             a->value +=  CAST_TO_FP(rounding_value);
         }
+#ifdef FLEXFLOAT_FLAGS
+        // Restore flags from before
+        fesetexceptflag(&flags, FE_ALL_EXCEPT);
+#endif
         //a->value = a->value;
         __asm__ __volatile__ ("" ::: "memory");
 
@@ -237,14 +246,24 @@ void flexfloat_sanitize(flexfloat_t *a)
     }
 #endif
 
+    // Exponent of NaN and Inf (target format)
+    inf_exp = flexfloat_inf_exp(a->desc);
+
     // Mantissa
     frac = flexfloat_frac(a);
 
-   if(EXPONENT(CAST_TO_INT(a->value)) == 0) // Denorm backend format
+    if(EXPONENT(CAST_TO_INT(a->value)) == 0) // Denorm backend format - represented format also denormal
+    {
+        CAST_TO_INT(a->value) = flexfloat_denorm_pack(a->desc, sign, frac);
         return;
+    }
 
    if(exp <= 0) // Denormalized value in the target format (saved in normalized format in the backend value)
     {
+#ifdef FLEXFLOAT_FLAGS
+        // Raise the underflow exception
+        feraiseexcept(FE_UNDERFLOW);
+#endif
         uint_t denorm = flexfloat_denorm_frac(a, exp);
         if(denorm == 0) // value too low to be represented, return zero
         {
@@ -265,17 +284,30 @@ void flexfloat_sanitize(flexfloat_t *a)
             }
         }
     }
-    else if(exp == INF_EXP) // Inf of NaN
+    else if(exp == INF_EXP && (CAST_TO_INT(a->value) & MASK_FRAC)) // NaN
     {
+        exp = inf_exp;
+    }
+    else if(exp == INF_EXP) // Inf
+    {
+#ifdef FLEXFLOAT_FLAGS
+        // Raise the proper overflow exception, unless a DIV/0 exception had occured
+        if (!fetestexcept(FE_DIVBYZERO))
+            feraiseexcept(FE_OVERFLOW | FE_INEXACT);
+#endif
         exp = inf_exp;
     }
     else if(exp >= inf_exp) // Out of bounds for target format: set infinity
     {
+#ifdef FLEXFLOAT_FLAGS
+        // Raise the proper overflow exception
+        feraiseexcept(FE_OVERFLOW | FE_INEXACT);
+#endif
         exp = inf_exp;
         frac = 0UL;
     }
 
-    //printf("ENCODING: %d %ld %u\n", sign, exp, frac);
+    // printf("ENCODING: %d %d %lu\n", sign, exp, frac);
     CAST_TO_INT(a->value) = flexfloat_pack(a->desc, sign, exp, frac);
 }
 
@@ -480,6 +512,21 @@ INLINE void ff_acc(flexfloat_t *dest, const flexfloat_t *a) {
     #endif
 }
 
+INLINE void ff_fma(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b, const flexfloat_t *c) {
+    assert((dest->desc.exp_bits == a->desc.exp_bits) && (dest->desc.frac_bits == a->desc.frac_bits) &&
+           (a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits) &&
+           (b->desc.exp_bits == c->desc.exp_bits) && (b->desc.frac_bits == c->desc.frac_bits));
+    dest->value = fma(a->value, b->value, c->value);
+    #ifdef FLEXFLOAT_TRACKING
+    dest->exact_value = fma(a->exact_value, b->exact_value, c->exact_value);
+    if(dest->tracking_fn) (dest->tracking_fn)(dest, dest->tracking_arg);
+    #endif
+    flexfloat_sanitize(dest);
+    #ifdef FLEXFLOAT_STATS
+    if(StatsEnabled) getOpStats(dest->desc)->fma += 1;
+    #endif
+}
+
 
 // Relational operators
 
@@ -623,6 +670,7 @@ void ff_print_stats() {
             printf("    SUB    \t%lu\n", stats->sub);
             printf("    MUL    \t%lu\n", stats->mul);
             printf("    DIV    \t%lu\n", stats->div);
+            printf("    FMA    \t%lu\n", stats->fma);
             printf("    CMP    \t%lu\n", stats->cmp);
         }
     }

@@ -1277,6 +1277,11 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
   name(&ff_res, &ff_a, &ff_b); \
   return flexfloat_get_bits(&ff_res);
 
+#define FF_EXEC_3(name, a, b, c, e, m) \
+  FF_INIT_3(a, b, c, e, m) \
+  name(&ff_res, &ff_a, &ff_b, &ff_c); \
+  return flexfloat_get_bits(&ff_res);
+
 // Inspired by https://stackoverflow.com/a/38470183
 static inline int32_t double_to_int (double dbl) {
   dbl = nearbyint(dbl);
@@ -1366,35 +1371,28 @@ static inline unsigned int lib_flexfloat_ftoi(iss_cpu_state_t *s, unsigned int a
 //   FF_INIT_2(a, b, e, m)
 // }
 
-// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_madd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
-  FF_INIT_3(a, b, c, e, m)
-  ff_mul(&ff_res, &ff_a, &ff_b);
-  ff_add(&ff_res, &ff_res, &ff_c);
+  FF_EXEC_3(ff_fma, a, b, c, e, m)
   return flexfloat_get_bits(&ff_res);
 }
 
-// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_msub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
-  ff_mul(&ff_res, &ff_a, &ff_b);
-  ff_sub(&ff_res, &ff_res, &ff_c);
+  ff_inverse(&ff_c, &ff_c);
+  ff_fma(&ff_res, &ff_a, &ff_b, &ff_c);
   return flexfloat_get_bits(&ff_res);
 }
 
-// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_nmsub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
-  ff_mul(&ff_res, &ff_a, &ff_b);
-  ff_sub(&ff_res, &ff_c, &ff_res);
+  ff_inverse(&ff_a, &ff_a);
+  ff_fma(&ff_res, &ff_a, &ff_b, &ff_c);
   return flexfloat_get_bits(&ff_res);
 }
 
-// TODO PROPER FMA
 static inline unsigned int lib_flexfloat_nmadd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
-  ff_mul(&ff_res, &ff_a, &ff_b);
-  ff_add(&ff_res, &ff_res, &ff_c);
+  ff_fma(&ff_res, &ff_a, &ff_b, &ff_c);
   ff_inverse(&ff_res, &ff_res);
   return flexfloat_get_bits(&ff_res);
 }
