@@ -1686,12 +1686,13 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
   unsigned int exp = flexfloat_exp(&ff_a);
   bool sign = flexfloat_sign(&ff_a);
 
-  if (exp == flexfloat_inf_exp(env)) {
+  if (exp == INF_EXP) {
     if (frac == 0) {
       if (sign) return (0x1 << 0); // - infinity
       else return (0x1 << 7); // + infinity
     } else {
-      return (0x1 << 9); // quiet NaN
+      if (frac & (0x1 << (m-1))) return (0x1 << 9); // quiet NaN
+      else return (0x1 << 8); // signalling NaN
     }
   } else if (exp == 0 && frac == 0) {
     if (sign) return (0x1 << 3); // - 0
