@@ -31,22 +31,24 @@
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include <tlm_utils/instance_specific_extensions.h>
 
-class ems_at_bus : public sc_core::sc_module
+namespace ems {
+
+class at_bus : public sc_core::sc_module
 {
 public:
-  tlm_utils::multi_passthrough_initiator_socket<ems_at_bus> isocket;
-  tlm_utils::multi_passthrough_target_socket<ems_at_bus> tsocket;
+  tlm_utils::multi_passthrough_initiator_socket<at_bus> isocket;
+  tlm_utils::multi_passthrough_target_socket<at_bus> tsocket;
 
-  SC_HAS_PROCESS(ems_at_bus);
-  ems_at_bus(sc_core::sc_module_name name) :
+  SC_HAS_PROCESS(at_bus);
+  at_bus(sc_core::sc_module_name name) :
     sc_core::sc_module(name),
-    fw_peq(this, &ems_at_bus::fw_peq_cb),
-    bw_peq(this, &ems_at_bus::bw_peq_cb),
+    fw_peq(this, &at_bus::fw_peq_cb),
+    bw_peq(this, &at_bus::bw_peq_cb),
     tcnt(0)
   {
-    tsocket.register_nb_transport_fw(this, &ems_at_bus::nb_transport_fw);
-    tsocket.register_transport_dbg(this, &ems_at_bus::transport_dbg);
-    isocket.register_nb_transport_bw(this, &ems_at_bus::nb_transport_bw);
+    tsocket.register_nb_transport_fw(this, &at_bus::nb_transport_fw);
+    tsocket.register_transport_dbg(this, &at_bus::transport_dbg);
+    isocket.register_nb_transport_bw(this, &at_bus::nb_transport_bw);
   }
 
   void end_of_elaboration()
@@ -83,10 +85,10 @@ private:
   void inspect(tlm::tlm_generic_payload &p);
 
   // Forward path payload event queue (PEQ)
-  tlm_utils::peq_with_cb_and_phase<ems_at_bus> fw_peq;
+  tlm_utils::peq_with_cb_and_phase<at_bus> fw_peq;
   void fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase);
   // Backward path payload event queue (PEQ)
-  tlm_utils::peq_with_cb_and_phase<ems_at_bus> bw_peq;
+  tlm_utils::peq_with_cb_and_phase<at_bus> bw_peq;
   void bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase);
 
   // Route extension
@@ -109,7 +111,7 @@ private:
   std::vector<std::queue<tlm::tlm_generic_payload *>> pending_resp;
 };
 
-int ems_at_bus::decode_address(sc_dt::uint64 address, sc_dt::uint64 &masked_address)
+int at_bus::decode_address(sc_dt::uint64 address, sc_dt::uint64 &masked_address)
 {
   // XXX:
   // Right now it just sends to the same target and masked_address is just a
@@ -119,14 +121,14 @@ int ems_at_bus::decode_address(sc_dt::uint64 address, sc_dt::uint64 &masked_addr
   return 0;
 }
 
-void ems_at_bus::inspect(tlm::tlm_generic_payload &p)
+void at_bus::inspect(tlm::tlm_generic_payload &p)
 {
   if (p.is_response_error()) {
     SC_REPORT_ERROR(name(), p.get_response_string().c_str());
   }
 }
 
-void ems_at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
+void at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 {
   route_ext *re;
   accessor(p).get_extension(re);
@@ -234,7 +236,7 @@ void ems_at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &ph
   }
 }
 
-tlm::tlm_sync_enum ems_at_bus::nb_transport_fw(int id, tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &d)
+tlm::tlm_sync_enum at_bus::nb_transport_fw(int id, tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &d)
 {
   route_ext *re;
   accessor(p).get_extension(re);
@@ -286,7 +288,7 @@ tlm::tlm_sync_enum ems_at_bus::nb_transport_fw(int id, tlm::tlm_generic_payload 
   return tlm::TLM_ACCEPTED;
 }
 
-void ems_at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
+void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 {
   route_ext *re;
   accessor(p).get_extension(re);
@@ -403,7 +405,7 @@ void ems_at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &ph
   }
 }
 
-tlm::tlm_sync_enum ems_at_bus::nb_transport_bw(int id, tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &d)
+tlm::tlm_sync_enum at_bus::nb_transport_bw(int id, tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &d)
 {
   // Check integrity of the routing extension
   route_ext *re;
@@ -434,7 +436,7 @@ tlm::tlm_sync_enum ems_at_bus::nb_transport_bw(int id, tlm::tlm_generic_payload 
   return tlm::TLM_ACCEPTED;
 }
 
-unsigned int ems_at_bus::transport_dbg(int id, tlm::tlm_generic_payload &p)
+unsigned int at_bus::transport_dbg(int id, tlm::tlm_generic_payload &p)
 {
   sc_dt::uint64 masked_address;
   int dsock = decode_address(p.get_address(), masked_address);
@@ -442,6 +444,8 @@ unsigned int ems_at_bus::transport_dbg(int id, tlm::tlm_generic_payload &p)
   p.set_address(masked_address);
   return isocket[dsock]->transport_dbg(p);
 }
+
+} // namespace ems
 
 #endif /* __EMS_AT_BUS_H__ */
 

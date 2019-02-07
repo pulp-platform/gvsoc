@@ -25,6 +25,8 @@
 #include <sys/mman.h>
 #include <tlm.h>
 
+namespace ems {
+
 #define GIGA_BYTE 	(1 * 1024 * 1024 * 1024)
 #define MEM_SIZE 	(1 * (GIGA_BYTE))
 // When defined mmap() is used. Otherwise calloc() is used.
@@ -32,11 +34,11 @@
 
 // Module able to buffer a second request before sending a response to the
 // first
-struct ems_target : sc_core::sc_module {
-  tlm_utils::simple_target_socket<ems_target> tsocket;
+struct at_target : sc_core::sc_module {
+  tlm_utils::simple_target_socket<at_target> tsocket;
 
-  SC_HAS_PROCESS(ems_target);
-  ems_target(sc_core::sc_module_name name, double accept_delay_ps, double internal_latency_ps, uint32_t bpa) :
+  SC_HAS_PROCESS(at_target);
+  at_target(sc_core::sc_module_name name, double accept_delay_ps, double internal_latency_ps, uint32_t bpa) :
     sc_core::sc_module(name),
     tsocket("tsocket"),
     req_in_progress(NULL),
@@ -44,11 +46,11 @@ struct ems_target : sc_core::sc_module {
     next_response_pending(NULL),
     end_req_pending(NULL),
     bytes_per_access(bpa),
-    peq(this, &ems_target::peq_callback)
+    peq(this, &at_target::peq_callback)
   {
     accept_delay = sc_core::sc_time(accept_delay_ps, SC_PS);
     internal_latency = sc_core::sc_time(internal_latency_ps, SC_PS);
-    tsocket.register_nb_transport_fw(this, &ems_target::nb_transport_fw);
+    tsocket.register_nb_transport_fw(this, &at_target::nb_transport_fw);
 
 #ifdef EMS_TARGET_USE_MMAP
     mem = reinterpret_cast<unsigned char*>(mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
@@ -69,7 +71,7 @@ struct ems_target : sc_core::sc_module {
     dont_initialize();
   }
 
-  ~ems_target()
+  ~at_target()
   {
     if (mem) {
 #ifdef EMS_TARGET_USE_MMAP
@@ -95,12 +97,12 @@ struct ems_target : sc_core::sc_module {
   sc_event target_done_event;
   tlm::tlm_generic_payload *next_response_pending;
   tlm::tlm_generic_payload *end_req_pending;
-  tlm_utils::peq_with_cb_and_phase<ems_target> peq;
+  tlm_utils::peq_with_cb_and_phase<at_target> peq;
   uint32_t bytes_per_access;
   unsigned char *mem;
 };
 
-void ems_target::send_end_req(tlm::tlm_generic_payload &p)
+void at_target::send_end_req(tlm::tlm_generic_payload &p)
 {
   tlm::tlm_phase phase;
   sc_core::sc_time delay;
@@ -117,7 +119,7 @@ void ems_target::send_end_req(tlm::tlm_generic_payload &p)
   req_in_progress = &p;
 }
 
-void ems_target::execute(tlm::tlm_generic_payload *p)
+void at_target::execute(tlm::tlm_generic_payload *p)
 {
   tlm::tlm_command cmd = p->get_command();
   sc_dt::uint64 addr = p->get_address();
@@ -144,7 +146,7 @@ void ems_target::execute(tlm::tlm_generic_payload *p)
     return;
   }
 
-  req_extension *re;
+  ems::req_extension *re;
   p->get_extension(re);
 
   switch (cmd) {
@@ -165,16 +167,16 @@ void ems_target::execute(tlm::tlm_generic_payload *p)
 }
 
 // Method process sensitive to target_done_event
-void ems_target::execute_process()
+void at_target::execute_process()
 {
   // Execute the read or write commands
   execute(req_in_progress);
 
-  // ems_target must honor BEGIN_RESP/END_RESP exclusion rule i.e.
+  // at_target must honor BEGIN_RESP/END_RESP exclusion rule i.e.
   // must not send BEGIN_RESP until receiving previous END_RESP
   // or BEGIN_REQ
   if (resp_in_progress) {
-    // ems_target allows only two transactions in-flight
+    // at_target allows only two transactions in-flight
     if (next_response_pending) {
       SC_REPORT_FATAL(name(), "Too many pending responses");
     }
@@ -184,7 +186,7 @@ void ems_target::execute_process()
   }
 }
 
-void ems_target::send_begin_resp(tlm::tlm_generic_payload &p)
+void at_target::send_begin_resp(tlm::tlm_generic_payload &p)
 {
   tlm::tlm_sync_enum status;
   tlm::tlm_phase phase;
@@ -221,7 +223,7 @@ void ems_target::send_begin_resp(tlm::tlm_generic_payload &p)
 }
 
 // TLM-2 non-blocking transport method
-tlm::tlm_sync_enum ems_target::nb_transport_fw(tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &delay)
+tlm::tlm_sync_enum at_target::nb_transport_fw(tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &delay)
 {
   if (phase == tlm::BEGIN_REQ) {
     p.acquire();
@@ -231,7 +233,7 @@ tlm::tlm_sync_enum ems_target::nb_transport_fw(tlm::tlm_generic_payload &p, tlm:
   return tlm::TLM_ACCEPTED;
 }
 
-void ems_target::peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
+void at_target::peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 {
   switch (phase) {
     case tlm::BEGIN_REQ:
@@ -252,7 +254,7 @@ void ems_target::peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase 
       }
 
       req_in_progress = NULL;
-      // ems_target itself is now clear to issue the next BEGIN_RESP
+      // at_target itself is now clear to issue the next BEGIN_RESP
       resp_in_progress = false;
 
       if (next_response_pending) {
@@ -277,6 +279,8 @@ void ems_target::peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase 
       break;
   }
 }
+
+} // namespace ems
 
 #endif /* __EMS_TARGET_H__ */
 

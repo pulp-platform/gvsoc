@@ -37,7 +37,7 @@
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
 #include "DRAMSys.h"
 #else
-#include "ems_target.h"
+#include "ems_at_target.h"
 #endif /* __VP_USE_SYSTEMC_DRAMSYS */
 
 
@@ -79,7 +79,7 @@ private:
   tlm::tlm_generic_payload *in_progress;
   tlm_utils::peq_with_cb_and_phase<ddr_module> peq;
   ddr *vp_module;
-  ems_mm mm;
+  ems::mm mm;
   uint32_t bytes_per_access;
   vp::io_req *curr_req;
   sc_core::sc_time resp_accept_delay;
@@ -117,7 +117,7 @@ private:
   // Transactor module
   ddr_module *sc_module;
   // Interconnect component
-  ems_at_bus *bus;
+  ems::at_bus *at_bus;
   // A protocol checker for each hop
   // pcib: protocol checker between initiator and bus
   tlm_utils::tlm2_base_protocol_checker<> *pcib;
@@ -126,7 +126,7 @@ private:
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   DRAMSys *dramsys;
 #else
-  ems_target *target;
+  ems::at_target *at_target;
 #endif /* __VP_USE_SYSTEMC_DRAMSYS */
 
 };
@@ -190,13 +190,13 @@ int ddr::build()
 void ddr::elab()
 {
   sc_module = new ddr_module("wrapper2", this);
-  bus = new ems_at_bus("ems_at_bus");
+  at_bus = new ems::at_bus("at_bus");
   pcib = new tlm_utils::tlm2_base_protocol_checker<>("pcib");
   pcbt = new tlm_utils::tlm2_base_protocol_checker<>("pcbt");
 
   sc_module->isocket.bind(pcib->target_socket);
-  pcib->initiator_socket.bind(bus->tsocket);
-  bus->isocket.bind(pcbt->target_socket);
+  pcib->initiator_socket.bind(at_bus->tsocket);
+  at_bus->isocket.bind(pcbt->target_socket);
 
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   std::string resources = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
@@ -204,8 +204,8 @@ void ddr::elab()
   dramsys = new DRAMSys("DRAMSys", simulation_xml, resources);
   pcbt->initiator_socket.bind(dramsys->tsocket);
 #else
-  target = new ems_target("ems_target", ACCEPT_DELAY_PS, TARGET_LATENCY_PS, BYTES_PER_ACCESS);
-  pcbt->initiator_socket.bind(target->tsocket);
+  at_target = new ems::at_target("at_target", ACCEPT_DELAY_PS, TARGET_LATENCY_PS, BYTES_PER_ACCESS);
+  pcbt->initiator_socket.bind(at_target->tsocket);
 #endif /* __VP_USE_SYSTEMC_DRAMSYS */
 }
 
@@ -246,8 +246,7 @@ void ddr_module::req_to_gp(vp::io_req *r, tlm::tlm_generic_payload *p, uint32_t 
   p->set_dmi_allowed(false);
   p->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
-  // auto-extension containing request pointer for integrity check
-  req_extension *ext = new req_extension(r, tid, last);
+  ems::req_extension *ext = new ems::req_extension(r, tid, last);
   p->set_auto_extension(ext);
 }
 
@@ -258,7 +257,7 @@ void ddr_module::inspect(tlm::tlm_generic_payload &p)
     SC_REPORT_ERROR(name(), p.get_response_string().c_str());
   }
 
-  req_extension *re;
+  ems::req_extension *re;
   p.get_extension(re);
   assert(re->req == curr_req);
 

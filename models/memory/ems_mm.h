@@ -29,9 +29,9 @@
 #include <tlm.h>
 #include <vector>
 
-static ofstream fout("/dev/stdout");
-#define debug(msg) 	    fout << "[" << std::setfill('0') << std::setw(12) << sc_core::sc_time_stamp().to_string() << "]" << "(" << __FILE__ << ":" << __LINE__ << ") -- " << __func__ << " -- " << msg << endl;
+namespace ems {
 
+// Auto-extension
 struct req_extension : tlm::tlm_extension<req_extension> {
   req_extension(vp::io_req *r, uint32_t id, bool last) : req(r), id(id), last(last) {}
 
@@ -47,17 +47,22 @@ struct req_extension : tlm::tlm_extension<req_extension> {
     last = static_cast<req_extension const &>(ext).last;
   }
 
-  vp::io_req *req;
-  uint32_t id;
-  bool last;
+  vp::io_req *req; // Pointer to original request for integrity check
+  uint32_t id;     // A request is split into multiple transactions
+  bool last;       // Last transaction of a request
 };
 
-class ems_mm : public tlm::tlm_mm_interface
+static ofstream fout("/dev/stdout");
+#define debug(msg) 	    fout << "[" << std::setfill('0') << std::setw(12) << sc_core::sc_time_stamp().to_string() << "]" << "(" << __FILE__ << ":" << __LINE__ << ") -- " << __func__ << " -- " << msg << endl;
+
+class mm : public tlm::tlm_mm_interface
 {
 public:
-  ems_mm() {}
+  mm()
+  {
+  }
 
-  ~ems_mm()
+  ~mm()
   {
     for (auto *p : pool) {
       // Default destructor ~tlm_generic_payload delete all extensions
@@ -95,6 +100,8 @@ public:
 private:
   std::vector<tlm::tlm_generic_payload *> pool;
 };
+
+} // namespace ems
 
 #endif /* __EMS_MM_H__ */
 
