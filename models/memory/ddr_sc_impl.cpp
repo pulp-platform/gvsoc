@@ -33,6 +33,7 @@
 
 #include "ems_mm.h"
 #include "ems_at_bus.h"
+#include "tlm2_base_protocol_checker.h"
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
 #include "DRAMSys.h"
 #else
@@ -117,6 +118,11 @@ private:
   ddr_module *sc_module;
   // Interconnect component
   ems_at_bus *bus;
+  // A protocol checker for each hop
+  // pcib: protocol checker between initiator and bus
+  tlm_utils::tlm2_base_protocol_checker<> *pcib;
+  // pcbt: protocol checker between bus and target
+  tlm_utils::tlm2_base_protocol_checker<> *pcbt;
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   DRAMSys *dramsys;
 #else
@@ -185,16 +191,21 @@ void ddr::elab()
 {
   sc_module = new ddr_module("wrapper2", this);
   bus = new ems_at_bus("ems_at_bus");
-  sc_module->isocket.bind(bus->tsocket);
+  pcib = new tlm_utils::tlm2_base_protocol_checker<>("pcib");
+  pcbt = new tlm_utils::tlm2_base_protocol_checker<>("pcbt");
+
+  sc_module->isocket.bind(pcib->target_socket);
+  pcib->initiator_socket.bind(bus->tsocket);
+  bus->isocket.bind(pcbt->target_socket);
 
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   std::string resources = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
   std::string simulation_xml = resources + "simulations/ddr3-example.xml";
   dramsys = new DRAMSys("DRAMSys", simulation_xml, resources);
-  bus->isocket.bind(dramsys->tSocket);
+  pcbt->initiator_socket.bind(dramsys->tsocket);
 #else
   target = new ems_target("ems_target", ACCEPT_DELAY_PS, TARGET_LATENCY_PS, BYTES_PER_ACCESS);
-  bus->isocket.bind(target->tsocket);
+  pcbt->initiator_socket.bind(target->tsocket);
 #endif /* __VP_USE_SYSTEMC_DRAMSYS */
 }
 
