@@ -202,7 +202,7 @@ void ddr::elab()
   std::string resources = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
   std::string simulation_xml = resources + "simulations/ddr3-example.xml";
   dramsys = new DRAMSys("DRAMSys", simulation_xml, resources);
-  pcbt->initiator_socket.bind(dramsys->tsocket);
+  pcbt->initiator_socket.bind(dramsys->tSocket);
 #else
   at_target = new ems::at_target("at_target", ACCEPT_DELAY_PS, TARGET_LATENCY_PS, BYTES_PER_ACCESS);
   pcbt->initiator_socket.bind(at_target->tsocket);
