@@ -1560,20 +1560,14 @@ static inline unsigned int lib_flexfloat_sgnjx(iss_cpu_state_t *s, unsigned int 
   return flexfloat_get_bits(&ff_res);
 }
 
-// TODO check flags
+// TODO proper nan handling
 static inline unsigned int lib_flexfloat_min(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_INIT_2(a, b, e, m)
-  feclearexcept(FE_ALL_EXCEPT);
-  return ff_le(&ff_a, &ff_b) ? a : b;
-  update_fflags_fenv(s);
+  FF_EXEC_2(s, ff_min, a, b, e, m)
 }
 
-// TODO check flags
+// TODO proper NaN handling
 static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_INIT_2(a, b, e, m)
-  feclearexcept(FE_ALL_EXCEPT);
-  return ff_ge(&ff_a, &ff_b) ? a : b;
-  update_fflags_fenv(s);
+  FF_EXEC_2(s, ff_max, a, b, e, m)
 }
 
 static inline int64_t lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
