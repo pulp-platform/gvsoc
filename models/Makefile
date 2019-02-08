@@ -5,7 +5,8 @@ PULP_PROPERTIES += udma/version timer/version stdout/version soc_eu/version \
 	fc_itc/version icache_ctrl/version xne/version fll/version event_unit/version \
 	cluster_ctrl/version pulp_chip cluster/version dma/version udma/spim/version \
 	udma/cpi/version padframe/version pulp_chip_family pmu/version \
-	udma/hyper/version efuse/version udma/i2c/version rtc/version gpio/version
+	udma/hyper/version efuse/version udma/i2c/version rtc/version gpio/version \
+  iss_class
 
 properties := $(foreach prop,$(PULP_PROPERTIES), --property=$(prop))
 

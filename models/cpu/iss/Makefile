@@ -32,13 +32,19 @@ endef
 
 $(eval $(call declare_iss_isa_build,riscy))
 
+ifeq '$(iss_class)' ''
 cpu/iss/iss_riscy_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy))
+endif
 
+ifeq '$(iss_class)' 'iss_riscy_single_regfile'
 cpu/iss/iss_riscy_single_regfile_CFLAGS += -DISS_SINGLE_REGFILE
 cpu/iss/iss_riscy_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_single_regfile))
+endif
 
+ifeq '$(iss_class)' 'iss_riscy_v2_5_single_regfile'
 cpu/iss/iss_riscy_v2_5_single_regfile_CFLAGS += -DISS_SINGLE_REGFILE -DPCER_VERSION_2
 cpu/iss/iss_riscy_v2_5_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_v2_5_single_regfile))
+endif
