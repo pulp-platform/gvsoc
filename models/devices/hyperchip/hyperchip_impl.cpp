@@ -276,6 +276,10 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
               {
                 this->state = HYPERFLASH_STATE_WAIT_CMD3;
               }
+              else if ((address >> 1) == 0x555 && cmd == 0x38)
+              {
+                this->state = HYPERFLASH_STATE_WAIT_CMD0;
+              }
             break;
 
             case HYPERFLASH_STATE_WAIT_CMD3:
@@ -296,6 +300,7 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
               if ((address >> 1) == 0x555 && cmd == 0x10)
               {
                 this->top->trace.msg("Erasing chip\n");
+                this->state = HYPERFLASH_STATE_WAIT_CMD0;
               }
             break;
           }

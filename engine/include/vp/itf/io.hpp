@@ -36,6 +36,11 @@ namespace vp {
     IO_REQ_PENDING
   } io_req_status_e;
 
+  typedef enum
+  {
+    IO_REQ_FLAGS_DEBUG = (1<<0)
+  } io_req_flags_e;
+
   #define IO_REQ_PAYLOAD_SIZE 64
   #define IO_REQ_NB_ARGS 16
 
@@ -96,7 +101,14 @@ namespace vp {
     inline void set_int(int index, int value) { *(int *)&get_args()[index] = value; }
     inline int get_int(int index) { return *(int *)&get_args()[index]; }
 
-    inline bool is_debug() { return false; }
+    inline bool is_debug() { return this->flags & IO_REQ_FLAGS_DEBUG; }
+    inline void set_debug(bool debug)
+    {
+      if (debug)
+        this->flags |= IO_REQ_FLAGS_DEBUG;
+      else
+        this->flags &= ~IO_REQ_FLAGS_DEBUG;
+    }
 
     inline int arg_alloc() { return current_arg++; }
     inline void arg_free() { current_arg--; }
@@ -108,9 +120,10 @@ namespace vp {
     inline void **arg_get(int index) { return &args[index]; }
     inline void **arg_get_last() { return &args[current_arg]; }
 
-    inline void prepare() { latency = 0; duration=0; }
+    inline void prepare() { latency = 0; duration=0; flags=0; }
     inline void init() { prepare(); current_arg=0; }
 
+    uint64_t flags;
     uint64_t addr;
     uint8_t *data;
     uint64_t size;

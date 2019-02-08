@@ -47,7 +47,7 @@ namespace vp {
 
     inline void event(uint8_t *value);
     inline void event_pulse(int64_t duration, uint8_t *pulse_value, uint8_t *background_value);
-    inline void event_string(std::string value, int size);
+    inline void event_string(std::string value);
     inline void event_real(double value);
     inline void event_real_pulse(int64_t duration, double pulse_value, double background_value);
     inline void event_real_delayed(double value);
@@ -75,6 +75,7 @@ namespace vp {
     Event_trace *event_trace = NULL;
     bool is_real = false;
     bool is_string = false;
+    int id;
 
   protected:
     int level;

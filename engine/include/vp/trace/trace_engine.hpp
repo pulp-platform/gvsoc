@@ -54,6 +54,14 @@ namespace vp {
 
     Event_dumper event_dumper;
 
+    vp::trace *get_trace(std::string path);
+
+    vp::trace *get_trace_from_id(int id);
+
+  protected:
+    std::map<std::string, trace *> traces_map;
+    std::vector<trace *> traces_array;
+
   private:
     void enqueue_pending(vp::trace *trace, int64_t timestamp, uint8_t *event);
     char *get_event_buffer(int bytes);

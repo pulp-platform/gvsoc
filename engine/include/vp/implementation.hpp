@@ -55,6 +55,8 @@ namespace vp {
     return get_js_config()->get_child_str(name);
   }
 
+  inline int64_t component::get_time() { return this->get_time_engine()->get_time(); }
+
 
 };
 

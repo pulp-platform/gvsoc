@@ -20,6 +20,7 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
+#include "archi/gvsoc/gvsoc.h"
 #include "iss.hpp"
 #include <algorithm>
 
@@ -110,9 +111,9 @@ void iss_wrapper::dump_debug_traces()
 
   if (!iss_trace_pc_info(this->cpu.current_insn->addr, &func, &inline_func, &file, &line))
   {
-    this->func_trace_event.event_string(func, strlen(func));
-    this->inline_trace_event.event_string(inline_func, strlen(inline_func));
-    this->file_trace_event.event_string(file, strlen(file));
+    this->func_trace_event.event_string(func);
+    this->inline_trace_event.event_string(inline_func);
+    this->file_trace_event.event_string(file);
     this->line_trace_event.event((uint8_t *)&line);
   }
 }
@@ -372,6 +373,125 @@ void iss_wrapper::irq_req_sync(void *__this, int irq)
   iss_irq_req(_this, irq);
   _this->wfi.set(false);
   _this->check_state();
+}
+
+std::string iss_wrapper::read_user_string(iss_addr_t addr)
+{
+  vp::io_req *req = &io_req;
+  std::string str = "";
+  while(1)
+  {
+    uint8_t buffer;
+    req->init();
+    req->set_debug(true);
+    req->set_addr(addr);
+    req->set_size(1);
+    req->set_is_write(false);
+    req->set_data(&buffer);
+    int err = data.req(req);
+    if (err != vp::IO_REQ_OK) 
+    {
+      if (err == vp::IO_REQ_INVALID)
+        return "";
+      else
+        this->warning.fatal("Pending IO response during debug request");
+    }
+
+    if (buffer == 0)
+      return str;
+
+    str += buffer;
+    addr++;
+  }
+}
+
+
+void iss_wrapper::handle_ebreak()
+{
+  int id = this->cpu.regfile.regs[10];
+  switch (id)
+  {
+    case GV_SEMIHOSTING_VCD_CONFIGURE:
+    break;
+
+    case GV_SEMIHOSTING_VCD_OPEN_TRACE: {
+      int result = -1;
+      std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
+      if (path == "")
+      {
+        this->warning.force_warning("Invalid user string while opening VCD trace (addr: 0x%x)\n", this->cpu.regfile.regs[11]);
+      }
+      else
+      {
+        vp::trace *trace = this->traces.get_trace_manager()->get_trace(path);
+        if (trace == NULL)
+        {
+          this->warning.force_warning("Invalid VCD trace (path: %s)\n", path.c_str());
+        }
+        else
+        {
+          this->trace.msg("Opened VCD trace (path: %s, id: %d)\n", path.c_str(), trace->id);
+          result = trace->id;
+        }
+      }
+
+      this->cpu.regfile.regs[10] = result;
+
+      break;
+    }
+    
+    case GV_SEMIHOSTING_VCD_CONF_TRACE:
+    break;
+    
+    case GV_SEMIHOSTING_VCD_DUMP_TRACE: {
+      int id = this->cpu.regfile.regs[11];
+      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
+      if (trace == NULL)
+      {
+        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
+      }
+      else
+      {
+        if (trace->width > 32)
+        {
+          this->warning.force_warning("Trying to write to VCD trace whose width is bigger than 32 (id: %d)\n", id);
+        }
+        else
+        {
+          trace->event((uint8_t *)&this->cpu.regfile.regs[12]);
+        }
+      }
+
+      break; 
+    }
+    
+    case GV_SEMIHOSTING_VCD_DUMP_TRACE_STRING: {
+      int id = this->cpu.regfile.regs[11];
+      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
+      if (trace == NULL)
+      {
+        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
+      }
+      else
+      {
+        if (!trace->is_string)
+        {
+          this->warning.force_warning("Trying to write string to VCD trace which is not a string (id: %d)\n", id);
+        }
+        else
+        {
+          std::string path = this->read_user_string(this->cpu.regfile.regs[12]);
+
+          trace->event_string(path);
+        }
+      }
+      break;
+    }
+    
+    default:
+      this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
+      break;
+  }
 }
 
 vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)

@@ -312,6 +312,10 @@ namespace vp {
 
     inline std::string get_config_str(std::string name);
 
+    inline int64_t get_time();
+
+    virtual vp::time_engine *get_time_engine() ;
+
     string get_path() { return path; }
 
 
@@ -394,6 +398,7 @@ namespace vp {
 
     bool reset_done_from_itf;
 
+    time_engine *time_engine_ptr = NULL;
   };
 
 };  

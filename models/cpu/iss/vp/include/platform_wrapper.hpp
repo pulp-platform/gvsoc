@@ -30,6 +30,11 @@ static inline void iss_handle_ecall(iss_t *iss, iss_insn_t *insn)
 
 }
 
+static inline void iss_handle_ebreak(iss_t *iss, iss_insn_t *insn)
+{
+  iss->handle_ebreak();
+}
+
 static inline void iss_pccr_incr(iss_t *iss, unsigned int event, int incr)
 {
   static uint64_t zero = 0;
@@ -52,7 +57,7 @@ static inline int iss_insn_event_active(iss_t *iss)
 
 static inline void iss_insn_event_dump(iss_t *iss, const char *msg)
 {
-  iss->insn_trace_event.event_string(msg, strlen(msg));
+  iss->insn_trace_event.event_string(msg);
 }
 
 static inline void iss_set_halt_mode(iss_t *iss, bool halted, int cause)

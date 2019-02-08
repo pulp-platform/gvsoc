@@ -610,8 +610,10 @@ static inline iss_insn_t *fence_i_exec(iss_t *iss, iss_insn_t *insn)
 
 
 
-static inline iss_insn_t *sbreak_exec(iss_t *iss, iss_insn_t *insn)
+static inline iss_insn_t *ebreak_exec(iss_t *iss, iss_insn_t *insn)
 {
+  iss_handle_ebreak(iss, insn);
+
   //cpu->state.error = GVSIM_STATE_DEBUG_STALL;
   return insn->next;
 }

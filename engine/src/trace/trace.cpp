@@ -68,7 +68,11 @@ void vp::component_trace::new_trace_event_string(std::string name, trace *trace)
 {
   trace_events[name] = trace;
   trace->comp = static_cast<vp::component *>(&top);
-  trace->name = top.get_path() + "/" + name;
+  if (name[0] != '/')
+    trace->name = top.get_path() + "/" + name;
+  else
+    trace->name = name;
+
   trace->is_string = true;
   trace->pending_timestamp = -1;
   trace->bytes = 0;
@@ -257,6 +261,17 @@ void vp::trace_engine::check_pending_events(int64_t timestamp)
     trace->prev = NULL;
 }
 
+vp::trace *vp::trace_engine::get_trace(std::string path)
+{
+  return this->traces_map[path];
+}
+
+vp::trace *vp::trace_engine::get_trace_from_id(int id)
+{
+  if (id >= (int)this->traces_array.size())
+    return NULL;
+  return this->traces_array[id];
+}
 
 void vp::trace_engine::enqueue_pending(vp::trace *trace, int64_t timestamp, uint8_t *event)
 {

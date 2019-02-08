@@ -466,6 +466,17 @@ vp::clock_event::clock_event(component_clock *comp, clock_event_meth_t *meth)
 
 }
 
+vp::time_engine *vp::component::get_time_engine()
+{
+  if (this->time_engine_ptr == NULL)
+  {
+    this->time_engine_ptr = this->parent->get_time_engine();
+  }
+
+  return this->time_engine_ptr;
+}
+
+
 void vp::component::new_master_port(std::string name, vp::master_port *port)
 {
   port->set_owner(this);

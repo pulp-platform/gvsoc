@@ -60,6 +60,8 @@ namespace vp {
 
     inline void stop_engine(int status);
 
+    inline vp::time_engine *get_time_engine() { return this; }
+
     bool dequeue(time_engine_client *client);
 
     void enqueue(time_engine_client *client, int64_t time);

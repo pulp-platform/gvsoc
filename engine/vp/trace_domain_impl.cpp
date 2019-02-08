@@ -88,10 +88,21 @@ trace_domain::trace_domain(const char *config)
 
 void trace_domain::reg_trace(vp::trace *trace, int event, string path, string name)
 {
+  this->traces_array.push_back(trace);
+  trace->id = this->traces_array.size() - 1;
+
   int len = path.size() + name.size() + 1;
   if (len > max_path_len) max_path_len = len;
 
-  string full_path = path + "/" + name;
+  string full_path;
+
+  if (name[0] != '/')
+    full_path = path + "/" + name;
+  else
+    full_path = name;
+
+  traces_map[full_path] = trace;
+
   int index = 0;
   for (auto& x: event ? events_path_regex : path_regex) {
     if (regexec(x, full_path.c_str(), 0, NULL, 0) == 0)
@@ -118,6 +129,11 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
 int trace_domain::build()
 {
   new_service("trace", static_cast<trace_engine *>(this));
+
+  vp::trace *trace = new vp::trace();
+
+  traces.new_trace_event_string("/user/kernel", trace);
+
   return 0;
 }
 

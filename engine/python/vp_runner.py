@@ -60,8 +60,27 @@ def gen_gtkw_core_traces(gtkw, path):
         gtkw.trace(path + '.pcer_tcdm_cont', 'tcdm_cont')
         gtkw.trace(path + '.misaligned', 'misaligned')
 
+def check_user_traces(gtkw, path, user_traces):
+    traces = user_traces.get_items()
+    if traces is not None:
+        for name, trace in user_traces.get_items().items():
+            view_path = trace.get_str('view_path')
+
+            if view_path.find('.') == -1:
+                parent = None
+                name = view_path
+            else:
+                parent, name = view_path.rsplit('.', 1)
+
+            if parent == path:
+                vcd_path = trace.get_str('path')
+                gtkw.trace(vcd_path, view_path)
+
+
 def gen_gtkw_files(config, gv_config):
     nb_pe = config.get_int('**/cluster/nb_pe')
+
+    user_traces = gv_config.get('**/vcd/traces')
 
     # Remove trace file so that we can switch between regular file and fifo
     if os.path.exists('all.vcd'):
@@ -75,21 +94,29 @@ def gen_gtkw_files(config, gv_config):
             gtkw.dumpfile('all.vcd')
 
             with gtkw.group('overview'):
+                check_user_traces(gtkw, 'overview', user_traces)
                 with gtkw.group('fc'):
+                    check_user_traces(gtkw, 'overview.fc', user_traces)
                     gtkw.trace('sys.board.chip.soc.fc.pc[31:0]', 'fc:pc')
 
                 with gtkw.group('cluster'):
+                    check_user_traces(gtkw, 'overview.cluster', user_traces)
                     for i in range(0, nb_pe):
                         gtkw.trace('sys.board.chip.cluster.pe%d.pc[31:0]' % i, 'pe_%d:pc' % i)
 
             with gtkw.group('chip', closed=True):
+                check_user_traces(gtkw, 'chip', user_traces)
                 with gtkw.group('fc', closed=True):
+                    check_user_traces(gtkw, 'chip.fc', user_traces)
                     gen_gtkw_core_traces(gtkw, 'sys.board.chip.soc.fc')
 
                 with gtkw.group('cluster', closed=True):
+                    gtkw.trace('sys.board.chip.cluster.power_trace', datafmt='real', extraflags=['analog_step'])
+                    check_user_traces(gtkw, 'chip.cluster', user_traces)
                     for i in range(0, nb_pe):
                         with gtkw.group('pe_%d' % i, closed=True):
                             gen_gtkw_core_traces(gtkw, 'sys.board.chip.cluster.pe%d' % i)
+
 
         print ()
         print ('A Gtkwave script has been generated and can be opened with the following command:')
@@ -359,18 +386,18 @@ class Runner(Platform):
 
         gen_gtkw_files(self.get_json(), gvsoc_config)
 
-        trace_engine = vp.trace_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
-
-        power_engine = trace_engine.new(
-            name=None,
-            component='vp.power_engine',
-            config=gvsoc_config
-        )
+        power_engine = vp.power_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
         time_engine = power_engine.new(
             name=None,
             component='vp.time_domain',
             config=self.get_json()
+        )
+
+        trace_engine = time_engine.new(
+            name=None,
+            component='vp.trace_engine',
+            config=gvsoc_config
         )
 
         top_comp = time_engine.new(
@@ -381,28 +408,28 @@ class Runner(Platform):
 
         trace_engine.get_port('out').bind_to(top_comp.get_port('trace'))
 
-        trace_engine.bind()
+        power_engine.bind()
 
-        trace_engine.post_post_build_all()
+        power_engine.post_post_build_all()
 
-        trace_engine.pre_start_all()
+        power_engine.pre_start_all()
 
-        trace_engine.start_all()
+        power_engine.start_all()
 
-        trace_engine.post_start_all()
+        power_engine.post_start_all()
 
-        trace_engine.final_bind()
+        power_engine.final_bind()
 
-        trace_engine.reset_all(True)
+        power_engine.reset_all(True)
 
         if not self.get_json().get_child_bool('**/gvsoc/use_external_bridge'):
-            trace_engine.reset_all(False)
+            power_engine.reset_all(False)
 
-        trace_engine.load_all()
+        power_engine.load_all()
 
         status = time_engine.run()
 
-        trace_engine.stop_all()
+        power_engine.stop_all()
 
         if status == 'killed':
           print ('The top engine was not responding and was killed')
