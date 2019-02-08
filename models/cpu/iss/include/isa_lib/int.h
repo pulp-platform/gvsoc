@@ -1411,7 +1411,6 @@ static inline unsigned int lib_flexfloat_ftoi(iss_cpu_state_t *s, unsigned int a
 
 static inline unsigned int lib_flexfloat_madd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_EXEC_3(s, ff_fma, a, b, c, e, m)
-  return flexfloat_get_bits(&ff_res);
 }
 
 static inline unsigned int lib_flexfloat_msub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
