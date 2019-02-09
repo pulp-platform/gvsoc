@@ -286,7 +286,10 @@ void flexfloat_sanitize(flexfloat_t *a)
     }
     else if(exp == INF_EXP && (CAST_TO_INT(a->value) & MASK_FRAC)) // NaN
     {
-        exp = inf_exp;
+        exp  = inf_exp;
+        // Sanitize to canonical NaN (positive sign, quiet bit set)
+        sign = 0;
+        frac = 0x1 << a->desc.frac_bits-1;
     }
     else if(exp == INF_EXP) // Inf
     {
@@ -512,6 +515,44 @@ INLINE void ff_acc(flexfloat_t *dest, const flexfloat_t *a) {
     #endif
 }
 
+INLINE void ff_min(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b) {
+    assert((dest->desc.exp_bits == a->desc.exp_bits) && (dest->desc.frac_bits == a->desc.frac_bits) &&
+           (a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
+    dest->value = fmin(a->value,b->value);
+    // fmin's zero sign handling is implementation defined! Check for 0 cases and ensure -0 is chosen
+    if ((a->value == 0) && (a->value == b->value))
+        CAST_TO_INT(dest->value) = (UINT_C(0x1) << NUM_BITS-1);
+    #ifdef FLEXFLOAT_TRACKING
+    dest->exact_value = fmin(a->exact_value,b->exact_value);
+    if ((a->exact_value == 0) && (a->exact_value == b->exact_value))
+        CAST_TO_INT(dest->exact_value) = (UINT_C(0x1) << NUM_BITS-1);
+    if(dest->tracking_fn) (dest->tracking_fn)(dest, dest->tracking_arg);
+    #endif
+    flexfloat_sanitize(dest);
+    #ifdef FLEXFLOAT_STATS
+    if(StatsEnabled) getOpStats(dest->desc)->minmax += 1;
+    #endif
+}
+
+INLINE void ff_max(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b) {
+    assert((dest->desc.exp_bits == a->desc.exp_bits) && (dest->desc.frac_bits == a->desc.frac_bits) &&
+           (a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
+    dest->value = fmax(a->value,b->value);
+    // fmax' zero sign handling is implementation defined! Check for 0 cases and ensure +0 is chosen
+    if ((a->value == 0) && (a->value == b->value))
+        CAST_TO_INT(dest->value) = 0;
+    #ifdef FLEXFLOAT_TRACKING
+    dest->exact_value = fmax(a->exact_value,b->exact_value);
+    if ((a->exact_value == 0) && (a->exact_value == b->exact_value))
+        CAST_TO_INT(dest->exact_value) = 0;
+    if(dest->tracking_fn) (dest->tracking_fn)(dest, dest->tracking_arg);
+    #endif
+    flexfloat_sanitize(dest);
+    #ifdef FLEXFLOAT_STATS
+    if(StatsEnabled) getOpStats(dest->desc)->minmax += 1;
+    #endif
+}
+
 INLINE void ff_fma(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b, const flexfloat_t *c) {
     assert((dest->desc.exp_bits == a->desc.exp_bits) && (dest->desc.frac_bits == a->desc.frac_bits) &&
            (a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits) &&
@@ -526,7 +567,6 @@ INLINE void ff_fma(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b
     if(StatsEnabled) getOpStats(dest->desc)->fma += 1;
     #endif
 }
-
 
 // Relational operators
 
@@ -548,6 +588,10 @@ INLINE bool ff_neq(const flexfloat_t *a, const flexfloat_t *b) {
 
 INLINE bool ff_le(const flexfloat_t *a, const flexfloat_t *b) {
     assert((a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
+    #if defined(FLEXFLOAT_FLAGS) && !defined(FLEXFLOAT_CORRECT_CMP_FLAGS)
+    if (isnan(a->value) || isnan(b->value))
+        feraiseexcept(FE_INVALID);
+    #endif
     #ifdef FLEXFLOAT_STATS
     if(StatsEnabled) getOpStats(a->desc)->cmp += 1;
     #endif
@@ -556,6 +600,10 @@ INLINE bool ff_le(const flexfloat_t *a, const flexfloat_t *b) {
 
 INLINE bool ff_lt(const flexfloat_t *a, const flexfloat_t *b) {
     assert((a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
+    #if defined(FLEXFLOAT_FLAGS) && !defined(FLEXFLOAT_CORRECT_CMP_FLAGS)
+    if (isnan(a->value) || isnan(b->value))
+        feraiseexcept(FE_INVALID);
+    #endif
     #ifdef FLEXFLOAT_STATS
     if(StatsEnabled) getOpStats(a->desc)->cmp += 1;
     #endif
@@ -564,6 +612,10 @@ INLINE bool ff_lt(const flexfloat_t *a, const flexfloat_t *b) {
 
 INLINE bool ff_ge(const flexfloat_t *a, const flexfloat_t *b) {
     assert((a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
+    #if defined(FLEXFLOAT_FLAGS) && !defined(FLEXFLOAT_CORRECT_CMP_FLAGS)
+    if (isnan(a->value) || isnan(b->value))
+        feraiseexcept(FE_INVALID);
+    #endif
     #ifdef FLEXFLOAT_STATS
     if(StatsEnabled) getOpStats(a->desc)->cmp += 1;
     #endif
@@ -572,6 +624,10 @@ INLINE bool ff_ge(const flexfloat_t *a, const flexfloat_t *b) {
 
 INLINE bool ff_gt(const flexfloat_t *a, const flexfloat_t *b) {
     assert((a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
+    #if defined(FLEXFLOAT_FLAGS) && !defined(FLEXFLOAT_CORRECT_CMP_FLAGS)
+    if (isnan(a->value) || isnan(b->value))
+        feraiseexcept(FE_INVALID);
+    #endif
     #ifdef FLEXFLOAT_STATS
     if(StatsEnabled) getOpStats(a->desc)->cmp += 1;
     #endif
@@ -670,6 +726,7 @@ void ff_print_stats() {
             printf("    SUB    \t%lu\n", stats->sub);
             printf("    MUL    \t%lu\n", stats->mul);
             printf("    DIV    \t%lu\n", stats->div);
+            printf("  MIN/MAX  \t%lu\n", stats->minmax);
             printf("    FMA    \t%lu\n", stats->fma);
             printf("    CMP    \t%lu\n", stats->cmp);
         }
