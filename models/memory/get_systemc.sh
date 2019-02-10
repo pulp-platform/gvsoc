@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Author: Éder F. Zulian (zulian@eit.uni-kl.de)
+# Author: Éder F. Zulian, TUK (zulian@eit.uni-kl.de)
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 DEST=${HOME}
