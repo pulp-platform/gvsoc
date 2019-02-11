@@ -61,20 +61,21 @@ def gen_gtkw_core_traces(gtkw, path):
         gtkw.trace(path + '.misaligned', 'misaligned')
 
 def check_user_traces(gtkw, path, user_traces):
-    traces = user_traces.get_items()
-    if traces is not None:
-        for name, trace in user_traces.get_items().items():
-            view_path = trace.get_str('view_path')
+    if user_traces is not None:
+        traces = user_traces.get_items()
+        if traces is not None:
+            for name, trace in user_traces.get_items().items():
+                view_path = trace.get_str('view_path')
 
-            if view_path.find('.') == -1:
-                parent = None
-                name = view_path
-            else:
-                parent, name = view_path.rsplit('.', 1)
+                if view_path.find('.') == -1:
+                    parent = None
+                    name = view_path
+                else:
+                    parent, name = view_path.rsplit('.', 1)
 
-            if parent == path:
-                vcd_path = trace.get_str('path')
-                gtkw.trace(vcd_path, view_path)
+                if parent == path:
+                    vcd_path = trace.get_str('path')
+                    gtkw.trace(vcd_path, view_path)
 
 
 def gen_gtkw_files(config, gv_config):
