@@ -33,17 +33,19 @@ namespace vp {
   inline void wire_master<T>::bind_to(vp::port *_port, vp::config *config)
   {
     this->remote_port = _port;
+    wire_slave<T> *port = (wire_slave<T> *)_port;
 
     if (slave_port != NULL)
     {
       wire_master<T> *master = new wire_master<T>;
+      port->master_port = master;
       master->bind_to(_port, config);
       master->next = this->next;
       this->next = master;
     }
     else
     {
-      wire_slave<T> *port = (wire_slave<T> *)_port;
+      port->master_port = this;
       if (port->sync_meth_mux == NULL && port->sync_back_mux == NULL)
       {
         sync_back_meth = port->sync_back;

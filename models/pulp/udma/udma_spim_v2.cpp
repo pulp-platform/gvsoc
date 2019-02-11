@@ -168,8 +168,6 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   }
   if (_this->spi_tx_pending_bits > 0)
   {
-    if (!_this->spi_tx_byte_align && _this->spi_tx_pending_bits == 32) _this->spi_tx_pending_word = __bswap_32(_this->spi_tx_pending_word);
-
     int nb_bits = _this->spi_tx_quad ? 4 : 1;
     _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
 
@@ -293,6 +291,8 @@ void Spim_tx_channel::handle_data(uint32_t data)
           this->spi_tx_pending_word = this->tx_pending_word;
           this->spi_tx_pending_bits = this->periph->cmd_pending_bits;
           this->periph->cmd_pending_bits = 0;
+
+          if (!this->spi_tx_byte_align) this->spi_tx_pending_word = __bswap_32(this->spi_tx_pending_word);
         }
       }
       break;
@@ -334,6 +334,8 @@ void Spim_tx_channel::handle_data(uint32_t data)
           this->spi_tx_pending_word = this->tx_pending_word;
           this->spi_tx_pending_bits = nb_bits;
           this->periph->cmd_pending_bits -= nb_bits;
+      
+          if (!this->spi_tx_byte_align) this->spi_tx_pending_word = __bswap_32(this->spi_tx_pending_word);
         }
       }
       break;

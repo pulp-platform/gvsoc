@@ -114,6 +114,8 @@ namespace vp {
 
     inline void bind_to(vp::port *_port, vp::config *config);
 
+    bool is_bound() { return master_port != NULL; }
+
 
   private:
 
@@ -136,6 +138,8 @@ namespace vp {
 
     vp::component *master_comp_mux;
     int master_sync_mux;
+
+    wire_master<T> *master_port = NULL;
   };
 
 };

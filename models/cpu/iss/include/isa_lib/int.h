@@ -1411,7 +1411,6 @@ static inline unsigned int lib_flexfloat_ftoi(iss_cpu_state_t *s, unsigned int a
 
 static inline unsigned int lib_flexfloat_madd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_EXEC_3(s, ff_fma, a, b, c, e, m)
-  return flexfloat_get_bits(&ff_res);
 }
 
 static inline unsigned int lib_flexfloat_msub(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
@@ -1560,20 +1559,14 @@ static inline unsigned int lib_flexfloat_sgnjx(iss_cpu_state_t *s, unsigned int 
   return flexfloat_get_bits(&ff_res);
 }
 
-// TODO check flags
+// TODO proper nan handling
 static inline unsigned int lib_flexfloat_min(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_INIT_2(a, b, e, m)
-  feclearexcept(FE_ALL_EXCEPT);
-  return ff_le(&ff_a, &ff_b) ? a : b;
-  update_fflags_fenv(s);
+  FF_EXEC_2(s, ff_min, a, b, e, m)
 }
 
-// TODO check flags
+// TODO proper NaN handling
 static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_INIT_2(a, b, e, m)
-  feclearexcept(FE_ALL_EXCEPT);
-  return ff_ge(&ff_a, &ff_b) ? a : b;
-  update_fflags_fenv(s);
+  FF_EXEC_2(s, ff_max, a, b, e, m)
 }
 
 static inline int64_t lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
@@ -1686,12 +1679,13 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
   unsigned int exp = flexfloat_exp(&ff_a);
   bool sign = flexfloat_sign(&ff_a);
 
-  if (exp == flexfloat_inf_exp(env)) {
+  if (exp == INF_EXP) {
     if (frac == 0) {
       if (sign) return (0x1 << 0); // - infinity
       else return (0x1 << 7); // + infinity
     } else {
-      return (0x1 << 9); // quiet NaN
+      if (frac & (0x1 << (m-1))) return (0x1 << 9); // quiet NaN
+      else return (0x1 << 8); // signalling NaN
     }
   } else if (exp == 0 && frac == 0) {
     if (sign) return (0x1 << 3); // - 0

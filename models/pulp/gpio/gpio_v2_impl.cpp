@@ -96,7 +96,26 @@ vp::io_req_status_e gpio::padin_req(int reg_offset, int size, bool is_write, uin
 vp::io_req_status_e gpio::padout_req(int reg_offset, int size, bool is_write, uint8_t *data)
 {
   // TODO GPIO output should be propagated to pads. This should take gpioen into account only on some architecture
+  uint32_t old_val = this->r_padout.get();
+
   this->r_padout.access(reg_offset, size, data, is_write);
+
+  uint32_t new_val = this->r_padout.get();
+
+  uint32_t changed = old_val ^ new_val;
+
+  for (int i=0; i<this->nb_gpio; i++)
+  {
+    if ((changed >> i) & 1)
+    {
+      if (this->gpio_itf[i]->is_bound())
+      {
+        this->gpio_itf[i]->sync((new_val >> i) & 1);
+      }
+    }
+  }
+
+
   return vp::IO_REQ_OK;
 }
 

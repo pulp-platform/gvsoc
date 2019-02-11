@@ -500,7 +500,7 @@ int dpi_wrapper::build()
         {
           gpio_handle_t *handle = new gpio_handle_t;
           handle->itf.set_sync_meth_muxed(&dpi_wrapper::gpio_sync, itf_id);
-          new_slave_port(itf_name, &handle->itf);
+          new_slave_port(itf_name + std::to_string(itf_id), &handle->itf);
           gpio_handles.reserve(itf_id + 1);
           gpio_handles[itf_id] = handle;
 
