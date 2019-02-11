@@ -50,11 +50,15 @@ include $(VP_MAKEFILE_LIST)
 
 define declare_implementation
 
-$(eval $(1)_OBJS = $(patsubst %.c, $(VP_BUILD_DIR)/$(1)/%.o, $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/%.o, $($(1)_SRCS))))
+$(eval $(1)_OBJS = $(patsubst %.cc, $(VP_BUILD_DIR)/$(1)/%.o, $(patsubst %.c, $(VP_BUILD_DIR)/$(1)/%.o, $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/%.o, $($(1)_SRCS)))))
 
 -include $($(1)_OBJS:.o=.d)
 
 $(VP_BUILD_DIR)/$(1)/%.o: %.cpp $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $($(1)_CPPFLAGS) $(VP_COMP_CFLAGS) $(VP_COMP_CPPFLAGS)
+
+$(VP_BUILD_DIR)/$(1)/%.o: %.cc $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
 	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $($(1)_CPPFLAGS) $(VP_COMP_CFLAGS) $(VP_COMP_CPPFLAGS)
 
@@ -78,11 +82,15 @@ endef
 
 define declare_debug_implementation
 
-$(eval $(1)_DBG_OBJS = $(patsubst %.c, $(VP_BUILD_DIR)/$(1)/debug/%.o, $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/debug/%.o, $($(1)_SRCS))))
+$(eval $(1)_DBG_OBJS = $(patsubst %.cc, $(VP_BUILD_DIR)/$(1)/debug/%.o, $(patsubst %.c, $(VP_BUILD_DIR)/$(1)/debug/%.o, $(patsubst %.cpp, $(VP_BUILD_DIR)/$(1)/debug/%.o, $($(1)_SRCS)))))
 
 -include $($(1)_DBG_OBJS:.o=.d)
 
 $(VP_BUILD_DIR)/$(1)/debug/%.o: %.cpp $($(1)_DEPS)
+	@mkdir -p `dirname $$@`
+	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_CPPFLAGS) $(VP_COMP_CPPFLAGS) -DVP_TRACE_ACTIVE=1
+
+$(VP_BUILD_DIR)/$(1)/debug/%.o: %.cc $($(1)_DEPS)
 	@mkdir -p `dirname $$@`
 	$(CPP) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_CPPFLAGS) $(VP_COMP_CPPFLAGS) -DVP_TRACE_ACTIVE=1
 

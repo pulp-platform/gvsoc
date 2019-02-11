@@ -34,6 +34,13 @@
 #include "ems_mm.h"
 #include "ems_at_bus.h"
 #include "tlm2_base_protocol_checker.h"
+#ifdef __VP_USE_SYSTEMC_GEM5
+#include "report_handler.hh"
+#include "sc_target.hh"
+#include "sim_control.hh"
+#include "slave_transactor.hh"
+#include "stats.hh"
+#endif /* __VP_USE_SYSTEMC_GEM5 */
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
 #include "DRAMSys.h"
 #else
@@ -123,6 +130,19 @@ private:
   tlm_utils::tlm2_base_protocol_checker<> *pcib;
   // pcbt: protocol checker between bus and target
   tlm_utils::tlm2_base_protocol_checker<> *pcbt;
+#ifdef __VP_USE_SYSTEMC_GEM5
+  class gem5_sim_ctrl: public Gem5SystemC::Gem5SimControl
+  {
+  public:
+    gem5_sim_ctrl(std::string cfg) : Gem5SystemC::Gem5SimControl("gem5", cfg, 0, "MemoryAccess")
+    {
+    }
+    void afterSimulate()
+    {
+      sc_stop();
+    }
+  };
+#endif /* __VP_USE_SYSTEMC_GEM5 */
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   DRAMSys *dramsys;
 #else
@@ -198,6 +218,38 @@ void ddr::elab()
   pcib->initiator_socket.bind(at_bus->tsocket);
   at_bus->isocket.bind(pcbt->target_socket);
 
+#ifdef __VP_USE_SYSTEMC_GEM5
+#define NUM_TRANSACTORS 1
+  std::string gem5_cfg = std::string(__GEM5_PATH) + std::string("config.ini");
+  gem5_sim_ctrl sctrl(gem5_cfg);
+  Gem5SystemC::Gem5SlaveTransactor *t;
+  std::vector<Gem5SystemC::Gem5SlaveTransactor *> transactors;
+  // XXX:
+  // This code assumes that
+  //  - for a single port the port name is "transactor"
+  //  - for multiple ports names are transactor1, ..., transactorN
+  // Names generated here must match port names used in the gem5 config file
+  if (NUM_TRANSACTORS == 1) {
+    t = new Gem5SystemC::Gem5SlaveTransactor("transactor", "transactor");
+    // Single port
+    // TODO: Protocol checker
+    // TODO: Support to address mapping on at-bus
+    t->socket.bind(at_bus->tsocket);
+    t->sim_control.bind(sctrl);
+    transactors.push_back(t);
+  } else {
+    for (auto i = 0; i < NUM_TRANSACTORS; ++i) {
+      // In case of multiple ports
+      auto idx = i + 1;
+      std::string name = "transactor" + std::to_string(idx);
+      std::string port_name = "transactor" + std::to_string(idx);
+      t = new Gem5SystemC::Gem5SlaveTransactor(name.c_str(), port_name.c_str());
+      t->socket.bind(at_bus->tsocket);
+      t->sim_control.bind(sctrl);
+      transactors.push_back(t);
+    }
+  }
+#endif /* __VP_USE_SYSTEMC_GEM5 */
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   std::string resources = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
   std::string simulation_xml = resources + "simulations/ddr3-example.xml";
