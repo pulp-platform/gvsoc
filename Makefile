@@ -23,7 +23,7 @@ build: $(TARGETS)
 	install -D vp_models.mk $(INSTALL_DIR)/rules/vp_models.mk
 ifdef VP_USE_SYSTEMC_DRAMSYS
 	mkdir -p models/memory/dram.sys/build && cd models/memory/dram.sys/build && qmake ../DRAMSys/DRAMSys.pro && make
-endif
+endif # VP_USE_SYSTEMC_DRAMSYS
 	make -C engine build
 	make -C launcher build
 	make -C models props

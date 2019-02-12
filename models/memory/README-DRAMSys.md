@@ -1,5 +1,5 @@
 
-## Initial support to DRAMSys TLM2.0 memory models
+## Support to DRAMSys TLM2.0 memory models
 
 [DRAMSys](https://www.jstage.jst.go.jp/article/ipsjtsldm/8/0/8_63/_article) is a flexible DRAM subsystem design space exploration framework that consists of models reflecting the DRAM functionality, power consumption, retention time errors, etc.
 
