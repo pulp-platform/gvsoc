@@ -10,7 +10,7 @@ order to use SystemC TLM-2.0 models.
 export VP_USE_SYSTEMC=1
 ```
 
-Optionally, these variables can be added to an initialization file such as
+Optionally, this variable can be added to an initialization file such as
 ~/.bashrc.
 
 A convenience script [get_systemc.sh](get_systemc.sh) that downloads and
