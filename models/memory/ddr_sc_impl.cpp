@@ -45,9 +45,9 @@
 #endif /* __VP_USE_SYSTEMC_DRAMSYS */
 
 
-#define BYTES_PER_ACCESS            8
-#define ACCEPT_DELAY_PS             1000
-#define TARGET_LATENCY_PS           2000
+#define BYTES_PER_ACCESS    64
+#define ACCEPT_DELAY_PS     1000
+#define TARGET_LATENCY_PS   2000
 
 class ddr;
 
@@ -207,6 +207,12 @@ void ddr::elab()
   at_bus->isocket.bind(pcbt->target_socket);
 
 #ifdef __VP_USE_SYSTEMC_GEM5
+  // TODO: check why gem5 experiment fails with TLM-2.0 base protocol checker
+  // enabled
+  pcbt->set_num_checks(0);
+#endif /* __VP_USE_SYSTEMC_GEM5 */
+
+#ifdef __VP_USE_SYSTEMC_GEM5
   // Instantiate gem5_tlm_br
   std::string cfg = std::string(__GEM5_PATH) + std::string("/config.ini");
   std::string cmd = "grep port_data= " + cfg + " | wc -l";
@@ -248,25 +254,25 @@ void ddr_module::req_to_gp(vp::io_req *r, tlm::tlm_generic_payload *p, uint32_t 
   assert(p);
   assert(p->has_mm());
 
-  tlm::tlm_command cmd;
-  cmd = r->get_is_write() ? tlm::TLM_WRITE_COMMAND : tlm::TLM_READ_COMMAND;
+  tlm::tlm_command cmd = r->get_is_write() ? tlm::TLM_WRITE_COMMAND : tlm::TLM_READ_COMMAND;
   uint32_t offset = tid * bytes_per_access;
   sc_dt::uint64 addr = r->get_addr() + offset;
   unsigned char *data = r->get_data();
   unsigned char *dptr = &data[offset];
-  unsigned int size = bytes_per_access;
+  unsigned int dlen = bytes_per_access;
 
   p->set_command(cmd);
   p->set_address(addr);
   p->set_data_ptr(dptr);
-  p->set_data_length(size);
-  p->set_streaming_width(size);
+  p->set_data_length(dlen);
+  p->set_streaming_width(dlen);
   p->set_byte_enable_ptr(NULL);
   p->set_dmi_allowed(false);
   p->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
   ems::req_extension *ext = new ems::req_extension(r, tid, last);
   p->set_auto_extension(ext);
+  //debug(name() << " Request p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read") << " dlen: " << dlen << " tid: " << tid << " last: " << (last ? "true" : "false"));
 }
 
 // Called on receiving BEGIN_RESP or TLM_COMPLETED

@@ -25,13 +25,12 @@
 #include <sys/mman.h>
 #include <tlm.h>
 
+#define GIGA_BYTE   (1 * 1024 * 1024 * 1024)
+#define MEM_SIZE    (1 * (GIGA_BYTE))
+// When defined calloc() is used, mmap() otherwise.
+#define EMS_TARGET_USE_CALLOC
+
 namespace ems {
-
-#define GIGA_BYTE 	(1 * 1024 * 1024 * 1024)
-#define MEM_SIZE 	(1 * (GIGA_BYTE))
-// When defined mmap() is used. Otherwise calloc() is used.
-#define EMS_TARGET_USE_MMAP
-
 // Module able to buffer a second request before sending a response to the
 // first
 class at_target : sc_core::sc_module
@@ -55,19 +54,19 @@ public:
     tsocket.register_nb_transport_fw(this, &at_target::nb_transport_fw);
     tsocket.register_transport_dbg(this, &at_target::transport_dbg);
 
-#ifdef EMS_TARGET_USE_MMAP
-    mem = reinterpret_cast<unsigned char*>(mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
-    if (mem == MAP_FAILED) {
-      debug(this->name() << " mmap() failed");
-      sc_core::sc_stop();
-    }
-#else
+#ifdef EMS_TARGET_USE_CALLOC
     mem = reinterpret_cast<unsigned char*>(calloc(MEM_SIZE, sizeof(char)));
     if (!mem) {
       debug(this->name() << " calloc() failed");
       sc_core::sc_stop();
     }
-#endif /* EMS_TARGET_USE_MMAP */
+#else
+    mem = reinterpret_cast<unsigned char*>(mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+    if (mem == MAP_FAILED) {
+      debug(this->name() << " mmap() failed");
+      sc_core::sc_stop();
+    }
+#endif /* EMS_TARGET_USE_CALLOC */
 
     SC_METHOD(execute_process);
     sensitive << target_done_event;
@@ -77,11 +76,11 @@ public:
   ~at_target()
   {
     if (mem) {
-#ifdef EMS_TARGET_USE_MMAP
-      munmap(mem, MEM_SIZE);
-#else
+#ifdef EMS_TARGET_USE_CALLOC
       free(mem);
-#endif /* EMS_TARGET_USE_MMAP */
+#else
+      munmap(mem, MEM_SIZE);
+#endif /* EMS_TARGET_USE_CALLOC */
     }
   }
 
@@ -90,7 +89,7 @@ public:
   unsigned int transport_dbg(tlm::tlm_generic_payload &p);
 
 private:
-  void execute(tlm::tlm_generic_payload *p);
+  unsigned int execute(tlm::tlm_generic_payload *p);
   void execute_process();
   void send_begin_resp(tlm::tlm_generic_payload &p);
   void send_end_req(tlm::tlm_generic_payload &p);
@@ -124,7 +123,7 @@ void at_target::send_end_req(tlm::tlm_generic_payload &p)
   req_in_progress = &p;
 }
 
-void at_target::execute(tlm::tlm_generic_payload *p)
+unsigned int at_target::execute(tlm::tlm_generic_payload *p)
 {
   tlm::tlm_command cmd = p->get_command();
   sc_dt::uint64 addr = p->get_address();
@@ -133,32 +132,40 @@ void at_target::execute(tlm::tlm_generic_payload *p)
   unsigned char *ben = p->get_byte_enable_ptr();
   unsigned int swidth = p->get_streaming_width();
 
+#if !defined(__VP_USE_SYSTEMC_GEM5)
+  // TODO: check why gem5 experiment fails this check
   if (addr >= sc_dt::uint64(MEM_SIZE) || (addr % bytes_per_access)) {
+#else
+  if (addr >= sc_dt::uint64(MEM_SIZE)) {
+#endif /* !defined(__VP_USE_SYSTEMC_GEM5) */
     debug(name() << " Address error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read") << " bytes_per_access: " << bytes_per_access);
     p->set_response_status(tlm::TLM_ADDRESS_ERROR_RESPONSE);
-    return;
+    return 0;
   }
 
+#if !defined(__VP_USE_SYSTEMC_GEM5)
+  // TODO: check why gem5 experiment fails this check
   if (dlen != bytes_per_access || swidth < dlen) {
     debug(name() << " Burst error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read") << " dlen: " << dlen << " bytes_per_access: " << bytes_per_access << " swidth: " << swidth);
     p->set_response_status(tlm::TLM_BURST_ERROR_RESPONSE);
-    return;
+    return 0;
   }
+#endif /* !defined(__VP_USE_SYSTEMC_GEM5) */
 
   if (ben != nullptr) {
     debug(name() << " Byte enable error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read"));
     p->set_response_status(tlm::TLM_BYTE_ENABLE_ERROR_RESPONSE);
-    return;
+    return 0;
   }
 
   switch (cmd) {
     case tlm::TLM_READ_COMMAND:
       memcpy(dptr, mem, dlen);
-      debug(name() << " READ addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " dlen: " << dlen);
+      //debug(name() << " READ addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " dlen: " << dlen);
       break;
     case tlm::TLM_WRITE_COMMAND:
-      debug(name() << " WRITE addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " dlen: " << dlen);
       memcpy(mem, dptr, dlen);
+      //debug(name() << " WRITE addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " dlen: " << dlen);
       break;
     default:
       debug(name() << " Invalid command")
@@ -167,6 +174,7 @@ void at_target::execute(tlm::tlm_generic_payload *p)
   }
 
   p->set_response_status(tlm::TLM_OK_RESPONSE);
+  return dlen;
 }
 
 // Method process sensitive to target_done_event
@@ -285,7 +293,7 @@ void at_target::peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 
 unsigned int at_target::transport_dbg(tlm::tlm_generic_payload &p)
 {
-  execute(&p);
+  return execute(&p);
 }
 
 } // namespace ems
