@@ -125,7 +125,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       // makes the platform exit when set to 1
       _this->core_status = *(uint32_t *)data;
       
-      if ((_this->core_status >> APB_SOC_STATUS_EOC_BIT) & 1) 
+      if ((_this->core_status >> 31) & 1) 
       {
         _this->clock->stop_engine(_this->core_status & 0x7fffffff);
       }
@@ -143,7 +143,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       }
     }
   }
-  else if (offset == APB_SOC_JTAG_REG)
+  else if (offset == APB_SOC_JTAGREG_OFFSET)
   {
     if (is_write)
     {
@@ -151,10 +151,10 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
     }
     else
     {
-      *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
+      *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAGREG_EXT_SYNC_BIT;
     }
   }
-  else if (offset == APB_SOC_SLEEP_CONTROL)
+  else if (offset == APB_SOC_SAFE_PMU_SLEEPCTRL_OFFSET)
   {
     if (is_write)
     {
@@ -172,19 +172,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       *(uint32_t *)data = (_this->extwake_sel << 6) | (_this->extwake_type << 11) | (_this->extwake_en << 13) | (_this->cfg_wakeup << 14) | (_this->boot_type << 18);
     }
   }
-  else if (offset == APB_SOC_BOOTADDR_OFFSET)
-  {
-    if (is_write)
-    {
-      _this->trace.msg("Setting boot address (addr: 0x%x)\n", *(uint32_t *)data);
-      if (_this->bootaddr_itf.is_bound())
-        _this->bootaddr_itf.sync(*(uint32_t *)data);
-      
-      _this->bootaddr = *(uint32_t *)data;
-    }
-    else *(uint32_t *)data = _this->bootaddr;
-  }
-  else if (offset == APB_SOC_BYPASS_OFFSET)
+  else if (offset == APB_SOC_CL_BYPASS_OFFSET)
   {
     if (is_write)
     {
