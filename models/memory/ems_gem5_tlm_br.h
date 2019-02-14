@@ -22,6 +22,10 @@
 #ifndef __EMS_GEM5_TLM_BR_H__
 #define __EMS_GEM5_TLM_BR_H__
 
+#include <regex>
+#include <iostream>
+#include <fstream>
+
 #include <tlm.h>
 
 #include "ems_common.h"
@@ -37,34 +41,31 @@ namespace ems {
 class gem5_tlm_br
 {
 public:
-  //
-  // Assumptions:
-  // - For a single port the port name is "transactor"
-  // - For multiple ports names are "transactor1", ..., "transactorN"
-  //
-  // Notes:
-  // - Names generated here must match port names used in gem5 config file
-  // - External bindings must be done by the caller using the 'transactors'
-  //   member variable
-  //
   gem5_tlm_br(std::string name, std::string cfg, unsigned int nports)
   {
     sctrl = new gem5_sim_ctrl(name, cfg);
     Gem5SystemC::Gem5SlaveTransactor *t;
-    if (nports == 1) {
-      t = new Gem5SystemC::Gem5SlaveTransactor("transactor", "transactor");
-      // Single port
-      t->sim_control.bind(*sctrl);
-      transactors.push_back(t);
-    } else {
-      for (auto i = 0; i < nports; ++i) {
-        // Multiple ports
-        auto idx = i + 1;
-        std::string port_name = "transactor" + std::to_string(idx);
-        t = new Gem5SystemC::Gem5SlaveTransactor(port_name.c_str(), port_name.c_str());
+    std::string line;
+    std::ifstream file(cfg);
+
+    if (!file.is_open()) {
+      debug("Unable to open file" << cfg);
+      throw std::logic_error("Unable to open file");
+    }
+
+    std::regex rgx("port_data=(\\w+)");
+    std::smatch match;
+    while (std::getline(file, line)) {
+      if (std::regex_search(line, match, rgx)) {
+        t = new Gem5SystemC::Gem5SlaveTransactor(match.str(1).c_str(), match.str(1).c_str());
         t->sim_control.bind(*sctrl);
         transactors.push_back(t);
       }
+    }
+    file.close();
+    if (match.empty()) {
+      debug("No matches found for regex");
+      throw std::logic_error("No matches found for regex");
     }
   }
 
