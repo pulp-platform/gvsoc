@@ -75,6 +75,7 @@ vp::Event_trace *vp::Event_dumper::get_trace(string trace_name, string file_name
     }
 
     trace = new Event_trace(trace_name, event_file, width, is_real, is_string);
+    event_traces[trace_name] = trace;
   }
 
   return trace;

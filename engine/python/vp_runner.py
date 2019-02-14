@@ -789,34 +789,72 @@ gtkw_colors = [
 "YellowGreen"
 ]
 
+class Trace(object):
 
-def gen_gtkw_core_traces(gtkw, path):
-    gtkw.trace(path + '.pc[31:0]', 'pc')
-    gtkw.trace(path + '.asm', 'asm')
-    gtkw.trace(path + '.func', 'func')
-    gtkw.trace(path + '.inline_func', 'inline_func')
-    gtkw.trace(path + '.file', 'file')
-    gtkw.trace(path + '.line[31:0]', 'line', datafmt='dec')
+    def __init__(self, tag, name, width=None):
+        self.tag = tag
+        self.name = name
+        self.width = width
+        self.vcd_name = name
+        self.vp_name = '/' + name.replace('.', '/')
+        if width is not None:
+            self.vcd_name = self.vcd_name + width
+
+    def get_vcd(self):
+        return self.vcd_name
+
+    def get_vp(self):
+        return self.vp_name
+
+
+class Trace_pool(object):
+
+    def __init__(self):
+        self.traces = []
+
+    def get(self, tag, name, width=None):
+        trace = Trace(tag, name, width)
+        self.traces.append(trace)
+        return trace.get_vcd()
+
+    def get_traces(self, tags=None):
+        if tags is None:
+            return self.traces
+        else:
+            result = []
+            for trace in self.traces:
+                if trace.tag is None or trace.tag in tags:
+                    result.append(trace)
+            return result
+
+
+def gen_gtkw_core_traces(gtkw, tp, path):
+    gtkw.trace(tp.get('pc', path + '.pc', '[31:0]'), 'pc')
+    gtkw.trace(tp.get('asm', path + '.asm'), 'asm')
+    gtkw.trace(tp.get('debug', path + '.func'), 'func')
+    gtkw.trace(tp.get('debug', path + '.inline_func'), 'inline_func')
+    gtkw.trace(tp.get('debug', path + '.file'), 'file')
+    gtkw.trace(tp.get('debug', path + '.line', '[31:0]'), 'line', datafmt='dec')
     with gtkw.group('events', closed=True):
-        gtkw.trace(path + '.pcer_cycles', 'cycles')
-        gtkw.trace(path + '.pcer_instr', 'instr')
-        gtkw.trace(path + '.pcer_ld_stall', 'ld_stall')
-        gtkw.trace(path + '.pcer_jmp_stall', 'jmp_stall')
-        gtkw.trace(path + '.pcer_imiss', 'imiss')
-        gtkw.trace(path + '.pcer_ld', 'ld')
-        gtkw.trace(path + '.pcer_st', 'st')
-        gtkw.trace(path + '.pcer_jump', 'jump')
-        gtkw.trace(path + '.pcer_branch', 'branch')
-        gtkw.trace(path + '.pcer_taken_branch', 'taken_branch')
-        gtkw.trace(path + '.pcer_rvc', 'rvc')
-        gtkw.trace(path + '.pcer_ld_ext', 'ld_ext')
-        gtkw.trace(path + '.pcer_st_ext', 'st_ext')
-        gtkw.trace(path + '.pcer_ld_ext_cycles', 'ld_ext_cycles')
-        gtkw.trace(path + '.pcer_st_ext_cycles', 'st_ext_cycles')
-        gtkw.trace(path + '.pcer_tcdm_cont', 'tcdm_cont')
-        gtkw.trace(path + '.misaligned', 'misaligned')
+        gtkw.trace(tp.get('core_events', path + '.pcer_cycles'), 'cycles')
+        gtkw.trace(tp.get('core_events', path + '.pcer_instr'), 'instr')
+        gtkw.trace(tp.get('core_events', path + '.pcer_ld_stall'), 'ld_stall')
+        gtkw.trace(tp.get('core_events', path + '.pcer_jmp_stall'), 'jmp_stall')
+        gtkw.trace(tp.get('core_events', path + '.pcer_imiss'), 'imiss')
+        gtkw.trace(tp.get('core_events', path + '.pcer_ld'), 'ld')
+        gtkw.trace(tp.get('core_events', path + '.pcer_st'), 'st')
+        gtkw.trace(tp.get('core_events', path + '.pcer_jump'), 'jump')
+        gtkw.trace(tp.get('core_events', path + '.pcer_branch'), 'branch')
+        gtkw.trace(tp.get('core_events', path + '.pcer_taken_branch'), 'taken_branch')
+        gtkw.trace(tp.get('core_events', path + '.pcer_rvc'), 'rvc')
+        gtkw.trace(tp.get('core_events', path + '.pcer_ld_ext'), 'ld_ext')
+        gtkw.trace(tp.get('core_events', path + '.pcer_st_ext'), 'st_ext')
+        gtkw.trace(tp.get('core_events', path + '.pcer_ld_ext_cycles'), 'ld_ext_cycles')
+        gtkw.trace(tp.get('core_events', path + '.pcer_st_ext_cycles'), 'st_ext_cycles')
+        gtkw.trace(tp.get('core_events', path + '.pcer_tcdm_cont'), 'tcdm_cont')
+        gtkw.trace(tp.get('core_events', path + '.misaligned'), 'misaligned')
 
-def check_user_traces(gtkw, path, user_traces):
+def check_user_traces(gtkw, tp, path, user_traces):
     if user_traces is not None:
         traces = user_traces.get_items()
         if traces is not None:
@@ -830,12 +868,18 @@ def check_user_traces(gtkw, path, user_traces):
                     parent, name = view_path.rsplit('.', 1)
 
                 if parent == path:
+                    tag = trace.get_str('tag')
                     vcd_path = trace.get_str('vcd_path')
                     trace_filter = trace.get_str('filter')
                     if trace_filter is not None:
                         trace_filter = os.path.join(os.getcwd(), trace_filter)
 
-                    gtkw.trace(vcd_path, view_path, datafmt='dec', translate_filter_file=trace_filter)
+                    width = None
+                    if vcd_path.find('[') != -1:
+                        vcd_path, width = vcd_path.split('[')
+                        width = '[' + width
+
+                    gtkw.trace(tp.get(tag, vcd_path, width), view_path, datafmt='dec', translate_filter_file=trace_filter)
 
 
 def gen_gtkw_vector(gtkw, path, name, traces=[], trace_filter=None):
@@ -861,6 +905,7 @@ def gen_rt_traces_for_cluster(config, gv_config, cluster, cluster_alias):
     nb_pe = config.get_int('**/%s/nb_pe' % cluster)
     for i in range(0, nb_pe):
         pe_conf = {
+            'tag': 'overview',
             'type': 'int',
             'path': '/user/runtime/%s/pe%d' % (cluster_alias, i),
             'vcd_path': 'user.runtime.%s.pe%d[31:0]' % (cluster_alias, i),
@@ -888,6 +933,7 @@ def gen_gtkw_files(config, gv_config):
     nb_pe = config.get_int('**/cluster/nb_pe')
 
     user_traces = gv_config.get('**/vcd/traces')
+    tags = gv_config.get('**/vcd/tags').get_dict()
 
     gen_rt_traces(config, gv_config)
 
@@ -914,7 +960,9 @@ def gen_gtkw_files(config, gv_config):
         file.write('4 ?DarkSlateGrey?DMA_PUSH\n')
         file.write('5 ?DarkSlateGrey?DMA_WAIT\n')
 
-    if len(gv_config.get('event').get()) != 0:
+    tp = Trace_pool()
+
+    if len(gv_config.get('event').get()) != 0 or gv_config.get_bool('vcd/active'):
         path = os.path.join(os.getcwd(), 'view.gtkw')
         with open(path, 'w') as file:
             gtkw = gtkw_new.GTKWSave(file)
@@ -922,73 +970,76 @@ def gen_gtkw_files(config, gv_config):
             gtkw.dumpfile('all.vcd')
 
             with gtkw.group('overview'):
-                check_user_traces(gtkw, 'overview', user_traces)
+                check_user_traces(gtkw, tp, 'overview', user_traces)
                 with gtkw.group('soc'):
-                    check_user_traces(gtkw, 'overview.soc', user_traces)
-                    gtkw.trace('sys.board.chip.soc.fc.state[7:0]', 'fc', translate_filter_file=core_state_file)
+                    check_user_traces(gtkw, tp, 'overview.soc', user_traces)
+                    gtkw.trace(tp.get('overview', 'sys.board.chip.soc.fc.state', '[7:0]'), 'fc', translate_filter_file=core_state_file)
 
                     gen_gtkw_vector(gtkw, 'sys.board.chip.soc', 'udma', trace_filter=core_state_file, traces=[
-                        ['sys.board.chip.soc.udma.spim0_rx.state[7:0]', 'spim0_rx'],
-                        ['sys.board.chip.soc.udma.spim0_tx.state[7:0]', 'spim0_tx'],
-                        ['sys.board.chip.soc.udma.spim1_rx.state[7:0]', 'spim1_rx'],
-                        ['sys.board.chip.soc.udma.spim1_tx.state[7:0]', 'spim1_tx'],
-                        ['sys.board.chip.soc.udma.hyper0_rx.state[7:0]','hyper0_rx' ],
-                        ['sys.board.chip.soc.udma.hyper0_tx.state[7:0]', 'hyper0_tx'],
-                        ['sys.board.chip.soc.udma.i2c0_rx.state[7:0]', 'ic20_rx'],
-                        ['sys.board.chip.soc.udma.i2c0_tx.state[7:0]', 'ic20_tx'],
-                        ['sys.board.chip.soc.udma.i2c1_rx.state[7:0]', 'ic21_rx'],
-                        ['sys.board.chip.soc.udma.i2c1_tx.state[7:0]', 'i2c1_tx'],
-                        ['sys.board.chip.soc.udma.i2s0_rx.state[7:0]', 'i2s0_rx'],
-                        ['sys.board.chip.soc.udma.uart0_rx.state[7:0]', 'uart0_rx'],
-                        ['sys.board.chip.soc.udma.uart0_tx.state[7:0]', 'uart0_tx'],
-                        ['sys.board.chip.soc.udma.cpi0_rx.state[7:0]', 'cpi0_rx']
+                        [tp.get('overview', 'sys.board.chip.soc.udma.spim0_rx.state', '[7:0]'), 'spim0_rx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.spim0_tx.state', '[7:0]'), 'spim0_tx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.spim1_rx.state', '[7:0]'), 'spim1_rx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.spim1_tx.state', '[7:0]'), 'spim1_tx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.hyper0_rx.state', '[7:0]'),'hyper0_rx' ],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.hyper0_tx.state', '[7:0]'), 'hyper0_tx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.i2c0_rx.state', '[7:0]'), 'ic20_rx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.i2c0_tx.state', '[7:0]'), 'ic20_tx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.i2c1_rx.state', '[7:0]'), 'ic21_rx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.i2c1_tx.state', '[7:0]'), 'i2c1_tx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.i2s0_rx.state', '[7:0]'), 'i2s0_rx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.uart0_rx.state', '[7:0]'), 'uart0_rx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.uart0_tx.state', '[7:0]'), 'uart0_tx'],
+                        [tp.get('overview', 'sys.board.chip.soc.udma.cpi0_rx.state', '[7:0]'), 'cpi0_rx']
                     ])
 
                 with gtkw.group('cluster'):
-                    check_user_traces(gtkw, 'overview.cluster', user_traces)
+                    check_user_traces(gtkw, tp, 'overview.cluster', user_traces)
                     for i in range(0, nb_pe):
-                        gtkw.trace('sys.board.chip.cluster.pe%d.state[7:0]' % i, 'pe_%d' % i, translate_filter_file=core_state_file)
+                        gtkw.trace(tp.get('overview', 'sys.board.chip.cluster.pe%d.state' % i, '[7:0]'), 'pe_%d' % i, translate_filter_file=core_state_file)
 
                     gen_gtkw_vector(gtkw, 'sys.board.chip.cluster', 'dma', trace_filter=core_state_file, traces=[
-                        ['sys.board.chip.cluster.dma.channel_0[7:0]', 'channel_0'],
-                        ['sys.board.chip.cluster.dma.channel_1[7:0]', 'channel_1'],
-                        ['sys.board.chip.cluster.dma.channel_2[7:0]', 'channel_2'],
-                        ['sys.board.chip.cluster.dma.channel_3[7:0]', 'channel_3'],
-                        ['sys.board.chip.cluster.dma.channel_4[7:0]', 'channel_4'],
-                        ['sys.board.chip.cluster.dma.channel_5[7:0]', 'channel_5'],
-                        ['sys.board.chip.cluster.dma.channel_6[7:0]', 'channel_6'],
-                        ['sys.board.chip.cluster.dma.channel_7[7:0]', 'channel_7'],
-                        ['sys.board.chip.cluster.dma.channel_8[7:0]', 'channel_8'],
-                        ['sys.board.chip.cluster.dma.channel_9[7:0]', 'channel_9'],
-                        ['sys.board.chip.cluster.dma.channel_10[7:0]', 'channel_10'],
-                        ['sys.board.chip.cluster.dma.channel_11[7:0]', 'channel_11'],
-                        ['sys.board.chip.cluster.dma.channel_12[7:0]', 'channel_12'],
-                        ['sys.board.chip.cluster.dma.channel_13[7:0]', 'channel_13'],
-                        ['sys.board.chip.cluster.dma.channel_14[7:0]', 'channel_14'],
-                        ['sys.board.chip.cluster.dma.channel_15[7:0]', 'channel_15'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_0', '[7:0]'), 'channel_0'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_1', '[7:0]'), 'channel_1'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_2', '[7:0]'), 'channel_2'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_3', '[7:0]'), 'channel_3'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_4', '[7:0]'), 'channel_4'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_5', '[7:0]'), 'channel_5'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_6', '[7:0]'), 'channel_6'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_7', '[7:0]'), 'channel_7'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_8', '[7:0]'), 'channel_8'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_9', '[7:0]'), 'channel_9'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_10', '[7:0]'), 'channel_10'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_11', '[7:0]'), 'channel_11'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_12', '[7:0]'), 'channel_12'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_13', '[7:0]'), 'channel_13'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_14', '[7:0]'), 'channel_14'],
+                        [tp.get('overview', 'sys.board.chip.cluster.dma.channel_15', '[7:0]'), 'channel_15'],
                     ])
 
                     with gtkw.group('runtime', closed=True):
-                        check_user_traces(gtkw, 'overview.cluster.runtime', user_traces)
+                        check_user_traces(gtkw, tp, 'overview.cluster.runtime', user_traces)
 
             with gtkw.group('chip', closed=True):
-                check_user_traces(gtkw, 'chip', user_traces)
+                check_user_traces(gtkw, tp, 'chip', user_traces)
                 with gtkw.group('fc', closed=True):
-                    check_user_traces(gtkw, 'chip.fc', user_traces)
-                    gen_gtkw_core_traces(gtkw, 'sys.board.chip.soc.fc')
+                    check_user_traces(gtkw, tp, 'chip.fc', user_traces)
+                    gen_gtkw_core_traces(gtkw, tp, 'sys.board.chip.soc.fc')
 
                 with gtkw.group('cluster', closed=True):
                     gtkw.trace('sys.board.chip.cluster.power_trace', datafmt='real', extraflags=['analog_step'])
-                    check_user_traces(gtkw, 'chip.cluster', user_traces)
+                    check_user_traces(gtkw, tp, 'chip.cluster', user_traces)
                     for i in range(0, nb_pe):
                         with gtkw.group('pe_%d' % i, closed=True):
-                            gen_gtkw_core_traces(gtkw, 'sys.board.chip.cluster.pe%d' % i)
+                            gen_gtkw_core_traces(gtkw, tp, 'sys.board.chip.cluster.pe%d' % i)
 
 
         print ()
         print ('A Gtkwave script has been generated and can be opened with the following command:')
         print ('gtkwave ' + path)
         print ()
+
+        for trace in tp.get_traces(tags):
+            gv_config.set('event', trace.get_vp())
 
 
     if gv_config.get_bool('**/vcd/gtkw'):
@@ -1009,7 +1060,11 @@ class Runner(Platform):
 
         parser.add_argument("--trace", dest="traces", default=[], action="append", help="Specify gvsoc trace")
 
+        parser.add_argument("--vcd", dest="vcd", action="store_true", help="Activate VCD traces")
+
         parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
+
+        parser.add_argument("--event-tags", dest="event_tags", default=[], action="append", help="Specify gvsoc event through tags(for VCD traces)")
 
         parser.add_argument("--event-format", dest="format", default=None, help="Specify events format (vcd or fst)")
 
@@ -1031,11 +1086,17 @@ class Runner(Platform):
 
         self.__prepare_env()
 
+        if args.vcd:
+            self.get_json().set('gvsoc/vcd/active', True)
+
         for trace in args.traces:
             self.get_json().set('gvsoc/trace', trace)
 
         for event in args.events:
             self.get_json().set('gvsoc/event', event)
+
+        for tag in args.event_tags:
+            self.get_json().set('gvsoc/vcd/tags', tag)
 
         if args.format is not None:
             self.get_json().set('gvsoc/vcd/format', args.format)
@@ -1249,9 +1310,10 @@ class Runner(Platform):
                             " top component")
 
         gvsoc_config = self.get_json().get('gvsoc')
-        debug_mode = len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
 
         gen_gtkw_files(self.get_json(), gvsoc_config)
+
+        debug_mode = gvsoc_config.get_bool('vcd/active') or len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
 
         power_engine = vp.power_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
