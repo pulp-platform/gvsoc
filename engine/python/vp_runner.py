@@ -921,11 +921,8 @@ def gen_rt_traces(config, gv_config):
     nb_cluster = config.get_int('**/nb_cluster')
 
     if nb_cluster is not None:
-        if nb_cluster == 1:
-            gen_rt_traces_for_cluster(config, gv_config, 'cluster', 'cluster_0')
-        else:
-            for cid in range(0, nb_cluster):
-                gen_rt_traces_for_cluster(config, gv_config, 'cluster_%d' % cid, 'cluster_%d' % cid)
+        for cid in range(0, nb_cluster):
+            gen_rt_traces_for_cluster(config, gv_config, 'cluster' if cid == 0 else 'cluster_%d' % cid, 'cluster_%d' % cid)
 
 
 
