@@ -1,10 +1,10 @@
 
-## Support to gem5 SystemC TLM2.0 binding
+## Support to Gem5 SystemC TLM-2.0 Binding
 
 Requirements to use this feature:
 
 Two environment variables influence the build process and should be defined in
-order to use gem5 SystemC TLM2.0 binding. They are:
+order to use gem5 SystemC TLM-2.0 binding. They are:
 
 ```bash
 export VP_USE_SYSTEMC=1
@@ -19,8 +19,8 @@ One can use the scripts from [gem5.TnT](https://github.com/tukl-msd/gem5.TnT)
 to install gem5, build it as a library to be linked to this project, get
 benchmark programs, etc.
 
-A convenience script [gem5.tnt.sh](gem5.tnt.sh) that executes the essential
-steps to build gem5 as a library is provided.
+A convenience script [gem5.tnt.sh](gem5.tnt.sh) that executes essential steps
+to build gem5 as a library is provided.
 
 Executing the script:
 

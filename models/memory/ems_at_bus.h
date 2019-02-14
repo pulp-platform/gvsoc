@@ -117,7 +117,9 @@ int at_bus::decode_address(sc_dt::uint64 address, sc_dt::uint64 &masked_address)
   // Right now it just sends to the same target and masked_address is just a
   // copy of address
   sc_dt::uint64 mask = 0xffffffffffffffffULL;
-  masked_address = (address & mask);
+  sc_dt::uint64 offset = 0x0000000000000000ULL;
+  //sc_dt::uint64 offset = 0x0000000080000000ULL;
+  masked_address = ((address - offset) & mask);
   return 0;
 }
 
@@ -181,8 +183,8 @@ void at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
             bw_peq.notify(p, bw_phase, d);
             break;
           default:
-            debug(name() << "Invalid status");
-            SC_REPORT_FATAL(name(), "Invalid status");
+            debug(name() << " Invalid status");
+            SC_REPORT_FATAL(name(), " Invalid status");
             break;
         }
       } else {
@@ -225,13 +227,13 @@ void at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 
     case tlm::END_REQ:
     case tlm::BEGIN_RESP:
-      debug(name() << "Illegal phase" << phase);
-      SC_REPORT_FATAL(name(), "Illegal phase");
+      debug(name() << " Illegal phase" << phase);
+      SC_REPORT_FATAL(name(), " Illegal phase");
       break;
 
     default:
-      debug(name() << "Illegal phase" << phase);
-      SC_REPORT_FATAL(name(), "Illegal phase");
+      debug(name() << " Illegal phase" << phase);
+      SC_REPORT_FATAL(name(), " Illegal phase");
       break;
   }
 }
@@ -275,12 +277,12 @@ tlm::tlm_sync_enum at_bus::nb_transport_fw(int id, tlm::tlm_generic_payload &p, 
 
     case tlm::END_REQ:
     case tlm::BEGIN_RESP:
-      debug(name() << "Illegal phase" << phase);
+      debug(name() << " Illegal phase" << phase);
       SC_REPORT_FATAL(name(), " Illegal phase");
       break;
 
     default:
-      debug(name() << "Illegal phase" << phase);
+      debug(name() << " Illegal phase" << phase);
       SC_REPORT_FATAL(name(), " Illegal phase");
       break;
   }
@@ -379,8 +381,8 @@ void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
             fw_peq.notify(p, fw_phase, d);
             break;
           default:
-            debug(name() << "Invalid status");
-            SC_REPORT_FATAL(name(), "Invalid status");
+            debug(name() << " Invalid status");
+            SC_REPORT_FATAL(name(), " Invalid status");
             break;
         }
       } else {
@@ -394,12 +396,12 @@ void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 
     case tlm::BEGIN_REQ:
     case tlm::END_RESP:
-      debug(name() << "Illegal phase" << phase);
+      debug(name() << " Illegal phase" << phase);
       SC_REPORT_FATAL(name(), " Illegal phase");
       break;
 
     default:
-      debug(name() << "Illegal phase" << phase);
+      debug(name() << " Illegal phase" << phase);
       SC_REPORT_FATAL(name(), " Illegal phase");
       break;
   }
@@ -423,12 +425,12 @@ tlm::tlm_sync_enum at_bus::nb_transport_bw(int id, tlm::tlm_generic_payload &p, 
 
     case tlm::BEGIN_REQ:
     case tlm::END_RESP:
-      debug(name() << "Illegal phase" << phase);
+      debug(name() << " Illegal phase" << phase);
       SC_REPORT_FATAL(name(), " Illegal phase");
       break;
 
     default:
-      debug(name() << "Illegal phase" << phase);
+      debug(name() << " Illegal phase" << phase);
       SC_REPORT_FATAL(name(), " Illegal phase");
       break;
   }

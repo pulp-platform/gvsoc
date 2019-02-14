@@ -25,46 +25,48 @@
 #include <sys/mman.h>
 #include <tlm.h>
 
+#define GIGA_BYTE   (1 * 1024 * 1024 * 1024)
+#define MEM_SIZE    (1 * (GIGA_BYTE))
+// When defined calloc() is used, mmap() otherwise.
+#define EMS_TARGET_USE_CALLOC
+
 namespace ems {
-
-#define GIGA_BYTE 	(1 * 1024 * 1024 * 1024)
-#define MEM_SIZE 	(1 * (GIGA_BYTE))
-// When defined mmap() is used. Otherwise calloc() is used.
-#define EMS_TARGET_USE_MMAP
-
 // Module able to buffer a second request before sending a response to the
 // first
-struct at_target : sc_core::sc_module {
+class at_target : sc_core::sc_module
+{
+public:
   tlm_utils::simple_target_socket<at_target> tsocket;
 
   SC_HAS_PROCESS(at_target);
   at_target(sc_core::sc_module_name name, double accept_delay_ps, double internal_latency_ps, uint32_t bpa) :
     sc_core::sc_module(name),
     tsocket("tsocket"),
-    req_in_progress(NULL),
+    req_in_progress(nullptr),
     resp_in_progress(false),
-    next_response_pending(NULL),
-    end_req_pending(NULL),
+    next_response_pending(nullptr),
+    end_req_pending(nullptr),
     bytes_per_access(bpa),
-    peq(this, &at_target::peq_callback)
+    peq(this, &at_target::peq_cb)
   {
     accept_delay = sc_core::sc_time(accept_delay_ps, SC_PS);
     internal_latency = sc_core::sc_time(internal_latency_ps, SC_PS);
     tsocket.register_nb_transport_fw(this, &at_target::nb_transport_fw);
+    tsocket.register_transport_dbg(this, &at_target::transport_dbg);
 
-#ifdef EMS_TARGET_USE_MMAP
-    mem = reinterpret_cast<unsigned char*>(mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
-    if (mem == MAP_FAILED) {
-      debug(this->name() << " mmap() failed");
-      sc_core::sc_stop();
-    }
-#else
+#ifdef EMS_TARGET_USE_CALLOC
     mem = reinterpret_cast<unsigned char*>(calloc(MEM_SIZE, sizeof(char)));
     if (!mem) {
       debug(this->name() << " calloc() failed");
       sc_core::sc_stop();
     }
-#endif /* EMS_TARGET_USE_MMAP */
+#else
+    mem = reinterpret_cast<unsigned char*>(mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
+    if (mem == MAP_FAILED) {
+      debug(this->name() << " mmap() failed");
+      sc_core::sc_stop();
+    }
+#endif /* EMS_TARGET_USE_CALLOC */
 
     SC_METHOD(execute_process);
     sensitive << target_done_event;
@@ -74,21 +76,27 @@ struct at_target : sc_core::sc_module {
   ~at_target()
   {
     if (mem) {
-#ifdef EMS_TARGET_USE_MMAP
-      munmap(mem, MEM_SIZE);
-#else
+#ifdef EMS_TARGET_USE_CALLOC
       free(mem);
-#endif /* EMS_TARGET_USE_MMAP */
+#else
+      munmap(mem, MEM_SIZE);
+#endif /* EMS_TARGET_USE_CALLOC */
     }
   }
 
-  void execute(tlm::tlm_generic_payload *p);
+  // Module interface
+  tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &delay);
+  unsigned int transport_dbg(tlm::tlm_generic_payload &p);
+
+private:
+  unsigned int execute(tlm::tlm_generic_payload *p);
   void execute_process();
   void send_begin_resp(tlm::tlm_generic_payload &p);
   void send_end_req(tlm::tlm_generic_payload &p);
 
-  tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &delay);
-  void peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase);
+  // Payload event queue (PEQ)
+  tlm_utils::peq_with_cb_and_phase<at_target> peq;
+  void peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase);
 
   sc_core::sc_time accept_delay;
   sc_core::sc_time internal_latency;
@@ -97,29 +105,25 @@ struct at_target : sc_core::sc_module {
   sc_event target_done_event;
   tlm::tlm_generic_payload *next_response_pending;
   tlm::tlm_generic_payload *end_req_pending;
-  tlm_utils::peq_with_cb_and_phase<at_target> peq;
   uint32_t bytes_per_access;
   unsigned char *mem;
 };
 
 void at_target::send_end_req(tlm::tlm_generic_payload &p)
 {
-  tlm::tlm_phase phase;
-  sc_core::sc_time delay;
+  tlm::tlm_phase bw_phase = tlm::END_REQ;
   // Request accept delay (END_REQ delay)
-  phase = tlm::END_REQ;
-  delay = accept_delay;
-  // Initiator cannot terminate transaction at this point.
-  // Ignore return value.
-  tsocket->nb_transport_bw(p, phase, delay);
-  // Enqueue internal event to send BEGIN_RESP after internal_latency
+  sc_core::sc_time d = accept_delay;
+  // Upstream component cannot terminate transaction at this point
+  tlm::tlm_sync_enum s = tsocket->nb_transport_bw(p, bw_phase, d);
+  assert(s == tlm::TLM_ACCEPTED);
+  // Schedule internal event to send BEGIN_RESP after internal_latency
   target_done_event.notify(internal_latency);
-
-  assert(req_in_progress == NULL);
+  assert(req_in_progress == nullptr);
   req_in_progress = &p;
 }
 
-void at_target::execute(tlm::tlm_generic_payload *p)
+unsigned int at_target::execute(tlm::tlm_generic_payload *p)
 {
   tlm::tlm_command cmd = p->get_command();
   sc_dt::uint64 addr = p->get_address();
@@ -128,42 +132,49 @@ void at_target::execute(tlm::tlm_generic_payload *p)
   unsigned char *ben = p->get_byte_enable_ptr();
   unsigned int swidth = p->get_streaming_width();
 
+#if !defined(__VP_USE_SYSTEMC_GEM5)
+  // TODO: check why gem5 experiment fails this check
   if (addr >= sc_dt::uint64(MEM_SIZE) || (addr % bytes_per_access)) {
-    debug(name() << " Address error p: " << p << " addr 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << (cmd ? " write" : " read") << std::dec);
+#else
+  if (addr >= sc_dt::uint64(MEM_SIZE)) {
+#endif /* !defined(__VP_USE_SYSTEMC_GEM5) */
+    debug(name() << " Address error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read") << " bytes_per_access: " << bytes_per_access);
     p->set_response_status(tlm::TLM_ADDRESS_ERROR_RESPONSE);
-    return;
+    return 0;
   }
 
+#if !defined(__VP_USE_SYSTEMC_GEM5)
+  // TODO: check why gem5 experiment fails this check
   if (dlen != bytes_per_access || swidth < dlen) {
-    debug(name() << " Burst error p: " << p << " addr 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << (cmd ? " write" : " read") << std::dec);
+    debug(name() << " Burst error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read") << " dlen: " << dlen << " bytes_per_access: " << bytes_per_access << " swidth: " << swidth);
     p->set_response_status(tlm::TLM_BURST_ERROR_RESPONSE);
-    return;
+    return 0;
   }
+#endif /* !defined(__VP_USE_SYSTEMC_GEM5) */
 
-  if (ben != NULL) {
-    debug(name() << " Byte enable error p: " << p << " addr 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << (cmd ? " write" : " read") << std::dec);
+  if (ben != nullptr) {
+    debug(name() << " Byte enable error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read"));
     p->set_response_status(tlm::TLM_BYTE_ENABLE_ERROR_RESPONSE);
-    return;
+    return 0;
   }
-
-  ems::req_extension *re;
-  p->get_extension(re);
 
   switch (cmd) {
     case tlm::TLM_READ_COMMAND:
       memcpy(dptr, mem, dlen);
-      //debug(name() << " READ addr: " << addr << " size: " << dlen << " tid: " << re->id << " last: " <<  (re->last ? "yes" : "no"));
+      //debug(name() << " READ addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " dlen: " << dlen);
       break;
     case tlm::TLM_WRITE_COMMAND:
-      //debug(name() << " WRITE addr: " << addr << " size: " << dlen << " tid: " << re->id << " last: " <<  (re->last ? "yes" : "no"));
       memcpy(mem, dptr, dlen);
+      //debug(name() << " WRITE addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " dlen: " << dlen);
       break;
     default:
+      debug(name() << " Invalid command")
       SC_REPORT_FATAL(name(), "Invalid command");
       break;
   }
 
   p->set_response_status(tlm::TLM_OK_RESPONSE);
+  return dlen;
 }
 
 // Method process sensitive to target_done_event
@@ -213,7 +224,7 @@ void at_target::send_begin_resp(tlm::tlm_generic_payload &p)
     case tlm::TLM_COMPLETED:
       // Return path is being used
       // Transaction terminated by initiator
-      req_in_progress = NULL;
+      req_in_progress = nullptr;
       resp_in_progress = false;
       break;
     default:
@@ -233,7 +244,7 @@ tlm::tlm_sync_enum at_target::nb_transport_fw(tlm::tlm_generic_payload &p, tlm::
   return tlm::TLM_ACCEPTED;
 }
 
-void at_target::peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
+void at_target::peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 {
   switch (phase) {
     case tlm::BEGIN_REQ:
@@ -249,35 +260,40 @@ void at_target::peq_callback(tlm::tlm_generic_payload &p, const tlm::tlm_phase &
       // On receiving END_RESP, the target can release the transaction and
       // allow other pending transactions to proceed
       if (!resp_in_progress) {
-        debug(name() << "Illegal phase END_RESP received by target")
-        SC_REPORT_FATAL(name(), "Illegal phase END_RESP received by target");
+        debug(name() << " Illegal phase END_RESP received by target")
+        SC_REPORT_FATAL(name(), " Illegal phase END_RESP received by target");
       }
 
-      req_in_progress = NULL;
+      req_in_progress = nullptr;
       // at_target itself is now clear to issue the next BEGIN_RESP
       resp_in_progress = false;
 
       if (next_response_pending) {
         send_begin_resp(*next_response_pending);
-        next_response_pending = NULL;
+        next_response_pending = nullptr;
       }
 
       // and to unblock the initiator by issuing END_REQ
       if (end_req_pending) {
         send_end_req(*end_req_pending);
-        end_req_pending = NULL;
+        end_req_pending = nullptr;
       }
       break;
     case tlm::END_REQ:
     case tlm::BEGIN_RESP:
-      debug(name() << "Illegal phase received by target")
-      SC_REPORT_FATAL(name(), "Illegal phase received by target");
+      debug(name() << " Illegal phase received by target")
+      SC_REPORT_FATAL(name(), " Illegal phase received by target");
       break;
     default:
-      debug(name() << "Illegal phase received by target")
-      SC_REPORT_FATAL(name(), "Illegal phase received by target");
+      debug(name() << " Illegal phase received by target")
+      SC_REPORT_FATAL(name(), " Illegal phase received by target");
       break;
   }
+}
+
+unsigned int at_target::transport_dbg(tlm::tlm_generic_payload &p)
+{
+  return execute(&p);
 }
 
 } // namespace ems
