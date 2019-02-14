@@ -368,7 +368,8 @@ static inline iss_insn_t *c_add_exec(iss_t *iss, iss_insn_t *insn)
 static inline iss_insn_t *c_ebreak_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_pccr_account_event(iss, CSR_PCER_RVC, 1);
-  iss_set_halt_mode(iss, true, 3);
+  iss_handle_ebreak(iss, insn);
+  //iss_set_halt_mode(iss, true, 3);
   return insn->next;
 }
 

@@ -32,12 +32,18 @@ vp::Event_trace::Event_trace(string trace_name, Event_file *file, int width, boo
   file->add_trace(trace_name, id, width, is_real, is_string);
   this->width = width;
   this->buffer = new uint8_t[width];
+  this->flags_mask = new uint8_t[width];
 }
 
 
-void vp::Event_trace::reg(int64_t timestamp, uint8_t *event, int width)
+void vp::Event_trace::reg(int64_t timestamp, uint8_t *event, int width, uint8_t flags, uint8_t *flags_mask)
 {
   memcpy(this->buffer, event, (width+7)/8);
+  this->flags = flags;
+  if (flags == 1)
+  {
+    memcpy(this->flags_mask, flags_mask, (width+7)/8);
+  }
 }
 
 

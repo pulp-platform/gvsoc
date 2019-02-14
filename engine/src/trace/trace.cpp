@@ -178,13 +178,33 @@ void vp::trace_engine::flush()
 
 void vp::trace_engine::dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes, bool include_size)
 {
-  int size = bytes + sizeof(trace) + sizeof(timestamp);
+  uint8_t flags = 0;
+  int size = bytes + sizeof(trace) + sizeof(timestamp) + 1;
   if (include_size)
     size += 4;
+
+  if (event == NULL)
+  {
+    flags = 1;
+    size += bytes;
+  }
+
   char *event_buffer = this->get_event_buffer(size);
 
   *(vp::trace **)event_buffer = trace;
   event_buffer += sizeof(trace);
+
+  *(uint8_t *)event_buffer = flags;
+  event_buffer++;
+
+  // In case the special value 'Z' is inside, give the mask where it applies
+  if (flags == 1)
+  {
+    // For now we just support 'Z' everywhere
+    memset((void *)event_buffer, 0xff, bytes);
+    event_buffer += bytes;
+  }
+
   *(int64_t *)event_buffer = timestamp;
   event_buffer += sizeof(timestamp);
 
@@ -358,10 +378,25 @@ void vp::trace_engine::vcd_routine()
     while (size < TRACE_EVENT_BUFFER_SIZE)
     {
       int64_t timestamp;
+      uint8_t flags;
+
       vp::trace *trace = *(vp::trace **)event_buffer;
       if (trace == NULL) break;
 
       event_buffer += sizeof(trace);
+
+      int bytes = trace->bytes;
+      uint8_t flags_mask[bytes];
+
+      flags = *(uint8_t *)event_buffer;
+      event_buffer++;
+
+      if (flags == 1)
+      {
+        memcpy((void *)flags_mask, (void *)event_buffer, bytes);
+        event_buffer += bytes;
+      }
+
       timestamp = *(int64_t *)event_buffer;
 
       if (last_timestamp == -1)
@@ -377,8 +412,8 @@ void vp::trace_engine::vcd_routine()
 
       if (trace->is_string)
       {
-        trace->bytes = *(int32_t *)event_buffer;
-        trace->width = trace->bytes * 8;
+        bytes = *(int32_t *)event_buffer;
+        trace->width = bytes * 8;
         if (trace->event_trace)
         {
           trace->event_trace->width = trace->width;
@@ -386,8 +421,8 @@ void vp::trace_engine::vcd_routine()
         event_buffer += 4;
       }
 
-      int bytes = trace->bytes;
       uint8_t event[bytes];
+
       memcpy((void *)&event, (void *)event_buffer, bytes);
       event_buffer += bytes;
 
@@ -395,7 +430,7 @@ void vp::trace_engine::vcd_routine()
 
       if (trace->event_trace)
       {
-        trace->event_trace->reg(timestamp, event, trace->width);
+        trace->event_trace->reg(timestamp, event, trace->width, flags, flags_mask);
         if (!trace->event_trace->is_enqueued)
         {
           trace->event_trace->is_enqueued = true;

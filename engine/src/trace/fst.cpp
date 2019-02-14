@@ -78,7 +78,7 @@ void vp::Fst_file::add_trace(string path, int id, int width, bool is_real, bool 
   this->parse_path(string(path), false);
 }
 
-void vp::Fst_file::dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string)
+void vp::Fst_file::dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string, uint8_t flags, uint8_t *flag_mask)
 {
   fstWriterEmitTimeChange(this->writer, timestamp);
   if (is_real)
@@ -94,7 +94,11 @@ void vp::Fst_file::dump(int64_t timestamp, int id, uint8_t *event, int width, bo
     char val[width];
     for (int i=0; i<width; i++)
     {
-      val[width - i - 1] = '0' + (((*(uint32_t *)event) >> i) & 1);
+      // For now we just support Z everywhere
+      if (flags == 1)
+        val[width - i - 1] = 'Z';
+      else
+        val[width - i - 1] = '0' + (((*(uint32_t *)event) >> i) & 1);
     }
     fstWriterEmitValueChange(this->writer, this->vars[id], val);
   }

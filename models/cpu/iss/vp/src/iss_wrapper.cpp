@@ -200,6 +200,19 @@ void iss_wrapper::bootaddr_sync(void *__this, uint32_t value)
   iss_irq_set_vector_table(_this, _this->bootaddr_reg.get());
 }
 
+void iss_wrapper::clock_sync(void *__this, bool active)
+{
+  iss_t *_this = (iss_t *)__this;
+  _this->trace.msg("Setting clock (active: %d)\n", active);
+  // TODO this could be better handler is the clock would be taken into
+  // account in the core state machine
+  uint8_t value = active && _this->is_active_reg.get();
+  if (value)
+    _this->state_event.event((uint8_t *)&value);
+  else
+    _this->state_event.event(NULL);
+}
+
 void iss_wrapper::fetchen_sync(void *__this, bool active)
 {
   iss_t *_this = (iss_t *)__this;
@@ -271,6 +284,8 @@ void iss_wrapper::check_state()
     {
       wfi.set(false);
       is_active_reg.set(true);
+      uint8_t one = 1;
+      this->state_event.event(&one);
 
       if (step_mode.get())
         do_step.set(true);
@@ -286,9 +301,11 @@ void iss_wrapper::check_state()
   }
   else
   {
+    uint8_t zero = 0;
     if (halted.get() && !do_step.get())
     {
       is_active_reg.set(false);
+      this->state_event.event(&zero);
       this->halt_core();
     }
     else if (wfi.get())
@@ -296,6 +313,7 @@ void iss_wrapper::check_state()
       if (irq_req == -1)
       {
         is_active_reg.set(false);
+        this->state_event.event(&zero);
       }
       else
         wfi.set(false);
@@ -458,7 +476,10 @@ void iss_wrapper::handle_ebreak()
         }
         else
         {
-          trace->event((uint8_t *)&this->cpu.regfile.regs[12]);
+          if (this->cpu.regfile.regs[12] == 1)
+            trace->event(NULL);
+          else
+            trace->event((uint8_t *)&this->cpu.regfile.regs[14]);
         }
       }
 
@@ -633,6 +654,7 @@ int iss_wrapper::build()
   traces.new_trace("csr", &csr_trace, vp::TRACE);
   traces.new_trace("perf", &perf_counter_trace, vp::TRACE);
 
+  traces.new_trace_event("state", &state_event, 8);
   traces.new_trace_event("pc", &pc_trace_event, 32);
   traces.new_trace_event_string("asm", &insn_trace_event);
   traces.new_trace_event_string("func", &func_trace_event);
@@ -689,6 +711,9 @@ int iss_wrapper::build()
 
   bootaddr_itf.set_sync_meth(&iss_wrapper::bootaddr_sync);
   new_slave_port("bootaddr", &bootaddr_itf);
+
+  clock_itf.set_sync_meth(&iss_wrapper::clock_sync);
+  new_slave_port("clock", &clock_itf);
 
   irq_req_itf.set_sync_meth(&iss_wrapper::irq_req_sync);
   new_slave_port("irq_req", &irq_req_itf);

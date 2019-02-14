@@ -41,7 +41,7 @@ void vp::Lxt2_file::add_trace(string path, int id, int width, bool is_real, bool
   this->symbols[id] = symbol;
 }
 
-void vp::Lxt2_file::dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string)
+void vp::Lxt2_file::dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string, uint8_t flags, uint8_t *flag_mask)
 {
   lxt2_wr_set_time64(this->trace, timestamp);
   lxt2_wr_emit_value_int(this->trace, this->symbols[id], 0, *(uint32_t *)event);

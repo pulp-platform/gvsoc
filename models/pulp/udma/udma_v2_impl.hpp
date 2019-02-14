@@ -128,6 +128,7 @@ private:
   Udma_queue<Udma_transfer> *free_reqs;
   Udma_queue<Udma_transfer> *pending_reqs;
 
+  vp::trace     state_event;
 };
 
 
@@ -542,6 +543,42 @@ private:
   unsigned int frameDropCount;
   unsigned int currentLine;
   unsigned int currentRow;
+
+};
+
+
+
+
+/*
+ * I2S
+ */
+
+class I2s_periph_v1;
+
+class I2s_rx_channel : public Udma_rx_channel
+{
+public:
+  I2s_rx_channel(udma *top, I2s_periph_v1 *periph, int id, string name);
+
+private:
+  void reset(bool active);
+  I2s_periph_v1 *periph;
+};
+
+class I2s_periph_v1 : public Udma_periph
+{
+  friend class I2s_rx_channel;
+
+public:
+  I2s_periph_v1(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  void reset(bool active);
+
+protected:
+
+private:
+
+  vp::trace     trace;
 
 };
 
