@@ -24,15 +24,6 @@
 
 void insn_init(iss_insn_t *insn, iss_addr_t addr);
 
-static void flush_insn_block(iss_insn_block_t *b, unsigned int pc)
-{
-  for (int i=0; i<ISS_INSN_BLOCK_SIZE; i++)
-    {
-      iss_insn_t *insn = &b->insns[i];
-      insn_init(insn, 0);
-    }
-}
-
 static void flush_cache(iss_t *iss, iss_insn_cache_t *cache)
 {
   prefetcher_flush(iss);
@@ -42,10 +33,10 @@ static void flush_cache(iss_t *iss, iss_insn_cache_t *cache)
     iss_insn_block_t *b = cache->blocks[i];
     while(b)
     {
-     flush_insn_block(b, b->insns[i].addr);
-     b = b->next;
+      iss_insn_block_t *next = b->next;
+      free((void *)b);
+      b = next;
     }
-    free((void *)b);
     cache->blocks[i] = NULL;
  }
 }

@@ -276,17 +276,16 @@ void vp::time_engine::run_loop()
         // Execute the events for the next engine
         int64_t time = current->exec();
 
-        // Dequeue the engine we have just executed
-        first_client = current->next;
-
         current->is_enqueued = false;
         current->running = false;
 
         // And reenqueue it in case it has events in the future
         if (time > 0)
         {
-          current->next_event_time = time + this->time;
+          time += this->time;
+          current->next_event_time = time;
           time_engine_client *client = first_client, *prev = NULL;
+
           while (client && client->next_event_time < time)
           {
             prev = client;
@@ -300,6 +299,8 @@ void vp::time_engine::run_loop()
           current->next = client;
           current->is_enqueued = true;
         }
+
+        if (!run_req) break;
 
         // Now loop until the systemC times reaches the time of out next event.
         // We can get back control before the next event in case the systemC part
@@ -330,6 +331,13 @@ void vp::time_engine::run_loop()
         }
 
         current = first_client;
+        if (current)
+        {
+          vp_assert(first_client->next_event_time >= get_time(), NULL, "event time is before vp time\n");
+
+          first_client = current->next;
+          current->is_enqueued = false;
+        }
 
   #else
     
