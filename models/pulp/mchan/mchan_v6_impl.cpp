@@ -237,6 +237,7 @@ private:
 
   bool ext_is_stalled;
 
+  vp::trace     cmd_events[MCHAN_NB_COUNTERS];
 };
 
 void Mchan_channel::reset()
@@ -388,6 +389,9 @@ bool Mchan_channel::check_command(Mchan_cmd *cmd)
   top->pending_bytes[current_counter] += cmd->size;
 
   // Enqueue the command to the core queue
+  uint8_t one = 1;
+  this->top->cmd_events[cmd->counter_id].event(&one);
+
   pending_cmds->push(cmd);
 
   if (cmd->loc2ext)
@@ -907,6 +911,7 @@ void mchan::check_ext_write_handler(void *__this, vp::clock_event *event)
 
 void mchan::handle_cmd_termination(Mchan_cmd *cmd)
 {
+  this->cmd_events[cmd->counter_id].event(NULL);
   free_command(cmd);
 }
 
@@ -1127,11 +1132,16 @@ void mchan::check_queue()
 
 int mchan::build()
 {
-  traces.new_trace("trace", &trace, vp::DEBUG);
+  traces.new_trace("trace", &this->trace, vp::DEBUG);
 
   for (int i=0; i<nb_channels; i++)
   {
     channels.push_back(new Mchan_channel(i, this));
+  }
+
+  for (int i=0; i<MCHAN_NB_COUNTERS; i++)
+  {
+    traces.new_trace_event("channel_" + std::to_string(i), &this->cmd_events[i], 8);
   }
 
   return 0;
@@ -1177,6 +1187,13 @@ void mchan::reset(bool active)
     current_loc_cmd = NULL;
     pending_loc_read_req = NULL;
     ext_is_stalled = false;
+    for (int i=0; i<MCHAN_NB_COUNTERS; i++)
+    {
+      this->cmd_events[i].event(NULL);
+    }
+  }
+  else
+  {
   }
 }
 

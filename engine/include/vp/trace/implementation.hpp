@@ -32,7 +32,7 @@ namespace vp {
   #ifdef VP_TRACE_ACTIVE
     if (is_event_active)
     {
-      trace_manager->dump_event(this, comp->get_clock()->get_time(), value, bytes);
+      trace_manager->dump_event(this, comp->get_time(), value, bytes);
     }
   #endif
   }
@@ -42,7 +42,7 @@ namespace vp {
   #ifdef VP_TRACE_ACTIVE
     if (is_event_active)
     {
-      trace_manager->dump_event_pulse(this, comp->get_clock()->get_time(), comp->get_clock()->get_time() + duration, pulse_value, background_value, bytes);
+      trace_manager->dump_event_pulse(this, comp->get_time(), comp->get_clock()->get_time() + duration, pulse_value, background_value, bytes);
     }   
   #endif
   }
@@ -62,7 +62,7 @@ namespace vp {
   #ifdef VP_TRACE_ACTIVE
     if (is_event_active)
     {
-      trace_manager->dump_event(this, comp->get_clock()->get_time(), (uint8_t *)&value, 8);
+      trace_manager->dump_event(this, comp->get_time(), (uint8_t *)&value, 8);
     }  	
   #endif
   }
@@ -72,7 +72,7 @@ namespace vp {
   #ifdef VP_TRACE_ACTIVE
     if (is_event_active)
     {
-      trace_manager->dump_event_pulse(this, comp->get_clock()->get_time(), comp->get_clock()->get_time() + duration, (uint8_t *)&pulse_value, (uint8_t *)&background_value, 8);
+      trace_manager->dump_event_pulse(this, comp->get_time(), comp->get_time() + duration, (uint8_t *)&pulse_value, (uint8_t *)&background_value, 8);
     }   
   #endif
   }
@@ -82,7 +82,7 @@ namespace vp {
   #ifdef VP_TRACE_ACTIVE
     if (is_event_active)
     {
-      trace_manager->dump_event_delayed(this, comp->get_clock()->get_time(), (uint8_t *)&value, 8);
+      trace_manager->dump_event_delayed(this, comp->get_time(), (uint8_t *)&value, 8);
     }   
   #endif
   }

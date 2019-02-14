@@ -275,6 +275,8 @@ private:
   vp::wire_master<bool> barrier_itf;
   vp::wire_slave<bool> in_event_itf[32];
 
+  vp::wire_master<bool>    clock_itf;
+
   vp::wire_master<int>    irq_req_itf;
   vp::wire_slave<int>     irq_ack_itf;
 
@@ -440,6 +442,8 @@ void Core_event_unit::build(Event_unit *top, int core_id)
   irq_wakeup_event = top->event_new((void *)this, Core_event_unit::irq_wakeup_handler);
 
   top->new_master_port("irq_req_" + std::to_string(core_id), &irq_req_itf);
+
+  top->new_master_port("clock_" + std::to_string(core_id), &clock_itf);
 
   irq_ack_itf.set_sync_meth_muxed(&Event_unit::irq_ack_sync, core_id);
   top->new_slave_port("irq_ack_" + std::to_string(core_id), &irq_ack_itf);
@@ -703,6 +707,7 @@ vp::io_req_status_e Core_event_unit::put_to_sleep(vp::io_req *req, Event_unit_co
 {
   state = wait_state;
   this->is_active.set(0);
+  this->clock_itf.sync(0);
   pending_req = req;
   return vp::IO_REQ_PENDING;
 }
@@ -889,6 +894,7 @@ void Core_event_unit::reset()
   clear_evt_mask = 0;
   sync_irq = -1;
   state = CORE_STATE_NONE;
+  this->clock_itf.sync(1);
 }
 
 void Core_event_unit::wakeup_handler(void *__this, vp::clock_event *event)
@@ -896,6 +902,7 @@ void Core_event_unit::wakeup_handler(void *__this, vp::clock_event *event)
   Core_event_unit *_this = (Core_event_unit *)__this;
   _this->top->trace.msg("Replying to core after wakeup (core: %d)\n", _this->core_id);
   _this->is_active.set(1);
+  _this->clock_itf.sync(1);
   _this->check_pending_req();
   _this->check_state();
 }
@@ -905,6 +912,7 @@ void Core_event_unit::irq_wakeup_handler(void *__this, vp::clock_event *event)
   Core_event_unit *_this = (Core_event_unit *)__this;
   _this->top->trace.msg("IRQ wakeup\n");
   _this->is_active.set(1);
+  _this->clock_itf.sync(1);
   _this->check_state();
 }
 

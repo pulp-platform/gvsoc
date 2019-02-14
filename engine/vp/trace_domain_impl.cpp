@@ -39,6 +39,7 @@ public:
   void reg_trace(vp::trace *trace, int event, string path, string name);
 
   int build();
+  void start();
 
   int get_max_path_len() { return max_path_len; }
 
@@ -56,6 +57,7 @@ private:
   std::vector<string> events_file;
   int max_path_len = 0;
   vp::trace_level_e trace_level = vp::TRACE;
+  std::vector<vp::trace *> init_traces;
 };
 
 
@@ -130,11 +132,38 @@ int trace_domain::build()
 {
   new_service("trace", static_cast<trace_engine *>(this));
 
-  vp::trace *trace = new vp::trace();
+  auto vcd_traces = get_js_config()->get("vcd/traces");
 
-  traces.new_trace_event_string("/user/kernel", trace);
+  if (vcd_traces != NULL)
+  {
+    for (auto x: vcd_traces->get_childs())
+    {
+      std::string type = x.second->get_child_str("type");
+      std::string path = x.second->get_child_str("path");
+
+      if (type == "string")
+      {
+        vp::trace *trace = new vp::trace();
+        traces.new_trace_event_string(path, trace);
+      }
+      else if (type == "int")
+      {
+        vp::trace *trace = new vp::trace();
+        traces.new_trace_event(path, trace, 32);
+        this->init_traces.push_back(trace);
+      }
+    }
+  }
 
   return 0;
+}
+
+void trace_domain::start()
+{
+  for (auto x: this->init_traces)
+  {
+    x->event(NULL);
+  }
 }
 
 void trace_domain::add_path(int events, const char *path)

@@ -30,7 +30,7 @@ namespace vp {
   class Event_file 
   {
   public:
-    virtual void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string) {}
+    virtual void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string, uint8_t flags, uint8_t *flag_mask) {}
     virtual void close() {}
     virtual void add_trace(string name, int id, int width, bool is_real, bool is_string) {}
 
@@ -45,8 +45,8 @@ namespace vp {
   {
   public:
     Event_trace(string trace_name, Event_file *file, int width, bool is_real, bool is_string);
-  void reg(int64_t timestamp, uint8_t *event, int width);
-    inline void dump(int64_t timestamp) { file->dump(timestamp, id, this->buffer, this->width, this->is_real, this->is_string); }
+    void reg(int64_t timestamp, uint8_t *event, int width, uint8_t flags, uint8_t *flag_mask);
+    inline void dump(int64_t timestamp) { file->dump(timestamp, id, this->buffer, this->width, this->is_real, this->is_string, this->flags, this->flags_mask); }
     bool is_real = false;
     bool is_string;
     Event_trace *next;
@@ -57,6 +57,8 @@ namespace vp {
     Event_file *file;
     int id;
     uint8_t *buffer;
+    uint8_t flags;
+    uint8_t *flags_mask;
 
   };
 
@@ -82,7 +84,7 @@ namespace vp {
     Vcd_file(Event_dumper *dumper, string path);
     void close();
     void add_trace(string name, int id, int width, bool is_real, bool is_string);
-    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string);
+    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string, uint8_t flags, uint8_t *flag_mask);
 
   private:
     string parse_path(string path, bool begin);
@@ -94,7 +96,7 @@ namespace vp {
     Lxt2_file(Event_dumper *dumper, string path);
     void close();
     void add_trace(string name, int id, int width, bool is_real, bool is_string);
-    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string);
+    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string, uint8_t flags, uint8_t *flag_mask);
 
   private:
     struct lxt2_wr_trace *trace;
@@ -108,7 +110,7 @@ namespace vp {
     Fst_file(Event_dumper *dumper, string path);
     void close();
     void add_trace(string name, int id, int width, bool is_real, bool is_string);
-    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string);
+    void dump(int64_t timestamp, int id, uint8_t *event, int width, bool is_real, bool is_string, uint8_t flags, uint8_t *flag_mask);
 
   private:
     string parse_path(string path, bool begin);

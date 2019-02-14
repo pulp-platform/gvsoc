@@ -112,6 +112,7 @@ public:
   vp::power_source clock_gated_power;
   vp::power_source leakage_power;
 
+  vp::trace     state_event;
   vp::trace     pc_trace_event;
   vp::trace     func_trace_event;
   vp::trace     inline_trace_event;
@@ -151,10 +152,12 @@ private:
   int64_t    misaligned_latency;
 
   vp::wire_slave<uint32_t> bootaddr_itf;
+  vp::wire_slave<bool>     clock_itf;
   vp::wire_slave<bool>     fetchen_itf;
   vp::wire_slave<bool>     halt_itf;
   vp::wire_master<bool>     halt_status_itf;
 
+  static void clock_sync(void *_this, bool active);
   static void bootaddr_sync(void *_this, uint32_t value);
   static void fetchen_sync(void *_this, bool active);
   static void halt_sync(void *_this, bool active);
