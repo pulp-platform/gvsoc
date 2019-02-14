@@ -1,5 +1,5 @@
 
-## Support to DRAMSys TLM2.0 memory models
+## Support to DRAMSys SystemC TLM-2.0 Memory Models
 
 [DRAMSys](https://www.jstage.jst.go.jp/article/ipsjtsldm/8/0/8_63/_article) is a flexible DRAM subsystem design space exploration framework that consists of models reflecting the DRAM functionality, power consumption, retention time errors, etc.
 
@@ -14,7 +14,7 @@ $ cd models/memory
 $ git clone --recursive <DRAMSys repo URL>
 ```
 
-Check DRAMSys project's documentation, follow the steps on README.md in order to get all the dependencies installed in your system and learn about the features provided.
+Check DRAMSys project documentation, follow the steps on README.md in order to get all the dependencies installed in your system and learn about the features provided.
 
 Two environment variables influence the build process and should be defined in order to use DRAMSys. They are:
 

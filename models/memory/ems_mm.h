@@ -22,12 +22,9 @@
 #ifndef __EMS_MM_H__
 #define __EMS_MM_H__
 
-#include <time.h>
-#include <iostream>
-#include <iomanip>
-#include <string.h>
-#include <tlm.h>
 #include <vector>
+
+#include <tlm.h>
 
 namespace ems {
 
@@ -51,9 +48,6 @@ struct req_extension : tlm::tlm_extension<req_extension> {
   uint32_t id;     // A request is split into multiple transactions
   bool last;       // Last transaction of a request
 };
-
-static ofstream fout("/dev/stdout");
-#define debug(msg) 	    fout << "[" << std::setfill('0') << std::setw(12) << sc_core::sc_time_stamp().to_string() << "]" << "(" << __FILE__ << ":" << __LINE__ << ") -- " << __func__ << " -- " << msg << endl;
 
 class mm : public tlm::tlm_mm_interface
 {
