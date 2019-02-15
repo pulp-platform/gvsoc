@@ -78,6 +78,10 @@ public:
     }
   }
 
+  // External bindings
+  std::vector<Gem5SystemC::Gem5SlaveTransactor *> transactors;
+
+private:
   unsigned int get_num_ports(std::string cfg)
   {
     std::string cmd = "grep port_data= " + cfg + " | wc -l";
@@ -86,10 +90,6 @@ public:
     return np;
   }
 
-  // External bindings
-  std::vector<Gem5SystemC::Gem5SlaveTransactor *> transactors;
-
-private:
   class gem5_sim_ctrl : public Gem5SystemC::Gem5SimControl
   {
   public:

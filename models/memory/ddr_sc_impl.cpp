@@ -100,6 +100,7 @@ public:
 
   int build();
   void start();
+  void stop();
   void elab();
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
@@ -238,6 +239,23 @@ void ddr::start()
 
   trace.msg("Building ddr (size: 0x%lx)\n", size);
 
+}
+
+void ddr::stop()
+{
+#ifdef __VP_USE_SYSTEMC_DRAMSYS
+  delete dramsys;
+#else
+  delete at_target;
+#endif /* __VP_USE_SYSTEMC_DRAMSYS */
+
+#ifdef __VP_USE_SYSTEMC_GEM5
+  delete g5tbr;
+#endif /* __VP_USE_SYSTEMC_GEM5 */
+  delete pcib;
+  delete pcbt;
+  delete at_bus;
+  delete sc_module;
 }
 
 extern "C" void *vp_constructor(const char *config)
