@@ -41,32 +41,33 @@ namespace ems {
 class gem5_tlm_br
 {
 public:
-  gem5_tlm_br(std::string name, std::string cfg, unsigned int nports)
+  gem5_tlm_br(std::string name, std::string cfg) : name(name)
   {
+    unsigned int np = get_num_ports(cfg);
+    assert(np > 0);
+
+    std::ifstream file(cfg);
+    if (!file.is_open()) {
+      debug(name << " Unable to open file " << cfg);
+      throw std::runtime_error("Unable to open file");
+    }
+
     sctrl = new gem5_sim_ctrl(name, cfg);
     Gem5SystemC::Gem5SlaveTransactor *t;
     std::string line;
-    std::ifstream file(cfg);
-
-    if (!file.is_open()) {
-      debug("Unable to open file" << cfg);
-      throw std::logic_error("Unable to open file");
-    }
-
     std::regex rgx("port_data=(\\w+)");
     std::smatch match;
     while (std::getline(file, line)) {
       if (std::regex_search(line, match, rgx)) {
-        t = new Gem5SystemC::Gem5SlaveTransactor(match.str(1).c_str(), match.str(1).c_str());
+        std::string tn = match.str(1);
+        t = new Gem5SystemC::Gem5SlaveTransactor(tn.c_str(), tn.c_str());
         t->sim_control.bind(*sctrl);
         transactors.push_back(t);
       }
     }
     file.close();
-    if (match.empty()) {
-      debug("No matches found for regex");
-      throw std::logic_error("No matches found for regex");
-    }
+
+    assert(transactors.size() == np);
   }
 
   ~gem5_tlm_br()
@@ -75,6 +76,14 @@ public:
     for (auto t : transactors) {
        delete t;
     }
+  }
+
+  unsigned int get_num_ports(std::string cfg)
+  {
+    std::string cmd = "grep port_data= " + cfg + " | wc -l";
+    unsigned int np = std::stoul(ems::sh_exec(cmd.c_str()));
+    debug(name << " ports found: " << np);
+    return np;
   }
 
   // External bindings
@@ -105,6 +114,7 @@ private:
   };
 
   gem5_sim_ctrl *sctrl;
+  std::string name;
 };
 
 } // namespace ems

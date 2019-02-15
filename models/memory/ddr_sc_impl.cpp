@@ -215,10 +215,7 @@ void ddr::elab()
 #ifdef __VP_USE_SYSTEMC_GEM5
   // Instantiate gem5_tlm_br
   std::string cfg = std::string(__GEM5_PATH) + std::string("/config.ini");
-  std::string cmd = "grep port_data= " + cfg + " | wc -l";
-  auto nports = std::stoul(ems::sh_exec(cmd.c_str()));
-  g5tbr = new ems::gem5_tlm_br("g5tbr", cfg, nports);
-  assert(g5tbr->transactors.size() == nports);
+  g5tbr = new ems::gem5_tlm_br("g5tbr", cfg);
   for (auto t : g5tbr->transactors) {
       t->socket.bind(at_bus->tsocket);
   }
