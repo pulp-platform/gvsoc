@@ -55,5 +55,6 @@ Workshop on: Rapid Simulation and Performance Evaluation: Methods and Tools
 (RAPIDO), January, 2013, Berlin.
 
 [2] DRAMSys: A flexible DRAM Subsystem Design Space Exploration Framework
-M. Jung, C. Weis, N. Wehn. Accepted for publication, IPSJ Transactions on System LSI Design Methodology (T-SLDM), October, 2015.
+M. Jung, C. Weis, N. Wehn. Accepted for publication, IPSJ Transactions on
+System LSI Design Methodology (T-SLDM), October, 2015.
 
