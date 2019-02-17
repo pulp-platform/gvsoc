@@ -42,6 +42,8 @@ public:
   SC_HAS_PROCESS(at_bus);
   at_bus(sc_core::sc_module_name name) :
     sc_core::sc_module(name),
+    isocket("isocket"),
+    tsocket("tsocket"),
     fw_peq(this, &at_bus::fw_peq_cb),
     bw_peq(this, &at_bus::bw_peq_cb),
     tcnt(0)
@@ -118,7 +120,6 @@ int at_bus::decode_address(sc_dt::uint64 address, sc_dt::uint64 &masked_address)
   // copy of address
   sc_dt::uint64 mask = 0xffffffffffffffffULL;
   sc_dt::uint64 offset = 0x0000000000000000ULL;
-  //sc_dt::uint64 offset = 0x0000000080000000ULL;
   masked_address = ((address - offset) & mask);
   return 0;
 }
