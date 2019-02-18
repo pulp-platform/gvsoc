@@ -104,18 +104,18 @@ void vp::trace::dump_header()
   }
 
   int max_trace_len = comp->traces.get_trace_manager()->get_max_path_len();
-  fprintf(stdout, "%ld: %ld: [\033[34m%-*.*s\033[0m] ", time, cycles, max_trace_len, max_trace_len, name.c_str());
+  fprintf(this->trace_file, "%ld: %ld: [\033[34m%-*.*s\033[0m] ", time, cycles, max_trace_len, max_trace_len, name.c_str());
 }
 
 void vp::trace::dump_warning_header()
 {
   int max_trace_len = comp->traces.get_trace_manager()->get_max_path_len();
-  fprintf(stdout, "%ld: %ld: [\033[31m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, name.c_str());
+  fprintf(this->trace_file, "%ld: %ld: [\033[31m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, name.c_str());
 }
 
 void vp::trace::dump_fatal_header()
 {
-  fprintf(stdout, "[\033[31m%s\033[0m] ", name.c_str());
+  fprintf(this->trace_file, "[\033[31m%s\033[0m] ", name.c_str());
 }
 
 

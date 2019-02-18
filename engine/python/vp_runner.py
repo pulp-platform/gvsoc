@@ -1016,6 +1016,11 @@ def gen_gtkw_files(config, gv_config):
                     with gtkw.group('runtime', closed=True):
                         check_user_traces(gtkw, tp, 'overview.cluster.runtime', user_traces)
 
+                    with gtkw.group('stats', closed=True):
+                        check_user_traces(gtkw, tp, 'overview.cluster.stats', user_traces)
+                        for i in range(0, nb_pe):
+                            gtkw.trace(tp.get('overview', 'sys.board.chip.cluster.pe%d.ipc_stat' % i), 'pe%d_ipc' % i, extraflags=['analog_step', 'analog_fullscale'])
+
             with gtkw.group('chip', closed=True):
                 check_user_traces(gtkw, tp, 'chip', user_traces)
                 with gtkw.group('fc', closed=True):
@@ -1023,7 +1028,7 @@ def gen_gtkw_files(config, gv_config):
                     gen_gtkw_core_traces(gtkw, tp, 'sys.board.chip.soc.fc')
 
                 with gtkw.group('cluster', closed=True):
-                    gtkw.trace('sys.board.chip.cluster.power_trace', datafmt='real', extraflags=['analog_step'])
+                    gtkw.trace('sys.board.chip.cluster.power_trace', datafmt='real', extraflags=['analog_step', 'analog_fullscale'])
                     check_user_traces(gtkw, tp, 'chip.cluster', user_traces)
                     for i in range(0, nb_pe):
                         with gtkw.group('pe_%d' % i, closed=True):

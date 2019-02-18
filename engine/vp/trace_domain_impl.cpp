@@ -77,6 +77,8 @@ vp::trace_engine::trace_engine(const char *config)
   current_buffer_size = 0;
   this->first_pending_event = NULL;
   
+  this->trace_file = stdout; //fopen("trace.txt", "w");
+
   thread = new std::thread(&trace_engine::vcd_routine, this);
 }
 
@@ -104,6 +106,8 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
     full_path = name;
 
   traces_map[full_path] = trace;
+
+  trace->trace_file = this->trace_file;
 
   int index = 0;
   for (auto& x: event ? events_path_regex : path_regex) {

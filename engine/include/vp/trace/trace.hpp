@@ -76,12 +76,12 @@ namespace vp {
     bool is_real = false;
     bool is_string = false;
     int id;
+    FILE *trace_file;
 
   protected:
     int level;
     component *comp;
     trace_engine *trace_manager;
-    FILE *trace_file;
     bool is_event_active = false;
     string name;
     uint8_t *buffer = NULL;

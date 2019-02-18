@@ -103,7 +103,7 @@ namespace vp {
     dump_fatal_header();
     va_list ap;
     va_start(ap, fmt);
-    if (vfprintf(stdout, fmt, ap) < 0) {}
+    if (vfprintf(this->trace_file, fmt, ap) < 0) {}
     va_end(ap);
     abort();
   }
@@ -113,7 +113,7 @@ namespace vp {
     dump_warning_header();
     va_list ap;
     va_start(ap, fmt);
-    if (vfprintf(stdout, fmt, ap) < 0) {}
+    if (vfprintf(this->trace_file, fmt, ap) < 0) {}
     va_end(ap);
     #if 0
     printf("%ld: %ld: [\033[31m%-*.*s\033[0m] ", comp->get_clock()->get_time(), comp->get_clock()->get_cycles(), max_trace_len, max_trace_len, comp->get_path());
@@ -130,7 +130,7 @@ namespace vp {
     dump_warning_header();
     va_list ap;
     va_start(ap, fmt);
-    if (vfprintf(stdout, fmt, ap) < 0) {}
+    if (vfprintf(this->trace_file, fmt, ap) < 0) {}
     va_end(ap);
   #else
   #endif
@@ -152,7 +152,7 @@ namespace vp {
       dump_header();
       va_list ap;
       va_start(ap, fmt);
-      if (vfprintf(stdout, fmt, ap) < 0) {}
+      if (vfprintf(this->trace_file, fmt, ap) < 0) {}
       va_end(ap);  
     }
   #endif
