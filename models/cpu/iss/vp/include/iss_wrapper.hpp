@@ -121,6 +121,15 @@ public:
   vp::trace     pcer_trace_event[32];
   vp::trace     insn_trace_event;
   vp::trace     misaligned_req_event;
+
+  static void ipc_stat_handler(void *__this, vp::clock_event *event);
+  void gen_ipc_stat(bool pulse=false);
+  void trigger_ipc_stat();
+  void stop_ipc_stat();
+  int ipc_stat_nb_insn;
+  vp::trace     ipc_stat_event;
+  vp::clock_event *ipc_clock_event;
+  int ipc_stat_delay;
   
 #ifdef USE_TRDB
   trdb_ctx *trdb;
@@ -156,6 +165,8 @@ private:
   vp::wire_slave<bool>     fetchen_itf;
   vp::wire_slave<bool>     halt_itf;
   vp::wire_master<bool>     halt_status_itf;
+
+  bool clock_active;
 
   static void clock_sync(void *_this, bool active);
   static void bootaddr_sync(void *_this, uint32_t value);

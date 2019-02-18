@@ -53,7 +53,7 @@ static inline void trdb_record_instruction(iss_wrapper *_this, iss_insn_t *insn)
     size_t nb_bits = 0;
     int alignment = 0;
     trdb_serialize_packet(_this->trdb, packet, &nb_bits, alignment, _this->trdb_pending_word);
-    //printf("Got nb bits %ld %lx\n", nb_bits, (*(uint64_t *)_this->trdb_pending_word) & ((1<<nb_bits)-1));
+    ////printf("Got nb bits %ld %lx\n", nb_bits, (*(uint64_t *)_this->trdb_pending_word) & ((1<<nb_bits)-1));
     trdb_free_packet_list(&_this->trdb_packet_list);
     INIT_LIST_HEAD(&_this->trdb_packet_list);
   }
@@ -77,6 +77,10 @@ do { \
   if (_this->func_trace_event.get_event_active() || _this->inline_trace_event.get_event_active() || _this->file_trace_event.get_event_active() || _this->line_trace_event.get_event_active()) \
   { \
     _this->dump_debug_traces(); \
+  } \
+  if (_this->ipc_stat_event.get_event_active()) \
+  { \
+    _this->ipc_stat_nb_insn++; \
   } \
   if (_this->power_trace.get_active()) \
   { \
@@ -200,10 +204,59 @@ void iss_wrapper::bootaddr_sync(void *__this, uint32_t value)
   iss_irq_set_vector_table(_this, _this->bootaddr_reg.get());
 }
 
+void iss_wrapper::gen_ipc_stat(bool pulse)
+{
+  if (!pulse)
+    this->ipc_stat_event.event_real((float)this->ipc_stat_nb_insn / 100);
+  else
+    this->ipc_stat_event.event_real_pulse(this->get_period(), (float)this->ipc_stat_nb_insn / 100, 0);
+
+  this->ipc_stat_nb_insn = 0;
+  if (this->ipc_stat_delay == 10)
+    this->ipc_stat_delay = 30;
+  else
+    this->ipc_stat_delay = 100;
+}
+
+void iss_wrapper::trigger_ipc_stat()
+{
+  // In case the core is resuming execution, set IPC to 1 as we are executing
+  // first instruction to not have the signal to zero.
+  if (this->ipc_stat_delay == 10)
+  {
+    this->ipc_stat_event.event_real(1.0);
+  }
+
+  if (this->ipc_stat_event.get_event_active() && !this->ipc_clock_event->is_enqueued() && this->is_active_reg.get() && this->clock_active)
+  {
+    this->event_enqueue(this->ipc_clock_event, this->ipc_stat_delay);
+  }
+}
+
+void iss_wrapper::stop_ipc_stat()
+{
+  this->gen_ipc_stat(true);
+  if (this->ipc_clock_event->is_enqueued())
+  {
+    this->event_cancel(this->ipc_clock_event);
+  }
+  this->ipc_stat_delay = 10;
+}
+
+void iss_wrapper::ipc_stat_handler(void *__this, vp::clock_event *event)
+{
+  iss_t *_this = (iss_t *)__this;
+  _this->gen_ipc_stat();
+  _this->trigger_ipc_stat();
+}
+
 void iss_wrapper::clock_sync(void *__this, bool active)
 {
   iss_t *_this = (iss_t *)__this;
   _this->trace.msg("Setting clock (active: %d)\n", active);
+
+  _this->clock_active = active;
+
   // TODO this could be better handler is the clock would be taken into
   // account in the core state machine
   uint8_t value = active && _this->is_active_reg.get();
@@ -211,6 +264,18 @@ void iss_wrapper::clock_sync(void *__this, bool active)
     _this->state_event.event((uint8_t *)&value);
   else
     _this->state_event.event(NULL);
+
+  if (_this->ipc_stat_event.get_event_active())
+  {
+    if (value)
+    {
+      _this->trigger_ipc_stat();
+    }
+    else
+    {
+      _this->stop_ipc_stat();
+    }
+  }
 }
 
 void iss_wrapper::fetchen_sync(void *__this, bool active)
@@ -286,6 +351,8 @@ void iss_wrapper::check_state()
       is_active_reg.set(true);
       uint8_t one = 1;
       this->state_event.event(&one);
+      if (this->ipc_stat_event.get_event_active())
+        this->trigger_ipc_stat();
 
       if (step_mode.get())
         do_step.set(true);
@@ -306,6 +373,8 @@ void iss_wrapper::check_state()
     {
       is_active_reg.set(false);
       this->state_event.event(&zero);
+      if (this->ipc_stat_event.get_event_active())
+        this->stop_ipc_stat();
       this->halt_core();
     }
     else if (wfi.get())
@@ -314,6 +383,8 @@ void iss_wrapper::check_state()
       {
         is_active_reg.set(false);
         this->state_event.event(&zero);
+        if (this->ipc_stat_event.get_event_active())
+          this->stop_ipc_stat();
       }
       else
         wfi.set(false);
@@ -682,6 +753,8 @@ int iss_wrapper::build()
   traces.new_trace_event("pcer_st_ext_cycles", &pcer_trace_event[14], 1);
   traces.new_trace_event("pcer_tcdm_cont", &pcer_trace_event[15], 1);
 
+  traces.new_trace_event_real("ipc_stat", &ipc_stat_event);
+
   power.new_trace("power_trace", &power_trace);
 
   this->new_reg("bootaddr", &this->bootaddr_reg, get_config_int("boot_addr"));
@@ -743,6 +816,8 @@ int iss_wrapper::build()
   //transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
   this->cpu.config.isa = strdup(isa.c_str());
 
+  ipc_clock_event = this->event_new(iss_wrapper::ipc_stat_handler);
+
   return 0;
 }
 
@@ -795,6 +870,9 @@ void iss_wrapper::reset(bool active)
       this->pcer_trace_event[i].event(NULL);
     }
     this->misaligned_req_event.event(NULL);
+
+    this->ipc_stat_nb_insn = 0;
+    this->ipc_stat_delay = 10;
 
     iss_reset(this);
   }

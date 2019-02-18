@@ -295,7 +295,7 @@ vp::clock_event *vp::clock_engine::get_next_event()
     for (int i=0; i<CLOCK_EVENT_QUEUE_SIZE; i++)
     {
       int cycle = (current_cycle + i) & CLOCK_EVENT_QUEUE_MASK;
-      vp::clock_event *event = event_queue[cycle];\
+      vp::clock_event *event = event_queue[cycle];
       if (event)
       {
         return event;
@@ -309,7 +309,6 @@ vp::clock_event *vp::clock_engine::get_next_event()
 
 void vp::clock_engine::cancel(vp::clock_event *event)
 {
-
   if (!event->is_enqueued())
     return;
 
@@ -410,15 +409,12 @@ int64_t vp::clock_engine::exec()
 
   while (likely(current != NULL))
   {
-    //printf("HANDLING EVENT %p meth %p\n", current, current->meth);
-    clock_event *next = current->next;
-
-    event_queue[current_cycle] = next;
+    event_queue[current_cycle] = current->next;
     current->enqueued = false;
     nb_enqueued_to_cycle--;
 
     current->meth(current->_this, current);
-    current = next;
+    current = event_queue[current_cycle];
   }
 
   // Now we need to tell the time engine when is the next event.
@@ -764,7 +760,6 @@ vp::config *vp::component::import_config(const char *config_string)
     jsmntok_t *tok = &tokens[i];
     tok->str = &str[tok->start];
     str[tok->end] = 0;
-    //printf("%d %d %d %d: %s\n", tokens[i].type, tokens[i].start, tokens[i].end, tokens[i].size, tok->str);
   }
 
 
