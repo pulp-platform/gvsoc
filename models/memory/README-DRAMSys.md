@@ -6,12 +6,40 @@ a flexible DRAM subsystem design space exploration framework that consists of
 models reflecting the DRAM functionality, power consumption, retention time
 errors, etc.
 
-Requirements to use this feature:
+### DRAMSys Installation
 
-Access to DRAMSys repository (open-sourcing process in progress).
+This documentation assumes that access to DRAMSys repository is granted.
+Open-sourcing process in progress.
 
-Provided that one has access to the repository, it should be cloned as
-follows:
+A convenience script [get_dramsys.sh](./get_dramsys.sh) to clone the
+repository and install dram.sys dependencies is provided.
+
+After running the script make sure you have the following environment
+variables in your ~/.bashrc. 
+
+Some segments extracted from a functional ~/.bashrc file are presented below
+to be used as reference. Note that you may have to adapt it, for example,
+changing paths to point to the place you installed some of the libraries.
+
+```bash
+# SystemC home and target architecture
+export SYSTEMC_HOME=$HOME/systemc-2.3.1a
+export SYSTEMC_TARGET_ARCH=linux64
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${SYSTEMC_HOME}/lib-$SYSTEMC_TARGET_ARCH
+
+# Qwt lib
+export LIBQWT_HOME=$HOME/qwt-6.1/lib
+export LIBQWT_HEADERS=$HOME/qwt-6.1/src
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+${LD_LIBRARY_PATH}:}$LIBQWT_HOME
+
+# Python lib
+export LIBPYTHON_VERSION="3.5m"
+export PYTHON_HOME=/usr/lib/python3.5
+export PYTHON_HEADERS=/usr/include/python3.5m
+```
+
+Alternatively, clone the repository manually and follow the steps described in
+its documentation.
 
 ```bash
 $ cd models/memory
@@ -21,6 +49,8 @@ $ git clone --recursive https://git.eit.uni-kl.de/ems/astdm/dram.sys.git
 Check DRAMSys project documentation, follow the steps on README.md in order to
 get all the dependencies installed in your system and learn about the features
 provided.
+
+### Building gvsoc with DRAMSys
 
 Two environment variables influence the build process and should be defined in
 order to use DRAMSys. They are:
@@ -36,8 +66,8 @@ Optionally, these variables can be added to an initialization file such as
 Currently, in this stage of implementation, users should adapt the source code
 to load the desired DRAMSys configuration file and rebuild.
 
-See *models/memory/ddr_sc_impl.cpp* for more details. You may want to double
-check or change the values below:
+See [ddr_sc_impl.cpp](./ddr_sc_impl.cpp) for more details. You may want to
+double check or change the values below:
 
 ```
 define BYTES_PER_ACCESS            64
