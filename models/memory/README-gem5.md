@@ -25,7 +25,7 @@ to build gem5 as a library is provided.
 Executing the script:
 
 ```bash
-./gem5.tnt.sh
+$ ./gem5.tnt.sh
 ```
 
 The script will,

@@ -30,7 +30,12 @@ namespace ems {
 
 // Auto-extension
 struct req_extension : tlm::tlm_extension<req_extension> {
-  req_extension(vp::io_req *r, uint32_t id, bool last) : req(r), id(id), last(last) {}
+  req_extension(vp::io_req *r, uint32_t id, bool last) :
+    req(r),
+    id(id),
+    last(last)
+  {
+  }
 
   virtual tlm_extension_base *clone() const
   {

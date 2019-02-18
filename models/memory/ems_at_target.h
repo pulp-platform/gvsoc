@@ -39,7 +39,8 @@ public:
   tlm_utils::simple_target_socket<at_target> tsocket;
 
   SC_HAS_PROCESS(at_target);
-  at_target(sc_core::sc_module_name name, double accept_delay_ps, double internal_latency_ps, uint32_t bpa) :
+  at_target(sc_core::sc_module_name name, double accept_delay_ps,
+            double internal_latency_ps, uint32_t bpa) :
     sc_core::sc_module(name),
     tsocket("tsocket"),
     req_in_progress(nullptr),
@@ -133,7 +134,7 @@ unsigned int at_target::execute(tlm::tlm_generic_payload *p)
   unsigned int swidth = p->get_streaming_width();
 
 #if !defined(__VP_USE_SYSTEMC_GEM5)
-  // TODO: check why gem5 experiment fails this check
+  // TODO: check why experiments with gem5 fail this check
   if (addr >= sc_dt::uint64(MEM_SIZE) || (addr % bytes_per_access)) {
 #else
   if (addr >= sc_dt::uint64(MEM_SIZE)) {
@@ -144,7 +145,7 @@ unsigned int at_target::execute(tlm::tlm_generic_payload *p)
   }
 
 #if !defined(__VP_USE_SYSTEMC_GEM5)
-  // TODO: check why gem5 experiment fails this check
+  // TODO: check why experiments with gem5 fail this check
   if (dlen != bytes_per_access || swidth < dlen) {
     debug(name() << " Burst error p: " << p << " addr: 0x" << std::setfill('0') << std::setw(16) << std::hex << addr << std::dec << " cmd:" << (cmd ? " write" : " read") << " dlen: " << dlen << " bytes_per_access: " << bytes_per_access << " swidth: " << swidth);
     p->set_response_status(tlm::TLM_BURST_ERROR_RESPONSE);
