@@ -43,7 +43,7 @@ public:
     peq(this, &gvsoc_tlm_br::peq_cb),
     vp_component(vp_component),
     curr_req(nullptr),
-    in_progress(nullptr),
+    req_in_progress(nullptr),
     bytes_per_access(bpa)
   {
     resp_accept_delay = sc_core::sc_time(accept_delay_ps, SC_PS);
@@ -59,7 +59,7 @@ private:
   void run();
   // Conversion vp::io_req to tlm::tlm_generic_payload
   void req_to_gp(vp::io_req *r, tlm::tlm_generic_payload *p, uint32_t tid, bool last);
-  // Called on receiving TLM_COMPLETED to inspect transaction
+  // Called at the end of the lifetime of a transaction to inspect it
   void inspect(tlm::tlm_generic_payload &p);
   // Payload event queue (PEQ)
   void peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase);
@@ -69,7 +69,7 @@ private:
   sc_core::sc_event event;
   sc_core::sc_event end_req_event;
   sc_core::sc_event all_trans_completed;
-  tlm::tlm_generic_payload *in_progress;
+  tlm::tlm_generic_payload *req_in_progress;
   tlm_utils::peq_with_cb_and_phase<gvsoc_tlm_br> peq;
   ems::mm mm;
   sc_core::sc_time resp_accept_delay;
@@ -120,22 +120,55 @@ void gvsoc_tlm_br::inspect(tlm::tlm_generic_payload &p)
 
 void gvsoc_tlm_br::peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
 {
-  if (phase == tlm::END_REQ || (&p == in_progress && phase == tlm::BEGIN_RESP)) {
-    in_progress = nullptr;
-    end_req_event.notify();
-  } else if (phase == tlm::BEGIN_REQ || phase == tlm::END_RESP) {
-    debug(name() << " Illegal phase" << phase);
-    SC_REPORT_FATAL(name(), " Illegal phase");
+  tlm::tlm_phase fw_phase = tlm::UNINITIALIZED_PHASE;
+  tlm::tlm_sync_enum s;
+
+  switch (phase) {
+    case tlm::END_REQ:
+     // There must be a request in progress
+      assert(req_in_progress);
+      // Request exclusion rule:
+      // END_REQ indicates that the downstream component is ready to accept
+      // another BEGIN_REQ
+      req_in_progress = nullptr;
+      // Request channel is free
+      end_req_event.notify();
+      break;
+
+    case tlm::BEGIN_RESP:
+      if (&p == req_in_progress) {
+        // Request exclusion rule:
+        // BEGIN_RESP for the immediately preceding transaction (the exact
+        // request that is in progress) indicates that the downstream component
+        // is ready to accept another BEGIN_REQ
+        // BEGIN_RESP for the immediately preceding request carries an implicit
+        // END_REQ
+        req_in_progress = nullptr;
+        end_req_event.notify();
+      }
+      // Inspect transaction
+      inspect(p);
+      // Send final phase transition to downstream component
+      fw_phase = tlm::END_RESP;
+      s = isocket->nb_transport_fw(p, fw_phase, resp_accept_delay);
+      // Transaction is complete in either case
+      assert(s == tlm::TLM_COMPLETED || s == tlm::TLM_ACCEPTED);
+      // Allow the memory manager to free the transaction object
+      p.release();
+      break;
+
+    case tlm::BEGIN_REQ:
+    case tlm::END_RESP:
+      debug(name() << " Illegal phase" << phase);
+      SC_REPORT_FATAL(name(), " Illegal phase");
+      break;
+
+    default:
+      debug(name() << " Illegal phase" << phase);
+      SC_REPORT_FATAL(name(), " Illegal phase");
+      break;
   }
 
-  if (phase == tlm::BEGIN_RESP) {
-    inspect(p);
-    // Send final phase transition to downstream
-    tlm::tlm_phase fw_phase = tlm::END_RESP;
-    isocket->nb_transport_fw(p, fw_phase, resp_accept_delay);
-    // Allow the memory manager to free the transaction object
-    p.release();
-  }
 }
 
 tlm::tlm_sync_enum gvsoc_tlm_br::nb_transport_bw(tlm::tlm_generic_payload &p, tlm::tlm_phase &phase, sc_core::sc_time &d)
@@ -172,11 +205,11 @@ void gvsoc_tlm_br::run()
       bool last = (t == (n_trans - 1));
       req_to_gp(req, p, t, last);
       // Honor BEGIN_REQ/END_REQ exclusion rule
-      if (in_progress) {
+      if (req_in_progress) {
         wait(end_req_event);
       }
       // Non-blocking transport call on the forward path (send it downstream)
-      in_progress = p;
+      req_in_progress = p;
       phase = tlm::BEGIN_REQ;
       delay = sc_core::SC_ZERO_TIME;
       status = isocket->nb_transport_fw(*p, phase, delay);
@@ -196,7 +229,7 @@ void gvsoc_tlm_br::run()
           // Return path is being used
           // Early completion
           // The target has terminated the transaction
-          in_progress = nullptr;
+          req_in_progress = nullptr;
           inspect(*p);
           p->release();
           break;
