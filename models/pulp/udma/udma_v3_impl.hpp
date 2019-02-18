@@ -128,6 +128,7 @@ private:
   Udma_queue<Udma_transfer> *free_reqs;
   Udma_queue<Udma_transfer> *pending_reqs;
 
+  vp::trace     state_event;
 };
 
 

@@ -166,6 +166,16 @@ void Udma_channel::check_state()
   {
     top->event_enqueue(event, 1);
   }
+
+  if (free_reqs->is_full())
+  {
+    this->state_event.event(NULL);
+  }
+  else
+  {
+    uint8_t one = 1;
+    this->state_event.event(&one);
+  }
 }
 
 
@@ -266,6 +276,8 @@ Udma_channel::Udma_channel(udma *top, int id, string name) : top(top), id(id), n
   free_reqs->push( new Udma_transfer());
 
   event = top->event_new(udma::channel_handler, this);
+
+  top->traces.new_trace_event(name + "/state", &this->state_event, 8);
 }
 
 
@@ -284,6 +296,7 @@ void Udma_channel::reset(bool active)
     current_cmd = NULL;
     continuous_mode = 0;
     transfer_size = 0;
+    this->state_event.event(NULL);
   }
 }
 
