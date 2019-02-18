@@ -16,17 +16,18 @@
 
 # Author: Éder F. Zulian, TUK (zulian@eit.uni-kl.de)
 
-dir="gem5.TnT"
-repo_url="https://github.com/tukl-msd/gem5.TnT.git"
+dir="dram.sys"
+repo_url="https://git.eit.uni-kl.de/ems/astdm/dram.sys.git"
 if [[ ! -d ${dir} ]]; then
-	# Clone gem5.TnT repository
-	git clone ${repo_url}
+	# Clone dram.sys repository and its submodules
+	git clone --recursive ${repo_url}
 fi
-cd $dir
-# Install known gem5 dependencies
-sudo ./dep_install.sh
-# Get gem5 essential repositories
-./get_essential_repos.sh
-# Build gem5
-./build_gem5.sh
+cd $dir/utils
+# Install known dependencies
+# Notes:
+#  - Script supports Debian/Ubuntu
+#  - Script uses sudo
+./install_deb.sh
+# Get qwt-6.1 source code and build lib
+./getqwt.sh
 cd -

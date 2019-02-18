@@ -26,7 +26,7 @@
 class ddr : public vp::component
 {
 
-  friend class ddr_module;
+  friend class gvsoc_tlm_br;
 
 public:
 

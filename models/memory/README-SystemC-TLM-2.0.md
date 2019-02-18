@@ -20,7 +20,7 @@ builds the *SystemC Class Library Proof of Concept implementation* provided by
 Execute the script as follows.
 
 ```bash
-./get_systemc.sh
+$ ./get_systemc.sh
 ```
 
 ## References
