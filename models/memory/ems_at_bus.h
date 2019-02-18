@@ -59,12 +59,12 @@ public:
     unsigned int num_initiators = tsocket.size();
 
     for (auto i = 0; i < num_targets; ++i) {
-      req_in_progress.push_back(NULL);
+      req_in_progress.push_back(nullptr);
       pending_req.push_back(queue<tlm::tlm_generic_payload *>());
     }
 
     for (auto i = 0; i < num_initiators; ++i) {
-      resp_in_progress.push_back(NULL);
+      resp_in_progress.push_back(nullptr);
       pending_resp.push_back(queue<tlm::tlm_generic_payload *>());
     }
   }
@@ -141,7 +141,7 @@ void at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
   tlm::tlm_phase fw_phase = tlm::UNINITIALIZED_PHASE;
   sc_core::sc_time d = sc_core::SC_ZERO_TIME;
   tlm::tlm_sync_enum s;
-  tlm::tlm_generic_payload *pl = NULL;
+  tlm::tlm_generic_payload *pl = nullptr;
 
   switch (phase) {
     case tlm::BEGIN_REQ:
@@ -176,7 +176,7 @@ void at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
             // TLM_COMPLETED from downstream carries an implicit BEGIN_RESP
             // BEGIN_RESP for the immediately preceding request carries an
             // implicit END_REQ
-            req_in_progress[dsock] = NULL;
+            req_in_progress[dsock] = nullptr;
             // TLM_ACCEPTED was returned in nb_transport_fw()
             // Upstream component is waiting for backward path communication
             bw_phase = tlm::BEGIN_RESP;
@@ -213,7 +213,7 @@ void at_bus::fw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
       // Response channel is free
       // Are there pending responses for this upstream socket?
       if (pending_resp[usock].empty()) {
-        resp_in_progress[usock] = NULL;
+        resp_in_progress[usock] = nullptr;
       } else {
         // Get the next pending response from the queue
         pl = pending_resp[usock].front();
@@ -301,7 +301,7 @@ void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
   tlm::tlm_phase fw_phase = tlm::UNINITIALIZED_PHASE;
   sc_core::sc_time d = sc_core::SC_ZERO_TIME;
   tlm::tlm_sync_enum s;
-  tlm::tlm_generic_payload *pl = NULL;
+  tlm::tlm_generic_payload *pl = nullptr;
 
   switch (phase) {
     case tlm::END_REQ:
@@ -314,7 +314,7 @@ void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
       // Request channel is free
       // Are there pending requests for the downstream socket?
       if (pending_req[dsock].empty()) {
-        req_in_progress[dsock] = NULL;
+        req_in_progress[dsock] = nullptr;
       } else {
         // Get the next pending request from the queue
         pl = pending_req[dsock].front();
@@ -340,7 +340,7 @@ void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
         // request that is pending) indicates that the downstream component is
         // ready to accept another BEGIN_REQ
         // END_REQ was omitted by the downstream component
-        req_in_progress[dsock] = NULL;
+        req_in_progress[dsock] = nullptr;
       }
 
       if (!resp_in_progress[usock]) {
@@ -372,7 +372,7 @@ void at_bus::bw_peq_cb(tlm::tlm_generic_payload &p, const tlm::tlm_phase &phase)
             inspect(p);
             // Response exclusion rule:
             // TLM_COMPLETED from upstream carries an implicit END_RESP
-            resp_in_progress[usock] = NULL;
+            resp_in_progress[usock] = nullptr;
             // TLM_ACCEPTED was returned in nb_transport_bw()
             // Downstream component may be waiting for forward path
             // communication (END_RESP) in case it hasn't completed the
