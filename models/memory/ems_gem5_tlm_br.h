@@ -79,6 +79,54 @@ private:
   unsigned int offset;
 };
 
+typedef void (*cb_func)(void);
+class gem5_sim_ctrl : public Gem5SystemC::Gem5SimControl
+{
+public:
+  // name:  Gem5SystemC::Gem5SimControl instance SystemC module name
+  // g5cfg: gem5 configuration file
+  // ticks: zero to simulate until workload is finished, otherwise the
+  //        specified amount of time
+  // g5dbg: gem5 debug flags
+  // bs_cb: callback to be called before simulation
+  // as_cb: callback to be called after simulation
+  gem5_sim_ctrl(std::string name,
+                std::string g5cfg,
+                uint64_t ticks = 0,
+                std::string g5dbg = "MemoryAccess",
+                cb_func bs_cb = nullptr,
+                cb_func as_cb = nullptr) :
+    Gem5SystemC::Gem5SimControl(name.c_str(), g5cfg, ticks, g5dbg),
+    before_sim_cb(bs_cb),
+    after_sim_cb(as_cb)
+  {
+    debug(this->name() << " config file: " << g5cfg);
+    debug(this->name() << " ticks: " << ticks);
+    debug(this->name() << " debug flags: " << g5dbg);
+  }
+
+private:
+  void beforeSimulate()
+  {
+    if (before_sim_cb) {
+      debug(this->name() << " calling before-simulation callback");
+      before_sim_cb();
+    }
+    debug(this->name() << " gem5 simulation is about to start");
+  }
+
+  void afterSimulate()
+  {
+    debug(this->name() << " gem5 simulation finished");
+    if (after_sim_cb) {
+      debug(this->name() << " calling after-simulation callback");
+      after_sim_cb();
+    }
+  }
+  cb_func before_sim_cb;
+  cb_func after_sim_cb;
+};
+
 class gem5_tlm_br
 {
 public:
@@ -96,7 +144,7 @@ public:
     }
 
     std::string sctrl_name = this->name + "_sctrl";
-    sctrl = new gem5_sim_ctrl(sctrl_name, cfg);
+    sctrl = new ems::gem5_sim_ctrl(sctrl_name, cfg);
     Gem5SystemC::Gem5SlaveTransactor *t;
     ems::gem5_addr_adapter *adapt;
     std::string line;
@@ -170,35 +218,7 @@ found:
     return emba;
   }
 
-  class gem5_sim_ctrl : public Gem5SystemC::Gem5SimControl
-  {
-  public:
-    // name:  Gem5SystemC::Gem5SimControl instance SystemC module name
-    // g5cfg: gem5 configuration file
-    // ticks: zero to simulate until workload is finished, otherwise the
-    //        specified amount of time
-    // g5dbg: gem5 debug flags
-    gem5_sim_ctrl(std::string name, std::string g5cfg,
-                  uint64_t ticks=0, std::string g5dbg="MemoryAccess") :
-      Gem5SystemC::Gem5SimControl(name.c_str(), g5cfg, ticks, g5dbg)
-    {
-      debug(this->name() << " config file: " << g5cfg);
-      debug(this->name() << " ticks: " << ticks);
-      debug(this->name() << " debug flags: " << g5dbg);
-    }
-
-    void beforeSimulate()
-    {
-      debug(this->name() << " gem5 simulation is about to start");
-    }
-
-    void afterSimulate()
-    {
-      debug(this->name() << " gem5 simulation finished");
-    }
-  };
-
-  gem5_sim_ctrl *sctrl;
+  ems::gem5_sim_ctrl *sctrl;
   std::vector<Gem5SystemC::Gem5SlaveTransactor *> transactors;
   std::string name;
 };
