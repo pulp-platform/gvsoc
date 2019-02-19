@@ -155,12 +155,10 @@ void ddr::elab()
   at_bus->isocket.bind(pcbt->target_socket);
 
 #ifdef __VP_USE_SYSTEMC_GEM5
-  // TODO: check why experiments with gem5 fail with TLM-2.0 base protocol
-  // checker enabled
   pcbt->set_num_checks(0);
-
   // Instantiate gem5_tlm_br
   std::string cfg = std::string(__GEM5_PATH) + std::string("/config.ini");
+  debug(cfg.c_str());
   g5tbr = new ems::gem5_tlm_br("g5tbr", cfg);
   for (auto adapt : g5tbr->adapters) {
       adapt->isocket.bind(at_bus->tsocket);
@@ -169,6 +167,7 @@ void ddr::elab()
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
   std::string resources = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
   std::string simulation_xml = resources + "simulations/ddr3-example.xml";
+  debug(simulation_xml.c_str());
   dramsys = new DRAMSys("DRAMSys", simulation_xml, resources);
   pcbt->initiator_socket.bind(dramsys->tSocket);
 #else

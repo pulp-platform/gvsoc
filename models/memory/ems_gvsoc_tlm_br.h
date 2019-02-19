@@ -22,7 +22,7 @@
 #ifndef __EMS_GVSOC_TLM_BR_H__
 #define __EMS_GVSOC_TLM_BR_H__
 
-#include <tlm>
+#include <tlm.h>
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include <tlm_utils/simple_initiator_socket.h>
 
