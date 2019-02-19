@@ -53,11 +53,13 @@ public:
 private:
 
   std::vector<regex_t *> path_regex;
+  std::vector<std::string> path_regex_file;
   std::vector<regex_t *> events_path_regex;
   std::vector<string> events_file;
   int max_path_len = 0;
   vp::trace_level_e trace_level = vp::TRACE;
   std::vector<vp::trace *> init_traces;
+  std::map<std::string, FILE *> trace_files;
 };
 
 
@@ -76,8 +78,6 @@ vp::trace_engine::trace_engine(const char *config)
   event_buffers.erase(event_buffers.begin());
   current_buffer_size = 0;
   this->first_pending_event = NULL;
-  
-  this->trace_file = stdout; //fopen("trace.txt", "w");
 
   thread = new std::thread(&trace_engine::vcd_routine, this);
 }
@@ -107,10 +107,9 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
 
   traces_map[full_path] = trace;
 
-  trace->trace_file = this->trace_file;
-
   int index = 0;
   for (auto& x: event ? events_path_regex : path_regex) {
+
     if (regexec(x, full_path.c_str(), 0, NULL, 0) == 0)
     {
       if (event)
@@ -126,7 +125,25 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
         trace->event_trace = event_trace;
       }
       else
+      {
+        std::string file_path = path_regex_file[index];
+        if (file_path == "")
+        {
+          trace->trace_file = stdout;
+        }
+        else
+        {
+          if (this->trace_files[file_path] == NULL)
+          {
+            FILE *file = fopen(file_path.c_str(), "w");
+            if (file == NULL)
+              throw std::logic_error("Unable to open file: " + file_path);
+            this->trace_files[file_path] = file;
+          }
+          trace->trace_file = this->trace_files[file_path];
+        }
         trace->set_active(true);
+      }
     }
     index++;
   }
@@ -186,7 +203,20 @@ void trace_domain::add_path(int events, const char *path)
     events_file.push_back((char *)file_path);
   }
   else
+  {
+    std::string file_path = "";
+    char *dup_path = strdup(path);
+    char *sep = strchr(dup_path, ':');
+    if (sep)
+    {
+      *sep = 0;
+      file_path = sep + 1;
+      path = dup_path;
+    }
     path_regex.push_back(regex);
+    path_regex_file.push_back(file_path);
+  }
+
   regcomp(regex, path, 0);
 }
 
