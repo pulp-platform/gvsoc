@@ -156,19 +156,18 @@ void ddr::elab()
 
 #ifdef __VP_USE_SYSTEMC_GEM5
   pcbt->set_num_checks(0);
-  // Instantiate gem5_tlm_br
-  std::string cfg = std::string(__GEM5_PATH) + std::string("/config.ini");
-  debug(cfg.c_str());
+  std::string cfg = std::string(__GEM5_PATH) + std::string("/") + get_config_str("tlm/gem5-config");
+  debug("gem5-config: " << cfg);
   g5tbr = new ems::gem5_tlm_br("g5tbr", cfg);
   for (auto adapt : g5tbr->adapters) {
       adapt->isocket.bind(at_bus->tsocket);
   }
 #endif /* __VP_USE_SYSTEMC_GEM5 */
 #ifdef __VP_USE_SYSTEMC_DRAMSYS
-  std::string resources = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
-  std::string simulation_xml = resources + "simulations/ddr3-example.xml";
-  debug(simulation_xml.c_str());
-  dramsys = new DRAMSys("DRAMSys", simulation_xml, resources);
+  std::string res = std::string(__DRAMSYS_PATH) + std::string("/DRAMSys/library/resources/");
+  std::string sim = res + std::string("simulations/") + get_config_str("tlm/dramsys-config");
+  debug("dramsys-config: " << sim);
+  dramsys = new DRAMSys("DRAMSys", sim, res);
   pcbt->initiator_socket.bind(dramsys->tSocket);
 #else
   at_target = new ems::at_target("at_target", ACCEPT_DELAY_PS, TARGET_LATENCY_PS, BYTES_PER_ACCESS);
