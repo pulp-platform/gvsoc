@@ -61,7 +61,6 @@ namespace vp {
   protected:
     std::map<std::string, trace *> traces_map;
     std::vector<trace *> traces_array;
-    FILE *trace_file;
 
   private:
     void enqueue_pending(vp::trace *trace, int64_t timestamp, uint8_t *event);
