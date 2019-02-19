@@ -63,8 +63,7 @@ export VP_USE_SYSTEMC_DRAMSYS=1
 Optionally, these variables can be added to an initialization file such as
 ~/.bashrc.
 
-Currently, in this stage of implementation, users should adapt the source code
-to load the desired DRAMSys configuration file and rebuild.
+The desired DRAMSys configuration file can be passed as a configuration option.
 
 See [ddr_sc_impl.cpp](./ddr_sc_impl.cpp) for more details. You may want to
 double check or change the values below:
@@ -72,7 +71,6 @@ double check or change the values below:
 ```
 define BYTES_PER_ACCESS            64
 define ACCEPT_DELAY_PS             1000
-string simulation_xml = resources + "simulations/ddr3-example.xml";
 ```
 
 ## References
