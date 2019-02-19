@@ -31,18 +31,35 @@ vp::Event_trace::Event_trace(string trace_name, Event_file *file, int width, boo
   id = vcd_id++;
   file->add_trace(trace_name, id, width, is_real, is_string);
   this->width = width;
-  this->buffer = new uint8_t[width];
-  this->flags_mask = new uint8_t[width];
+  this->bytes = (width+7)/8;
+  if (width)
+  {
+    this->buffer = new uint8_t[width];
+    this->flags_mask = new uint8_t[width];
+  }
+  else
+  {
+    this->buffer = NULL;
+    this->flags_mask = NULL;
+  }
 }
 
 
 void vp::Event_trace::reg(int64_t timestamp, uint8_t *event, int width, uint8_t flags, uint8_t *flags_mask)
 {
-  memcpy(this->buffer, event, (width+7)/8);
+  int bytes = (width+7)/8;
+  if (bytes > this->bytes)
+  {
+    this->bytes = bytes;
+    this->buffer = (uint8_t *)realloc(this->buffer, bytes);
+    this->flags_mask = (uint8_t *)realloc(this->flags_mask, bytes);
+  }
+
+  memcpy(this->buffer, event, bytes);
   this->flags = flags;
   if (flags == 1)
   {
-    memcpy(this->flags_mask, flags_mask, (width+7)/8);
+    memcpy(this->flags_mask, flags_mask, bytes);
   }
 }
 

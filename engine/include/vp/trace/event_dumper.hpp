@@ -52,6 +52,7 @@ namespace vp {
     Event_trace *next;
     bool is_enqueued;
     int width;
+    int bytes;
 
   private:
     Event_file *file;
