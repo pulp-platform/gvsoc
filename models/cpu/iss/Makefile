@@ -48,3 +48,9 @@ cpu/iss/iss_riscy_v2_5_single_regfile_CFLAGS += -DISS_SINGLE_REGFILE -DPCER_VERS
 cpu/iss/iss_riscy_v2_5_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_v2_5_single_regfile))
 endif
+
+ifeq '$(iss_class)' 'iss_riscy_v2_5'
+cpu/iss/iss_riscy_v2_5_CFLAGS += -DPCER_VERSION_2
+cpu/iss/iss_riscy_v2_5_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
+$(eval $(call declare_iss_build,riscy_v2_5))
+endif
