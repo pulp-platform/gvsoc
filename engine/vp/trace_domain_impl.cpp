@@ -107,6 +107,8 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
 
   traces_map[full_path] = trace;
 
+  trace->trace_file = stdout;
+
   int index = 0;
   for (auto& x: event ? events_path_regex : path_regex) {
 
