@@ -97,7 +97,7 @@ $dumpvars\n");
   else if (is_string)
   {
     fprintf(file, "s");
-    fwrite(event, 1, width/8, file);
+    fwrite(event, 1, width/8-1, file);
     fprintf(file, " %d\n", id);
   }
   else if (width > 1) {
