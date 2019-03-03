@@ -76,7 +76,7 @@ namespace vp {
     bool is_real = false;
     bool is_string = false;
     int id;
-    FILE *trace_file;
+    FILE *trace_file = stdout;
 
   protected:
     int level;
