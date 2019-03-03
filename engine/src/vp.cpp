@@ -391,6 +391,8 @@ int64_t vp::clock_engine::exec()
   vp_assert(this->has_events(), NULL, "Executing clock engine while it has no event\n");
   vp_assert(this->get_next_event(), NULL, "Executing clock engine while it has no next event\n");
 
+  this->cycles_trace.event_real(this->cycles);
+
   // The clock engine has a circular buffer of events to be executed.
   // Events longer than the buffer as put temporarly in a queue.
   // Everytime we start again at the beginning of the buffer, we need

@@ -150,6 +150,8 @@ namespace vp {
     int64_t stop_time = 0;
 
     bool must_flush_delayed_queue;
+
+    vp::trace cycles_trace;
   };    
 
 };

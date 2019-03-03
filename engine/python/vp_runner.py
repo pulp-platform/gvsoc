@@ -989,6 +989,9 @@ def gen_gtkw_files(config, gv_config):
                         [tp.get('overview', 'sys.board.chip.soc.udma.cpi0_rx.state', '[7:0]'), 'cpi0_rx']
                     ])
 
+                    gtkw.trace(tp.get('overview', 'sys.board.chip.soc_clock.period'), 'period')
+                    gtkw.trace(tp.get('clock', 'sys.board.chip.soc_clock.cycles'), 'cycles')
+
                 if nb_pe is not None:
                     with gtkw.group('cluster'):
                         check_user_traces(gtkw, tp, 'overview.cluster', user_traces)
@@ -1013,6 +1016,9 @@ def gen_gtkw_files(config, gv_config):
                             [tp.get('overview', 'sys.board.chip.cluster.dma.channel_14', '[7:0]'), 'channel_14'],
                             [tp.get('overview', 'sys.board.chip.cluster.dma.channel_15', '[7:0]'), 'channel_15'],
                         ])
+
+                        gtkw.trace(tp.get('overview', 'sys.board.chip.cluster_clock.period'), 'period')
+                        gtkw.trace(tp.get('clock', 'sys.board.chip.cluster_clock.cycles'), 'cycles')
 
                         with gtkw.group('runtime', closed=True):
                             check_user_traces(gtkw, tp, 'overview.cluster.runtime', user_traces)

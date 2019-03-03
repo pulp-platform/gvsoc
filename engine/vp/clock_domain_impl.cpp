@@ -42,6 +42,8 @@ private:
   vp::clk_master out;
 
   vp::clock_slave clock_in;
+
+  vp::trace clock_trace;
 };
 
 
@@ -55,6 +57,7 @@ void clock_domain::set_frequency(void *__this, int64_t frequency)
 {
   clock_domain *_this = (clock_domain *)__this;
   _this->apply_frequency(frequency);
+  _this->clock_trace.event_real(_this->period);
 }
 
 int clock_domain::build()
@@ -63,6 +66,11 @@ int clock_domain::build()
 
   clock_in.set_set_frequency_meth(&clock_domain::set_frequency);
   new_slave_port("clock_in", &clock_in);
+
+  this->traces.new_trace_event_real("period", &this->clock_trace);
+
+  this->traces.new_trace_event_real("cycles", &this->cycles_trace);
+
   return 0;
 }
 
