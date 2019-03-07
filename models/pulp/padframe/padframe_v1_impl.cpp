@@ -27,6 +27,7 @@
 #include <vp/itf/hyper.hpp>
 #include <vp/itf/clock.hpp>
 #include <vp/itf/i2c.hpp>
+#include <vp/itf/i2s.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <string>
@@ -91,6 +92,17 @@ public:
   vp::uart_master master;
   vp::trace tx_trace;
   vp::trace rx_trace;
+};
+
+class I2s_group : public Pad_group
+{
+public:
+  I2s_group(std::string name) : Pad_group(name) {}
+  vp::i2s_slave slave;
+  vp::i2s_master master;
+  vp::trace sck_trace;
+  vp::trace ws_trace;
+  vp::trace sd_trace;
 };
 
 class I2c_group : public Pad_group
@@ -159,6 +171,9 @@ private:
 
   static void uart_chip_sync(void *__this, int data, int id);
   static void uart_master_sync(void *__this, int data, int id);
+
+  static void i2s_internal_edge(void *__this, int sck, int ws, int sd, int id);
+  static void i2s_external_edge(void *__this, int sck, int ws, int sd, int id);
 
   static void i2c_chip_sync(void *__this, int scl, int sda, int id);
   static void i2c_chip_sync_cycle(void *__this, int sda, int id);
@@ -368,6 +383,32 @@ void padframe::uart_master_sync(void *__this, int data, int id)
 
 
 
+void padframe::i2s_internal_edge(void *__this, int sck, int ws, int sd, int id)
+{
+  padframe *_this = (padframe *)__this;
+  I2s_group *group = static_cast<I2s_group *>(_this->groups[id]);
+  //group->tx_trace.event((uint8_t *)&data);
+  if (!group->slave.is_bound())
+  {
+    vp_warning_always(&_this->warning, "Trying to send I2S stream while pad is not connected (interface: %s)\n", group->name.c_str());
+  }
+  else
+  {
+    group->slave.sync(sck, ws, sd);
+  }
+}
+
+
+
+void padframe::i2s_external_edge(void *__this, int sck, int ws, int sd, int id)
+{
+  padframe *_this = (padframe *)__this;
+  I2s_group *group = static_cast<I2s_group *>(_this->groups[id]);
+
+  //group->rx_trace.event((uint8_t *)&data);
+
+  group->master.sync(sck, ws, sd);
+}
 
 
 
@@ -622,6 +663,19 @@ int padframe::build()
         this->groups.push_back(group);
         traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
         traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
+        nb_itf++;
+      }
+      else if (type == "i2s")
+      {
+        I2s_group *group = new I2s_group(name);
+        new_slave_port(name + "_pad", &group->slave);
+        new_master_port(name, &group->master);
+        group->master.set_sync_meth_muxed(&padframe::i2s_internal_edge, nb_itf);
+        group->slave.set_sync_meth_muxed(&padframe::i2s_external_edge, nb_itf);
+        this->groups.push_back(group);
+        traces.new_trace_event(name + "/sck", &group->sck_trace, 1);
+        traces.new_trace_event(name + "/ws", &group->ws_trace, 1);
+        traces.new_trace_event(name + "/sd", &group->sd_trace, 1);
         nb_itf++;
       }
       else if (type == "i2c")
