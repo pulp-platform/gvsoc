@@ -159,10 +159,10 @@ int injector::build()
 
   traces.new_trace("trace", &trace, vp::DEBUG);
 
-  int snd_fd = this->get_config_int("snd_fd");
-  int rcv_fd = this->get_config_int("rcv_fd");
+  int snd_fd = this->get_js_config()->get_int("snd_fd");
+  int rcv_fd = this->get_js_config()->get_int("rcv_fd");
 
-  this->binding_context = (void *)(long)this->get_config_int("context");
+  this->binding_context = (void *)(long)this->get_js_config()->get_int("context");
 
   if (snd_fd != -1)
   {
