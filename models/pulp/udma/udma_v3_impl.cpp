@@ -717,9 +717,9 @@ int udma::build()
       else if (strcmp(name.c_str(), "hyper") == 0)
       {
         trace.msg("Instantiating HYPER channel (id: %d, offset: 0x%x)\n", id, offset);
-        if (version == 1)
+        if (version == 2)
         {
-          Hyper_periph_v1 *periph = new Hyper_periph_v1(this, id, j);
+          Hyper_periph_v2 *periph = new Hyper_periph_v2(this, id, j);
           periphs[id] = periph;
         }
         else

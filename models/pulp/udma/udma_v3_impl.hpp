@@ -484,6 +484,20 @@ private:
   Hyper_periph_v1 *periph;
 };
 
+class Hyper_periph_v2;
+
+class Hyper_v2_rx_channel : public Udma_rx_channel
+{
+public:
+  Hyper_v2_rx_channel(udma *top, Hyper_periph_v2 *periph, int id, string name);
+  void handle_rx_data(int data);
+  void handle_ready();
+
+private:
+  void reset(bool active);
+  Hyper_periph_v2 *periph;
+};
+
 
 typedef enum
 {
@@ -510,6 +524,23 @@ private:
   void reset(bool active);
 
   Hyper_periph_v1 *periph;
+
+};
+
+class Hyper_v2_tx_channel : public Udma_tx_channel
+{
+  friend class Hyper_periph_v2;
+
+public:
+  Hyper_v2_tx_channel(udma *top, Hyper_periph_v2 *periph, int id, string name);
+
+protected:
+  void handle_ready_reqs();
+
+private:
+  void reset(bool active);
+
+  Hyper_periph_v2 *periph;
 
 };
 
@@ -565,6 +596,57 @@ private:
   } ca;
 };
 
+
+class Hyper_periph_v2 : public Udma_periph
+{
+  friend class Hyper_v2_tx_channel;
+  friend class Hyper_v2_rx_channel;
+
+public:
+  Hyper_periph_v2(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  static void rx_sync(void *__this, int data);
+  void reset(bool active);
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+  void check_state();
+  void handle_ready_reqs();
+
+protected:
+  vp::hyper_master hyper_itf;
+  unsigned int *regs; 
+  int clkdiv;
+  Hyper_v2_tx_channel *tx_channel;
+  Hyper_v2_rx_channel *rx_channel;
+
+private:
+  vp::trace     trace;
+
+  vector<Udma_transfer *> pending_transfers;
+
+  int pending_bytes;
+  vp::clock_event *pending_word_event;
+  int64_t next_bit_cycle;
+  vp::io_req *pending_req;
+  uint32_t pending_word;
+  int transfer_size;
+  hyper_state_e state;
+  int ca_count;
+  bool pending_tx;
+  bool pending_rx;
+  Udma_transfer *current_cmd;
+  union
+  {
+    struct {
+      unsigned int low_addr:3;
+      unsigned int reserved:13;
+      unsigned int high_addr:29;
+      unsigned int burst_type:1;
+      unsigned int address_space:1;
+      unsigned int read:1;
+    } __attribute__((packed));
+    uint8_t raw[6];
+  } ca;
+};
 
 
 /*
