@@ -30,10 +30,12 @@
 #include <vp/itf/hyper.hpp>
 #include <vp/itf/i2c.hpp>
 #include <vp/itf/clk.hpp>
+#include <vp/itf/i2s.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <vector>
 #include "archi/udma/udma_v2.h"
+#include "archi/udma/i2s/udma_i2s_v1_new.h"
 
 class udma;
 class Udma_channel;
@@ -555,14 +557,45 @@ private:
 
 class I2s_periph_v1;
 
+class I2s_cic_filter {
+public:
+  I2s_cic_filter();
+
+  bool handle_bit(int din, int pdm_decimation, int pdm_shift, uint32_t *dout);
+  void reset();
+
+  int     pdm_pending_bits;
+  int64_t pdm_y1_old;
+  int64_t pdm_y2_old;
+  int64_t pdm_y3_old;
+  int64_t pdm_y4_old;
+  int64_t pdm_y5_old;
+  int64_t pdm_z1_old;
+  int64_t pdm_z2_old;
+  int64_t pdm_z3_old;
+  int64_t pdm_z4_old;
+  int64_t pdm_z5_old;
+  int64_t pdm_zin1_old;
+  int64_t pdm_zin2_old;
+  int64_t pdm_zin3_old;
+  int64_t pdm_zin4_old;
+  int64_t pdm_zin5_old;
+};
+
 class I2s_rx_channel : public Udma_rx_channel
 {
 public:
-  I2s_rx_channel(udma *top, I2s_periph_v1 *periph, int id, string name);
+  I2s_rx_channel(udma *top, I2s_periph_v1 *periph, int id, int event_id, string name);
+  void handle_rx_bit(int sck, int ws, int bit);
 
 private:
   void reset(bool active);
   I2s_periph_v1 *periph;
+
+  I2s_cic_filter *filters[2];
+  int id;
+  uint32_t pending_samples[2];
+  int pending_bits[2];
 };
 
 class I2s_periph_v1 : public Udma_periph
@@ -575,11 +608,38 @@ public:
   void reset(bool active);
 
 protected:
+  static void rx_sync(void *, int sck, int ws, int sd, int channel);
 
 private:
 
-  vp::trace     trace;
+  vp::io_req_status_e cfg_ext_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e cfg_clkgen0_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e cfg_clkgen1_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e chmode_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e filt_ch0_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e filt_ch1_req(int reg_offset, int size, bool is_write, uint8_t *data);
 
+  static void clkgen_event_routine(void *__this, vp::clock_event *event);
+  vp::io_req_status_e check_clkgen0();
+  vp::io_req_status_e check_clkgen1();
+  vp::io_req_status_e reset_clkgen0();
+  vp::io_req_status_e reset_clkgen1();
+  void handle_clkgen_tick(int clkgen, int itf);
+
+  vp::trace     trace;
+  vp::i2s_slave ch_itf[2];
+
+  vp_udma_i2s_cfg_ext     r_cfg_ext;
+  vp_udma_i2s_cfg_clkgen0 r_cfg_clkgen0;
+  vp_udma_i2s_cfg_clkgen1 r_cfg_clkgen1;
+  vp_udma_i2s_chmode      r_chmode;
+  vp_udma_i2s_filt_ch0    r_filt_ch0;
+  vp_udma_i2s_filt_ch1    r_filt_ch1;
+
+  vp::clock_event *clkgen0_event;
+  vp::clock_event *clkgen1_event;
+
+  int sck[2];
 };
 
 
