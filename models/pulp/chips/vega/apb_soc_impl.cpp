@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "archi/chips/vega/apb_soc_ctrl.h"
 #include "archi/chips/vega/apb_soc.h"
 
 class apb_soc_ctrl : public vp::component
