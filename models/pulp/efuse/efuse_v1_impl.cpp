@@ -205,6 +205,8 @@ void efuse::start()
   js::config *stim_file_conf = this->get_js_config()->get("stim_file");
   if (stim_file_conf)
   {
+    js::config *format = this->get_js_config()->get("format");
+
     path = stim_file_conf->get_str();
 
     this->get_trace()->msg("Preloading file (path: %s)\n", path.c_str());
@@ -215,22 +217,36 @@ void efuse::start()
     if (file == NULL)
       goto error;
 
-    if (fread(buffer, 1, this->nb_regs*8*2 + 10, file) == 0)
-      goto error;
-
-    char *str = strtok(buffer, " ");
-    int index = 0;
-    while (str) {
-      int value = atoi(str);
-      if (value) {
-        int bit = index / 128;
-        int reg = index % 128;
-        this->efuse_regs[reg] |= 1 << bit;
-        this->get_trace()->msg("Setting efuse bit (reg: %d, bit: %d, regValue: %x)\n", bit, reg, this->efuse_regs[reg]);
+    if (format && format->get_str() == "binary")
+    {
+      char * line = NULL;
+      size_t len = 0;
+      ssize_t read;
+      int index = 0;
+      while ((read = getline(&line, &len, file)) != -1) {
+        this->efuse_regs[index] = strtol(line, NULL, 2);
+        index++;
       }
+    }
+    else
+    {
+      if (fread(buffer, 1, this->nb_regs*8*2 + 10, file) == 0)
+        goto error;
 
-      str = strtok(NULL, " ");
-      index++;
+      char *str = strtok(buffer, " ");
+      int index = 0;
+      while (str) {
+        int value = atoi(str);
+        if (value) {
+          int bit = index / 128;
+          int reg = index % 128;
+          this->efuse_regs[reg] |= 1 << bit;
+          this->get_trace()->msg("Setting efuse bit (reg: %d, bit: %d, regValue: %x)\n", bit, reg, this->efuse_regs[reg]);
+        }
+
+        str = strtok(NULL, " ");
+        index++;
+      }
     }
   }
   return;
