@@ -31,7 +31,7 @@ I2s_periph_v1::I2s_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top, i
   top->traces.new_trace(itf_name, &trace, vp::DEBUG);
 
   channel0 = new I2s_rx_channel(top, this, 0, UDMA_EVENT_ID(id), itf_name + "_0");
-  channel1 = new I2s_rx_channel(top, this, 1, UDMA_EVENT_ID(id), itf_name + "_1");
+  channel1 = new I2s_rx_channel(top, this, 1, UDMA_EVENT_ID(id)+1, itf_name + "_1");
 
   top->new_slave_port(this, "i2s" + std::to_string(itf_id*2), &this->ch_itf[0]);
   top->new_slave_port(this, "i2s" + std::to_string(itf_id*2+1), &this->ch_itf[1]);
@@ -63,7 +63,7 @@ void I2s_periph_v1::reset(bool active)
 
 void I2s_periph_v1::handle_clkgen_tick(int clkgen, int channel)
 {
-  this->trace.msg("Clock edge (channel: %d)\n", channel);
+  this->trace.msg("Clock edge (channel: %d, sck: %d)\n", channel, this->sck[clkgen]);
 
   this->ch_itf[channel].sync(this->sck[clkgen], 1, 0);
   this->sck[clkgen] ^= 1;
@@ -278,6 +278,9 @@ error:
 void I2s_periph_v1::rx_sync(void *__this, int sck, int ws, int sd, int channel)
 {
   I2s_periph_v1 *_this = (I2s_periph_v1 *)__this;
+
+  _this->trace.msg("Received data (channel: %d, sck: %d, ws: %d, sd: %d)\n", channel, sck, ws, sd);
+
   if (channel == 0)
     (static_cast<I2s_rx_channel *>(_this->channel0))->handle_rx_bit(sck, ws, sd);
   else
@@ -441,7 +444,7 @@ void I2s_rx_channel::handle_rx_bit(int sck, int ws, int bit)
     {
       this->pending_bits[sample_id] = 0;
       push = true;
-      result = this->pending_bits[sample_id];
+      result = this->pending_samples[sample_id];
     }
   }
 
