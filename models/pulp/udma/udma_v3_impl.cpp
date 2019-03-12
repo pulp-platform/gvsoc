@@ -758,6 +758,21 @@ int udma::build()
         }
       }
 #endif
+#ifdef HAS_I2S
+      else if (strcmp(name.c_str(), "i2s") == 0)
+      {
+        trace.msg("Instantiating I2S channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 2)
+        {
+          I2s_periph_v2 *periph = new I2s_periph_v2(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
       else
       {
         trace.msg("Instantiating channel (id: %d, offset: 0x%x)\n", id, offset);
