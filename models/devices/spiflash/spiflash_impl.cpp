@@ -38,6 +38,8 @@
 #define CMD_SND_MODE_BYTE 0x0A
 #define CMD_RESET_ENABLE  0x66
 #define CMD_RESET         0x99
+#define CMD_SECTOR_ERASE  0xD8
+#define CMD_READ_SR2V     0x07
 
 class spiflash;
 
@@ -45,6 +47,7 @@ typedef struct {
   unsigned char id;
   string desc;
   void (*handler)(void*,int,int,int,int);
+  void (*start_handler)(void*);
 } command_t;
 
 typedef union {
@@ -60,6 +63,15 @@ typedef union {
   };
   uint8_t raw;
 } reg_cr1_t;
+
+typedef union {
+  struct {
+    int ps:1;
+    int es:1;
+    int estat:1;
+  };
+  uint8_t raw;
+} reg_sr2v_t;
 
 #define REGS_AREA_SIZE 1024
 
@@ -85,9 +97,14 @@ public:
   int build();
   void start();
 
+  static void sector_erase(void *__this, int data_0, int data_1, int data_2, int data_3);
+  static void sector_erase_done(void *__this, vp::clock_event *event);
   static void quad_read(void *__this, int data_0, int data_1, int data_2, int data_3);
   static void single_read(void *__this, int data_0, int data_1, int data_2, int data_3);
   static void write_any_register(void *__this, int data_0, int data_1, int data_2, int data_3);
+  static void read_sr2v(void *__this, int data_0, int data_1, int data_2, int data_3);
+  static void read_sr2v_start(void *__this);
+  static void page_program(void *__this, int data_0, int data_1, int data_2, int data_3);
 
 protected:
   vp::qspim_slave   in_itf;
@@ -120,6 +137,7 @@ private:
   int pending_bytes;
 
   reg_cr1_t cr1;
+  reg_sr2v_t sr2v;
 
   bool quad;
   bool read;
@@ -127,28 +145,103 @@ private:
 
   unsigned int current_addr;
 
+  vp::clock_event *sector_erase_event;
+
 };
 
 
 
 static command_t commands_descs[] = {
-  { CMD_READ_ID      , "read ID"             , NULL                          },
-  { CMD_RDCR         , "read config"         , NULL                          },
-  { CMD_WREN         , "write enable"        , NULL                          }, 
-  { CMD_WRR          , "write register"      , NULL                          },
-  { CMD_WRAR         , "write any register"  , &spiflash::write_any_register },    
-  { CMD_RDSR1        , "read status register", NULL                          },
-  { CMD_P4E          , "parameter 4k erase"  , NULL                          },
-  { CMD_PP           , "page program"        , NULL                          },
-  { CMD_QIOR         , "quad IO read"        , NULL                          },
-  { CMD_QIOR_4B      , "quad IO read"        , &spiflash::quad_read          },
-  { CMD_READ         , "IO read"             , &spiflash::single_read        },
-  { CMD_READ_SIMPLE  , "IO read"             , &spiflash::single_read        },
-  { CMD_RESET_ENABLE , "Reset enable"        , NULL                          },
-  { CMD_RESET        , "Reset"               , NULL                          },
+  { CMD_READ_ID      , "read ID"             , NULL                          , NULL},
+  { CMD_RDCR         , "read config"         , NULL                          , NULL},
+  { CMD_WREN         , "write enable"        , NULL                          , NULL}, 
+  { CMD_WRR          , "write register"      , NULL                          , NULL},
+  { CMD_WRAR         , "write any register"  , &spiflash::write_any_register , NULL},    
+  { CMD_RDSR1        , "read status register", NULL                          , NULL},
+  { CMD_P4E          , "parameter 4k erase"  , NULL                          , NULL},
+  { CMD_PP           , "page program"        , &spiflash::page_program       , NULL},
+  { CMD_QIOR         , "quad IO read"        , NULL                          , NULL},
+  { CMD_QIOR_4B      , "quad IO read"        , &spiflash::quad_read          , NULL},
+  { CMD_READ         , "IO read"             , &spiflash::single_read        , NULL},
+  { CMD_READ_SIMPLE  , "IO read"             , &spiflash::single_read        , NULL},
+  { CMD_RESET_ENABLE , "Reset enable"        , NULL                          , NULL},
+  { CMD_RESET        , "Reset"               , NULL                          , NULL},
+  { CMD_SECTOR_ERASE , "Sector erase"        , &spiflash::sector_erase       , NULL},
+  { CMD_READ_SR2V    , "Read SR2V"           , &spiflash::read_sr2v          , &spiflash::read_sr2v_start}
 };
 
 
+void spiflash::page_program(void *__this, int data_0, int data_1, int data_2, int data_3)
+{
+  spiflash *_this = (spiflash *)__this;
+
+  _this->enqueue_bits(data_0, data_1, data_2, data_3);
+
+  if (_this->pending_bits == 24)
+  {
+    _this->current_addr = _this->pending_word & 0xffffff;
+    _this->read = false;
+    _this->trace.msg("Received address (address: 0x%x)\n", _this->current_addr);
+  }
+
+  if (_this->pending_bits >= 32)
+  {
+    if (_this->pending_bits % 8 == 0)
+    {
+      if (_this->current_addr >= _this->size) {
+        _this->warning.force_warning("Received out-of-bound request (address: 0x%x, memSize: 0x%x)\n", _this->current_addr, _this->size);
+        return;
+      }
+
+      _this->trace.msg("Writing byte (address: 0x%x, value: 0x%x)\n", _this->current_addr, (uint8_t)_this->pending_word);
+
+      _this->mem_data[_this->current_addr++] = _this->pending_word;
+    }
+  }
+}
+
+void spiflash::sector_erase_done(void *__this, vp::clock_event *event)
+{
+  spiflash *_this = (spiflash *)__this;
+
+  _this->trace.msg("Sector erase done\n");
+
+  _this->sr2v.raw |= 1<<2;
+}
+
+void spiflash::sector_erase(void *__this, int data_0, int data_1, int data_2, int data_3)
+{
+  spiflash *_this = (spiflash *)__this;
+
+  if (_this->pending_bits == 0)
+    _this->sr2v.raw &= ~(1<<2);
+
+  _this->enqueue_bits(data_0, data_1, data_2, data_3);
+
+  if (_this->pending_bits == 24)
+  {
+    _this->current_addr = _this->pending_word;
+    _this->trace.msg("Received address (address: 0x%x)\n", _this->current_addr);
+    _this->event_enqueue(_this->sector_erase_event, 1000000);
+  }
+
+}
+
+void spiflash::read_sr2v_start(void *__this)
+{
+  spiflash *_this = (spiflash *)__this;
+
+  _this->pending_word = _this->sr2v.raw;
+  _this->read = true;
+  _this->send_bits();
+}
+
+void spiflash::read_sr2v(void *__this, int data_0, int data_1, int data_2, int data_3)
+{
+  spiflash *_this = (spiflash *)__this;
+
+  _this->send_bits();
+}
 
 void spiflash::quad_read(void *__this, int data_0, int data_1, int data_2, int data_3)
 {
@@ -291,6 +384,7 @@ void spiflash::start_command()
   this->pending_bits = 8;
   this->quad = false;
   this->read = false;
+  this->pending_word = 0;
 }
 
 void spiflash::handle_data(int data_0, int data_1, int data_2, int data_3)
@@ -314,6 +408,9 @@ void spiflash::handle_data(int data_0, int data_1, int data_2, int data_3)
         return;
       }
       this->trace.msg("Received command (ID: 0x%x, name: %s)\n", this->pending_command_id, this->pending_command->desc.c_str());
+ 
+      if (this->pending_command->start_handler)
+        this->pending_command->start_handler(this);
     }
   }
   else
@@ -379,6 +476,10 @@ int spiflash::build()
 
   this->cr1.raw = 0;
   this->quad = false;
+
+  this->sector_erase_event = event_new(spiflash::sector_erase_done);
+
+  this->sr2v.raw = 0;
 
   return 0;
 }
