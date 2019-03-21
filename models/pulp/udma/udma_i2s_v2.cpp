@@ -417,7 +417,7 @@ void I2s_rx_channel::handle_rx_bit(int sck, int ws, int bit)
   int lsb_first = this->periph->r_i2s_slv_setup.slave_lsb_get();
   bool push = false;
   uint32_t result = 0;
-  int width = this->periph->r_i2s_slv_setup.slave_bits_get();
+  int width = this->periph->r_i2s_slv_setup.slave_bits_get() + 1;
 
   if (pdm)
   {
