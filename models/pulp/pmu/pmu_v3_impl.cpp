@@ -178,6 +178,8 @@ private:
   vp::clock_event *sequence_event;
 
   vp::wire_master<int>  event_itf;
+  vp::wire_master<bool> scu_irq_itf;
+  vp::wire_master<bool> picl_irq_itf;
   vp::wire_slave<bool>          wakeup_itf;
   vp::wire_slave<unsigned int>  wakeup_seq_itf;
   vp::clk_slave    ref_clock_itf;
@@ -197,7 +199,7 @@ pmu::pmu(const char *config)
 pmu_wiu::pmu_wiu(pmu *top)
 : pmu_picl_slave(top), top(top)
 {
-  this->top->new_reg("wiu_ispmr_0", &this->r_ispmr[0], 0xFF);
+  this->top->new_reg("wiu_ispmr_0", &this->r_ispmr[0], 0xC0);
   this->top->new_reg("wiu_ispmr_1", &this->r_ispmr[1], 0xC0);
   this->top->new_reg("wiu_ifr_0", &this->r_ifr[0], 0x00);
   this->top->new_reg("wiu_ifr_1", &this->r_ifr[1], 0x00);
@@ -359,6 +361,10 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
     {
       _this->trace.msg("Finished sequence (sequence: %d)\n", _this->active_sequence);
       _this->active_sequence = -1;
+      if (_this->scu_irq_itf.is_bound())
+      {
+        _this->scu_irq_itf.sync(1);
+      }
     }
   }
 }
@@ -478,6 +484,7 @@ void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
     this->top->trace.msg("Shutting down island (index: %d)\n", this->index);
     if (this->reset.is_bound())
     {
+      this->top->trace.msg("Asserting island reset (index: %d)\n", this->index);
       this->reset.sync(1);
     }
   }
@@ -486,6 +493,7 @@ void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
     this->top->trace.msg("Powering-up island (index: %d)\n", this->index);
     if (this->reset.is_bound())
     {
+      this->top->trace.msg("Releasing island reset (index: %d)\n", this->index);
       this->reset.sync(0);
     }
   }
@@ -635,6 +643,8 @@ int pmu::build()
   this->new_reg("rdata", &this->r_dlc_rdata, 0x00000000);
 
   new_master_port("event", &event_itf);
+  new_master_port("scu_ok", &scu_irq_itf);
+  new_master_port("picl_ok", &picl_irq_itf);
 
   this->wakeup_itf.set_sync_meth(&pmu::wakeup_sync);
   new_slave_port("wakeup", &this->wakeup_itf);
