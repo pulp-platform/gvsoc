@@ -26,7 +26,7 @@ from os.path import isfile, join, isdir
 import os.path
 
 from plp_platform import *
-import plp_flash_stimuli
+import runner.plp_flash_stimuli as plp_flash_stimuli
 import shlex
 import json_tools as js
 import pulp_config
