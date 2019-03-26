@@ -878,7 +878,7 @@ void iss_wrapper::reset(bool active)
   }
   else
   {
-    iss_pc_set(this, this->bootaddr_reg.get() + 0x80);
+    iss_pc_set(this, this->bootaddr_reg.get() + this->bootaddr_offset);
     iss_irq_set_vector_table(this, this->bootaddr_reg.get());
 
     check_state();
