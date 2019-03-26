@@ -100,6 +100,14 @@ vp::io_req_status_e cluster_ctrl::req(void *__this, vp::io_req *req)
   {
     return _this->bootaddr_req(ARCHI_CLUSTER_CTRL_BOOTADDR_COREID(offset), is_write, (uint32_t *)data);
   }
+  else if (offset == ARCHI_CLUSTER_CTRL_EVENT)
+  {
+    return vp::IO_REQ_OK;
+  }
+  else if (offset == ARCHI_CLUSTER_CTRL_CLUSTER_CFG)
+  {
+    return vp::IO_REQ_OK;
+  }
   else if (offset == ARCHI_CLUSTER_CTRL_CLUSTER_CLK_GATE)
   {
     return vp::IO_REQ_OK;

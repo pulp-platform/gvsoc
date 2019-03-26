@@ -42,6 +42,7 @@ public:
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
 private:
+  vp::io_req_status_e sleep_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data);
 
   static void confreg_ext_sync(void *__this, uint32_t value);
   static void wakeup_rtc_sync(void *__this, bool wakeup);
@@ -83,6 +84,8 @@ private:
   unsigned int extwake_sync;
   unsigned int boot_type;
 
+  vp_apb_soc_safe_pmu_sleepctrl   r_sleep_ctrl;
+
   vp::reg_32     jtag_reg_ext;
 
   int wakeup;
@@ -96,9 +99,62 @@ apb_soc_ctrl::apb_soc_ctrl(const char *config)
 
 void apb_soc_ctrl::set_wakeup(int value)
 {
-  this->wakeup = value;
-  this->wakeup_out_itf.sync(value);
+  if (this->wakeup == 0)
+  {
+    this->wakeup = value;
+    this->wakeup_out_itf.sync(value);
+  }
 }
+
+
+
+vp::io_req_status_e apb_soc_ctrl::sleep_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data)
+{
+  this->r_sleep_ctrl.access(reg_offset, size, data, is_write);
+
+  if (is_write)
+  {
+    this->trace.msg("Modified SLEEP_CTRL (reboot: %d, smartwake_en: %d, rtcwake_en: %d, extwake_type: %d, extwake_en: %d, mram_wakestate: %d, cluster_wakestate: %d, ret_mem: 0x%4.4x)\n",
+      this->r_sleep_ctrl.reboot_get(),
+      this->r_sleep_ctrl.smartwake_en_get(),
+      this->r_sleep_ctrl.rtcwake_en_get(),
+      this->r_sleep_ctrl.extwake_type_get(),
+      this->r_sleep_ctrl.extwake_en_get(),
+      this->r_sleep_ctrl.mram_wakestate_get(),
+      this->r_sleep_ctrl.cluster_wakestate_get(),
+      this->r_sleep_ctrl.ret_mem_get()
+    );
+  }
+  else
+  { 
+    this->trace.msg("Clearing wakeup signal\n");
+
+    this->wakeup = 0;
+  }
+
+  return vp::IO_REQ_OK;
+
+#if 0
+    if (is_write)
+    {
+      uint32_t value = *(uint32_t *)data;
+      _this->extwake_sel = (value >> 6) & 0x1f;   // GPIO selection for wakeup
+      _this->extwake_type = (value >> 11) & 0x3;  // GPIO wakeup type (raising edge, etc)
+      _this->extwake_en = (value >> 13) & 0x1;    // GPIO wakeup enabled
+      _this->cfg_wakeup = (value >> 14) & 0x3;    // PMU sequence used to wakeup
+      _this->boot_type = (value >> 18) & 0x3;
+      _this->wakeup_seq_itf.sync(_this->cfg_wakeup);
+    }
+    else
+    {
+      _this->set_wakeup(0);
+      *(uint32_t *)data = (_this->extwake_sel << 6) | (_this->extwake_type << 11) | (_this->extwake_en << 13) | (_this->cfg_wakeup << 14) | (_this->boot_type << 18);
+    }
+#endif
+
+}
+
+
 
 vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 {
@@ -109,9 +165,14 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   uint64_t size = req->get_size();
   bool is_write = req->get_is_write();
 
+  vp::io_req_status_e err = vp::IO_REQ_OK;
+
   _this->trace.msg("Apb_soc_ctrl access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
   if (size != 4) return vp::IO_REQ_INVALID;
+
+  int reg_id = offset / 4;
+  int reg_offset = offset % 4;
 
   if (offset == APB_SOC_CORESTATUS_OFFSET)
   {
@@ -154,23 +215,9 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
     }
   }
-  else if (offset == APB_SOC_SLEEP_CONTROL)
+  else if (offset == APB_SOC_SLEEP_CTRL_OFFSET || offset == APB_SOC_SAFE_PMU_SLEEPCTRL_OFFSET)
   {
-    if (is_write)
-    {
-      uint32_t value = *(uint32_t *)data;
-      _this->extwake_sel = (value >> 6) & 0x1f;   // GPIO selection for wakeup
-      _this->extwake_type = (value >> 11) & 0x3;  // GPIO wakeup type (raising edge, etc)
-      _this->extwake_en = (value >> 13) & 0x1;    // GPIO wakeup enabled
-      _this->cfg_wakeup = (value >> 14) & 0x3;    // PMU sequence used to wakeup
-      _this->boot_type = (value >> 18) & 0x3;
-      _this->wakeup_seq_itf.sync(_this->cfg_wakeup);
-    }
-    else
-    {
-      _this->set_wakeup(0);
-      *(uint32_t *)data = (_this->extwake_sel << 6) | (_this->extwake_type << 11) | (_this->extwake_en << 13) | (_this->cfg_wakeup << 14) | (_this->boot_type << 18);
-    }
+    err = _this->sleep_ctrl_req(reg_offset, size, is_write, data);
   }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
   {
@@ -250,7 +297,7 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   }
 
 
-  return vp::IO_REQ_OK;
+  return err;
 }
 
 
@@ -292,8 +339,9 @@ void apb_soc_ctrl::wakeup_gpio_sync(void *__this, int value, int gpio)
 void apb_soc_ctrl::wakeup_rtc_sync(void *__this, bool wakeup)
 {
   apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
-  if (wakeup)
+  if (wakeup && _this->r_sleep_ctrl.rtcwake_en_get())
   {
+    _this->trace.msg("Received RTC wakeup\n");
     _this->set_wakeup(1);
   }
 }
@@ -357,6 +405,10 @@ int apb_soc_ctrl::build()
   this->boot_type = 0;
   this->extwake_sync = 0;
 
+
+  this->new_reg("sleep_ctrl", &this->r_sleep_ctrl, 0, false);
+
+  this->r_sleep_ctrl.set(0);
 
   return 0;
 }

@@ -104,6 +104,9 @@ public:
   vp::reg_8    r_ispmr[2];
   vp::reg_8    r_icr[16];
 
+  int nb_irq_regs;
+  unsigned int pending_irqs;
+
 private:
 
   void ispmr_req(int index, bool is_write, uint16_t pwdata);
@@ -112,9 +115,6 @@ private:
   void check_state();
 
   pmu *top;
-  unsigned int pending_irqs;
-
-  int nb_irq_regs;
 
 };
 
@@ -199,8 +199,8 @@ pmu::pmu(const char *config)
 pmu_wiu::pmu_wiu(pmu *top)
 : pmu_picl_slave(top), top(top)
 {
-  this->top->new_reg("wiu_ispmr_0", &this->r_ispmr[0], 0xC0);
-  this->top->new_reg("wiu_ispmr_1", &this->r_ispmr[1], 0xC0);
+  this->top->new_reg("wiu_ispmr_0", &this->r_ispmr[0], 0x00);
+  this->top->new_reg("wiu_ispmr_1", &this->r_ispmr[1], 0x00);
   this->top->new_reg("wiu_ifr_0", &this->r_ifr[0], 0x00);
   this->top->new_reg("wiu_ifr_1", &this->r_ifr[1], 0x00);
   for (int i=0; i<16; i++)
@@ -360,6 +360,13 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
     else
     {
       _this->trace.msg("Finished sequence (sequence: %d)\n", _this->active_sequence);
+
+      for (int i=0; i<_this->wiu->nb_irq_regs; i++)
+      {
+        _this->wiu->r_ifr[i].set(0);
+      }
+      _this->wiu->pending_irqs = 0;
+
       _this->active_sequence = -1;
       if (_this->scu_irq_itf.is_bound())
       {
