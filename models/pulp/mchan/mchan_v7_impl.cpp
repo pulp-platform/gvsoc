@@ -159,6 +159,7 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
 protected:
   static vp::io_req_status_e req(void *__this, vp::io_req *req, int id);
@@ -169,7 +170,6 @@ protected:
   Mchan_cmd *get_command();
   void free_command(Mchan_cmd *cmd);
   void check_queue();
-  void reset(bool active);
 
   int pending_bytes[MCHAN_NB_COUNTERS];
   int nb_core_read_cmd;
@@ -237,6 +237,7 @@ private:
 
   bool ext_is_stalled;
 
+  vp::trace     cmd_events[MCHAN_NB_COUNTERS];
 };
 
 void Mchan_channel::reset()
@@ -252,16 +253,16 @@ int Mchan_channel::unpack_command(Mchan_cmd *cmd)
 {
   if (cmd->step == 1)
   {
-    cmd->size = PLP_DMA_SIZE_GET(cmd->content[0]);
+    cmd->size = MCHAN_CMD_CMD_LEN_GET(cmd->content[0]);
     cmd->size_to_read = cmd->size;
     cmd->size_to_write = cmd->size;
     cmd->received_size = 0;
-    cmd->loc2ext = !PLP_DMA_TYPE_GET(cmd->content[0]);
-    cmd->incr = PLP_DMA_INCR_GET(cmd->content[0]);
-    cmd->is_2d = PLP_DMA_2D_GET(cmd->content[0]);
-    cmd->raise_irq = PLP_DMA_ILE_GET(cmd->content[0]);
-    cmd->raise_event = PLP_DMA_ELE_GET(cmd->content[0]);
-    cmd->broadcast = PLP_DMA_BLE_GET(cmd->content[0]);
+    cmd->loc2ext = !MCHAN_CMD_CMD_TYPE_GET(cmd->content[0]);
+    cmd->incr = MCHAN_CMD_CMD_INC_GET(cmd->content[0]);
+    cmd->is_2d = MCHAN_CMD_CMD__2D_EXT_GET(cmd->content[0]);
+    cmd->raise_irq = MCHAN_CMD_CMD_ILE_GET(cmd->content[0]);
+    cmd->raise_event = MCHAN_CMD_CMD_ELE_GET(cmd->content[0]);
+    cmd->broadcast = MCHAN_CMD_CMD_BLE_GET(cmd->content[0]);
     cmd->counter_id = current_counter;
   }
   else if ((cmd->step == 3 && !top->is_64) || (cmd->step == 4 && top->is_64))
@@ -290,8 +291,8 @@ int Mchan_channel::unpack_command(Mchan_cmd *cmd)
  }
  else if ((cmd->step == 4 && !top->is_64) || (cmd->step == 5 && top->is_64))
  {
-   cmd->stride = PLP_DMA_2D_STRIDE_GET(cmd->content[3]);
-   cmd->length = PLP_DMA_2D_LEN_GET(cmd->content[3]);
+   //cmd->stride = PLP_DMA_2D_STRIDE_GET(cmd->content[3]);
+   //cmd->length = PLP_DMA_2D_LEN_GET(cmd->content[3]);
    cmd->line_size_to_read = cmd->length;
 
    top->trace.msg("New 2D command ready (input: %d, source: 0x%lx, dest: 0x%lx, size: 0x%x, loc2ext: %d, stride: 0x%x, len: 0x%x)\n", id, cmd->source, cmd->dest, cmd->size, cmd->loc2ext, cmd->stride, cmd->length);
@@ -488,8 +489,8 @@ vp::io_req_status_e Mchan_channel::req(vp::io_req *req)
 
   if (size != 4) return vp::IO_REQ_INVALID;
 
-  if      (offset == PLP_DMA_QUEUE_OFFSET)  return handle_queue_req (req, is_write, (uint32_t *)data);
-  else if (offset == PLP_DMA_STATUS_OFFSET) return handle_status_req(req, is_write, (uint32_t *)data);
+  if      (offset == MCHAN_CMD_OFFSET)  return handle_queue_req (req, is_write, (uint32_t *)data);
+  else if (offset == MCHAN_STATUS_OFFSET) return handle_status_req(req, is_write, (uint32_t *)data);
 
   return vp::IO_REQ_INVALID;
 }
@@ -907,6 +908,7 @@ void mchan::check_ext_write_handler(void *__this, vp::clock_event *event)
 
 void mchan::handle_cmd_termination(Mchan_cmd *cmd)
 {
+  this->cmd_events[cmd->counter_id].event(NULL);
   free_command(cmd);
 }
 
@@ -1127,11 +1129,16 @@ void mchan::check_queue()
 
 int mchan::build()
 {
-  traces.new_trace("trace", &trace, vp::DEBUG);
+  traces.new_trace("trace", &this->trace, vp::DEBUG);
 
   for (int i=0; i<nb_channels; i++)
   {
     channels.push_back(new Mchan_channel(i, this));
+  }
+
+  for (int i=0; i<MCHAN_NB_COUNTERS; i++)
+  {
+    traces.new_trace_event("channel_" + std::to_string(i), &this->cmd_events[i], 8);
   }
 
   return 0;
@@ -1177,6 +1184,13 @@ void mchan::reset(bool active)
     current_loc_cmd = NULL;
     pending_loc_read_req = NULL;
     ext_is_stalled = false;
+    for (int i=0; i<MCHAN_NB_COUNTERS; i++)
+    {
+      this->cmd_events[i].event(NULL);
+    }
+  }
+  else
+  {
   }
 }
 
