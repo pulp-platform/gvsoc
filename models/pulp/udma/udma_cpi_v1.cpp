@@ -43,6 +43,8 @@ Cpi_periph_v1::Cpi_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top, i
 void Cpi_periph_v1::reset(bool active)
 {
   Udma_periph::reset(active);
+
+  this->glob = 0;
 }
 
 
