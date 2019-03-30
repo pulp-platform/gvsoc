@@ -32,7 +32,7 @@ void Udma_rx_channel::push_data(uint8_t *data, int size)
 {
   if (current_cmd == NULL)
   {
-    top->warning.force_warning("Received data while there is no ready command\n");
+    top->warning.warning("Received data while there is no ready command\n");
     return;
   }
 
