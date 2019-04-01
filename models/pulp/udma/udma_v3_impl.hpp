@@ -555,6 +555,28 @@ private:
 
 
 
+/*
+ * MRAM
+ */
+
+class Mram_periph_v1 : public Udma_periph
+{
+public:
+  Mram_periph_v1(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  void reset(bool active);
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+  
+protected:
+  unsigned int *regs; 
+
+private:
+  void check_state();
+  vp::trace     trace;
+};
+
+
+
 
 /*
  * HYPER

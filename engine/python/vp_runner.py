@@ -1272,7 +1272,7 @@ class Runner(Platform):
             if not self.get_json().get_child_bool('**/runner/wait_pulp_run'):
                 self.get_json().get('gvsoc').set('no_exit', True)
 
-        if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode') != 'rom' and self.get_json().get_child_str('**/runner/boot-mode') != 'jtag':
+        if not bridge and self.get_json().get_child_str('**/runner/boot-mode') != 'bridge' and self.get_json().get_child_str('**/runner/boot-mode').find('rom') == -1 and self.get_json().get_child_str('**/runner/boot-mode') != 'jtag':
             binaries = self.get_json().get('**/runner/binaries').get_dict()
             for binary in binaries:
                 self.get_json().get('**/plt_loader').set('binaries', binary)

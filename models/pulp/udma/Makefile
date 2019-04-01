@@ -53,3 +53,8 @@ ifeq '$(udma/i2s/version)' '2'
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_I2S
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_i2s_v2.cpp
 endif
+
+ifeq '$(udma/mram/version)' '1'
+pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_MRAM
+pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/mram/udma_mram_v1.cpp
+endif

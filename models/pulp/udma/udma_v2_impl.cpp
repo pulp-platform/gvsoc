@@ -34,7 +34,7 @@ void Udma_rx_channel::push_data(uint8_t *data, int size)
 {
   if (current_cmd == NULL)
   {
-    top->warning.warning("Received data while there is no ready command\n");
+    //top->warning.warning("Received data while there is no ready command\n");
     return;
   }
 
@@ -76,10 +76,18 @@ void Udma_rx_channel::reset(bool active)
 
 void Udma_channel::handle_transfer_end()
 {
+  bool continuous = current_cmd->continuous_mode;
+
   trace.msg("Current transfer is finished\n");
   free_reqs->push(current_cmd);
   current_cmd = NULL;
   top->trigger_event(id);
+
+  if (continuous)
+  {
+    this->enqueue_transfer();
+  }
+
   this->check_state();
 }
 
@@ -163,7 +171,7 @@ void Udma_channel::event_handler()
 
 void Udma_channel::check_state()
 {
-  if (!pending_reqs->is_empty() && current_cmd == NULL)
+  if (!event->is_enqueued() && !pending_reqs->is_empty() && current_cmd == NULL)
   {
     top->event_enqueue(event, 1);
   }

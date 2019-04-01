@@ -562,7 +562,7 @@ vp::io_req_status_e udma::periph_req(vp::io_req *req, uint64_t offset)
   int periph_id = UDMA_PERIPH_GET(offset);
   if (periph_id >= nb_periphs || periphs[periph_id] == NULL)
   {
-    trace.warning("Accessing invalid periph (id: %d)\n", periph_id);
+    trace.force_warning("Accessing invalid periph (id: %d)\n", periph_id);
     return vp::IO_REQ_INVALID;
   }
 
@@ -720,6 +720,21 @@ int udma::build()
         if (version == 2)
         {
           Hyper_periph_v2 *periph = new Hyper_periph_v2(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
+#ifdef HAS_MRAM
+      else if (strcmp(name.c_str(), "mram") == 0)
+      {
+        trace.msg("Instantiating MRAM channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 1)
+        {
+          Mram_periph_v1 *periph = new Mram_periph_v1(this, id, j);
           periphs[id] = periph;
         }
         else
