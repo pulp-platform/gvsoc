@@ -26,6 +26,7 @@
 #include "archi/utils.h"
 #include "archi/udma/udma_v3.h"
 #include "udma_v3_impl.hpp"
+#include "mram/udma_mram_v1.hpp"
 
 
 void Udma_rx_channel::push_data(uint8_t *data, int size)
@@ -359,7 +360,7 @@ vp::io_req_status_e Udma_periph::req(vp::io_req *req, uint64_t offset)
   {
     if (channel0 == NULL)
     {
-      top->trace.warning("Trying to access non-existing RX channel\n");
+      top->trace.force_warning("Trying to access non-existing RX channel\n");
       return vp::IO_REQ_INVALID;
     }
     return channel0->req(req, offset);
@@ -368,7 +369,7 @@ vp::io_req_status_e Udma_periph::req(vp::io_req *req, uint64_t offset)
   {
     if (channel1 == NULL)
     {
-      top->trace.warning("Trying to access non-existing TX channel\n");
+      top->trace.force_warning("Trying to access non-existing TX channel\n");
       return vp::IO_REQ_INVALID;
     }
     return channel1->req(req, offset - UDMA_CHANNEL_TX_OFFSET);

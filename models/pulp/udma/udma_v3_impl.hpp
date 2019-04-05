@@ -162,6 +162,42 @@ public:
 
 
 
+class Io_Periph;
+
+
+class Io_rx_channel : public Udma_rx_channel
+{
+  friend class Io_Periph;
+
+public:
+  Io_rx_channel(udma *top, Io_Periph *io_periph, int id, string name);
+
+private:
+  Io_Periph *io_periph;
+
+  vp::io_master *io_itf;
+};
+
+
+
+
+class Io_tx_channel : public Udma_tx_channel
+{
+  friend class Io_Periph;
+
+public:
+  Io_tx_channel(udma *top, Io_Periph *io_periph, int id, string name);
+
+protected:
+  void handle_ready_reqs();
+
+private:
+  Io_Periph *io_periph;
+};
+
+
+
+
 class Udma_periph 
 {
 public:
@@ -180,6 +216,29 @@ private:
   virtual vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
   bool is_on;
   int id;
+};
+
+
+
+class Io_Periph : public Udma_periph
+{
+  friend class Io_tx_channel;
+  friend class Io_rx_channel;
+
+public:
+  Io_Periph(udma *top, int id, string itf_name);
+  void handle_ready_reqs();
+
+private:  
+  static void data_grant(void *_this, vp::io_req *req);
+  static void data_response(void *_this, vp::io_req *req);
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+  void check_state();
+
+  vp::io_master io_itf;
+  vp::clock_event *pending_access_event;
+  vp::io_req *pending_req;
+  vp::io_req io_req;
 };
 
 
@@ -551,28 +610,6 @@ private:
   vp::clock_event *clkgen1_event;
 
   int sck[2];
-};
-
-
-
-/*
- * MRAM
- */
-
-class Mram_periph_v1 : public Udma_periph
-{
-public:
-  Mram_periph_v1(udma *top, int id, int itf_id);
-  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
-  void reset(bool active);
-  static void handle_pending_word(void *__this, vp::clock_event *event);
-  
-protected:
-  unsigned int *regs; 
-
-private:
-  void check_state();
-  vp::trace     trace;
 };
 
 

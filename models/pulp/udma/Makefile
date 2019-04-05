@@ -11,6 +11,7 @@ ifeq '$(udma/version)' '3'
 IMPLEMENTATIONS += pulp/udma/udma_v3_$(pulp_chip_family)_impl
 COMPONENTS += pulp/udma/udma_v3
 pulp/udma/udma_v3_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_v3_impl.cpp
+pulp/udma/udma_v3_$(pulp_chip_family)_impl_SRCS += pulp/udma/io/udma_io.cpp
 pulp/udma/udma_v3_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_uart_v1.cpp
 endif
 

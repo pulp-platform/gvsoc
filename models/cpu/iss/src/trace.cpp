@@ -21,6 +21,7 @@
 #include "iss.hpp"
 #include <string.h>
 #include <algorithm>
+#include <vector>
 
 #define PC_INFO_ARRAY_SIZE (64*1024)
 

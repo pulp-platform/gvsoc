@@ -72,13 +72,14 @@ else:
 process = Popen((readelf + ' -s %s' % args.file).split(), stdin=PIPE, stdout=PIPE)
 
 for line in process.communicate()[0].decode('utf-8').split('\n'):
+
 	try:
 		num, addr, size, typeName, bind, vis, ndx, name = line.split()
 	except:
 		continue
 	if typeName != 'FUNC': continue
 
-	functions.append(Function(name, int(addr,16), int(size)))
+	functions.append(Function(name, int(addr,16), int(size, 0)))
 
 
 # Now build the request we'll send to addr2line
@@ -88,6 +89,11 @@ req = ''
 for f in functions:
 	addr = f.base
 	size = f.size
+
+	# Workaround due to strange bug in objdump
+	if size > 0x10000000:
+		size = 4
+		f.size = size
 
 	while size > 0:
 		req += '0x%x\n' % addr

@@ -1149,9 +1149,11 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     case 0xC10: status = umode_read(iss, value); break;
     case 0x014: status = mhartid_read(iss, value); break;
 
+#ifdef CSR_STACK_CONF
     case CSR_STACK_CONF:  status = stack_conf_read(iss, value); break;
     case CSR_STACK_START: status = stack_start_read(iss, value); break;
     case CSR_STACK_END:   status = stack_end_read(iss, value); break;
+#endif
 
     default:
 
@@ -1297,9 +1299,11 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
     case 0x311: return mscounteren_write(iss, value);
     case 0x312: return mhcounteren_write(iss, value);
 
+#ifdef CSR_STACK_CONF
     case CSR_STACK_CONF:  return stack_conf_write(iss, value); break;
     case CSR_STACK_START: return stack_start_write(iss, value); break;
     case CSR_STACK_END:   return stack_end_write(iss, value); break;
+#endif
 
   }
 

@@ -93,6 +93,36 @@ inline void iss_insn_msg(iss_t *iss, const char *fmt, ...)
 
 #endif
 
+static inline void iss_pccr_incr(iss_t *iss, unsigned int event, int incr)
+{
+}
+
+static inline void iss_lsu_elw(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg)
+{
+}
+
+static inline void iss_unstall(iss_t *iss)
+{
+}
+
+static inline void iss_insn_event_dump(iss_t *iss, const char *msg)
+{
+}
+
+static inline int iss_insn_event_active(iss_t *iss)
+{
+  return 0;
+}
+
+static inline void iss_handle_ebreak(iss_t *iss, iss_insn_t *insn)
+{
+}
+
+static inline int iss_pccr_trace_active(iss_t *iss, unsigned int event)
+{
+  return 0;
+}
+
 static inline int iss_fetch_req(iss_t *iss, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
 {
   memcpy(data, iss->mem_array + addr, size);

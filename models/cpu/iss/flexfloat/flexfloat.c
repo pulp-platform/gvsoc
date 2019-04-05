@@ -23,6 +23,7 @@
 #include <fenv.h>
 #pragma STDC FENV_ACCESS ON
 #endif
+#include <math.h>
 
 #include "assert.h"
 

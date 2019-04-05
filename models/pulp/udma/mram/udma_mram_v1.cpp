@@ -19,17 +19,20 @@
  */
 
 
-#include "../udma_impl.hpp"
+#include "udma_mram_v1.hpp"
 #include "archi/udma/mram/udma_mram_v1.h"
 #include "archi/utils.h"
 
 #define MRAM_NB_REGS 24
 
-Mram_periph_v1::Mram_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top, id)
+Mram_periph_v1::Mram_periph_v1(udma *top, int id, int itf_id) : Io_Periph(top, id, "mram" + std::to_string(itf_id))
 {
   std::string itf_name = "mram" + std::to_string(itf_id);
 
   top->traces.new_trace(itf_name, &trace, vp::DEBUG);
+
+  channel0 = new Mram_v1_rx_channel(top, this, UDMA_EVENT_ID(id), itf_name + "_rx");
+  channel1 = new Mram_v1_tx_channel(top, this, UDMA_EVENT_ID(id) + 1, itf_name + "_tx");
 
   this->regs = new unsigned int[MRAM_NB_REGS];
 }
