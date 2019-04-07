@@ -94,7 +94,7 @@ public:
   void event_handler();
   bool prepare_req(vp::io_req *req);
   void push_ready_req(vp::io_req *req);
-  void handle_ready_req_end(vp::io_req *req);
+  bool handle_ready_req_end(vp::io_req *req);
   virtual bool is_busy() { return false; }
   virtual void handle_ready() { }
   virtual void handle_ready_reqs();
@@ -174,8 +174,6 @@ public:
 
 private:
   Io_Periph *io_periph;
-
-  vp::io_master *io_itf;
 };
 
 
@@ -228,6 +226,8 @@ class Io_Periph : public Udma_periph
 public:
   Io_Periph(udma *top, int id, string itf_name);
   void handle_ready_reqs();
+  void set_addr(unsigned int addr) { this->addr = addr; this->current_addr = addr; }
+  void set_eot_event(int event) { this->eot_event = event; }
 
 private:  
   static void data_grant(void *_this, vp::io_req *req);
@@ -239,6 +239,9 @@ private:
   vp::clock_event *pending_access_event;
   vp::io_req *pending_req;
   vp::io_req io_req;
+  unsigned int addr;
+  unsigned int current_addr;
+  int eot_event = -1;
 };
 
 

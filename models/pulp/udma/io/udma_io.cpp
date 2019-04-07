@@ -37,35 +37,39 @@ void Io_Periph::data_response(void *__this, vp::io_req *req)
 
 void Io_Periph::handle_pending_word(void *__this, vp::clock_event *event)
 {
-  printf("IO ACCESS\n");
   Io_Periph *_this = (Io_Periph *)__this;
   Io_tx_channel *tx_channel = static_cast<Io_tx_channel *>(_this->channel1);
   vp::io_req *req = &_this->io_req;
   vp::io_req *pending_req = _this->pending_req;
 
   req->init();
-  req->set_addr(0x12345678);
-  req->set_size(32);
+  req->set_addr(_this->current_addr);
+  req->set_size(4);
   req->set_is_write(true);
   req->set_data(pending_req->get_data());
 
-  int err = 0 ;//_this->io_itf.req(req);
+  int err = _this->io_itf.req(req);
 
   if (err == vp::IO_REQ_OK) 
   {
   }
   else if (err == vp::IO_REQ_INVALID) 
   {
-    _this->top->warning.force_warning("Invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", 0x12345678, 4, true);
+    _this->top->warning.force_warning("Invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", _this->current_addr, 4, true);
   }
   else
   {
     _this->top->warning.fatal("Unsupported asynchronous request in UDMA IO channel");
   }
 
+  _this->current_addr += 4;
   _this->pending_req = NULL;
 
-  tx_channel->handle_ready_req_end(pending_req);
+  if (tx_channel->handle_ready_req_end(pending_req) && _this->eot_event != -1)
+  {
+    printf("GEN %d\n", _this->eot_event);
+    _this->top->trigger_event(_this->eot_event);
+  }
 
   _this->check_state();
 }

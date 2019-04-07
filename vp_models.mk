@@ -122,14 +122,27 @@ VP_INSTALL_TARGETS += $(VP_PY_INSTALL_PATH)/$(1).py
 endef
 
 
+define declareInstallFile
+
+$(INSTALL_DIR)/include/$(1): $(1)
+	install -D $(1) $$@
+
+VP_INSTALL_HEADERS += $(INSTALL_DIR)/include/$(1)
+
+endef
+
+
 $(foreach implementation, $(IMPLEMENTATIONS), $(eval $(call declare_implementation,$(implementation))))
 
 $(foreach implementation, $(IMPLEMENTATIONS), $(eval $(call declare_debug_implementation,$(implementation))))
 
 $(foreach component, $(COMPONENTS), $(eval $(call declare_component,$(component))))
 
+$(foreach file, $(VP_HEADERS), $(eval $(call declareInstallFile,$(file))))
 
-vp_build: $(VP_INSTALL_TARGETS)
+
+
+vp_build: $(VP_INSTALL_HEADERS) $(VP_INSTALL_TARGETS)
 	find $(VP_PY_INSTALL_PATH) -type d -exec touch {}/__init__.py \;
 
 vp_clean:

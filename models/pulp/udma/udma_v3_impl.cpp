@@ -98,13 +98,16 @@ void Udma_channel::handle_ready_req(vp::io_req *req)
   handle_ready_reqs();
 }
 
-void Udma_channel::handle_ready_req_end(vp::io_req *req)
+bool Udma_channel::handle_ready_req_end(vp::io_req *req)
 {
+  bool end = false;
   if (current_cmd && current_cmd->received_size >= current_cmd->size)
   {
     handle_transfer_end();
+    end = true;
   }
   top->free_read_req(req);
+  return end;
 }
 
 void Udma_channel::push_ready_req(vp::io_req *req)

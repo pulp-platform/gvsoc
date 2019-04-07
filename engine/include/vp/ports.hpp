@@ -49,6 +49,9 @@ namespace vp {
     inline void set_owner(component *comp) { this->owner = comp; }
     inline component *get_owner() { return this->owner; }
 
+    inline void set_itf(void *itf) { this->itf = itf; }
+    inline void *get_itf() { return this->remote_port->itf; }
+
   protected:
 
     // Component owner of this port.
@@ -65,6 +68,8 @@ namespace vp {
 
     // Remote port connected to this port
     port *remote_port = NULL;
+
+    void *itf;
 
   };
 
