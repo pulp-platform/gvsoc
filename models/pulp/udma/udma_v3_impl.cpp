@@ -26,7 +26,10 @@
 #include "archi/utils.h"
 #include "archi/udma/udma_v3.h"
 #include "udma_v3_impl.hpp"
+
+#ifdef HAS_MRAM
 #include "mram/udma_mram_v1.hpp"
+#endif
 
 
 void Udma_rx_channel::push_data(uint8_t *data, int size)
