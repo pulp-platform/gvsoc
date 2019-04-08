@@ -44,6 +44,7 @@ public:
 private:
   vp::io_req_status_e sleep_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data);
 
+  static void bootsel_sync(void *__this, int value);
   static void confreg_ext_sync(void *__this, uint32_t value);
   static void wakeup_rtc_sync(void *__this, bool wakeup);
   static void wakeup_gpio_sync(void *__this, int value, int gpio);
@@ -52,6 +53,7 @@ private:
   vp::trace     trace;
   vp::io_slave in;
 
+  vp::wire_slave<int>   bootsel_itf;
   vp::wire_master<uint32_t> bootaddr_itf;
   vp::wire_master<bool> cluster_reset_itf;
   vp::wire_master<bool> cluster_power_itf;
@@ -87,6 +89,7 @@ private:
   vp_apb_soc_safe_pmu_sleepctrl   r_sleep_ctrl;
 
   vp::reg_32     jtag_reg_ext;
+  vp::reg_32     r_bootsel;
 
   int wakeup;
 };
@@ -219,6 +222,12 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
   {
     err = _this->sleep_ctrl_req(reg_offset, size, is_write, data);
   }
+  else if (offset == APB_SOC_PADS_CONFIG)
+  {
+    int reg_offset = offset % 4;
+
+    _this->r_bootsel.access(reg_offset, size, data, is_write);
+  }
   else if (offset == APB_SOC_BOOTADDR_OFFSET)
   {
     if (is_write)
@@ -299,6 +308,14 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 
   return err;
 }
+
+
+void apb_soc_ctrl::bootsel_sync(void *__this, int value)
+{
+  apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
+  _this->r_bootsel.set(value);
+}
+
 
 
 void apb_soc_ctrl::wakeup_gpio_sync(void *__this, int value, int gpio)
@@ -388,6 +405,10 @@ int apb_soc_ctrl::build()
   this->new_master_port("confreg_soc", &this->confreg_soc_itf);
 
   this->new_reg("jtag_reg_ext", &this->jtag_reg_ext, 0, false);
+
+  bootsel_itf.set_sync_meth(&apb_soc_ctrl::bootsel_sync);
+  new_slave_port("bootsel", &bootsel_itf);
+  this->new_reg("bootsel", &this->r_bootsel, 0, false);
 
   cluster_power_event = this->get_js_config()->get("cluster_power_event")->get_int();
   cluster_clock_gate_event = this->get_js_config()->get("cluster_clock_gate_event")->get_int();

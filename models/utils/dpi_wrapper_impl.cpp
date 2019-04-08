@@ -73,6 +73,7 @@ typedef struct {
 typedef struct {
   void *handle;
   vp::wire_master<bool> *itf;
+  vp::wire_master<uint32_t> *config_itf;
 } ctrl_handle_t;
 
 class dpi_wrapper;
@@ -186,6 +187,7 @@ private:
   vector<dpi_periodic_handler *> handlers;
   dpi_task * first_waiting_task = NULL;
   vp::wire_master<bool> chip_reset_itf;
+  vp::wire_master<uint32_t> chip_config_itf;
 
   bool event_raised = false;
   vp::clock_event *wakeup_evt;
@@ -387,6 +389,7 @@ int dpi_wrapper::build()
 
 
   this->new_master_port("chip_reset", &this->chip_reset_itf);
+  this->new_master_port("chip_config", &this->chip_config_itf);
 
   void *config_handle = dpi_config_get_from_file(getenv("PULP_CONFIG_FILE"));
 
@@ -562,6 +565,7 @@ int dpi_wrapper::build()
           ctrl_handle_t *handle = new ctrl_handle_t;
           handle->handle = dpi_ctrl_bind(dpi_model, itf_name, ctrl_handles.size());
           handle->itf = &this->chip_reset_itf;
+          handle->config_itf = &this->chip_config_itf;
           ctrl_handles.push_back(handle);
 //            i_comp.ctrl_bind(itf_name, ctrl_infos[itf_id].itf);
         }
@@ -597,6 +601,15 @@ extern "C" void dpi_ctrl_reset_edge(void *_handle, int reset)
   if (handle->itf->is_bound())
   {
     handle->itf->sync(reset);
+  }
+}
+
+extern "C" void dpi_ctrl_config_edge(void *_handle, uint32_t config)
+{
+  ctrl_handle_t *handle = ctrl_handles[(int)(long)_handle];
+  if (handle->config_itf->is_bound())
+  {
+    handle->config_itf->sync(config);
   }
 }
 

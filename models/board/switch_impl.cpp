@@ -30,6 +30,8 @@ public:
 
   Switch(const char *config);
 
+  static void sync(void *__this, uint32_t value);
+
   int build();
   void start();
 
@@ -37,9 +39,17 @@ private:
 
 
   vp::wire_master<int>  out_itf;
+  vp::wire_slave<uint32_t>   in_itf;
   int value;
 };
 
+
+
+void Switch::sync(void *__this, uint32_t value)
+{
+  Switch *_this = (Switch *)__this;
+  _this->out_itf.sync(value);
+}
 
 
 Switch::Switch(const char *config)
@@ -50,6 +60,9 @@ Switch::Switch(const char *config)
 int Switch::build()
 {
   this->new_master_port("out", &this->out_itf);
+
+  in_itf.set_sync_meth(&Switch::sync);
+  this->new_slave_port("input", &this->in_itf);
 
   this->value = this->get_config_int("value");
 
