@@ -364,6 +364,8 @@ typedef struct iss_cpu_state_s {
 
   iss_fcsr_t fcsr;
 
+  iss_reg_t fprec;
+
 } iss_cpu_state_t;
 
 typedef struct iss_config_s {

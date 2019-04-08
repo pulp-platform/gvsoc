@@ -154,7 +154,18 @@ static bool fcsr_read(iss_t *iss, iss_reg_t *value) {
 }
 
 static bool fcsr_write(iss_t *iss, unsigned int value) {
-  iss->cpu.state.fcsr.raw = value;
+  iss->cpu.state.fcsr.raw = value & 0xff;
+  return false;
+}
+
+
+static bool fprec_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.state.fprec;
+  return false;
+}
+
+static bool fprec_write(iss_t *iss, unsigned int value) {
+  iss->cpu.state.fprec = value & 0x1f;
   return false;
 }
 
@@ -1055,6 +1066,7 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     case 0x001: status = fflags_read    (iss, value); break;
     case 0x002: status = frm_read       (iss, value); break;
     case 0x003: status = fcsr_read      (iss, value); break;
+    case 0x006: status = fprec_read     (iss, value); break;
 
     // User counter / timers
     case 0xC00: status = cycle_read     (iss, value); break;
@@ -1225,6 +1237,7 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
     case 0x001: return fflags_write    (iss, value);
     case 0x002: return frm_write       (iss, value);
     case 0x003: return fcsr_write      (iss, value);
+    case 0x006: return fprec_write     (iss, value);
 
 
 
