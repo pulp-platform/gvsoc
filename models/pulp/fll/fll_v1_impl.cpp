@@ -52,6 +52,7 @@ private:
   void fll_check_state();
 
   double get_dco_frequency(int dco_input);
+  void handle_req();
 
   static void ref_clock_sync(void *__this, bool value);
   static void ref_clock_set_frequency(void *__this, int64_t frequency);
@@ -75,6 +76,9 @@ private:
   int nb_stability_cycles;
   int locked;
   int dco_input;
+
+  vp::io_req *first_pending;
+  vp::io_req *last_pending;
 };
 
 fll::fll(const char *config)
@@ -108,7 +112,6 @@ void fll::ref_clock_sync(void *__this, bool value)
     int integrator = (_this->integrator_reg.state_int_part << 10) | _this->integrator_reg.state_fract_part;
     int integrator_output = integrator + delta_ext_amp;
 
-
     _this->get_trace()->msg("Adapting DCO input (factor: %d, actual_factor: %d)\n", _this->conf1_reg.mult_factor, _this->status_reg.actual_mult_factor);
 
     _this->integrator_reg.state_int_part = integrator_output >> 10;
@@ -119,6 +122,8 @@ void fll::ref_clock_sync(void *__this, bool value)
   }
 
   _this->fll_check_state();
+
+  _this->handle_req();
 }
 
 double fll::get_dco_frequency(int dco_input)
@@ -275,51 +280,65 @@ vp::io_req_status_e fll::integrator_req(int reg_offset, int size, bool is_write,
   return vp::io_req_status_e::IO_REQ_OK;
 }
 
+void fll::handle_req()
+{
+  vp::io_req *req = this->first_pending;
+
+  if (req)
+  {
+    this->first_pending = req->get_next();
+
+    vp::io_req_status_e err = vp::IO_REQ_INVALID;
+    uint64_t offset = req->get_addr();
+    uint8_t *data = req->get_data();
+    uint64_t size = req->get_size();
+    bool is_write = req->get_is_write();
+
+    this->get_trace()->msg("FLL access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+
+    int reg_id = offset / 4;
+    int reg_offset = offset % 4;
+
+    if (reg_offset + size > 4) {
+      this->get_trace()->warning("Accessing 2 registers in one access\n");
+      err = vp::IO_REQ_INVALID;
+      goto end;
+    }
+
+    switch (reg_id) {
+      case FLL_STATUS_OFFSET/4:     err = this->status_req(reg_offset, size, is_write, data); break;
+      case FLL_CONF1_OFFSET/4:      err = this->conf1_req(reg_offset, size, is_write, data); break;
+      case FLL_CONF2_OFFSET/4:      err = this->conf2_req(reg_offset, size, is_write, data); break;
+      case FLL_INTEGRATOR_OFFSET/4: err = this->integrator_req(reg_offset, size, is_write, data); break;
+    }
+
+    // TODO we should be able to report an error in asynchronous requests
+
+end:
+    if (err != vp::IO_REQ_OK)
+      this->get_trace()->msg("FLL invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+
+    req->resp_port->resp(req);
+  }
+}
+
+
+
 vp::io_req_status_e fll::req(void *__this, vp::io_req *req)
 {
   fll *_this = (fll *)__this;
-  
-  vp::io_req_status_e err = vp::IO_REQ_INVALID;
-  uint64_t offset = req->get_addr();
-  uint8_t *data = req->get_data();
-  uint64_t size = req->get_size();
-  bool is_write = req->get_is_write();
 
-  _this->get_trace()->msg("FLL access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+  if (_this->first_pending)
+    _this->last_pending->set_next(req);
+  else
+    _this->first_pending = req;
 
-  int reg_id = offset / 4;
-  int reg_offset = offset % 4;
+  _this->last_pending = req;
 
-  if (reg_offset + size > 4) {
-    _this->get_trace()->warning("Accessing 2 registers in one access\n");
-    goto error;
-  }
-
-  switch (reg_id) {
-    case FLL_STATUS_OFFSET/4:     err = _this->status_req(reg_offset, size, is_write, data); break;
-    case FLL_CONF1_OFFSET/4:      err = _this->conf1_req(reg_offset, size, is_write, data); break;
-    case FLL_CONF2_OFFSET/4:      err = _this->conf2_req(reg_offset, size, is_write, data); break;
-    case FLL_INTEGRATOR_OFFSET/4: err = _this->integrator_req(reg_offset, size, is_write, data); break;
-  }
-
-  if (err != vp::IO_REQ_OK)
-    goto error;
-
-  // The configuration interface is asynchronous.
-  // The time required to reply depends on the clock used internally in the
-  // FLL registers. Just compute the needed time and round it to model the
-  // asynchronous request.
-
-  //if (this->conf1_reg.mode == 0)
-
-
-  return vp::IO_REQ_OK;
-
-error:
-  _this->get_trace()->msg("FLL invalid access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
-
-  return vp::IO_REQ_INVALID;
+  return vp::IO_REQ_PENDING;
 }
+
+
 
 int fll::build()
 {
@@ -355,6 +374,8 @@ void fll::reset(bool active)
     this->nb_stability_cycles = 0;
     this->locked              = 0;
     this->dco_input = this->conf1_reg.dco_input;
+    this->first_pending = NULL;
+    this->last_pending = NULL;
   }
   else
   {
