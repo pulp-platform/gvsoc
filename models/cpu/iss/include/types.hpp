@@ -34,7 +34,11 @@
 #else
 #include "archi/riscv/pcer_v1.h"
 #endif
+#ifdef PRIV_1_10
+#include "archi/riscv/priv_1_10.h"
+#else
 #include "archi/riscv/priv_1_9.h"
+#endif
 #endif
 #else
 #error Unknown core version

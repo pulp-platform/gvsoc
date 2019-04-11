@@ -1178,9 +1178,9 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
 
     else if (iss->cpu.pulpv2.hwloop)
     {
-      if (reg >= 0x7B0 && reg <= 0x7B6)
+      if (reg >= CSR_HWLOOP0_START && reg <= CSR_HWLOOP1_COUNTER)
       {
-        status = hwloop_read(iss, reg - 0x7B0, value);
+        status = hwloop_read(iss, reg - CSR_HWLOOP0_START, value);
       }
     }
 
@@ -1326,7 +1326,7 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
 
   if (iss->cpu.pulpv2.hwloop)
   {
-    if (reg >= 0x7B0 && reg <= 0x7B6) return hwloop_write(iss, reg - 0x7B0, value);
+    if (reg >= CSR_HWLOOP0_START && reg <= CSR_HWLOOP1_COUNTER) return hwloop_write(iss, reg - CSR_HWLOOP0_START, value);
   }
 
 #if 0
