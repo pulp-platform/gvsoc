@@ -75,7 +75,8 @@ class Jtag_group : public Pad_group
 {
 public:
   Jtag_group(std::string name) : Pad_group(name) {}
-  vp::jtag_slave slave;
+  vp::jtag_slave pad_slave;
+  vp::jtag_slave chip_slave;
   vp::jtag_master master;
   vp::trace tck_trace;
   vp::trace tdi_trace;
@@ -162,8 +163,12 @@ private:
   static void qspim_sync_cycle(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
   static void qspim_cs_sync(void *__this, int cs, int active, int id);
 
-  static void jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int id);
-  static void jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id);
+  static void jtag_pad_slave_sync(void *__this, int tck, int tdi, int tms, int trst, int id);
+  static void jtag_pad_slave_sync_cycle(void *__this, int tdi, int tms, int trst, int id);
+
+  static void jtag_chip_slave_sync(void *__this, int tck, int tdi, int tms, int trst, int id);
+  static void jtag_chip_slave_sync_cycle(void *__this, int tdi, int tms, int trst, int id);
+  
   static void jtag_master_sync(void *__this, int tdo, int id);
 
   static void cpi_sync(void *__this, int pclk, int href, int vsync, int data, int id);
@@ -288,7 +293,7 @@ void padframe::qspim_master_sync(void *__this, int data_0, int data_1, int data_
 
 
 
-void padframe::jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int id)
+void padframe::jtag_pad_slave_sync(void *__this, int tck, int tdi, int tms, int trst, int id)
 {
   padframe *_this = (padframe *)__this;
   Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
@@ -302,18 +307,7 @@ void padframe::jtag_sync(void *__this, int tck, int tdi, int tms, int trst, int 
 }
 
 
-void padframe::jtag_master_sync(void *__this, int tdo, int id)
-{
-  padframe *_this = (padframe *)__this;
-  Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
-
-  group->tdo_trace.event((uint8_t *)&tdo);
-
-  group->slave.sync(tdo);
-}
-
-
-void padframe::jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
+void padframe::jtag_pad_slave_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
 {
   padframe *_this = (padframe *)__this;
   Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
@@ -323,6 +317,30 @@ void padframe::jtag_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
   group->trst_trace.event((uint8_t *)&trst);
 
   group->master.sync_cycle(tdi, tms, trst);
+}
+
+
+
+void padframe::jtag_chip_slave_sync(void *__this, int tck, int tdi, int tms, int trst, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
+
+  group->tdo_trace.event((uint8_t *)&tdi);
+
+  if (tck)
+    group->pad_slave.sync(tdi);
+}
+
+
+void padframe::jtag_chip_slave_sync_cycle(void *__this, int tdi, int tms, int trst, int id)
+{
+  padframe *_this = (padframe *)__this;
+  Jtag_group *group = static_cast<Jtag_group *>(_this->groups[id]);
+
+  group->tdo_trace.event((uint8_t *)&tdi);
+
+  group->pad_slave.sync(tdi);
 }
 
 
@@ -627,16 +645,23 @@ int padframe::build()
       {
         Jtag_group *group = new Jtag_group(name);
         new_master_port(name, &group->master);
-        new_slave_port(name + "_pad", &group->slave);
-        group->master.set_sync_meth_muxed(&padframe::jtag_master_sync, nb_itf);
-        group->slave.set_sync_meth_muxed(&padframe::jtag_sync, nb_itf);
-        group->slave.set_sync_cycle_meth_muxed(&padframe::jtag_sync_cycle, nb_itf);
+        new_slave_port(name + "_pad", &group->pad_slave);
+        new_slave_port(name + "_out", &group->chip_slave);
+
+        group->pad_slave.set_sync_meth_muxed(&padframe::jtag_pad_slave_sync, nb_itf);
+        group->pad_slave.set_sync_cycle_meth_muxed(&padframe::jtag_pad_slave_sync_cycle, nb_itf);
+
+        group->chip_slave.set_sync_meth_muxed(&padframe::jtag_chip_slave_sync, nb_itf);
+        group->chip_slave.set_sync_cycle_meth_muxed(&padframe::jtag_chip_slave_sync_cycle, nb_itf);
+
         this->groups.push_back(group);
+
         traces.new_trace_event(name + "/tck", &group->tck_trace, 1);
         traces.new_trace_event(name + "/tdi", &group->tdi_trace, 1);
         traces.new_trace_event(name + "/tdo", &group->tdo_trace, 1);
         traces.new_trace_event(name + "/tms", &group->tms_trace, 1);
         traces.new_trace_event(name + "/trst", &group->trst_trace, 1);
+
         nb_itf++;
       }
       else if (type == "cpi")

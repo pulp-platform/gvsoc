@@ -117,7 +117,8 @@ private:
 
   vp::trace     trace;
   vp::trace     debug;
-  vp::jtag_slave jtag_itf;
+  vp::jtag_slave jtag_in_itf;
+  vp::jtag_master jtag_out_itf;
 
   vp::wire_slave<uint32_t> confreg_soc_itf;
   vp::wire_master<uint32_t> confreg_ext_itf;
@@ -128,6 +129,8 @@ private:
   device_t dev;
   int tdi;
   int tdo;
+
+  uint32_t dr;
 
   int confreg_length;
 
@@ -148,7 +151,7 @@ void adv_dbg_unit::tap_reset() {
 void adv_dbg_unit::tap_init() {
   tap.state = TAP_STATE_TEST_LOGIC_RESET;
   tap.tclk = 0;
-  tap.id_reg = 1;
+  tap.id_reg = 0x12345678;
   tap.confreg_reg = 0;
   tap.instr = IDCODE_INSTR;
   tap_reset();
@@ -304,6 +307,10 @@ void adv_dbg_unit::capture_dr()
     if (tap.instr == CONFREG_INSTR) {
       tap.confreg_out_reg = tap.confreg_soc;
     }
+    else if (tap.instr == IDCODE_INSTR)
+    {
+      this->dr = tap.id_reg;
+    }
   }
 }
 
@@ -333,8 +340,8 @@ void adv_dbg_unit::shift_dr()
   }
   else if (tap.instr == IDCODE_INSTR)
   {
-    tap.id_reg = (tap.id_reg >> 1) | (tdi << 31);
-    //vpi_out = tap.id_reg & 1;
+    this->dr = (this->dr >> 1) | (tdi << 31);
+    tdo = this->dr & 1;
   }
   else if (tap.instr == USER_INSTR) {
 
@@ -559,7 +566,7 @@ void adv_dbg_unit::tck_edge(int tck, int tdi, int tms, int trst)
   if (tck)
   {
     trace.msg("Syncing TDO (TDO_BIT: %1d)\n", this->tdo);
-    this->jtag_itf.sync(this->tdo);
+    this->jtag_out_itf.sync(tck, this->tdo, tms, trst);
   }
 }
 
@@ -599,9 +606,11 @@ int adv_dbg_unit::build()
   confreg_soc_itf.set_sync_meth(&adv_dbg_unit::confreg_soc_sync);
   this->new_slave_port("confreg_soc", &this->confreg_soc_itf);
 
-  jtag_itf.set_sync_meth(&adv_dbg_unit::sync);
-  jtag_itf.set_sync_cycle_meth(&adv_dbg_unit::sync_cycle);
-  new_slave_port("jtag", &jtag_itf);
+  jtag_in_itf.set_sync_meth(&adv_dbg_unit::sync);
+  jtag_in_itf.set_sync_cycle_meth(&adv_dbg_unit::sync_cycle);
+  new_slave_port("jtag_in", &jtag_in_itf);
+
+  new_master_port("jtag_out", &jtag_out_itf);
 
   new_master_port("io", &io_itf);
 
