@@ -147,6 +147,7 @@ adv_dbg_unit::adv_dbg_unit(const char *config)
 void adv_dbg_unit::tap_reset() {
   dev.do_burst = 0;
   dev.error_reg = 0;
+  tap.instr = IDCODE_INSTR;
 }
 
 void adv_dbg_unit::tap_init() {
@@ -154,7 +155,6 @@ void adv_dbg_unit::tap_init() {
   tap.tclk = 0;
   tap.id_reg = 0x87654321;
   tap.confreg_reg = 0;
-  tap.instr = IDCODE_INSTR;
   tap_reset();
   debug.msg("Updating instruction (newInstr: IDCODE)\n");
 }
@@ -548,7 +548,7 @@ void adv_dbg_unit::tap_update(int tms, int tclk) {
       break;
     }
     
-    trace.msg("Changing TAP state (newState: %s)\n", tapStateName[tap.state].c_str());
+    debug.msg("Changing TAP state (newState: %s)\n", tapStateName[tap.state].c_str());
  
   } else if (!tclk && tap.tclk) {
     if (tap.state == TAP_STATE_SHIFT_DR) {
