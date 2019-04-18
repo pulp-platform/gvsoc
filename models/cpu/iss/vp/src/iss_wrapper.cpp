@@ -295,6 +295,12 @@ void iss_wrapper::fetchen_sync(void *__this, bool active)
 
 void iss_wrapper::set_halt_mode(bool halted, int cause)
 {
+#if defined(PRIV_1_10)
+  if (!this->cpu.state.debug_mode)
+  {
+    this->debug_req();
+  }
+#else
   this->halt_cause = cause;
 
   if (this->halted.get() && !halted)
@@ -310,6 +316,7 @@ void iss_wrapper::set_halt_mode(bool halted, int cause)
  
   if (this->halt_status_itf.is_bound()) 
     this->halt_status_itf.sync(this->halted.get());
+#endif
 }
 
 
@@ -345,7 +352,7 @@ void iss_wrapper::check_state()
 
   if (!is_active_reg.get())
   {
-    if (!halted.get() && fetch_enable_reg.get() && !stalled.get() && (!wfi.get() || irq_req != -1))
+    if (!halted.get() && fetch_enable_reg.get() && !stalled.get() && (!wfi.get() || irq_req != -1 || this->cpu.state.debug_mode))
     {
       wfi.set(false);
       is_active_reg.set(true);
@@ -462,6 +469,14 @@ void iss_wrapper::irq_req_sync(void *__this, int irq)
   iss_irq_req(_this, irq);
   _this->wfi.set(false);
   _this->check_state();
+}
+
+void iss_wrapper::debug_req()
+{
+  this->cpu.irq.req_debug = true;
+  this->irq_check();
+  this->wfi.set(false);
+  this->check_state();
 }
 
 std::string iss_wrapper::read_user_string(iss_addr_t addr)
@@ -815,6 +830,7 @@ int iss_wrapper::build()
   string isa = get_config_str("isa");
   //transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
   this->cpu.config.isa = strdup(isa.c_str());
+  this->cpu.config.debug_handler = this->get_js_config()->get_int("debug_handler");
 
   ipc_clock_event = this->event_new(iss_wrapper::ipc_stat_handler);
 

@@ -55,6 +55,7 @@ public:
   static inline void exec_misaligned(void *__this, vp::clock_event *event);
 
   static void irq_req_sync(void *__this, int irq);
+  void debug_req();
 
   inline int data_req(iss_addr_t addr, uint8_t *data, int size, bool is_write);
   inline int data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);

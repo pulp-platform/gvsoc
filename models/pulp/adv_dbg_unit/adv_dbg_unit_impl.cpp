@@ -34,6 +34,7 @@
 #define IDCODE_INSTR 1
 #define USER_INSTR   4
 #define CONFREG_INSTR   7
+#define BYPASS_INSTR   0xF
 
 #define INSTR_LENGTH 4
 
@@ -151,7 +152,7 @@ void adv_dbg_unit::tap_reset() {
 void adv_dbg_unit::tap_init() {
   tap.state = TAP_STATE_TEST_LOGIC_RESET;
   tap.tclk = 0;
-  tap.id_reg = 0x12345678;
+  tap.id_reg = 0x87654321;
   tap.confreg_reg = 0;
   tap.instr = IDCODE_INSTR;
   tap_reset();
@@ -340,8 +341,8 @@ void adv_dbg_unit::shift_dr()
   }
   else if (tap.instr == IDCODE_INSTR)
   {
-    this->dr = (this->dr >> 1) | (tdi << 31);
     tdo = this->dr & 1;
+    this->dr = (this->dr >> 1) | (tdi << 31);
   }
   else if (tap.instr == USER_INSTR) {
 
@@ -457,6 +458,12 @@ void adv_dbg_unit::shift_dr()
       dev.command |= ((uint64_t)tdi) << 63;
     }
   }
+  else if (tap.instr == BYPASS_INSTR)
+  {
+    tdo = dev.shift_data & 1;
+    dev.shift_data >>= 1;
+    dev.shift_data |= ((uint64_t)tdi) << 0;
+  }
   else
   {
     tdo = dev.shift_data & 1;
@@ -563,11 +570,8 @@ void adv_dbg_unit::tck_edge(int tck, int tdi, int tms, int trst)
   trace.msg("Executing cycle (TMS_BIT: %1d, TDI_BIT: %1d, TRST_BIT: %1d, TCLK_BIT: %d)\n", tms, tdi, trst, tck);
   this->tdi = tdi;
   tap_update(tms, tck);
-  if (tck)
-  {
-    trace.msg("Syncing TDO (TDO_BIT: %1d)\n", this->tdo);
-    this->jtag_out_itf.sync(tck, this->tdo, tms, trst);
-  }
+  trace.msg("Syncing TDO (TDO_BIT: %1d)\n", this->tdo);
+  this->jtag_out_itf.sync(tck, this->tdo, tms, trst);
 }
 
 void adv_dbg_unit::sync(void *__this, int tck, int tdi, int tms, int trst)

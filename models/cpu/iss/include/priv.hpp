@@ -127,4 +127,11 @@ static inline iss_insn_t *mret_exec(iss_t *iss, iss_insn_t *insn)
 
 
 
+static inline iss_insn_t *dret_exec(iss_t *iss, iss_insn_t *insn)
+{
+  return iss_irq_handle_dret(iss);
+}
+
+
+
 #endif

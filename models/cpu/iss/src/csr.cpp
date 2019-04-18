@@ -871,6 +871,36 @@ static bool umode_read(iss_t *iss, iss_reg_t *value) {
   return false;
 }
 
+static bool depc_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.depc;
+  return false;
+}
+
+static bool depc_write(iss_t *iss, iss_reg_t value) {
+  iss->cpu.csr.depc = value;
+  return false;
+}
+
+static bool scratch0_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.scratch0;
+  return false;
+}
+
+static bool scratch0_write(iss_t *iss, iss_reg_t value) {
+  iss->cpu.csr.scratch0 = value;
+  return false;
+}
+
+static bool scratch1_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.scratch1;
+  return false;
+}
+
+static bool scratch1_write(iss_t *iss, iss_reg_t value) {
+  iss->cpu.csr.scratch1 = value;
+  return false;
+}
+
 
 static bool pcer_write(iss_t *iss, unsigned int prev_val, unsigned int value) {
   iss->cpu.csr.pcer = value;
@@ -1161,6 +1191,10 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     case 0xC10: status = umode_read(iss, value); break;
     case 0x014: status = mhartid_read(iss, value); break;
 
+    case 0x7b1: status = depc_read    (iss, value); break;
+    case 0x7b2: status = scratch0_read(iss, value); break;
+    case 0x7b3: status = scratch1_read(iss, value); break;
+
 #ifdef CSR_STACK_CONF
     case CSR_STACK_CONF:  status = stack_conf_read(iss, value); break;
     case CSR_STACK_START: status = stack_start_read(iss, value); break;
@@ -1170,7 +1204,7 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     default:
 
 #if defined(ISS_HAS_PERF_COUNTERS)
-    if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR)
+    if ((reg >= CSR_PCCR(0) && reg <= CSR_PCCR(CSR_NB_PCCR-1)) || reg == CSR_PCER || reg == CSR_PCMR)
     {
       status = perfCounters_read(iss, reg, value);
     }
@@ -1312,6 +1346,10 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
     case 0x311: return mscounteren_write(iss, value);
     case 0x312: return mhcounteren_write(iss, value);
 
+    case 0x7b1: return depc_write    (iss, value);
+    case 0x7b2: return scratch0_write(iss, value);
+    case 0x7b3: return scratch1_write(iss, value);
+
 #ifdef CSR_STACK_CONF
     case CSR_STACK_CONF:  return stack_conf_write(iss, value); break;
     case CSR_STACK_START: return stack_start_write(iss, value); break;
@@ -1321,7 +1359,7 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
   }
 
 #if defined(ISS_HAS_PERF_COUNTERS)
-  if (reg >= CSR_PCCR(0) && reg <= CSR_PCMR) return perfCounters_write(iss, reg, value);
+  if ((reg >= CSR_PCCR(0) && reg <= CSR_PCCR(CSR_NB_PCCR-1)) || reg == CSR_PCER || reg == CSR_PCMR) return perfCounters_write(iss, reg, value);
 #endif
 
   if (iss->cpu.pulpv2.hwloop)

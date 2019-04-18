@@ -1070,6 +1070,8 @@ class Runner(Platform):
 
         parser.add_argument("--trace", dest="traces", default=[], action="append", help="Specify gvsoc trace")
 
+        parser.add_argument("--trace-level", dest="trace_level", default=None, help="Specify trace level")
+
         parser.add_argument("--vcd", dest="vcd", action="store_true", help="Activate VCD traces")
 
         parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
@@ -1101,6 +1103,9 @@ class Runner(Platform):
 
         for trace in args.traces:
             self.get_json().set('gvsoc/trace', trace)
+
+        if args.trace_level is not None:
+            self.get_json().set('gvsoc/trace-level', args.trace_level)
 
         for event in args.events:
             self.get_json().set('gvsoc/event', event)
@@ -1167,6 +1172,14 @@ class Runner(Platform):
         if comps_conf is not None or self.get_json().get_child_bool('**/runner/boot_from_flash'):
 
             self.gen_flash_stimuli = True
+
+        if self.get_json().get('**/soc/debug_rom/stim_file') is not None:
+            try:
+                debug_rom_file = eval(self.get_json().get_str('**/soc/debug_rom/stim_file'))
+            except:
+                debug_rom_file = self.get_json().get_str('**/soc/debug_rom/stim_file')
+
+            self.get_json().get('**/soc/debug_rom').set('stim_file', debug_rom_file)
 
         if self.get_json().get('**/rom') != None:
 

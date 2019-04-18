@@ -99,6 +99,7 @@ class iss;
 #define ISS_EXCEPT_RESET    0
 #define ISS_EXCEPT_ILLEGAL  1
 #define ISS_EXCEPT_ECALL    2
+#define ISS_EXCEPT_DEBUG    3
 
 typedef struct iss_cpu_s iss_cpu_t;
 typedef struct iss_insn_s iss_insn_t;
@@ -370,24 +371,31 @@ typedef struct iss_cpu_state_s {
 
   iss_reg_t fprec;
 
+  bool debug_mode;
+
 } iss_cpu_state_t;
 
 typedef struct iss_config_s {
   iss_reg_t mhartid;
   const char *isa;
+  iss_addr_t debug_handler;
 } iss_config_t;
 
 typedef struct iss_irq_s {
   iss_insn_t *vectors[35];
   int irq_enable;
   int saved_irq_enable;
+  int debug_saved_irq_enable;
   int req_irq;
+  bool req_debug;
+  iss_insn_t *debug_handler;
 } iss_irq_t;
 
 typedef struct iss_csr_s
 {
   iss_reg_t status;
   iss_reg_t epc;
+  iss_reg_t depc;
   iss_reg_t mtvec;
   iss_reg_t mcause;
 #if defined(ISS_HAS_PERF_COUNTERS)
@@ -398,6 +406,8 @@ typedef struct iss_csr_s
   iss_reg_t stack_conf;
   iss_reg_t stack_start;
   iss_reg_t stack_end;
+  iss_reg_t scratch0;
+  iss_reg_t scratch1;
 } iss_csr_t;
 
 

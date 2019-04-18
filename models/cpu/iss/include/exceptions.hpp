@@ -23,6 +23,26 @@
 
 static inline iss_insn_t *iss_except_raise(iss_t *iss, int id)
 {
+#if defined(PRIV_1_10)
+  if (id == ISS_EXCEPT_DEBUG)
+  {
+    iss->cpu.csr.depc = iss->cpu.current_insn->addr;
+    iss->cpu.irq.debug_saved_irq_enable = iss->cpu.irq.irq_enable;
+    iss->cpu.irq.irq_enable = 0;
+    return iss->cpu.irq.debug_handler;
+  }
+  else
+  {
+    iss->cpu.csr.epc = iss->cpu.current_insn->addr;
+    iss->cpu.irq.saved_irq_enable = iss->cpu.irq.irq_enable;
+    iss->cpu.irq.irq_enable = 0;
+    iss->cpu.csr.mcause = 0xb;
+    iss_insn_t *insn = iss->cpu.irq.vectors[0];
+    if (insn == NULL)
+      insn = insn_cache_get(iss, 0);
+    return insn; 
+  }
+#else
   iss->cpu.csr.epc = iss->cpu.current_insn->addr;
   iss->cpu.irq.saved_irq_enable = iss->cpu.irq.irq_enable;
   iss->cpu.irq.irq_enable = 0;
@@ -31,6 +51,7 @@ static inline iss_insn_t *iss_except_raise(iss_t *iss, int id)
   if (insn == NULL)
     insn = insn_cache_get(iss, 0);
   return insn;
+ #endif
 }
 
 #endif

@@ -108,7 +108,7 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
   }
 
   if (offset + size > _this->size) {
-    //gv_trace_dumpWarning(&warning, "Received out-of-bound request (reqAddr: 0x%x, reqSize: 0x%x, memSize: 0x%x)\n", offset, size, this->size);
+    _this->trace.force_warning("Received out-of-bound request (reqAddr: 0x%x, reqSize: 0x%x, memSize: 0x%x)\n", offset, size, _this->size);
     return vp::IO_REQ_INVALID;
   }
 
