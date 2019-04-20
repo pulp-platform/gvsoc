@@ -33,7 +33,7 @@
 
 #define IDCODE_INSTR 1
 #define USER_INSTR   4
-#define CONFREG_INSTR   7
+#define CONFREG_INSTR   6
 #define BYPASS_INSTR   0xF
 
 #define INSTR_LENGTH 4
@@ -134,6 +134,7 @@ private:
   uint32_t dr;
 
   int confreg_length;
+  int confreg_instr;
 
   vp::io_master io_itf;
 };
@@ -274,7 +275,7 @@ void adv_dbg_unit::module_cmd(uint64_t dev_command)
 
 void adv_dbg_unit::update_dr()
 {
-  if (tap.instr == CONFREG_INSTR)
+  if (tap.instr == this->confreg_instr)
   {
     this->tap.confreg_out_reg = this->tap.confreg_soc;
     if (this->confreg_ext_itf.is_bound())
@@ -305,7 +306,7 @@ void adv_dbg_unit::capture_dr()
       //cpuCtrl[0]->regAccess(-1, 1, &tap.ctrl_reg);
   } else if (tap.module == 0) {
     tap.ctrl_reg = 0;
-    if (tap.instr == CONFREG_INSTR) {
+    if (tap.instr == this->confreg_instr) {
       tap.confreg_out_reg = tap.confreg_soc;
     }
     else if (tap.instr == IDCODE_INSTR)
@@ -333,7 +334,7 @@ static uint32_t adbg_compute_crc(uint32_t crc_in, uint32_t data_in, int length_b
 
 void adv_dbg_unit::shift_dr()
 {
-  if (tap.instr == CONFREG_INSTR) {
+  if (tap.instr == this->confreg_instr) {
     tap.confreg_reg = (tap.confreg_reg >> 1) | (tdi << (this->confreg_length - 1));
     tdo = tap.confreg_out_reg & 1;
     tap.confreg_out_reg >>= 1;
@@ -617,6 +618,12 @@ int adv_dbg_unit::build()
   new_master_port("jtag_out", &jtag_out_itf);
 
   new_master_port("io", &io_itf);
+
+  if (get_js_config()->get("confreg_instr") == NULL)
+    this->confreg_instr = 7;
+  else
+    this->confreg_instr = get_js_config()->get_int("confreg_instr");
+
 
   tap_init();
   return 0;

@@ -87,12 +87,6 @@ vp::io_req_status_e mram::req(void *__this, vp::io_req *req)
 
 void mram::reset(bool active)
 {
-  if (active)
-  {
-    // Initialize the mram with a special value to detect uninitialized
-    // variables
-    memset(mem_data, 0x57, size);
-  }
 }
 
 int mram::build()
@@ -134,6 +128,10 @@ void mram::start()
       return;
     }
   }
+
+  // Initialize the mram with a special value to detect uninitialized
+  // variables
+  memset(mem_data, 0x57, size);
 }
 
 extern "C" void *vp_constructor(const char *config)

@@ -355,7 +355,7 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
       if (_this->active_sequence_step == seq->nb_step)
         _this->active_sequence_step = -1;
 
-      _this->pctrl_req(0, 32, true, (uint8_t *)&reg.raw);
+      _this->pctrl_req(0, 4, true, (uint8_t *)&reg.raw);
     }
     else
     {
