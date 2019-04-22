@@ -151,6 +151,7 @@ private:
   int64_t wakeup_latency;
   int bootaddr_offset;
   iss_reg_t hit_reg = 0;
+  bool riscv_dbg_unit;
 
   iss_reg_t ppc;
   iss_reg_t npc;

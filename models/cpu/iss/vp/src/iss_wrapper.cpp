@@ -295,28 +295,31 @@ void iss_wrapper::fetchen_sync(void *__this, bool active)
 
 void iss_wrapper::set_halt_mode(bool halted, int cause)
 {
-#if defined(PRIV_1_10)
-  if (!this->cpu.state.debug_mode)
+  if (this->riscv_dbg_unit)
   {
-    this->debug_req();
+    if (!this->cpu.state.debug_mode)
+    {
+      this->debug_req();
+    }
   }
-#else
-  this->halt_cause = cause;
+  else
+  {
+    this->halt_cause = cause;
 
-  if (this->halted.get() && !halted)
-  {
-    this->get_clock()->release();
-  }
-  else if (!this->halted.get() && halted)
-  {
-    this->get_clock()->retain();
-  }
+    if (this->halted.get() && !halted)
+    {
+      this->get_clock()->release();
+    }
+    else if (!this->halted.get() && halted)
+    {
+      this->get_clock()->retain();
+    }
 
-  this->halted.set(halted);
- 
-  if (this->halt_status_itf.is_bound()) 
-    this->halt_status_itf.sync(this->halted.get());
-#endif
+    this->halted.set(halted);
+
+    if (this->halt_status_itf.is_bound()) 
+      this->halt_status_itf.sync(this->halted.get());
+  }
 }
 
 
@@ -825,6 +828,7 @@ int iss_wrapper::build()
   check_all_event = event_new(iss_wrapper::exec_instr_check_all);
   misaligned_event = event_new(iss_wrapper::exec_misaligned);
 
+  this->riscv_dbg_unit = this->get_js_config()->get_child_bool("riscv_dbg_unit");
   this->bootaddr_offset = get_config_int("bootaddr_offset");
   this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
   string isa = get_config_str("isa");
