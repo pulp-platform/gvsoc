@@ -47,7 +47,7 @@ private:
 
   int current_cmd;
   int nb_regs;
-  uint8_t *efuse_regs;
+  uint32_t *efuse_regs;
 
   uint32_t cfg_reg;
 };
@@ -190,8 +190,8 @@ int efuse::build()
 
   this->current_cmd = EFUSE_CMD_SLEEP;
 
-  this->efuse_regs = new uint8_t[this->nb_regs];
-  memset(this->efuse_regs, 0, this->nb_regs);
+  this->efuse_regs = new uint32_t[this->nb_regs];
+  memset(this->efuse_regs, 0, this->nb_regs*4);
 
   return 0;
 }
