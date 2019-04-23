@@ -109,6 +109,9 @@ void mram::start()
 
   this->mem_data = new uint8_t[this->size];
 
+  // Initialize the mram with a special value to detect uninitialized
+  // variables
+  memset(mem_data, 0x57, size);
   // Preload the mram
   js::config *stim_file_conf = this->get_js_config()->get("stim_file");
   if (stim_file_conf != NULL)
@@ -128,10 +131,6 @@ void mram::start()
       return;
     }
   }
-
-  // Initialize the mram with a special value to detect uninitialized
-  // variables
-  memset(mem_data, 0x57, size);
 }
 
 extern "C" void *vp_constructor(const char *config)

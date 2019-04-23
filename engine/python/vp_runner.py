@@ -1299,6 +1299,8 @@ class Runner(Platform):
         if self.gen_flash_stimuli:
             if self.get_json().get('**/spiflash') is not None:
                 self.get_json().get('**/spiflash').set('stim_file', self.get_flash_preload_file())
+            if self.get_json().get('**/mram') is not None:
+                self.get_json().get('**/soc/mram').set('stim_file', self.get_flash_preload_file())
 
 
         if self.get_json().get_child_str('**/runner/boot-mode') != 'rom' and not bridge:
