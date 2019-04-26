@@ -35,7 +35,9 @@
 #include <string.h>
 #include <vector>
 #include "archi/udma/udma_v3.h"
+#ifdef HAS_I2S
 #include "archi/udma/i2s/udma_i2s_v2.h"
+#endif
 
 class udma;
 class Udma_channel;
@@ -532,6 +534,8 @@ private:
  * I2S
  */
 
+#ifdef HAS_I2S
+
 class I2s_periph_v2;
 
 class I2s_cic_filter {
@@ -615,6 +619,7 @@ private:
   int sck[2];
 };
 
+#endif
 
 
 
