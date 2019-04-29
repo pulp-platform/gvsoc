@@ -73,7 +73,11 @@ vp::io_req_status_e job_fifo::req(void *__this, vp::io_req *req)
 
   _this->trace.msg("IO access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, req->get_is_write());
 
-  if (is_write) return vp::IO_REQ_INVALID;
+  if (is_write)
+  {
+    // This should raise a signal on host side but is not modeled for now
+    return vp::IO_REQ_OK;
+  }
 
   if (_this->nb_elems == 0) {
     memset(data, 0, size);
