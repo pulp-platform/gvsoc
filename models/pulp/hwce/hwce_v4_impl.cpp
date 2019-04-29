@@ -51,6 +51,7 @@ class hwce_job_t {
 public:
   hwce_job_t *next;
   int id;
+  int run_id;
 
   vp_hwce_y_trans_size              r_y_trans_size;
   vp_hwce_y_line_stride_length      r_y_line_stride_length;
@@ -158,6 +159,7 @@ private:
 
   void set_state(int new_state);
   void enqueue_job();
+  int alloc_job();
   static void job_queue_handle(void *__this, vp::clock_event *event);
   static void ctrl_handle(void *__this, vp::clock_event *event);
   vp::io_req_status_e req_trigger(int reg_offset, int size, uint8_t *data, bool is_write);
@@ -214,6 +216,8 @@ private:
   int current_job;
   int state;
   int job_queue_state;
+  unsigned int free_jobs;
+  int job_id;
 
   uint32_t weights_base;
   uint32_t x_in_size;
@@ -255,6 +259,9 @@ void hwce::reset(bool active)
     this->prev_job = NULL;
     this->pending_job = NULL;
     this->allocated_job = NULL;
+
+    this->free_jobs = 0x3;
+    this->job_id = 0;
   }
 }
 
@@ -262,15 +269,17 @@ void hwce::reset(bool active)
 
 int hwce::alloc_job()
 {
-  if (this->freeJobs == 0) return -1;
+  if (this->free_jobs == 0) return -1;
+
   for (int i=0; i<32; i++)
   {
-    if ((freeJobs >> i) & 1) {
-      gv_trace_dumpMsg(&trace, "Allocated job (jobId: %d)\n", i);
-      freeJobs &= ~(1<<i);
-      currentJob = i;
-      jobs[i].runId = jobId++;
-      if (jobId == 256) jobId = 0;
+    if ((this->free_jobs >> i) & 1)
+    {
+      this->trace.msg("Allocated job (jobId: %d)\n", i);
+      this->free_jobs &= ~(1<<i);
+      this->current_job = i;
+      this->jobs[i].run_id = this->job_id++;
+      if (this->job_id == 256) this->job_id = 0;
       return i;
     }
   }
@@ -358,6 +367,7 @@ vp::io_req_status_e hwce::req_acquire(int reg_offset, int size, uint8_t *data, b
 
   if (!is_write)
   {
+    #if 0
     switch (this->state) {
       case HWCE_STATE_IDLE: {
         int job = this->alloc_job();
@@ -385,6 +395,7 @@ vp::io_req_status_e hwce::req_acquire(int reg_offset, int size, uint8_t *data, b
       *data = HWCE_ACQUIRE_LOCKED;
       break;
     }
+    #endif
   }
 
   return vp::IO_REQ_OK;
