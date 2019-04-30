@@ -48,6 +48,7 @@ public:
 
   int build();
   void start();
+  void reset(bool active);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -56,7 +57,6 @@ private:
   static void event_in_sync(void *__this, int event);
   static void ref_clock_sync(void *_this, bool value);
   void trigger_event(int event);
-  void reset();
 
   vp::io_req_status_e trigger_event_req(int reg_offset, int size, bool is_write, uint8_t *data);
   vp::io_req_status_e mask_req(int target_id, int reg_id, int reg_offset, int size, bool is_write, uint8_t *data);
@@ -210,20 +210,22 @@ int soc_eu::build()
   return 0;
 }
 
-void soc_eu::reset()
+void soc_eu::reset(bool active)
 {
-  for (auto target: this->targets)
+  if (active)
   {
-    for (int i=0; i<SOC_NB_EVENT_REGS; i++)
+    for (auto target: this->targets)
     {
-      target->event_mask[i] = 0xffffffff;
+      for (int i=0; i<SOC_NB_EVENT_REGS; i++)
+      {
+        target->event_mask[i] = 0xffffffff;
+      }
     }
   }
 }
 
 void soc_eu::start()
 {
-  reset();
 }
 
 soc_eu_target::soc_eu_target(soc_eu *top, std::string name, std::string itf_name)
