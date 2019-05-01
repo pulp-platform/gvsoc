@@ -289,10 +289,10 @@ int Mchan_channel::unpack_command(Mchan_cmd *cmd)
      goto unpackDone;
    }
  }
- else if ((cmd->step == 4 && !top->is_64) || (cmd->step == 5 && top->is_64))
+ else if ((cmd->step == 5 && !top->is_64) || (cmd->step == 6 && top->is_64))
  {
-   //cmd->stride = PLP_DMA_2D_STRIDE_GET(cmd->content[3]);
-   //cmd->length = PLP_DMA_2D_LEN_GET(cmd->content[3]);
+   cmd->length = cmd->content[3];
+   cmd->stride = cmd->content[4];
    cmd->line_size_to_read = cmd->length;
 
    top->trace.msg("New 2D command ready (input: %d, source: 0x%lx, dest: 0x%lx, size: 0x%x, loc2ext: %d, stride: 0x%x, len: 0x%x)\n", id, cmd->source, cmd->dest, cmd->size, cmd->loc2ext, cmd->stride, cmd->length);
@@ -389,6 +389,9 @@ bool Mchan_channel::check_command(Mchan_cmd *cmd)
   top->pending_bytes[current_counter] += cmd->size;
 
   // Enqueue the command to the core queue
+  uint8_t one = 1;
+  this->top->cmd_events[cmd->counter_id].event(&one);
+
   pending_cmds->push(cmd);
 
   if (cmd->loc2ext)
