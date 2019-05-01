@@ -402,15 +402,15 @@ void hwce::start_job(hwce_job_t *job)
   this->y_in_take_first = 1;
   this->y_out_take_first = 1;
 
-  this->xinBase->init(job->r_x_in_base_addr.get(), job->r_x_line_stride_length.length_get(), job->r_x_line_stride_length.stride_get(), job->r_x_feat_stride_length.length_get(), job->r_x_feat_stride_length.stride_get(), job->r_job_config1.wif_param_get(), 0);
+  this->xinBase->init(job->r_x_in_base_addr.get(), job->r_x_line_stride_length.length_get(), job->r_x_line_stride_length.stride_get()/4, job->r_x_feat_stride_length.length_get(), job->r_x_feat_stride_length.stride_get()/4, job->r_job_config1.wif_param_get(), 0);
 
   for (int i=0; i<(1<<this->r_gen_config0.vect_get()); i++)
   {
     uint32_t yin_base = i == 0 ? job->r_y_in_0_base_addr.get() : i == 1 ? job->r_y_in_1_base_addr.get() : i == 2 ? job->r_y_in_2_base_addr.get() : job->r_y_in_3_base_addr.get();
     uint32_t yout_base = i == 0 ? job->r_y_out_0_base_addr.get() : i == 1 ? job->r_y_out_1_base_addr.get() : i == 2 ? job->r_y_out_2_base_addr.get() : job->r_y_out_3_base_addr.get();
 
-    this->yinBase[i]->init(yin_base, job->r_y_line_stride_length.length_get(), job->r_y_line_stride_length.stride_get(), job->r_y_feat_stride_length.length_get(), job->r_y_feat_stride_length.stride_get(), job->r_job_config1.wof_param_get(), job->r_job_config1.wif_param_get());
-    this->youtBase[i]->init(yout_base, job->r_y_line_stride_length.length_get(), job->r_y_line_stride_length.stride_get(), job->r_y_feat_stride_length.length_get(), job->r_y_feat_stride_length.stride_get(), job->r_job_config1.wof_param_get(), job->r_job_config1.wif_param_get());
+    this->yinBase[i]->init(yin_base, job->r_y_line_stride_length.length_get(), job->r_y_line_stride_length.stride_get()/4, job->r_y_feat_stride_length.length_get(), job->r_y_feat_stride_length.stride_get()/4, job->r_job_config1.wof_param_get(), job->r_job_config1.wif_param_get());
+    this->youtBase[i]->init(yout_base, job->r_y_line_stride_length.length_get(), job->r_y_line_stride_length.stride_get()/4, job->r_y_feat_stride_length.length_get(), job->r_y_feat_stride_length.stride_get()/4, job->r_job_config1.wof_param_get(), job->r_job_config1.wif_param_get());
   }
 
   this->nbYoutValue = 0;
@@ -421,7 +421,7 @@ void hwce::start_job(hwce_job_t *job)
   this->nbReadyLines = 0;
   this->nbReadyWords = 0;
   this->convCurrentPosition = 0;
-  this->trace.msg("Starting job (xoutSize: 0x%x, xinBase: 0x%x, youtBase: 0x%x, xinSize: 0x%x, xinLineStride: 0x%x, xinLineLen: 0x%x, xinFeatStride: 0x%x, xinFeatLen: 0x%x, )\n", this->x_out_size, this->xinBase->get(), this->youtBase[0]->get(), this->x_in_size, job->r_x_line_stride_length.stride_get(), job->r_x_line_stride_length.length_get(), job->r_x_feat_stride_length.stride_get(), job->r_x_feat_stride_length.length_get());  
+  this->trace.msg("Starting job (xoutSize: 0x%x, xinBase: 0x%x, youtBase: 0x%x, xinSize: 0x%x, xinLineStride: 0x%x, xinLineLen: 0x%x, xinFeatStride: 0x%x, xinFeatLen: 0x%x, )\n", this->x_out_size, this->xinBase->get(), this->youtBase[0]->get(), this->x_in_size, job->r_x_line_stride_length.stride_get()/4, job->r_x_line_stride_length.length_get(), job->r_x_feat_stride_length.stride_get()/4, job->r_x_feat_stride_length.length_get());  
 
   if (this->x_out_size == 0) this->warning.force_warning("Trying to start job with 0 output size\n");
   if (this->x_in_size == 0) this->warning.force_warning("Trying to start job with 0 input size\n");
@@ -999,7 +999,7 @@ void hwce::execConvolution()
     else
       data = this->y_in_take_first ? getSignedValue(this->yinValue[i] & 0xffff, 16) : getSignedValue(this->yinValue[i] >> 16, 16);
 
-    int64_t outDataSat = getSaturated(1, !this->r_gen_config0.uns_get(), 16, (((data << this->r_gen_config0.qf_get()) + result[i])) >> this->r_gen_config0.qf_get(), &sat);
+    int64_t outDataSat = getSaturated(1, !this->r_gen_config0.uns_get(), 16, (((data << this->r_gen_config0.qf_get()) + result[i] + (1<<(this->r_gen_config0.qf_get()-1)))) >> this->r_gen_config0.qf_get(), &sat);
 
     this->trace.msg("Computed convolution yout%d (value: 0x%4.4x, yin%d/const: 0x%4.4x, conv: 0x%8.8x)\n", i, outDataSat, i, data, result[i]);
     if (this->y_out_take_first)
@@ -1374,14 +1374,14 @@ void Hwce_base::update() {
   base += 4;
   if (wordCount == lineLen) {
     // End of line reached
-    //gv_trace_dumpMsg(&top->trace, "Reached end of line (stride: 0x%x)\n", lineStride);
+    this->top->trace.msg("Reached end of line (stride: 0x%x)\n", lineStride);
     wordCount = 0;
     lineCount++;
     base += (lineStride - lineLen) * 4;
     // Now check end of feature for stride
     if (lineCount == featLen) {
       // End of feature reached
-      //gv_trace_dumpMsg(&top->trace, "Reached end of feature (stride: 0x%x)\n", featStride);
+      this->top->trace.msg("Reached end of feature (stride: 0x%x)\n", featStride);
       lineCount = 0;
       base += (featStride - lineStride*featLen) * 4;
       featLoopCount++;
@@ -1389,13 +1389,13 @@ void Hwce_base::update() {
       pendingEof = true;
       // TODO seems completly wrong
       if (featLoopCount < featLoop) {
-        //gv_trace_dumpMsg(&top->trace, "Feature loop (nbFeatures: %d, nbFeaturesInLoop: %d)\n", featLoopCount, featLoop);
+        this->top->trace.msg("Feature loop (nbFeatures: %d, nbFeaturesInLoop: %d)\n", featLoopCount, featLoop);
         base = baseLoop;        
       } else {
         featLoopCount = 0;
         baseLoop = base;
         if (featCount == nbFeatures) {
-          //gv_trace_dumpMsg(&top->trace, "Finished all features\n");
+          this->top->trace.msg("Finished all features\n");
           featCount = 0;
           base = baseStart;
         }

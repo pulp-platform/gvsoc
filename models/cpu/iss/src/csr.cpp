@@ -1204,7 +1204,7 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     default:
 
 #if defined(ISS_HAS_PERF_COUNTERS)
-    if ((reg >= CSR_PCCR(0) && reg <= CSR_PCCR(CSR_NB_PCCR-1)) || reg == CSR_PCER || reg == CSR_PCMR)
+    if ((reg >= CSR_PCCR(0) && reg <= CSR_PCCR(CSR_NB_PCCR)) || reg == CSR_PCER || reg == CSR_PCMR)
     {
       status = perfCounters_read(iss, reg, value);
     }
@@ -1359,7 +1359,7 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
   }
 
 #if defined(ISS_HAS_PERF_COUNTERS)
-  if ((reg >= CSR_PCCR(0) && reg <= CSR_PCCR(CSR_NB_PCCR-1)) || reg == CSR_PCER || reg == CSR_PCMR) return perfCounters_write(iss, reg, value);
+  if ((reg >= CSR_PCCR(0) && reg <= CSR_PCCR(CSR_NB_PCCR)) || reg == CSR_PCER || reg == CSR_PCMR) return perfCounters_write(iss, reg, value);
 #endif
 
   if (iss->cpu.pulpv2.hwloop)
