@@ -1771,10 +1771,10 @@ with open(args.header_file, 'w') as isaFileHeader:
         for insn in isa.get_insns():
             if "load" in insn.tags:
                 insn.get_out_reg(0).set_latency(2)
-            elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
-                insn.get_out_reg(0).set_latency(2)
-            elif "fmadd" in insn.tags:
-                insn.get_out_reg(0).set_latency(3)
+            #elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
+            #    insn.get_out_reg(0).set_latency(2)
+            #elif "fmadd" in insn.tags:
+            #    insn.get_out_reg(0).set_latency(3)
             elif "fdiv" in insn.tags:
                 insn.get_out_reg(0).set_latency(9)
             elif "sfdiv" in insn.tags:
@@ -1785,5 +1785,24 @@ with open(args.header_file, 'w') as isaFileHeader:
                 insn.get_out_reg(0).set_latency(3)
             elif "div" in insn.tags:
                 insn.get_out_reg(0).set_latency(8)
+
+        # TODO these are the old timings, find a way to make that more configurable        
+        # for insn in isa.get_insns():
+        #     if "load" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(2)
+        #     elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(2)
+        #     elif "fmadd" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(3)
+        #     elif "fdiv" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(9)
+        #     elif "sfdiv" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(4)
+        #     elif "mul" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(2)
+        #     elif "mulh" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(3)
+        #     elif "div" in insn.tags:
+        #         insn.get_out_reg(0).set_latency(8)
 
         isa.gen(isaFile, isaFileHeader)
