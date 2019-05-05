@@ -25,7 +25,7 @@
 #include <string.h>
 #include <vector>
 
-#include "archi/gpio/gpio_v2.h"
+#include "archi/gpio/gpio_v3.h"
 
 class Gpio : public vp::component
 {
@@ -61,15 +61,15 @@ private:
   int nb_gpio;
   int soc_event;
 
-  vp_gpio_apbgpio_paddir               r_paddir;
-  vp_gpio_apbgpio_padin                r_padin;
-  vp_gpio_apbgpio_padout               r_padout;
-  vp_gpio_apbgpio_inten                r_inten;
-  vp_gpio_apbgpio_inttype0             r_inttype0;
-  vp_gpio_apbgpio_inttype1             r_inttype1;
-  vp_gpio_apbgpio_intstatus            r_intstatus;
-  vp_gpio_apbgpio_gpioen               r_gpioen;
-  std::vector<vp_gpio_apbgpio_padcfg0> r_padcfg;
+  vp_gpio_paddir               r_paddir;
+  vp_gpio_padin                r_padin;
+  vp_gpio_padout               r_padout;
+  vp_gpio_inten                r_inten;
+  vp_gpio_inttype0             r_inttype0;
+  vp_gpio_inttype1             r_inttype1;
+  vp_gpio_intstatus            r_intstatus;
+  vp_gpio_gpioen               r_gpioen;
+  std::vector<vp_gpio_padcfg0> r_padcfg;
 };
 
 
@@ -183,42 +183,42 @@ vp::io_req_status_e Gpio::req(void *__this, vp::io_req *req)
 
   switch (reg_id)
   {
-    case GPIO_APBGPIO_PADDIR_OFFSET/4:
+    case GPIO_PADDIR_OFFSET/4:
       err = _this->paddir_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_PADIN_OFFSET/4:
+    case GPIO_PADIN_OFFSET/4:
       err = _this->padin_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_PADOUT_OFFSET/4:
+    case GPIO_PADOUT_OFFSET/4:
       err = _this->padout_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_INTEN_OFFSET/4:
+    case GPIO_INTEN_OFFSET/4:
       err = _this->inten_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_INTTYPE0_OFFSET/4:
+    case GPIO_INTTYPE0_OFFSET/4:
       err = _this->inttype0_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_INTTYPE1_OFFSET/4:
+    case GPIO_INTTYPE1_OFFSET/4:
       err = _this->inttype1_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_INTSTATUS_OFFSET/4:
+    case GPIO_INTSTATUS_OFFSET/4:
       err = _this->intstatus_req(reg_offset, size, is_write, data);
       break;
 
-    case GPIO_APBGPIO_GPIOEN_OFFSET/4:
+    case GPIO_GPIOEN_OFFSET/4:
       err = _this->gpioen_req(reg_offset, size, is_write, data);
       break;
 
   }
 
-  if (reg_id >= GPIO_APBGPIO_PADCFG0_OFFSET/4 && reg_id <= GPIO_APBGPIO_PADCFG7_OFFSET/4)
-    err = _this->padcfg_req(reg_id - GPIO_APBGPIO_PADCFG0_OFFSET/4, reg_offset, size, is_write, data);
+  if (reg_id >= GPIO_PADCFG0_OFFSET/4 && reg_id <= GPIO_PADCFG3_OFFSET/4)
+    err = _this->padcfg_req(reg_id - GPIO_PADCFG0_OFFSET/4, reg_offset, size, is_write, data);
 
   if (err != vp::IO_REQ_OK)
     goto error; 
