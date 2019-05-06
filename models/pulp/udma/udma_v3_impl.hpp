@@ -644,6 +644,8 @@ private:
   Hyper_periph_v1 *periph;
 };
 
+
+#ifdef HAS_HYPER
 class Hyper_periph_v2;
 
 class Hyper_v2_rx_channel : public Udma_rx_channel
@@ -657,6 +659,7 @@ private:
   void reset(bool active);
   Hyper_periph_v2 *periph;
 };
+#endif
 
 
 typedef enum
@@ -687,6 +690,7 @@ private:
 
 };
 
+#ifdef HAS_HYPER
 class Hyper_v2_tx_channel : public Udma_tx_channel
 {
   friend class Hyper_periph_v2;
@@ -703,6 +707,7 @@ private:
   Hyper_periph_v2 *periph;
 
 };
+#endif
 
 
 class Hyper_periph_v1 : public Udma_periph
@@ -757,6 +762,7 @@ private:
 };
 
 
+#ifdef HAS_HYPER
 class Hyper_periph_v2 : public Udma_periph
 {
   friend class Hyper_v2_tx_channel;
@@ -810,6 +816,7 @@ private:
     uint8_t raw[6];
   } ca;
 };
+#endif
 
 
 /*
