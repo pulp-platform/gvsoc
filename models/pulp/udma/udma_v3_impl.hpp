@@ -38,6 +38,9 @@
 #ifdef HAS_I2S
 #include "archi/udma/i2s/udma_i2s_v2.h"
 #endif
+#ifdef HAS_HYPER
+#include "archi/udma/hyper/udma_hyper_v2.h"
+#endif
 
 class udma;
 class Udma_channel;
@@ -779,6 +782,9 @@ private:
   vp::trace     trace;
 
   vector<Udma_transfer *> pending_transfers;
+
+  vp_hyper_timing_cfg r_timing_cfg;
+
 
   int pending_bytes;
   vp::clock_event *pending_word_event;

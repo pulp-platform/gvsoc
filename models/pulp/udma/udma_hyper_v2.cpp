@@ -69,6 +69,7 @@ Hyper_periph_v2::Hyper_periph_v2(udma *top, int id, int itf_id) : Udma_periph(to
   this->rx_channel = static_cast<Hyper_v2_rx_channel *>(this->channel0);
   this->tx_channel = static_cast<Hyper_v2_tx_channel *>(this->channel1);
 
+  this->top->new_reg(itf_name + "/timing_cfg", &this->r_timing_cfg, 0);
   //hyper_itf.set_cs_sync_meth(&Hyper_periph_v2::cs_sync);
 }
  
@@ -247,10 +248,17 @@ void Hyper_periph_v2::handle_ready_reqs()
 
 vp::io_req_status_e Hyper_periph_v2::custom_req(vp::io_req *req, uint64_t offset)
 {
+  vp::io_req_status_e err = vp::IO_REQ_OK;
+  uint8_t *data = req->get_data();
+  uint64_t size = req->get_size();
+  bool is_write = req->get_is_write();
+
   if (req->get_size() != 4)
     return vp::IO_REQ_INVALID;
 
   int reg_id = offset / 4;
+  int reg_offset = offset % 4;
+
   if (reg_id >= HYPER_NB_REGS) return vp::IO_REQ_INVALID;
 
   if (!req->get_is_write())
@@ -259,7 +267,16 @@ vp::io_req_status_e Hyper_periph_v2::custom_req(vp::io_req *req, uint64_t offset
     this->regs[reg_id] = *(uint32_t *)(req->get_data());
 
 
-  return vp::IO_REQ_OK;
+  switch (reg_id + HYPER_EXT_ADDR_OFFSET/4)
+  {
+    case HYPER_TIMING_CFG_OFFSET/4:
+      this->r_timing_cfg.access(reg_offset, size, data, is_write);
+      if (is_write)
+        this->trace.msg("Setting TIMING_CFG (latency0: %d, latency1: %d, rw_recovery: %d, rwds_delay: %d, lat_autocheck: %d, cs_max: %d)\n", this->r_timing_cfg.latency0_get(), this->r_timing_cfg.latency1_get(), this->r_timing_cfg.rw_recovery_get(), this->r_timing_cfg.rwds_delay_get(), this->r_timing_cfg.additional_latency_autocheck_en_get(), this->r_timing_cfg.cs_max_get());
+      break;
+  }
+
+  return err;
 }
 
 
