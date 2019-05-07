@@ -39,6 +39,10 @@
 
 //#include <config.h>
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
+
 #include "fstapi.h"
 #include "fastlz.h"
 #include "lz4.h"
