@@ -85,6 +85,7 @@ private:
   vp::io_slave          in;
   vp::wire_master<int>  event_itf;
   vp::wire_master<bool> irq_itf;
+  vp::wire_master<bool> apb_irq_itf;
   vp::clock_slave       ref_clock_itf;
 
   Apb_rtc_ctrlT       apb_ctrl_reg;
@@ -583,6 +584,8 @@ void rtc::handle_internal_access()
   }
 
   this->event_itf.sync(this->apb_irq_soc_event);
+  if (this->apb_irq_itf.is_bound())
+    this->apb_irq_itf.sync(true);
 }
 
 vp::io_req_status_e rtc::stat_req(int reg_offset, int size, bool is_write, uint8_t *data)
@@ -701,6 +704,7 @@ int rtc::build()
 
   this->new_master_port("event", &this->event_itf);
   this->new_master_port("irq", &this->irq_itf);
+  this->new_master_port("apb_irq", &this->apb_irq_itf);
 
   this->ref_clock_itf.set_sync_meth(&rtc::ref_clock_sync);
   this->new_slave_port("ref_clock", &this->ref_clock_itf);
