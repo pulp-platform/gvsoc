@@ -46,6 +46,7 @@ int insn_cache_init(iss_t *iss)
 {
   iss_insn_cache_t *cache = &iss->cpu.insn_cache;
   memset(cache->blocks, 0, sizeof(iss_insn_block_t *)*ISS_INSN_NB_BLOCKS);
+  return 0;
 }
 
 void insn_init(iss_insn_t *insn, iss_addr_t addr) {
