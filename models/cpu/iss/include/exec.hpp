@@ -137,6 +137,7 @@ static inline int iss_exec_account_cycles(iss_t *iss, int cycles)
     }
   }
 #endif
+  return 0;
 }
 
 static inline int iss_exec_step_nofetch_perf(iss_t *iss)

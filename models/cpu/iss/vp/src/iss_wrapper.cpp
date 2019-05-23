@@ -438,6 +438,7 @@ int iss_wrapper::data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int siz
   else
   {
     trace.force_warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+    return 0;
   }
 }
 

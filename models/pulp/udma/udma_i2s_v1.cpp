@@ -97,6 +97,7 @@ vp::io_req_status_e I2s_periph_v1::reset_clkgen0()
     this->top->get_periph_clock()->cancel(this->clkgen0_event);
 
   this->sck[0] = 0;
+  return vp::io_req_status_e::IO_REQ_OK;
 }
 
 
@@ -107,6 +108,7 @@ vp::io_req_status_e I2s_periph_v1::reset_clkgen1()
     this->top->get_periph_clock()->cancel(this->clkgen1_event);
 
   this->sck[1] = 0;
+  return vp::io_req_status_e::IO_REQ_OK;
 }
 
 
@@ -115,6 +117,7 @@ vp::io_req_status_e I2s_periph_v1::check_clkgen0()
 {
   if (this->r_cfg_clkgen0.clk_en_get() && !this->clkgen0_event->is_enqueued())
     this->top->get_periph_clock()->enqueue(this->clkgen0_event, this->r_cfg_clkgen0.clk_div_get() + 1);
+  return vp::io_req_status_e::IO_REQ_OK;
 }
 
 
@@ -123,6 +126,7 @@ vp::io_req_status_e I2s_periph_v1::check_clkgen1()
 {
   if (this->r_cfg_clkgen1.clk_en_get() && !this->clkgen1_event->is_enqueued())
     this->top->get_periph_clock()->enqueue(this->clkgen1_event, this->r_cfg_clkgen1.clk_div_get() + 1);
+  return vp::io_req_status_e::IO_REQ_OK;
 }
 
 
