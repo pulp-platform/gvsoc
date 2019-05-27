@@ -20,7 +20,7 @@
 
 
 #include "udma_impl.hpp"
-#include "archi/udma/cpi/udma_cpi_v1.h"
+#include "archi/udma/cpi/udma_cpi_v1_old.h"
 #include "archi/utils.h"
 #include "vp/itf/cpi.hpp"
 
@@ -179,7 +179,7 @@ void Cpi_periph_v1::push_pixel(uint32_t pixel)
   }
 
   // Finally push the pixel to the UDMA
-  (static_cast<Uart_rx_channel *>(this->channel0))->push_data((uint8_t *)&pixel, 2);
+  (static_cast<Cpi_rx_channel *>(this->channel0))->push_data((uint8_t *)&pixel, 2);
 }
 
 
@@ -203,6 +203,10 @@ void Cpi_periph_v1::handle_sof()
       this->frameDropCount--;
     }
   }
+
+  Cpi_rx_channel *channel = (static_cast<Cpi_rx_channel *>(this->channel0));
+  this->cmd_ready = channel->has_cmd();
+
 
   this->currentRow = 0;
   this->currentLine = 0;
@@ -268,7 +272,7 @@ void Cpi_periph_v1::sync_cycle(void *__this, int href, int vsync, int data)
     if (href)
     {
       // To transmit the data, the channel must be enabled with no frame dropping or with the enabled frame
-      if (_this->enabled && (!_this->frameDrop || !_this->frameDropCount)) {
+      if (_this->enabled && (!_this->frameDrop || !_this->frameDropCount) && _this->cmd_ready) {
         if (_this->has_pending_byte)
         {
           _this->push_pixel((_this->pending_byte << 8) | data);

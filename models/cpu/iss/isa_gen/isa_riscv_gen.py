@@ -1713,6 +1713,7 @@ parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
 parser.add_argument("--version", dest="version", default=1, type=int, metavar="VALUE", help="Specify ISA version")
 parser.add_argument("--header-file", dest="header_file", default=None, metavar="PATH", help="Specify header output file")
 parser.add_argument("--source-file", dest="source_file", default=None, metavar="PATH", help="Specify source output file")
+parser.add_argument("--implem", dest="implem", default=None, help="Specify implementation name")
 
 args = parser.parse_args()
 
@@ -1769,22 +1770,38 @@ with open(args.header_file, 'w') as isaFileHeader:
     with open(args.source_file, 'w') as isaFile:
 
         for insn in isa.get_insns():
-            if "load" in insn.tags:
-                insn.get_out_reg(0).set_latency(2)
-            #elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
-            #    insn.get_out_reg(0).set_latency(2)
-            #elif "fmadd" in insn.tags:
-            #    insn.get_out_reg(0).set_latency(3)
-            elif "fdiv" in insn.tags:
-                insn.get_out_reg(0).set_latency(9)
-            elif "sfdiv" in insn.tags:
-                insn.get_out_reg(0).set_latency(4)
-            elif "mul" in insn.tags:
-                insn.get_out_reg(0).set_latency(2)
-            elif "mulh" in insn.tags:
-                insn.get_out_reg(0).set_latency(3)
-            elif "div" in insn.tags:
-                insn.get_out_reg(0).set_latency(8)
+
+            if args.implem is None:
+
+                if "load" in insn.tags:
+                    insn.get_out_reg(0).set_latency(2)
+                elif "fdiv" in insn.tags:
+                    insn.get_out_reg(0).set_latency(9)
+                elif "sfdiv" in insn.tags:
+                    insn.get_out_reg(0).set_latency(4)
+                elif "mul" in insn.tags:
+                    insn.get_out_reg(0).set_latency(2)
+                elif "mulh" in insn.tags:
+                    insn.get_out_reg(0).set_latency(3)
+                elif "div" in insn.tags:
+                    insn.get_out_reg(0).set_latency(8)
+
+
+            elif args.implem == 'zeroriscy':
+
+                if "load" in insn.tags:
+                    insn.get_out_reg(0).set_latency(2)
+                elif "fdiv" in insn.tags:
+                    insn.get_out_reg(0).set_latency(9)
+                elif "sfdiv" in insn.tags:
+                    insn.get_out_reg(0).set_latency(4)
+                elif "mul" in insn.tags:
+                    insn.get_out_reg(0).set_latency(3)
+                elif "mulh" in insn.tags:
+                    insn.get_out_reg(0).set_latency(3)
+                elif "div" in insn.tags:
+                    insn.get_out_reg(0).set_latency(37)
+
 
         # TODO these are the old timings, find a way to make that more configurable        
         # for insn in isa.get_insns():

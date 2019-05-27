@@ -313,8 +313,8 @@ void I2c_tx_channel::handle_pending_word(void *__this, vp::clock_event *event)
     {
       _this->handle_ready_req_end(_this->pending_req);
       _this->pending_req = NULL;
-      _this->handle_ready_reqs();
     }
+    _this->handle_ready_reqs();
   }
 
   _this->check_state();

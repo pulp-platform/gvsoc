@@ -52,7 +52,7 @@ Hyper_periph_v2::Hyper_periph_v2(udma *top, int id, int itf_id) : Udma_periph(to
 
   top->traces.new_trace(itf_name, &trace, vp::DEBUG);
 
-  channel0 = new Hyper_v2_rx_channel(top, this, UDMA_EVENT_ID(id), itf_name + "_rx");
+  channel0 = new Hyper_v2_rx_channel(top, this, UDMA_EVENT_ID(id) + 0, itf_name + "_rx");
   channel1 = new Hyper_v2_tx_channel(top, this, UDMA_EVENT_ID(id) + 1, itf_name + "_tx");
 
   this->hyper_itf.set_sync_cycle_meth(&Hyper_periph_v2::rx_sync);
@@ -71,6 +71,12 @@ Hyper_periph_v2::Hyper_periph_v2(udma *top, int id, int itf_id) : Udma_periph(to
 
   this->top->new_reg(itf_name + "/timing_cfg", &this->r_timing_cfg, 0);
   //hyper_itf.set_cs_sync_meth(&Hyper_periph_v2::cs_sync);
+
+  js::config *config = this->top->get_js_config()->get("hyper/eot_events");
+  if (config)
+    this->eot_event = config->get_elem(itf_id)->get_int();
+  else
+    this->eot_event = -1;
 }
  
 
@@ -330,4 +336,16 @@ void Hyper_v2_rx_channel::handle_rx_data(int data)
 void Hyper_v2_rx_channel::handle_ready()
 {
   this->periph->handle_ready_reqs();
+}
+
+void Hyper_v2_rx_channel::handle_transfer_end()
+{
+  Udma_rx_channel::handle_transfer_end();
+  this->top->trigger_event(this->periph->eot_event);
+}
+
+void Hyper_v2_tx_channel::handle_transfer_end()
+{
+  Udma_tx_channel::handle_transfer_end();
+  this->top->trigger_event(this->periph->eot_event);
 }

@@ -897,6 +897,7 @@ class Instr(object):
         self.tags = tags
         self.isa_tags = isa_tags
         self.out_reg_latencies = []
+        self.latency = 0
         nb_insn += 1
 
         encoding = encoding[::-1].replace(' ', '')
@@ -937,6 +938,8 @@ class Instr(object):
         
         self.id = instrLabels[self.traceLabel]
 
+    def set_latency(self, latency):
+        self.latency = latency
 
     def get_out_reg(self, reg):
         index = 0
@@ -994,6 +997,7 @@ class Instr(object):
         self.dump(isaFile, '      .label=(char *)"%s",\n' % (self.getLabel()))
         self.dump(isaFile, '      .size=%d,\n' % (self.len/8))
         self.dump(isaFile, '      .nb_args=%d,\n' % (len(self.args)))
+        self.dump(isaFile, '      .latency=%d,\n' % (self.latency))
         self.dump(isaFile, '      .args= {\n')
         if len(self.args) > 0:
             for arg in self.args:

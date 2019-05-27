@@ -142,6 +142,7 @@ public:
   bool is_tx() { return false; }
   void reset(bool active);
   void push_data(uint8_t *data, int size);
+  bool has_cmd() { return this->current_cmd != NULL; }
 
 private:
   int pending_byte_index;
@@ -511,6 +512,7 @@ private:
 
   int pending_byte;
   bool has_pending_byte;
+  bool cmd_ready;
 
   uint32_t glob;
   uint32_t ll;

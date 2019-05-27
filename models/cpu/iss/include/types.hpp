@@ -251,6 +251,7 @@ typedef struct iss_decoder_item_s {
       char *label;
       int size;
       int nb_args;
+      int latency;
       iss_decoder_arg_t args[ISS_MAX_DECODE_ARGS];
     } insn;
 

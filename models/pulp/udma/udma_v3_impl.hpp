@@ -103,6 +103,7 @@ public:
   virtual bool is_busy() { return false; }
   virtual void handle_ready() { }
   virtual void handle_ready_reqs();
+  virtual void handle_transfer_end();
   void check_state();
 
   Udma_transfer *current_cmd;
@@ -111,7 +112,6 @@ protected:
   vp::trace     trace;
   Udma_queue<vp::io_req> *ready_reqs;
   udma *top;
-  void handle_transfer_end();
 
 private:
   virtual vp::io_req_status_e saddr_req(vp::io_req *req);
@@ -147,6 +147,7 @@ public:
   bool is_tx() { return false; }
   void reset(bool active);
   void push_data(uint8_t *data, int size);
+  bool has_cmd() { return this->current_cmd != NULL; }
 
 private:
   int pending_byte_index;
@@ -494,6 +495,7 @@ private:
 
   int pending_byte;
   bool has_pending_byte;
+  bool cmd_ready;
 
   uint32_t glob;
   uint32_t ll;
@@ -654,6 +656,7 @@ public:
   Hyper_v2_rx_channel(udma *top, Hyper_periph_v2 *periph, int id, string name);
   void handle_rx_data(int data);
   void handle_ready();
+  void handle_transfer_end();
 
 private:
   void reset(bool active);
@@ -697,6 +700,7 @@ class Hyper_v2_tx_channel : public Udma_tx_channel
 
 public:
   Hyper_v2_tx_channel(udma *top, Hyper_periph_v2 *periph, int id, string name);
+  void handle_transfer_end();
 
 protected:
   void handle_ready_reqs();
@@ -792,6 +796,7 @@ private:
   vp_hyper_timing_cfg r_timing_cfg;
 
 
+  int eot_event;
   int pending_bytes;
   vp::clock_event *pending_word_event;
   int64_t next_bit_cycle;

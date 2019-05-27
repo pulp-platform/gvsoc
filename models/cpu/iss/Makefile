@@ -31,26 +31,34 @@ cpu/iss/iss_$(1)_LDFLAGS += $(COMMON_LDFLAGS)
 endef
 
 $(eval $(call declare_iss_isa_build,riscy))
+$(eval $(call declare_iss_isa_build,zeroriscy,--implem=zeroriscy))
 
 ifeq '$(iss_class)' ''
+cpu/iss/iss_riscy_CFLAGS += -DPIPELINE_STAGES=2
 cpu/iss/iss_riscy_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy))
 endif
 
+ifeq '$(iss_class)' 'iss_zeroriscy'
+cpu/iss/iss_zeroriscy_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE
+cpu/iss/iss_zeroriscy_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/zeroriscy_decoder_gen.cpp
+$(eval $(call declare_iss_build,zeroriscy))
+endif
+
 ifeq '$(iss_class)' 'iss_riscy_single_regfile'
-cpu/iss/iss_riscy_single_regfile_CFLAGS += -DISS_SINGLE_REGFILE
+cpu/iss/iss_riscy_single_regfile_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE
 cpu/iss/iss_riscy_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_single_regfile))
 endif
 
 ifeq '$(iss_class)' 'iss_riscy_v2_5_single_regfile'
-cpu/iss/iss_riscy_v2_5_single_regfile_CFLAGS += -DISS_SINGLE_REGFILE -DPCER_VERSION_2 -DPRIV_1_10
+cpu/iss/iss_riscy_v2_5_single_regfile_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE -DPCER_VERSION_2 -DPRIV_1_10
 cpu/iss/iss_riscy_v2_5_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_v2_5_single_regfile))
 endif
 
 ifeq '$(iss_class)' 'iss_riscy_v2_5'
-cpu/iss/iss_riscy_v2_5_CFLAGS += -DPCER_VERSION_2 -DPRIV_1_10
+cpu/iss/iss_riscy_v2_5_CFLAGS += -DPIPELINE_STAGES=2 -DPCER_VERSION_2 -DPRIV_1_10
 cpu/iss/iss_riscy_v2_5_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy_v2_5))
 endif
