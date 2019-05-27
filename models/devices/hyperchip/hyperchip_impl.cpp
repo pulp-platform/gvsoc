@@ -302,6 +302,11 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
                 this->top->trace.msg("Erasing chip\n");
                 this->state = HYPERFLASH_STATE_WAIT_CMD0;
               }
+              else if (cmd == 0x30)
+              {
+                this->top->trace.msg("Erasing sector (address: 0x%x)\n", address);
+                this->state = HYPERFLASH_STATE_WAIT_CMD0;
+              }
             break;
           }
         }
