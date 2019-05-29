@@ -33,11 +33,11 @@ endef
 $(eval $(call declare_iss_isa_build,riscy))
 $(eval $(call declare_iss_isa_build,zeroriscy,--implem=zeroriscy))
 
-ifeq '$(iss_class)' ''
+#ifeq '$(iss_class)' ''
 cpu/iss/iss_riscy_CFLAGS += -DPIPELINE_STAGES=2
 cpu/iss/iss_riscy_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 $(eval $(call declare_iss_build,riscy))
-endif
+#endif
 
 ifeq '$(iss_class)' 'iss_zeroriscy'
 cpu/iss/iss_zeroriscy_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE
