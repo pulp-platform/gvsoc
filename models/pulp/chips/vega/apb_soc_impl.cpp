@@ -79,12 +79,7 @@ private:
   bool cluster_power;
   bool cluster_clock_gate;
 
-  unsigned int extwake_sel;
-  unsigned int extwake_type;
-  unsigned int extwake_en;
-  unsigned int cfg_wakeup;
   unsigned int extwake_sync;
-  unsigned int boot_type;
 
   vp_apb_soc_safe_pmu_sleepctrl   r_sleep_ctrl;
 
@@ -317,17 +312,16 @@ void apb_soc_ctrl::bootsel_sync(void *__this, int value)
 }
 
 
-
 void apb_soc_ctrl::wakeup_gpio_sync(void *__this, int value, int gpio)
 {
   apb_soc_ctrl *_this = (apb_soc_ctrl *)__this;
-  if (_this->extwake_en && gpio == _this->extwake_sel)
+  if (_this->r_sleep_ctrl.extwake_en_get())
   {
     int old_value = _this->extwake_sync;
 
     _this->extwake_sync = value;
 
-    switch (_this->extwake_type)
+    switch (_this->r_sleep_ctrl.extwake_type_get())
     {
       case 0: {
         if (old_value == 0 && _this->extwake_sync == 1)
@@ -388,8 +382,8 @@ int apb_soc_ctrl::build()
   this->wakeup_rtc_itf.set_sync_meth(&apb_soc_ctrl::wakeup_rtc_sync);
   new_slave_port("wakeup_rtc", &this->wakeup_rtc_itf);
 
-  this->wakeup_gpio_itf.resize(32);
-  for (int i=0; i<32; i++)
+  this->wakeup_gpio_itf.resize(1);
+  for (int i=0; i<1; i++)
   {
     this->wakeup_gpio_itf[i].set_sync_meth_muxed(&apb_soc_ctrl::wakeup_gpio_sync, i);
     new_slave_port("wakeup_gpio" + std::to_string(i), &this->wakeup_gpio_itf[i]);
@@ -419,11 +413,7 @@ int apb_soc_ctrl::build()
   // This one is in the always-on domain and so it is reset only when the
   // component is powered-up
   this->wakeup = 0;
-  this->extwake_sel = 0;
-  this->extwake_type = 0;
-  this->extwake_en = 0;
-  this->cfg_wakeup = 0;
-  this->boot_type = 0;
+
   this->extwake_sync = 0;
 
 
