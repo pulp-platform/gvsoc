@@ -291,12 +291,13 @@ int Mchan_channel::unpack_command(Mchan_cmd *cmd)
  }
  else if ((cmd->step == 4 && !top->is_64) || (cmd->step == 5 && top->is_64))
  {
-   cmd->stride = PLP_DMA_2D_STRIDE_GET(cmd->content[3]);
-   cmd->length = PLP_DMA_2D_LEN_GET(cmd->content[3]);
-   cmd->line_size_to_read = cmd->length;
+    int twd_index = top->is_64 ? 4 : 3;
+    cmd->stride = PLP_DMA_2D_STRIDE_GET(cmd->content[twd_index]);
+    cmd->length = PLP_DMA_2D_LEN_GET(cmd->content[twd_index]);
+    cmd->line_size_to_read = cmd->length;
 
-   top->trace.msg("New 2D command ready (input: %d, source: 0x%lx, dest: 0x%lx, size: 0x%x, loc2ext: %d, stride: 0x%x, len: 0x%x)\n", id, cmd->source, cmd->dest, cmd->size, cmd->loc2ext, cmd->stride, cmd->length);
-   goto unpackDone;
+    top->trace.msg("New 2D command ready (input: %d, source: 0x%lx, dest: 0x%lx, size: 0x%x, loc2ext: %d, stride: 0x%x, len: 0x%x)\n", id, cmd->source, cmd->dest, cmd->size, cmd->loc2ext, cmd->stride, cmd->length);
+    goto unpackDone;
  }
  return 0;
 

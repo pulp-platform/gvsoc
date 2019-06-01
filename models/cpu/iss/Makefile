@@ -31,10 +31,10 @@ cpu/iss/iss_zeroriscy_CFLAGS += $(COMMON_CFLAGS)
 cpu/iss/iss_zeroriscy_LDFLAGS += $(COMMON_LDFLAGS)
 
 cpu/iss/iss_riscy_single_regfile_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE
-cpu/iss/iss_riscy_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/
+cpu/iss/iss_riscy_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
 cpu/iss/iss_riscy_single_regfile_SRCS += $(COMMON_SRCS)
 cpu/iss/iss_riscy_single_regfile_CFLAGS += $(COMMON_CFLAGS)
-cpu/iss/iss_riscy_single_regfile_LDFLAGS += $(COMMON_LDFLAGS)riscy_decoder_gen.cpp
+cpu/iss/iss_riscy_single_regfile_LDFLAGS += $(COMMON_LDFLAGS)
 
 cpu/iss/iss_riscy_v2_5_single_regfile_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE -DPCER_VERSION_2 -DPRIV_1_10
 cpu/iss/iss_riscy_v2_5_single_regfile_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/riscy_decoder_gen.cpp
@@ -93,6 +93,6 @@ ifneq '$(fc/iss_class)' ''
 $(eval $(call declare_iss_check_class,$(fc/iss_class)))
 endif
 
-ifneq '$(fc/iss_class)' ''
+ifneq '$(pe/iss_class)' ''
 $(eval $(call declare_iss_check_class,$(pe/iss_class)))
 endif
