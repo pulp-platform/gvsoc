@@ -24,7 +24,7 @@ $(eval $(call declare_iss_isa_build,riscy))
 $(eval $(call declare_iss_isa_build,zeroriscy,--implem=zeroriscy))
 
 
-cpu/iss/iss_zeroriscy_CFLAGS += -DPIPELINE_STAGES=2 -DISS_SINGLE_REGFILE
+cpu/iss/iss_zeroriscy_CFLAGS += -DPIPELINE_STAGES=1 -DISS_SINGLE_REGFILE
 cpu/iss/iss_zeroriscy_SRCS += $(VP_BUILD_DIR)/cpu/iss/iss_wrapper/zeroriscy_decoder_gen.cpp
 cpu/iss/iss_zeroriscy_SRCS += $(COMMON_SRCS)
 cpu/iss/iss_zeroriscy_CFLAGS += $(COMMON_CFLAGS)
