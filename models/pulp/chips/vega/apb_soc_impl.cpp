@@ -27,6 +27,8 @@
 #include "archi/chips/vega/apb_soc_ctrl.h"
 #include "archi/chips/vega/apb_soc.h"
 
+#define L2_NB_BANKS 16
+
 class apb_soc_ctrl : public vp::component
 {
 
@@ -43,6 +45,11 @@ public:
 
 private:
   vp::io_req_status_e sleep_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e l2_btrim_stdby_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e fll_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e l1_pwr_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data);
+  vp::io_req_status_e l2_pwr_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data);
+
 
   static void bootsel_sync(void *__this, int value);
   static void confreg_ext_sync(void *__this, uint32_t value);
@@ -51,6 +58,7 @@ private:
   void set_wakeup(int value);
 
   vp::trace     trace;
+  vp::trace     info;
   vp::io_slave in;
 
   vp::wire_slave<int>   bootsel_itf;
@@ -78,10 +86,17 @@ private:
   bool cluster_reset;
   bool cluster_power;
   bool cluster_clock_gate;
+  uint32_t l2_vddme;
+  uint32_t l2_vddde;
+  uint32_t l2_standby;
 
   unsigned int extwake_sync;
 
   vp_apb_soc_safe_pmu_sleepctrl   r_sleep_ctrl;
+  vp_apb_soc_safe_l2_btrim_stdby  r_l2_btrim_stdby;
+  vp_apb_soc_safe_fll_ctrl        r_fll_ctrl;
+  vp_apb_soc_safe_l1_pwr_ctrl     r_l1_pwr_ctrl;
+  vp_apb_soc_safe_l2_pwr_ctrl     r_l2_pwr_ctrl;
 
   vp::reg_32     jtag_reg_ext;
   vp::reg_32     r_bootsel;
@@ -102,6 +117,143 @@ void apb_soc_ctrl::set_wakeup(int value)
     this->wakeup = value;
     this->wakeup_out_itf.sync(value);
   }
+}
+
+
+
+vp::io_req_status_e apb_soc_ctrl::l2_btrim_stdby_req(int reg_offset, int size, bool is_write, uint8_t *data)
+{
+  this->r_l2_btrim_stdby.access(reg_offset, size, data, is_write);
+
+  if (is_write)
+  {
+    this->trace.msg("Modified SAFE_L2_BTRIM_STDBY (btrim: 0x%x, stdby_n: 0x%x)\n",
+      this->r_l2_btrim_stdby.btrim_get(),
+      this->r_l2_btrim_stdby.stdby_n_get()
+    );
+
+    uint32_t standby = ~this->r_l2_btrim_stdby.stdby_n_get();
+
+    for (int i=0; i<L2_NB_BANKS; i++)
+    {
+      int new_power = (standby >> i) & 1;
+      int current_power = (this->l2_standby >> i) & 1;
+
+      if (new_power != current_power)
+      {
+        if (new_power)
+        {
+          this->info.msg("Activating cut standby (cut: %d)\n", i);
+        }
+        else
+        {
+          this->info.msg("Deactivating cut standby (cut: %d)\n", i);
+        }
+      }
+    }
+
+    this->l2_standby = standby;
+  }
+
+  return vp::IO_REQ_OK;
+}
+
+
+
+vp::io_req_status_e apb_soc_ctrl::fll_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data)
+{
+  this->r_fll_ctrl.access(reg_offset, size, data, is_write);
+
+  if (is_write)
+  {
+    this->trace.msg("Modified SAFE_FLL_CTRL (fll2_pwd: %d, fll3_pwd: %d, fll2_rstb: %d, fll3_rstb: %d)\n",
+      this->r_fll_ctrl.fll2_pwd_get(),
+      this->r_fll_ctrl.fll3_pwd_get(),
+      this->r_fll_ctrl.fll2_rstb_get(),
+      this->r_fll_ctrl.fll3_rstb_get()
+    );
+  }
+
+  return vp::IO_REQ_OK;
+}
+
+
+
+vp::io_req_status_e apb_soc_ctrl::l1_pwr_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data)
+{
+  this->r_l1_pwr_ctrl.access(reg_offset, size, data, is_write);
+
+  if (is_write)
+  {
+    this->trace.msg("Modified SAFE_L1_PWR_CTRL (btrim: 0x%x, stdby_n: 0x%x, pwd: 0x%x)\n",
+      this->r_l1_pwr_ctrl.btrim_get(),
+      this->r_l1_pwr_ctrl.stdby_n_get(),
+      this->r_l1_pwr_ctrl.pwd_get()
+    );
+  }
+
+  return vp::IO_REQ_OK;
+}
+
+
+
+vp::io_req_status_e apb_soc_ctrl::l2_pwr_ctrl_req(int reg_offset, int size, bool is_write, uint8_t *data)
+{
+  this->r_l2_pwr_ctrl.access(reg_offset, size, data, is_write);
+
+  if (is_write)
+  {
+    this->trace.msg("Modified SAFE_L2_PWR_CTRL (vddde_n: 0x%x, vddme_n: 0x%x)\n",
+      this->r_l2_pwr_ctrl.vddde_n_get(),
+      this->r_l2_pwr_ctrl.vddme_n_get()
+    );
+
+    uint32_t vddme = ~this->r_l2_pwr_ctrl.vddme_n_get();
+
+    for (int i=0; i<L2_NB_BANKS; i++)
+    {
+      int new_power = (vddme >> i) & 1;
+      int current_power = (this->l2_vddme >> i) & 1;
+
+      if (new_power != current_power)
+      {
+        if (new_power)
+        {
+          this->info.msg("Powering-up cut memory array (cut: %d)\n", i);
+        }
+        else
+        {
+          this->info.msg("Powering-down cut memory array (cut: %d)\n", i);
+        }
+      }
+    }
+
+    this->l2_vddme = vddme;
+
+    uint32_t vddde = ~this->r_l2_pwr_ctrl.vddde_n_get();
+
+    for (int i=0; i<L2_NB_BANKS; i++)
+    {
+      int new_power = (vddde >> i) & 1;
+      int current_power = (this->l2_vddde >> i) & 1;
+
+      if (new_power != current_power)
+      {
+        if (new_power)
+        {
+          this->info.msg("Powering-up cut periphery (cut: %d)\n", i);
+        }
+        else
+        {
+          this->info.msg("Powering-down cut periphery (cut: %d)\n", i);
+        }
+      }
+    }
+
+    this->l2_vddde = vddde;
+  }
+
+  return vp::IO_REQ_OK;
 }
 
 
@@ -213,9 +365,21 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
     }
   }
-  else if (offset == APB_SOC_SLEEP_CTRL_OFFSET || offset == APB_SOC_SAFE_PMU_SLEEPCTRL_OFFSET)
+  else if (offset == APB_SOC_SAFE_L2_BTRIM_STDBY_OFFSET)
   {
-    err = _this->sleep_ctrl_req(reg_offset, size, is_write, data);
+    err = _this->l2_btrim_stdby_req(reg_offset, size, is_write, data);
+  }
+  else if (offset == APB_SOC_SAFE_FLL_CTRL_OFFSET)
+  {
+    err = _this->fll_ctrl_req(reg_offset, size, is_write, data);
+  }
+  else if (offset == APB_SOC_SAFE_L1_PWR_CTRL_OFFSET)
+  {
+    err = _this->l1_pwr_ctrl_req(reg_offset, size, is_write, data);
+  }
+  else if (offset == APB_SOC_SAFE_L2_PWR_CTRL_OFFSET)
+  {
+    err = _this->l2_pwr_ctrl_req(reg_offset, size, is_write, data);
   }
   else if (offset == APB_SOC_PADS_CONFIG)
   {
@@ -295,9 +459,11 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       *(uint32_t *)data = _this->pmu_bypass;
     }
   }
+  else if (offset == APB_SOC_BYPASS_OFFSET)
+  {
+  }
   else
   {
-
   }
 
 
@@ -366,6 +532,7 @@ void apb_soc_ctrl::confreg_ext_sync(void *__this, uint32_t value)
 int apb_soc_ctrl::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
+  traces.new_trace("info", &info, vp::INFO);
   in.set_req_meth(&apb_soc_ctrl::req);
   new_slave_port("input", &in);
 
@@ -418,8 +585,16 @@ int apb_soc_ctrl::build()
 
 
   this->new_reg("sleep_ctrl", &this->r_sleep_ctrl, 0, false);
+  this->new_reg("l2_btrim_stdby", &this->r_l2_btrim_stdby, 0, false);
+  this->new_reg("fll_ctrl", &this->r_fll_ctrl, 0, false);
+  this->new_reg("l1_pwr_ctr", &this->r_l1_pwr_ctrl, 0, false);
+  this->new_reg("l2_pwr_ctrl", &this->r_l2_pwr_ctrl, 0, false);
 
   this->r_sleep_ctrl.set(0);
+  this->r_l2_btrim_stdby.set(0xFFFF0);
+  this->l2_vddme = (1<<L2_NB_BANKS)-1;
+  this->l2_vddde = (1<<L2_NB_BANKS)-1;
+  this->l2_standby = 0;
 
   return 0;
 }
