@@ -365,6 +365,10 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
       *(uint32_t *)data = _this->jtag_reg_ext.get() << APB_SOC_JTAG_REG_EXT_BIT;
     }
   }
+  else if (offset == APB_SOC_SLEEP_CTRL_OFFSET || offset == APB_SOC_SAFE_PMU_SLEEPCTRL_OFFSET)
+  {
+    err = _this->sleep_ctrl_req(reg_offset, size, is_write, data);
+  }
   else if (offset == APB_SOC_SAFE_L2_BTRIM_STDBY_OFFSET)
   {
     err = _this->l2_btrim_stdby_req(reg_offset, size, is_write, data);
