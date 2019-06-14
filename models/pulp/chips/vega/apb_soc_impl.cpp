@@ -28,6 +28,7 @@
 #include "archi/chips/vega/apb_soc.h"
 
 #define L2_NB_BANKS 16
+#define L1_NB_BANKS 2
 
 class apb_soc_ctrl : public vp::component
 {
@@ -89,6 +90,8 @@ private:
   uint32_t l2_vddme;
   uint32_t l2_vddde;
   uint32_t l2_standby;
+  uint32_t l1_power;
+  uint32_t l1_standby;
 
   unsigned int extwake_sync;
 
@@ -190,6 +193,51 @@ vp::io_req_status_e apb_soc_ctrl::l1_pwr_ctrl_req(int reg_offset, int size, bool
       this->r_l1_pwr_ctrl.stdby_n_get(),
       this->r_l1_pwr_ctrl.pwd_get()
     );
+
+    uint32_t l1_power = ~this->r_l1_pwr_ctrl.pwd_get();
+
+    for (int i=0; i<L1_NB_BANKS; i++)
+    {
+      int new_power = (l1_power >> i) & 1;
+      int current_power = (this->l1_power >> i) & 1;
+
+      if (new_power != current_power)
+      {
+        if (new_power)
+        {
+          this->info.msg("Powering-up L1 cut memory array (cut: %d)\n", i);
+        }
+        else
+        {
+          this->info.msg("Powering-down L1 cut memory array (cut: %d)\n", i);
+        }
+      }
+    }
+    this->l1_power = l1_power;
+
+
+    uint32_t standby = ~this->r_l1_pwr_ctrl.stdby_n_get();
+
+    for (int i=0; i<L1_NB_BANKS; i++)
+    {
+      int new_power = (standby >> i) & 1;
+      int current_power = (this->l1_standby >> i) & 1;
+
+      if (new_power != current_power)
+      {
+        if (new_power)
+        {
+          this->info.msg("Activating L1 cut standby (cut: %d)\n", i);
+        }
+        else
+        {
+          this->info.msg("Deactivating L1 cut standby (cut: %d)\n", i);
+        }
+      }
+    }
+
+    this->l1_standby = standby;
+
   }
 
   return vp::IO_REQ_OK;
@@ -595,10 +643,15 @@ int apb_soc_ctrl::build()
   this->new_reg("l2_pwr_ctrl", &this->r_l2_pwr_ctrl, 0, false);
 
   this->r_sleep_ctrl.set(0);
-  this->r_l2_btrim_stdby.set(0xFFFF0);
+  this->r_l1_pwr_ctrl.set(0xFFFF0);
+  this->r_l2_btrim_stdby.set(0x30);
+
   this->l2_vddme = (1<<L2_NB_BANKS)-1;
   this->l2_vddde = (1<<L2_NB_BANKS)-1;
   this->l2_standby = 0;
+
+  this->l1_power = (1<<L1_NB_BANKS)-1;
+  this->l1_standby = 0;
 
   return 0;
 }

@@ -636,7 +636,7 @@ uint32_t mchan::get_status()
 
 void mchan::free_counters(uint32_t counter_mask)
 {
-  free_counter_mask |= counter_mask;
+  free_counter_mask |= counter_mask & ((1<<MCHAN_NB_COUNTERS)-1);
 
   // Now that we freed a counter, check if a core is waiting for it
   if (first_alloc_pending_req)
