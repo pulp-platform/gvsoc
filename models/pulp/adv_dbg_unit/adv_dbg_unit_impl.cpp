@@ -624,6 +624,7 @@ int adv_dbg_unit::build()
   else
     this->confreg_instr = get_js_config()->get_int("confreg_instr");
 
+  this->tap.capture_instr = 0;
 
   tap_init();
   return 0;
