@@ -466,9 +466,13 @@ static inline typeOut lib_VEC_##operName##_##elemSize(iss_cpu_state_t *s, typeOu
     for (i=0; i< (num_elem>>1); i++)\
     {\
       a0 = tmp_a[i] & 0x0F;\
+      a0 = (a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F);\
       a1 = (tmp_a[i]>>4) & 0x0F;\
+      a1 = (a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F);\
       b0 = tmp_b[i] & 0x0F;\
+      b0 = (b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F);\
       b1 = (tmp_b[i]>>4) & 0x0F;\
+      b1 = (b1 & 0x08) ? ( b1 | 0xF0) : (b1 & 0x0F);\
       int mid = (a1 oper b1 + a0 oper b0);\
       out += mid; \
     }\
@@ -478,13 +482,21 @@ static inline typeOut lib_VEC_##operName##_##elemSize(iss_cpu_state_t *s, typeOu
     for(i=0; i< (num_elem >>2); i++)\
     {\
       a0 = tmp_a[i] & 0x03;\
+      a0 = (a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03);\
       a1 = (tmp_a[i]>>2) & 0x03;\
+      a1 = (a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03);\
       a2 = (tmp_a[i]>>4) & 0x03;\
+      a2 = (a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03);\
       a3 = (tmp_a[i]>>6) & 0x03;\
+      a3 = (a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03);\
       b0 = tmp_b[i] & 0x03;\
+      b0 = (b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03);\
       b1 = (tmp_b[i]>>2) & 0x03;\
+      b1 = (b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03);\
       b2 = (tmp_b[i]>>4) & 0x03;\
+      b2 = (b2 & 0x02) ? ( b2 | 0xFC) : (b2 & 0x03);\
       b3 = (tmp_b[i]>>6) & 0x03;\
+      b3 = (b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03);\
       out += (a0 oper b0) + (a1 oper b1) + (a2 oper b2) + (a3 oper b3);\
     }\
   }\
@@ -501,8 +513,11 @@ static inline typeOut lib_VEC_##operName##_SC_##elemSize(iss_cpu_state_t *s, typ
     for (i=0; i< (num_elem>>1); i++)\
     {\
       a0 = tmp_a[i] & 0x0F;\
+      a0 = (a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F);\
       a1 = (tmp_a[i]>>4) & 0x0F;\
+      a1 = (a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F);\
       b0 = tmp_b[0] & 0x0F;\
+      b0 = (b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F);\
       int mid = (a1 oper b0 + a0 oper b0);\
       out += mid; \
     }\
@@ -512,13 +527,19 @@ static inline typeOut lib_VEC_##operName##_SC_##elemSize(iss_cpu_state_t *s, typ
     for(i=0; i< (num_elem >>2); i++)\
     {\
       a0 = tmp_a[i] & 0x03;\
+      a0 = (a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03);\
       a1 = (tmp_a[i]>>2) & 0x03;\
+      a1 = (a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03);\
       a2 = (tmp_a[i]>>4) & 0x03;\
+      a2 = (a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03);\
       a3 = (tmp_a[i]>>6) & 0x03;\
+      a3 = (a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03);\
       b0 = tmp_b[0] & 0x03;\
+      b0 = (b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03);\
       out += (a0 oper b0) + (a1 oper b0) + (a2 oper b0) + (a3 oper b0);\
     }\
   }\
+  return out;                                                                     \
 }
 VEC_SDOT_NN(SDOTSP, int32_t, int32_t, int32_t, int4_t, int4_t, 4, 8, *)
 VEC_SDOT_NN(SDOTSP, int32_t, int32_t, int32_t, int2_t, int2_t, 2, 16, *)
