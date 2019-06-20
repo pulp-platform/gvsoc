@@ -45,6 +45,7 @@ static inline iss_opcode_t prefetcher_fill(iss_t *iss, iss_addr_t addr)
   iss_fetch_req(iss, addr_low + ISS_PREFETCHER_SIZE/2, ((uint8_t *)prefetcher->data) + ISS_PREFETCHER_SIZE/2, ISS_PREFETCHER_SIZE/2, false);
 #endif
   prefetcher->addr = addr_low;
+  return 0;
 }
 
 static inline iss_opcode_t prefetcher_get_word(iss_t *iss, iss_addr_t addr)
