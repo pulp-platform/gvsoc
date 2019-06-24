@@ -253,7 +253,7 @@ void Uart_tx_channel::handle_ready_reqs()
     vp::io_req *req = this->ready_reqs->pop();
     this->pending_req = req;
     this->pending_word = *(uint32_t *)req->get_data();
-    this->pending_bits = req->get_size() * 8;
+    this->pending_bits = req->get_actual_size() * 8;
     this->check_state();
   }
 }

@@ -158,6 +158,20 @@ namespace vp {
   #endif
   }
 
+  inline void vp::trace::msg(int level, const char *fmt, ...) 
+  {
+  #ifdef VP_TRACE_ACTIVE
+    if (is_active && comp->traces.get_trace_manager()->get_trace_level() >= level)
+    {
+      dump_header();
+      va_list ap;
+      va_start(ap, fmt);
+      if (vfprintf(this->trace_file, fmt, ap) < 0) {}
+      va_end(ap);  
+    }
+  #endif
+  }
+
 
 };
 

@@ -39,6 +39,7 @@ namespace vp {
 
   public:
 
+    inline void msg(int level, const char *fmt, ...);
     inline void msg(const char *fmt, ...);
     inline void user_msg(const char *fmt, ...);
     inline void warning(const char *fmt, ...);
