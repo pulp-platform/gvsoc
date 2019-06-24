@@ -75,17 +75,15 @@
  PV_OP_RS_EXEC_NN(add,ADD)
  PV_OP_RS_EXEC_NN(sub,SUB)
  PV_OP_RS_EXEC_NN(avg,AVG)
- PV_OP_RU_EXEC_NN(avgu, AVGU)
-
- // PV_OP_RU_EXEC(avgu,AVGU) to implement
+ PV_OP_RU_EXEC_NN(avgu,AVGU)
+ PV_OP_RS_EXEC_NN(max,MAX)
+ PV_OP_RU_EXEC_NN(maxu,MAXU)
+ PV_OP_RS_EXEC_NN(min,MIN)
+ PV_OP_RU_EXEC_NN(minu,MINU)
 
 // PV_OP_RS_EXEC(min,MIN)  to implement
 
 // PV_OP_RU_EXEC(minu,MINU)  to implement
-
- //PV_OP_RS_EXEC(max,MAX)  to implement
-
-// PV_OP_RU_EXEC(maxu,MAXU)  to implement
 
 // PV_OP_RU_EXEC(srl,SRL)  to implement
 

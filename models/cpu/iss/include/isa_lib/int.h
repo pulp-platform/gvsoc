@@ -550,6 +550,7 @@ VEC_SDOT_NN(SDOTSP, int32_t, int32_t, int32_t, int2_t, int2_t, 2, 16, *)
 //VEC_SDOT_NN(SDOTUSP, int32_t, uint32_t, int32_t, uint4_t, int4_t, 4, 8, *)
 //VEC_SDOT_NN(SDOTUSP, int32_t, uint32_t, int32_t, uint2_t, int2_t, 2, 16, *)
 
+// AVERAGE VECTORIAL OPERATIONS: NIBBLE AND CRUMB, SCALAR & VECTOR
 #define VEC_EXPR_NN_AVG(operName, type, elemType, elemSize, num_elem, signed, gcc_type)                \
 static inline type lib_VEC_##operName##_##elemType##_to_##type(iss_cpu_state_t *s, type a, type b) {  \
   gcc_type *tmp_a = (gcc_type*)&a;                                                \
@@ -657,30 +658,118 @@ VEC_EXPR_NN_AVG(AVG, int32_t, int2_t, 1, 16, 1, int8_t)
 VEC_EXPR_NN_AVG(AVGU, uint32_t, uint4_t, 1, 8, 0, uint8_t)
 VEC_EXPR_NN_AVG(AVGU, uint32_t, uint2_t, 1, 16, 0, uint8_t)
 
-//VEC_EXPR(AVGU, uint32_t, uint8_t, 1, 4, ((uint8_t)(tmp_a[i] + tmp_b[i])>>(uint8_t)1))
-//VEC_EXPR(AVGU, uint32_t, uint16_t, 2, 2, ((uint16_t)(tmp_a[i] + tmp_b[i])>>(uint16_t)1))
-//VEC_EXPR_SC(AVGU, uint32_t, uint8_t, 1, 4, ((uint8_t)(tmp_a[i] + b)>>(uint8_t)1))
-//VEC_EXPR_SC(AVGU, uint32_t, uint16_t, 2, 2, ((uint16_t)(tmp_a[i] + b)>>(uint16_t)1))
+// MAX & MIN VECTORIAL OPERATIONS: NIBBLE AND CRUMB, SCALAR & VECTOR
+#define VEC_EXPR_NN_MAX(operName, type, elemType, elemSize, num_elem, signed, gcc_type, oper)                \
+static inline type lib_VEC_##operName##_##elemType##_to_##type(iss_cpu_state_t *s, type a, type b) {  \
+  gcc_type *tmp_a = (gcc_type*)&a;                                                \
+  gcc_type *tmp_b = (gcc_type*)&b;                                                \
+  type out;                                                                       \
+  gcc_type a0, a1, b0,b1;\
+  gcc_type out0, out1;\
+  gcc_type *tmp_out = (gcc_type*)&out;                                            \
+  int i;                                                                          \
+  if(num_elem==8)\
+  {\
+    for (i = 0; i < (num_elem>>1); i++)                                                  \
+    {\
+      a0 = tmp_a[i]&0x0F;\
+      a0 = signed ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+      a1 = (tmp_a[i]>>4) &0x0F;\
+      a1 = signed ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+      b0 = tmp_b[i]&0x0F;\
+      b0 = signed ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+      b1 = (tmp_b[i]>>4) &0x0F;\
+      b1 = signed ? ((b1 & 0x08) ? ( b1 | 0xF0) : (b1 & 0x0F)) : (b1 & 0x0F);\
+      out0 = (a0 > b0) ? (oper ? a0 : b0 ) : (oper ? b0 : a0);\
+      out1 = (a1 > b1) ? (oper ? a1 : b1 ) : (oper ? b1 : a1);\
+      tmp_out[i] = (out0 & 0x0F) | ((out1 & 0x0F)<<4);                                                            \
+    }\
+  }else if (num_elem == 16){\
+    gcc_type a2 ,a3, b2, b3;\
+    gcc_type out2, out3;\
+    for(i=0; i< (num_elem>>2); i++)\
+    {\
+      a0 = tmp_a[i]&0x03;\
+      a0 = signed ? ((a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03) ): (a0 & 0x03);\
+      a1 = (tmp_a[i]>>2) &0x03;\
+      a1 = signed ? ((a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03) ): (a1 & 0x03);\
+      a2 = (tmp_a[i]>>4)&0x03;\
+      a2 = signed ? ((a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03) ): (a2 & 0x03);\
+      a3 = (tmp_a[i]>>6) &0x03;\
+      a3 = signed ? ((a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03) ): (a3 & 0x03);\
+      b0 = tmp_b[i]&0x03;\
+      b0 = signed ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+      b1 = (tmp_b[i]>>2) &0x03;\
+      b1 = signed ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03)) : (b1 & 0x03);\
+      b2 = (tmp_b[i]>>4)&0x03;\
+      b2 = signed ? ((b2 & 0x02) ? ( b2 | 0xFC) : (b2 & 0x03) ): (b2 & 0x03);\
+      b3 = (tmp_b[i]>>6) &0x03;\
+      b3 = signed ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03)) : (b3 & 0x03);\
+      out0 = (a0 > b0) ? (oper ? a0 : b0 ) : (oper ? b0 : a0);\
+      out1 = (a1 > b1) ? (oper ? a1 : b1 ) : (oper ? b1 : a1);\
+      out2 = (a2 > b2) ? (oper ? a2 : b2 ) : (oper ? b2 : a2);\
+      out3 = (a3 > b3) ? (oper ? a3 : b3 ) : (oper ? b3 : a3);\
+      tmp_out[i] = (out0 & 0x03) | ((out1 & 0x03)<<2) | ((out2 & 0x03)<<4) | ((out3 & 0x03)<<6);\
+    }\
+  }\
+  return out;\
+}\
+static inline type lib_VEC_##operName##_SC_##elemType##_to_##type(iss_cpu_state_t *s, type a, type b) { \
+  gcc_type * tmp_a = (gcc_type*) &a;\
+  gcc_type *tmp_b = (gcc_type*) &b;\
+  type out;\
+  gcc_type a0, a1, b0;\
+  gcc_type out0, out1;\
+  gcc_type * tmp_out = (gcc_type*) &out;\
+  int i;\
+  if(num_elem==8)\
+  {\
+    for (i = 0; i < (num_elem>>1); i++)                                                  \
+    {\
+      a0 = tmp_a[i]&0x0F;\
+      a0 = signed ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+      a1 = (tmp_a[i]>>4) &0x0F;\
+      a1 = signed ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+      b0 = tmp_b[0]&0x0F;\
+      b0 = signed ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+      out0 = (a0 > b0) ? (oper ? a0 : b0 ) : (oper ? b0 : a0);\
+      out1 = (a1 > b0) ? (oper ? a1 : b0 ) : (oper ? b0 : a1);\
+      tmp_out[i] = (out0 & 0x0F) | ((out1 & 0x0F)<<4);                                                            \
+    }\
+  }else if (num_elem == 16){\
+    gcc_type a2 ,a3, b2, b3;\
+    gcc_type out2, out3;\
+    for(i=0; i< (num_elem>>2); i++)\
+    {\
+      a0 = tmp_a[i]&0x03;\
+      a0 = signed ? ((a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03) ): (a0 & 0x03);\
+      a1 = (tmp_a[i]>>2) &0x03;\
+      a1 = signed ? ((a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03) ): (a1 & 0x03);\
+      a2 = (tmp_a[i]>>4)&0x03;\
+      a2 = signed ? ((a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03) ): (a2 & 0x03);\
+      a3 = (tmp_a[i]>>6) &0x03;\
+      a3 = signed ? ((a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03) ): (a3 & 0x03);\
+      b0 = tmp_b[0]&0x03;\
+      b0 = signed ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+      out0 = (a0 > b0) ? (oper ? a0 : b0 ) : (oper ? b0 : a0);\
+      out1 = (a1 > b0) ? (oper ? a1 : b0 ) : (oper ? b0 : a1);\
+      out0 = (a2 > b0) ? (oper ? a2 : b0 ) : (oper ? b0 : a2);\
+      out1 = (a3 > b0) ? (oper ? a3 : b0 ) : (oper ? b0 : a3);\
+      tmp_out[i] = (out0 & 0x03) | ((out1 & 0x03)<<2) | ((out2 & 0x03)<<4) | ((out3 & 0x03)<<6);\
+    }\
+  }\
+  return out;\
+}
 
-//VEC_EXPR(MIN, int32_t, int8_t, 1, 4, (tmp_a[i]>tmp_b[i] ? tmp_b[i] : tmp_a[i]))
-//VEC_EXPR(MIN, int32_t, int16_t, 2, 2, (tmp_a[i]>tmp_b[i] ? tmp_b[i] : tmp_a[i]))
-//VEC_EXPR_SC(MIN, int32_t, int8_t, 1, 4, (tmp_a[i]>b ? b : tmp_a[i]))
-//VEC_EXPR_SC(MIN, int32_t, int16_t, 2, 2, (tmp_a[i]>b ? b : tmp_a[i]))
+VEC_EXPR_NN_MAX(MAX, int32_t, int4_t, 1, 8, 1, int8_t, 1)
+VEC_EXPR_NN_MAX(MAX, int32_t, int2_t, 1, 16, 1, int8_t, 1)
+VEC_EXPR_NN_MAX(MAXU, uint32_t, uint4_t, 1, 8, 0, uint8_t, 1)
+VEC_EXPR_NN_MAX(MAXU, uint32_t, uint2_t, 1, 16, 0, uint8_t, 1)
 
-//VEC_EXPR(MINU, uint32_t, uint8_t, 1, 4, (tmp_a[i]>tmp_b[i] ? tmp_b[i] : tmp_a[i]))
-//VEC_EXPR(MINU, uint32_t, uint16_t, 2, 2, (tmp_a[i]>tmp_b[i] ? tmp_b[i] : tmp_a[i]))
-//VEC_EXPR_SC(MINU, uint32_t, uint8_t, 1, 4, (tmp_a[i]>b ? b : tmp_a[i]))
-//VEC_EXPR_SC(MINU, uint32_t, uint16_t, 2, 2, (tmp_a[i]>b ? b : tmp_a[i]))
-
-//VEC_EXPR(MAX, int32_t, int8_t, 1, 4, (tmp_a[i]>tmp_b[i] ? tmp_a[i] : tmp_b[i]))
-//VEC_EXPR(MAX, int32_t, int16_t, 2, 2, (tmp_a[i]>tmp_b[i] ? tmp_a[i] : tmp_b[i]))
-//VEC_EXPR_SC(MAX, int32_t, int8_t, 1, 4, (tmp_a[i]>b ? tmp_a[i] : b))
-//VEC_EXPR_SC(MAX, int32_t, int16_t, 2, 2, (tmp_a[i]>b ? tmp_a[i] : b))
-
-//VEC_EXPR(MAXU, uint32_t, uint8_t, 1, 4, (tmp_a[i]>tmp_b[i] ? tmp_a[i] : tmp_b[i]))
-//VEC_EXPR(MAXU, uint32_t, uint16_t, 2, 2, (tmp_a[i]>tmp_b[i] ? tmp_a[i] : tmp_b[i]))
-//VEC_EXPR_SC(MAXU, uint32_t, uint8_t, 1, 4, (tmp_a[i]>b ? tmp_a[i] : b))
-//VEC_EXPR_SC(MAXU, uint32_t, uint16_t, 2, 2, (tmp_a[i]>b ? tmp_a[i] : b))
+VEC_EXPR_NN_MAX(MIN, int32_t, int4_t, 1, 8, 1, int8_t, 0)
+VEC_EXPR_NN_MAX(MIN, int32_t, int2_t, 1, 16, 1, int8_t, 0)
+VEC_EXPR_NN_MAX(MINU, uint32_t, uint4_t, 1, 8, 0, uint8_t, 0)
+VEC_EXPR_NN_MAX(MINU, uint32_t, uint2_t, 1, 16, 0, uint8_t, 0)
 
 //VEC_EXPR(SRL, uint32_t, uint8_t, 1, 4, (tmp_a[i] >> (tmp_b[i] & 0x7)))
 //VEC_EXPR_SC(SRL, uint32_t, uint8_t, 1, 4, (tmp_a[i] >> (b & 0x7)))
