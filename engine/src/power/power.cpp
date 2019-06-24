@@ -451,7 +451,7 @@ int vp::power_source::init(component *top, std::string name, js::config *config,
       return -1;
     }
   }
-  catch (std::logic_error e)
+  catch (std::logic_error &e)
   {
     snprintf(vp_error, VP_ERROR_SIZE, "%s", e.what());
     return -1;

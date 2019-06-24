@@ -165,6 +165,7 @@ static inline int iss_irq_ack(iss_t *iss, int irq)
 {
   iss->decode_trace.msg("Acknowledging interrupt (irq: %d)\n", irq);
   iss->irq_ack_itf.sync(irq);
+  return 0;
 }
 
 static inline void iss_init(iss_t *iss)
