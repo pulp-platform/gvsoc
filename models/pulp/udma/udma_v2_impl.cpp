@@ -571,7 +571,7 @@ vp::io_req_status_e udma::periph_req(vp::io_req *req, uint64_t offset)
   int periph_id = UDMA_PERIPH_GET(offset);
   if (periph_id >= nb_periphs || periphs[periph_id] == NULL)
   {
-    trace.warning("Accessing invalid periph (id: %d)\n", periph_id);
+    trace.force_warning("Accessing invalid periph (id: %d)\n", periph_id);
     return vp::IO_REQ_INVALID;
   }
 
