@@ -81,23 +81,34 @@
  PV_OP_RS_EXEC_NN(min,MIN)
  PV_OP_RU_EXEC_NN(minu,MINU)
 
-// PV_OP_RS_EXEC(min,MIN)  to implement
+ PV_OP_RU_EXEC_NN(srl,SRL)
 
-// PV_OP_RU_EXEC(minu,MINU)  to implement
+ PV_OP_RS_EXEC_NN(sra,SRA)
 
-// PV_OP_RU_EXEC(srl,SRL)  to implement
+ PV_OP_RU_EXEC_NN(sll,SLL)
 
-// PV_OP_RS_EXEC(sra,SRA)  to implement
+ PV_OP_RS_EXEC_NN(or,OR)
 
-// PV_OP_RU_EXEC(sll,SLL)  to implement
+ PV_OP_RS_EXEC_NN(xor,XOR)
 
-// PV_OP_RS_EXEC(or,OR)  to implement
+ PV_OP_RS_EXEC_NN(and,AND)
 
-// PV_OP_RS_EXEC(xor,XOR)  to implement
+ #define PV_OP1_RS_EXEC_NN(insn_name,lib_name)                          \
+ static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn)      \
+ {                                                                                  \
+   REG_SET(0, LIB_CALL1(lib_VEC_##lib_name##_int4_t_to_int32_t, REG_GET(0)));    \
+   return insn->next;                                                               \
+ }                                                                                  \
+                                                                                    \
+ static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)      \
+ {                                                                                  \
+   REG_SET(0, LIB_CALL1(lib_VEC_##lib_name##_int2_t_to_int32_t, REG_GET(0)));    \
+   return insn->next;                                                               \
+ }
 
-// PV_OP_RS_EXEC(and,AND)  to implement
 
-// PV_OP1_RS_EXEC(abs,ABS)  to implement
+
+ PV_OP1_RS_EXEC_NN(abs,ABS)
 
 
   #define PV_OP_RS_EXEC_NN_2(insn_name,lib_name)                                           \
@@ -150,9 +161,11 @@
     return insn->next;                                                                         \
   }
 
-  //PV_OP_RS_EXEC_NN_2(dotsp,DOTSP)
-  //PV_OP_RU_EXEC_NN_2(dotup,DOTUP)
-  //PV_OP_RS_EXEC_NN_2(dotusp,DOTUSP)
+  PV_OP_RS_EXEC_NN_2(dotsp,DOTSP)
+
+  PV_OP_RU_EXEC_NN_2(dotup,DOTUP)
+  
+  PV_OP_RS_EXEC_NN_2(dotusp,DOTUSP)
 
 
   #define PV_OP_RRS_EXEC_NN_2(insn_name,lib_name)                                           \
