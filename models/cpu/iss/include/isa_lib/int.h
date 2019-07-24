@@ -392,6 +392,92 @@ static inline unsigned int lib_BINSERT(iss_cpu_state_t *s, unsigned int a, unsig
  */
 
 /*************************************************  pulpnn ******************************************************************/
+
+static inline int lib_VEC_QNT_4(iss_cpu_state_t *s, int input, int b, unsigned int mem_base) {
+  
+  int ret = 0;
+  int *pThr = reinterpret_cast <int*> (mem_base + b);
+  printf("pThr: %X, *pThr: %X, b: %X, input: %d \n", pThr, *pThr, b, input);
+
+  if(input <= pThr[7] )
+	{
+		if( input <= pThr[3])
+		{
+			if( input <= pThr[1])
+			{
+				if( input <= pThr[0])
+					ret = -8;
+				else
+					ret = -7;
+			}
+			else
+			{
+				if( input <= pThr[2])
+					ret = -6;
+				else
+					ret = -5;
+			}
+		}
+		else
+		{
+			if( input <= pThr[5])
+			{
+				if( input <= pThr[4])
+					ret = -4;
+				else
+					ret = -3;
+			}
+			else
+			{
+				if( input <= pThr[6])
+					ret = -2;
+				else
+					ret = -1;
+			}
+		}
+	}
+	else
+	{
+		if( input <= pThr[11])
+		{
+			if( input <= pThr[9])
+			{
+				if( input <= pThr[8])
+					ret = 0;
+				else
+					ret = 1;
+			}
+			else
+			{
+				if( input <= pThr[10])
+					ret = 2;
+				else
+					ret = 3;
+			}
+		}
+		else
+		{
+			if( input <= pThr[13])
+			{
+				if( input <= pThr[12])
+					ret = 4;
+				else
+					ret = 5;
+			}
+			else
+			{
+				if( input <= pThr[14])
+					ret = 6;
+				else
+					ret = 7;
+			}
+		}
+	}
+	return ret;
+}
+
+
+
 #define VEC_OP_NN(operName, type, elemType, elemSize, num_elem, oper)                \
 static inline type lib_VEC_##operName##_##elemType##_to_##type(iss_cpu_state_t *s, type a, type b) {  \
   int8_t *tmp_a = (int8_t*)&a;                                                \

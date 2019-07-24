@@ -20,6 +20,8 @@
 #ifndef  __CPU_ISS_PULP_NN_HPP
 #define __CPU_ISS_PULP_NN_HPP
 
+#include "iss.hpp"
+
  #define PV_OP_RS_EXEC_NN(insn_name,lib_name)                                           \
  static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn)                \
  {                                                                                            \
@@ -221,6 +223,13 @@
   }
 
 PV_OP_RRU_EXEC_NN_2(sdotup,SDOTUP)
+
+  static inline iss_insn_t *pv_qnt_n_exec(iss_t *iss, iss_insn_t *insn)
+  {
+    REG_SET(0, LIB_CALL3(lib_VEC_QNT_4, REG_GET(0), REG_GET(1), iss->mem_array));
+    iss->cpu.state.insn_cycles = 4;
+    return insn->next;
+  }
 
 
 
