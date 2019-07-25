@@ -59,7 +59,9 @@ public:
   uint32_t size_to_read;
   uint32_t line_size_to_read;
   uint64_t source;
+  uint64_t source_chunk;
   uint64_t dest;
+  uint64_t dest_chunk;
   uint32_t stride;
   uint32_t length;
   uint32_t remLength;
@@ -291,9 +293,11 @@ int Mchan_channel::unpack_command(Mchan_cmd *cmd)
  }
  else if ((cmd->step == 5 && !top->is_64) || (cmd->step == 6 && top->is_64))
  {
-   cmd->length = cmd->content[3];
-   cmd->stride = cmd->content[4];
-   cmd->line_size_to_read = cmd->length;
+    cmd->length = cmd->content[3];
+    cmd->stride = cmd->content[4];
+    cmd->line_size_to_read = cmd->length;
+    cmd->source_chunk = cmd->source;
+    cmd->dest_chunk = cmd->dest;
 
    top->trace.msg("New 2D command ready (input: %d, source: 0x%lx, dest: 0x%lx, size: 0x%x, loc2ext: %d, stride: 0x%x, len: 0x%x)\n", id, cmd->source, cmd->dest, cmd->size, cmd->loc2ext, cmd->stride, cmd->length);
    goto unpackDone;
@@ -804,7 +808,8 @@ void mchan::send_loc_read_req()
     if (cmd->line_size_to_read == 0)
     {
       cmd->line_size_to_read = cmd->length;
-      cmd->dest = cmd->dest - size + cmd->stride;
+      cmd->dest = cmd->dest_chunk + cmd->stride;
+      cmd->dest_chunk = cmd->dest;
     }
   }
 
@@ -848,7 +853,8 @@ void mchan::send_req()
     if (cmd->line_size_to_read == 0)
     {
       cmd->line_size_to_read = cmd->length;
-      cmd->source = cmd->source - size + cmd->stride;
+      cmd->source = cmd->source_chunk + cmd->stride;
+      cmd->source_chunk = cmd->source;
     }
   }
 
