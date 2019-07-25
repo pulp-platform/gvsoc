@@ -267,6 +267,8 @@ void iss_reset(iss_t *iss)
   iss_irq_init(iss);
 
   iss_csr_init(iss);
+
+  iss_pulp_nn_init(iss);
 }
 
 int iss_open(iss_t *iss)

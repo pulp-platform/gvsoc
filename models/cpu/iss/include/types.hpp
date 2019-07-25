@@ -419,6 +419,12 @@ typedef struct iss_pulpv2_s
   iss_reg_t hwloop_regs[PULPV2_HWLOOP_NB_REGS];
 } iss_pulpv2_t;
 
+typedef struct iss_pulp_nn_s
+{
+  int qnt_step;
+  iss_reg_t qnt_regs[4];
+} iss_pulp_nn_t;
+
 
 typedef struct iss_cpu_s {
   iss_prefetcher_t prefetcher;
@@ -432,6 +438,7 @@ typedef struct iss_cpu_s {
   iss_irq_t irq;
   iss_csr_t csr;
   iss_pulpv2_t pulpv2;
+  iss_pulp_nn_t pulp_nn;
 } iss_cpu_t;
 
 #endif

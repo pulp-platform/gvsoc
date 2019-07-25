@@ -393,11 +393,9 @@ static inline unsigned int lib_BINSERT(iss_cpu_state_t *s, unsigned int a, unsig
 
 /*************************************************  pulpnn ******************************************************************/
 
-static inline int lib_VEC_QNT_4(iss_cpu_state_t *s, int input, int b, unsigned int mem_base) {
-  
+static inline int lib_VEC_QNT_4(iss_cpu_state_t *s, int input, uint16_t *pThr) {
   int ret = 0;
-  int *pThr = reinterpret_cast <int*> (mem_base + b);
-  printf("pThr: %X, *pThr: %X, b: %X, input: %d \n", pThr, *pThr, b, input);
+  //printf("pThr: %X, *pThr: %X, b: %X, input: %d \n", pThr, *pThr, b, input);
 
   if(input <= pThr[7] )
 	{

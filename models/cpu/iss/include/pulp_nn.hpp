@@ -224,13 +224,52 @@
 
 PV_OP_RRU_EXEC_NN_2(sdotup,SDOTUP)
 
-  static inline iss_insn_t *pv_qnt_n_exec(iss_t *iss, iss_insn_t *insn)
+
+static inline void qnt_step_resume(iss_t *iss)
+{
+}
+
+static inline iss_insn_t *qnt_step(iss_t *iss, iss_insn_t *insn, iss_reg_t input, iss_addr_t addr, int reg)
+{
+  iss_addr_t qnt_addr = addr + 4 * iss->cpu.pulp_nn.qnt_step;
+  uint8_t *data = (uint8_t *)&iss->cpu.pulp_nn.qnt_regs[iss->cpu.pulp_nn.qnt_step];
+
+  if (!iss->data_req(qnt_addr, data, 4, false))
   {
-    REG_SET(0, LIB_CALL3(lib_VEC_QNT_4, REG_GET(0), REG_GET(1), iss->mem_array));
-    iss->cpu.state.insn_cycles = 4;
-    return insn->next;
+    if (iss->cpu.pulp_nn.qnt_step == 3)
+      REG_SET(0, lib_VEC_QNT_4(&iss->cpu.state, input, (uint16_t *)iss->cpu.pulp_nn.qnt_regs));
+  }
+  else
+  {
+    iss->cpu.state.stall_callback = qnt_step_resume;
+    iss->cpu.state.stall_reg = reg;
+    iss_exec_insn_stall(iss);
   }
 
+  iss->cpu.pulp_nn.qnt_step++;
+  if (iss->cpu.pulp_nn.qnt_step == 4)
+  {
+    iss->cpu.pulp_nn.qnt_step = 0;
+    // Add 1 more cycle to model the fact that the first comparison is done the cycle after the first
+    // load so the nstruction should take at best 5 cycles
+    iss->cpu.state.insn_cycles = 2;
+    return insn->next;
+  }
+  else
+  {
+    return insn;
+  }
+}
+
+static inline iss_insn_t *pv_qnt_n_exec(iss_t *iss, iss_insn_t *insn)
+{
+  return qnt_step(iss, insn, REG_GET(0), REG_GET(1), REG_OUT(0));
+}
+
+static inline void iss_pulp_nn_init(iss_t *iss)
+{
+  iss->cpu.pulp_nn.qnt_step = 0;
+}
 
 
 

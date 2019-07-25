@@ -33,6 +33,7 @@
 #include "rv32Xfaux.hpp"
 #include "priv.hpp"
 #include "pulp_v2.hpp"
+#include "pulp_nn.hpp"
 #include "rvXgap8.hpp"
 
 #endif

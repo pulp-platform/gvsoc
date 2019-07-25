@@ -176,6 +176,11 @@ class R5(Instr):
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             ]
+        elif format == 'LRR':
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
+                            Indirect(InReg (1, Range(20, 5)), SignedImm(0, Ranges([]))),
+                        ]
         elif format == 'RRRR2':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(7,  5), dumpName=False),
@@ -1474,7 +1479,7 @@ pulp_nn_insns = [
     R5('pv.sdotsp.c.sc',  'RRRR','1011101 ----- ----- 011 ----- 1010111'),
 
     # quantization
-    R5('pv.qnt.n',       'RRRR','1110000 ----- ----- 010 ----- 1010111'),
+    R5('pv.qnt.n',       'LRR','1110000 ----- ----- 010 ----- 1010111'),
     #R5('pv.qnt.c',       'RRRR','1110101 ----- ----- 010 ----- 1010111'),
 
 
