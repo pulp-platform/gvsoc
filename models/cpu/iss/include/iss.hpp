@@ -34,5 +34,6 @@
 #include "priv.hpp"
 #include "pulp_v2.hpp"
 #include "rvXgap8.hpp"
+#include "rnnext.hpp"
 
 #endif

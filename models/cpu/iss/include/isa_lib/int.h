@@ -2216,4 +2216,20 @@ static inline pc_t *lf_lnu_sfle_vh_all_exec(cpu_t *cpu, pc_t *pc)
 
 #endif
 
+
+/*
+ * RNNEXT OPERATIONS
+ */
+
+static inline unsigned int lib_TANH(iss_cpu_state_t *s, unsigned int a)
+{
+  return 0;
+}
+
+static inline unsigned int lib_SIG(iss_cpu_state_t *s, unsigned int a)
+{
+  return 0;
+}
+
+
 #endif

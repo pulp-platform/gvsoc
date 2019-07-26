@@ -421,6 +421,13 @@ typedef struct iss_pulpv2_s
 } iss_pulpv2_t;
 
 
+typedef struct iss_rnnext_s
+{
+  iss_insn_t *sdot_insn;
+  iss_reg_t sdot_prefetch;
+} iss_rnnext_t;
+
+
 typedef struct iss_cpu_s {
   iss_prefetcher_t prefetcher;
   iss_insn_cache_t insn_cache;
@@ -433,6 +440,7 @@ typedef struct iss_cpu_s {
   iss_irq_t irq;
   iss_csr_t csr;
   iss_pulpv2_t pulpv2;
+  iss_rnnext_t rnnext;
 } iss_cpu_t;
 
 #endif

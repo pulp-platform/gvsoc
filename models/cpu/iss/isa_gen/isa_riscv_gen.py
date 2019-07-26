@@ -94,6 +94,12 @@ class R5(Instr):
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             ]
+        elif format == 'LRRRR':
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (2, Range(7,  5), dumpName=False),
+                            Indirect(InReg(0, Range(15, 5)), SignedImm(0, Ranges([]))),
+                            InReg (1, Range(20, 5)),
+                        ]
         elif format == 'F':
             self.args = [   InReg (0, Range(15, 5)),
                             ]
@@ -1673,8 +1679,14 @@ pulp_v2_insns = [
 
 ]
 
+rnnext = [
+    R5('pl.sdotsp.h', 'LRRRR','101110- ----- ----- 000 ----- 1110111'),
+    R5('pl.tanh',     'R1',   '1111100 00000 ----- 000 ----- 1110111'),
+    R5('pl.sig',      'R1',   '1111100 00000 ----- 001 ----- 1110111'),
+]
 
-pulp_v2 = IsaSubset('pulpv2', pulp_v2_insns + pulp_common_insns)
+
+pulp_v2 = IsaSubset('pulpv2', pulp_v2_insns + pulp_common_insns + rnnext)
 
 
 gap8 = IsaSubset('gap8', [
