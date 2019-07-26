@@ -1686,7 +1686,8 @@ rnnext = [
 ]
 
 
-pulp_v2 = IsaSubset('pulpv2', pulp_v2_insns + pulp_common_insns + rnnext)
+pulp_v2 = IsaSubset('pulpv2', pulp_v2_insns + pulp_common_insns)
+pulp_v2_rnnext = IsaSubset('rnnext', rnnext)
 
 
 gap8 = IsaSubset('gap8', [
@@ -1756,6 +1757,7 @@ isa = Isa(
         IsaDecodeTree('c', [rv32c]),
         IsaDecodeTree('priv', [priv]),
         IsaDecodeTree('pulp_v2', [pulp_v2]),
+        IsaDecodeTree('rnnext', [pulp_v2_rnnext]),
         IsaDecodeTree('f', [rv32f]),
         IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec, Xfaux]),
         IsaDecodeTree('gap8', [gap8]),

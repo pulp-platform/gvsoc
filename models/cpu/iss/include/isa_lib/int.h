@@ -2221,14 +2221,78 @@ static inline pc_t *lf_lnu_sfle_vh_all_exec(cpu_t *cpu, pc_t *pc)
  * RNNEXT OPERATIONS
  */
 
+const short lut_Tanh_m[16] = {4021, 3563, 2835, 2070, 1418, 929, 592, 370, 228, 140, 86, 52, 32, 19, 12, 7};
+const int lut_Tanh_q[16] = {17060, 512067, 2012407, 4361003, 7021506, 9510743, 11575189, 13158594, 14311861, 15123015, 15679911, 16055709, 16306104, 16471340, 16579558, 16650000};
+const short lut_sig_m[16] = {1019, 988, 930, 850, 758, 660, 563, 472, 391, 319, 258, 207, 165, 131, 104, 82};
+const int lut_sig_q[16] = {8389671, 8423495, 8544906, 8789991, 9169470, 9670607, 10264318, 10914030, 11583389, 12241371, 12864661, 13437943, 13952921, 14406803, 14800713, 15138308};
+
+static inline unsigned int lib_TANHorSIG(iss_cpu_state_t *s, unsigned int a, short isSig)
+{
+  unsigned int lutsize = 16;
+  unsigned int value1 = 4096;
+  unsigned int value0p999 = 4095;
+  int m;
+  int q;
+  int q_signed;
+  unsigned short sign = (a>>31) & 0x1;
+  int tmp;
+  int mac_result;
+  int mac_result_signed;
+  int abs_a;
+
+  if(sign == 0x1)
+  {
+    abs_a = (~a);
+  }
+  else
+  {
+    abs_a = (a);
+  }
+  tmp = abs_a>>(13-3); // get index of LUT
+  if (tmp >= lutsize)
+  {
+    if(isSig == 0)
+    { // tanh
+      return (sign==0x1)?(int)-value1: (int)value1;
+    }
+    else 
+    { // sig
+      return (sign==0x1)?(int)0: (int)value1;
+    }
+  }
+  else
+  {
+    if(isSig == 0)
+    {
+      m = lut_Tanh_m[tmp];
+      q = lut_Tanh_q[tmp];
+    }
+    else
+    {
+      m = lut_sig_m[tmp];
+      q = lut_sig_q[tmp];
+    }
+    mac_result = (m*abs_a+q)>>12;
+    mac_result_signed = (sign==1)?  ~mac_result : mac_result;
+    if (isSig==1 && sign==1)
+    {
+      return (unsigned int)(value0p999 + (mac_result_signed)); // 1-(mx+q)=4096+(~mac_result+1)=4095+(~mac_result)
+    }
+    else
+    {
+      return (unsigned int)mac_result_signed;
+    }
+  }
+}
+
 static inline unsigned int lib_TANH(iss_cpu_state_t *s, unsigned int a)
 {
-  return 0;
+  return lib_TANHorSIG(s, a, 0);
 }
 
 static inline unsigned int lib_SIG(iss_cpu_state_t *s, unsigned int a)
 {
-  return 0;
+  return lib_TANHorSIG(s, a, 1);
 }
 
 
