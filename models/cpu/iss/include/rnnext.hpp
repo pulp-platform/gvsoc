@@ -24,16 +24,19 @@
 static inline void pl_sdotsp_h_load_resume(iss_t *iss)
 {
   iss_insn_t *insn = iss->cpu.rnnext.sdot_insn;
-  REG_SET(0, LIB_CALL3(lib_VEC_SDOTSP_16, REG_GET(2), iss->cpu.rnnext.sdot_prefetch, REG_GET(1)));
+  iss_csr_msg(iss, "Loaded new sdot_prefetch value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch);
 }
 
 static inline iss_insn_t *pl_sdotsp_h_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t addr = REG_GET(0);
   IN_REG_SET(0, addr + 4);
+
+  REG_SET(0, LIB_CALL3(lib_VEC_SDOTSP_16, REG_GET(2), iss->cpu.rnnext.sdot_prefetch, REG_GET(1)));
+
   if (!iss->data_req(addr, (uint8_t *)&iss->cpu.rnnext.sdot_prefetch, 4, false))
   {
-    REG_SET(0, LIB_CALL3(lib_VEC_SDOTSP_16, REG_GET(2), iss->cpu.rnnext.sdot_prefetch, REG_GET(1)));
+    iss_csr_msg(iss, "Loaded new sdot_prefetch value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch);
   }
   else
   {
