@@ -704,7 +704,8 @@ vp::io_req_status_e riscv_dtm::program_buffer_req(int offset, int size, bool is_
 {
   if (!is_write)
   {
-    memcpy(data, this->abstract_cmd + offset/4, size);
+    if (data)
+      memcpy(data, this->abstract_cmd + offset/4, size);
   }
 
   return vp::IO_REQ_OK;
