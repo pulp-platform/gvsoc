@@ -668,6 +668,7 @@ private:
 typedef enum
 {
   HYPER_STATE_IDLE,
+  HYPER_STATE_DELAY,
   HYPER_STATE_CS,
   HYPER_STATE_CA,
   HYPER_STATE_DATA,
@@ -783,8 +784,7 @@ public:
 
 protected:
   vp::hyper_master hyper_itf;
-  unsigned int *regs; 
-  int clkdiv;
+  unsigned int *regs;
   Hyper_v2_tx_channel *tx_channel;
   Hyper_v2_rx_channel *rx_channel;
 
@@ -794,6 +794,7 @@ private:
   vector<Udma_transfer *> pending_transfers;
 
   vp_hyper_timing_cfg r_timing_cfg;
+  vp_hyper_clk_div r_clk_div;
 
 
   int eot_event;
@@ -804,6 +805,7 @@ private:
   uint32_t pending_word;
   int transfer_size;
   hyper_state_e state;
+  int delay;
   int ca_count;
   bool pending_tx;
   bool pending_rx;

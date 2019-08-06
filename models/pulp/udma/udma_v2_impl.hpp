@@ -670,6 +670,7 @@ private:
 typedef enum
 {
   HYPER_STATE_IDLE,
+  HYPER_STATE_DELAY,
   HYPER_STATE_CS,
   HYPER_STATE_CA,
   HYPER_STATE_DATA,
@@ -729,6 +730,7 @@ private:
   uint32_t pending_word;
   int transfer_size;
   hyper_state_e state;
+  int delay;
   int ca_count;
   bool pending_tx;
   bool pending_rx;

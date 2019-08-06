@@ -49,6 +49,9 @@ static inline void iss_lsu_store_perf(iss_t *iss, iss_insn_t *insn, iss_addr_t a
 
 static inline void iss_lsu_check_stack_access(iss_t *iss, int reg, iss_addr_t addr)
 {
+  // Could be optimized when decoding instruction by pointing to different instruction
+  // handlers when register 2 is seen but the gain is small compared to the cost of the full
+  // load.
   if (iss->cpu.csr.stack_conf && reg == 2)
   {
     if (addr < iss->cpu.csr.stack_start || addr >= iss->cpu.csr.stack_end)

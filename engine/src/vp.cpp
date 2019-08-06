@@ -135,7 +135,7 @@ bool vp::time_engine::dequeue(time_engine_client *client)
   return true;
 }
 
-void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
+bool vp::time_engine::enqueue(time_engine_client *client, int64_t time)
 {
   vp_assert(time >= 0, NULL, "Time must be positive\n");
 
@@ -148,12 +148,12 @@ void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
 #endif
 
   if (client->is_running())
-    return;
+    return false;
 
   if (client->is_enqueued) 
   {
     if (client->next_event_time <= full_time)
-      return;
+      return false;
     this->dequeue(client);
   }
 
@@ -169,6 +169,8 @@ void vp::time_engine::enqueue(time_engine_client *client, int64_t time)
   if (prev) prev->next = client;
   else first_client = client;
   client->next = current;
+
+  return true;
 }
 
 bool vp::clock_engine::dequeue_from_engine()
@@ -251,24 +253,29 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
 
   // First check if we have to enqueue it to the global time engine in case we
   // were not running.
-  if (this->period != 0)
-    enqueue_to_engine(cycle*period);
 
   // Check if we can enqueue to the fast circular queue in case were not
   // running.
   bool can_enqueue_to_cycle = false;
   if (!this->is_running())
   {
-    this->current_cycle = this->get_cycles() & CLOCK_EVENT_QUEUE_MASK;
-    can_enqueue_to_cycle = this->current_cycle + cycle < CLOCK_EVENT_QUEUE_SIZE;
+    //this->current_cycle = (this->get_cycles() + 1) & CLOCK_EVENT_QUEUE_MASK;
+    //can_enqueue_to_cycle = this->current_cycle + cycle - 1 < CLOCK_EVENT_QUEUE_SIZE;
   }
 
   if (can_enqueue_to_cycle)
   {
-    this->enqueue_to_cycle(event, cycle);
+    //this->current_cycle = (this->get_cycles() + cycle) & CLOCK_EVENT_QUEUE_MASK;
+    this->enqueue_to_cycle(event, cycle - 1);
+    if (this->period != 0)
+      enqueue_to_engine(period);
   }
   else
   {
+    this->must_flush_delayed_queue = true;
+    if (this->period != 0)
+      enqueue_to_engine(cycle*period);
+
     vp::clock_event *current = delayed_queue, *prev = NULL;
     int64_t full_cycle = cycle + get_cycles();
     while (current && current->cycle < full_cycle)
@@ -430,6 +437,7 @@ int64_t vp::clock_engine::exec()
     current_cycle = (current_cycle + 1) & CLOCK_EVENT_QUEUE_MASK;
     if (unlikely(current_cycle == 0))
       this->must_flush_delayed_queue = true;
+
     return period;
   }
   else

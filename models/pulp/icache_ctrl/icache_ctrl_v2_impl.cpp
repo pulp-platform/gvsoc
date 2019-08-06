@@ -39,6 +39,11 @@ private:
 
   vp::trace     trace;
   vp::io_slave in;
+
+  vp::wire_master<bool>     enable_itf;
+  vp::wire_master<bool>     flush_itf;
+  vp::wire_master<bool>     flush_line_itf;
+  vp::wire_master<uint32_t> flush_line_addr_itf;
 };
 
 icache_ctrl::icache_ctrl(const char *config)
@@ -58,6 +63,12 @@ vp::io_req_status_e icache_ctrl::req(void *__this, vp::io_req *req)
 
   _this->trace.msg("icache_ctrl access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
+  if (offset == 0)
+  {
+    if (_this->enable_itf.is_bound())
+      _this->enable_itf.sync(*data != 0);
+  }
+
   return vp::IO_REQ_OK;
 }
 
@@ -66,6 +77,11 @@ int icache_ctrl::build()
   traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&icache_ctrl::req);
   new_slave_port("input", &in);
+
+  this->new_master_port("enable", &this->enable_itf);
+  this->new_master_port("flush", &this->flush_itf);
+  this->new_master_port("flush_line", &this->flush_line_itf);
+  this->new_master_port("flush_line_addr", &this->flush_line_addr_itf);
 
   return 0;
 }

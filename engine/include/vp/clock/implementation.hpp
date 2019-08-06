@@ -44,6 +44,11 @@ inline void vp::component_clock::event_enqueue(vp::clock_event *event, int64_t c
   clock->enqueue(event, cycles);
 }
 
+inline void vp::component_clock::event_enqueue_ext(vp::clock_event *event, int64_t cycles)
+{
+  clock->enqueue_ext(event, cycles);
+}
+
 inline void vp::component_clock::event_cancel(vp::clock_event *event)
 {
   clock->cancel(event);
@@ -52,6 +57,11 @@ inline void vp::component_clock::event_cancel(vp::clock_event *event)
 inline void vp::component_clock::event_reenqueue(vp::clock_event *event, int64_t cycles)
 {
   clock->reenqueue(event, cycles);
+}
+
+inline void vp::component_clock::event_reenqueue_ext(vp::clock_event *event, int64_t cycles)
+{
+  clock->reenqueue_ext(event, cycles);
 }
 
 inline vp::clock_event *vp::component_clock::event_new(vp::clock_event_meth_t *meth)

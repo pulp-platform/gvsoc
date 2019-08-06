@@ -89,6 +89,7 @@ static inline iss_insn_t *iss_exec_stalled_insn(iss_t *iss, iss_insn_t *insn)
 do { \
   iss->cpu.state.insn_cycles = 1; \
   iss_insn_t *insn = iss->cpu.current_insn; \
+  prefetcher_fetch(iss, insn->addr); \
   iss->cpu.prev_insn = insn; \
   iss->cpu.current_insn = func(iss, insn); \
 } while(0)
@@ -112,7 +113,7 @@ static inline int iss_exec_switch_to_fast(iss_t *iss)
 #ifdef VP_TRACE_ACTIVE
   return false;
 #else
-  return !iss->cpu.state.hw_counter_en && !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE) && !iss->cpu.csr.stack_conf;
+  return !(iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE);
 #endif
 }
 

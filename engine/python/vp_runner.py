@@ -854,6 +854,18 @@ def gen_gtkw_core_traces(gtkw, tp, path):
         gtkw.trace(tp.get('core_events', path + '.pcer_tcdm_cont'), 'tcdm_cont')
         gtkw.trace(tp.get('core_events', path + '.misaligned'), 'misaligned')
 
+
+def gen_gtkw_icache_traces(gtkw, tp, path, nb_ways, nb_sets):
+    gtkw.trace(tp.get('refill', path + '.refill', '[31:0]'), 'refill')
+    gtkw.trace(tp.get('input', path + '.port_0', '[31:0]'), 'input')
+    for way in range(0, nb_ways):
+        with gtkw.group('way_%d' % way, closed=True):
+            for line in range(0, nb_sets):
+                name = 'tag_%d' % line
+                gtkw.trace(tp.get(name, path + '.set_%d.line_%d' % (way, line), '[31:0]'), name)
+
+
+
 def check_user_traces(gtkw, tp, path, user_traces):
     if user_traces is not None:
         traces = user_traces.get_items()
@@ -1033,6 +1045,11 @@ def gen_gtkw_files(config, gv_config):
                 with gtkw.group('fc', closed=True):
                     check_user_traces(gtkw, tp, 'chip.fc', user_traces)
                     gen_gtkw_core_traces(gtkw, tp, 'sys.board.chip.soc.fc')
+
+                with gtkw.group('fc_icache', closed=True):
+                    check_user_traces(gtkw, tp, 'chip.fc_icache', user_traces)
+                    gen_gtkw_icache_traces(gtkw, tp, 'sys.board.chip.soc.fc_icache', 1<<config.get_int('**/fc_icache/nb_ways_bits'), 1<<config.get_int('**/fc_icache/nb_sets_bits'))
+
 
                 if nb_pe is not None:
                     with gtkw.group('cluster', closed=True):

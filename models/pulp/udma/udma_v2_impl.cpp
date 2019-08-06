@@ -173,7 +173,7 @@ void Udma_channel::check_state()
 {
   if (!event->is_enqueued() && !pending_reqs->is_empty() && current_cmd == NULL)
   {
-    top->event_enqueue(event, 1);
+    top->event_enqueue_ext(event, 1);
   }
 
   if (free_reqs->is_full())
@@ -517,12 +517,12 @@ void udma::check_state()
 {
   if ((!ready_tx_channels->is_empty() && !l2_read_reqs->is_empty()) || !l2_write_reqs->is_empty())
   {
-    event_reenqueue(event, 1);
+    event_reenqueue_ext(event, 1);
   }
 
   if (!l2_read_waiting_reqs->is_empty())
   {
-    event_reenqueue(event, l2_read_waiting_reqs->get_first()->get_latency() - get_cycles());
+    event_reenqueue_ext(event, l2_read_waiting_reqs->get_first()->get_latency() - get_cycles());
   }
 }
 

@@ -47,6 +47,8 @@ namespace vp {
     
     inline clock_event *reenqueue(clock_event *event, int64_t cycles);
 
+    inline clock_event *reenqueue_ext(clock_event *event, int64_t cycles);
+
     inline clock_event *enqueue(clock_event *event, int64_t cycles)
     {
       vp_assert(!event->enqueued, 0, "Enqueueing already enqueued event\n");
@@ -64,6 +66,12 @@ namespace vp {
         enqueue_other(event, cycles);
       }
       return event;
+    }
+
+    inline clock_event *enqueue_ext(clock_event *event, int64_t cycles)
+    {
+      this->sync();
+      return this->enqueue(event, cycles);
     }
 
     clock_event *event_new(component_clock *comp, clock_event_meth_t *meth)
@@ -170,6 +178,12 @@ inline vp::clock_event *vp::clock_engine::reenqueue(vp::clock_event *event, int6
   event->cycle = cycles;
 
   return event;
+}
+
+inline vp::clock_event *vp::clock_engine::reenqueue_ext(vp::clock_event *event, int64_t enqueue_cycles)
+{
+  this->sync();
+  return this->reenqueue(event, enqueue_cycles);
 }
 
 #endif

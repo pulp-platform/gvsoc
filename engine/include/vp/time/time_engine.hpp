@@ -64,7 +64,7 @@ namespace vp {
 
     bool dequeue(time_engine_client *client);
 
-    void enqueue(time_engine_client *client, int64_t time);
+    bool enqueue(time_engine_client *client, int64_t time);
 
     int64_t get_time() { return time; }
 
@@ -118,9 +118,9 @@ namespace vp {
 
     inline bool is_running() { return running; }
 
-    inline void enqueue_to_engine(int64_t time)
+    inline bool enqueue_to_engine(int64_t time)
     {
-      engine->enqueue(this, time);
+      return engine->enqueue(this, time);
     }
 
     inline int64_t get_time() { return engine->get_time(); }

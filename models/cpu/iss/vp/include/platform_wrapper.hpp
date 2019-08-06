@@ -141,7 +141,7 @@ static inline int iss_io_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_
   return _this->data.req(&_this->io_req);
 }
 
-static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
+static inline int iss_fetch_req_common(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write, bool timed)
 {
   vp::io_req *req = &_this->fetch_req;
   req->init();
@@ -158,7 +158,25 @@ static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint
       _this->trace.force_warning("Unimplemented pending fetch request (addr: 0x%x, size: 0x%x)\n", addr, size);
     return -1;
   }
+
+  int64_t latency = req->get_latency();
+  if (latency)
+  {
+    _this->cpu.state.fetch_cycles += latency;
+    iss_pccr_account_event(_this, CSR_PCER_IMISS, latency);
+  }
+
   return 0;
+}
+
+static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
+{
+  return iss_fetch_req_common(_this, addr, data, size, is_write, 0);
+}
+
+static inline int iss_fetch_req_timed(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
+{
+  return iss_fetch_req_common(_this, addr, data, size, is_write, 1);
 }
 
 static inline int iss_irq_ack(iss_t *iss, int irq)

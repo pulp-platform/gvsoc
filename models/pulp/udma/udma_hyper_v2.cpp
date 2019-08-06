@@ -70,6 +70,7 @@ Hyper_periph_v2::Hyper_periph_v2(udma *top, int id, int itf_id) : Udma_periph(to
   this->tx_channel = static_cast<Hyper_v2_tx_channel *>(this->channel1);
 
   this->top->new_reg(itf_name + "/timing_cfg", &this->r_timing_cfg, 0);
+  this->top->new_reg(itf_name + "/clk_div", &this->r_clk_div, 0);
   //hyper_itf.set_cs_sync_meth(&Hyper_periph_v2::cs_sync);
 
   js::config *config = this->top->get_js_config()->get("hyper/eot_events");
@@ -87,7 +88,6 @@ void Hyper_periph_v2::reset(bool active)
   if (active)
   {
     memset(this->regs, 0, sizeof(unsigned int)*HYPER_NB_REGS);
-    this->clkdiv = 0;
     this->pending_tx = false;
     this->pending_rx = false;
     this->current_cmd = NULL;
@@ -116,7 +116,8 @@ void Hyper_periph_v2::handle_pending_word(void *__this, vp::clock_event *event)
   {
     if (_this->pending_bytes > 0)
     {
-      _this->state = HYPER_STATE_CS;
+      _this->state = HYPER_STATE_DELAY;
+      _this->delay = 72;
       _this->ca_count = 6;
       _this->ca.low_addr = ARCHI_REG_FIELD_GET(_this->regs[HYPER_EXT_ADDR_CHANNEL_OFFSET], 0, 3);
       _this->ca.high_addr = ARCHI_REG_FIELD_GET(_this->regs[HYPER_EXT_ADDR_CHANNEL_OFFSET], 3, 29);
@@ -129,6 +130,12 @@ void Hyper_periph_v2::handle_pending_word(void *__this, vp::clock_event *event)
       else
         _this->transfer_size = _this->tx_channel->current_cmd->size;
     }
+  }
+  else if (_this->state == HYPER_STATE_DELAY)
+  {
+    _this->delay--;
+    if (_this->delay == 0)
+      _this->state = HYPER_STATE_CS;
   }
   else if (_this->state == HYPER_STATE_CS)
   {
@@ -181,7 +188,7 @@ void Hyper_periph_v2::handle_pending_word(void *__this, vp::clock_event *event)
     }
     else
     {
-      _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->clkdiv;
+      _this->next_bit_cycle = _this->top->get_periph_clock()->get_cycles() + _this->r_clk_div.data_get() + 1;
       if (send_byte)
       {
         _this->top->get_trace()->msg("Sending byte (value: 0x%x)\n", byte);
@@ -235,11 +242,11 @@ void Hyper_periph_v2::check_state()
     if (!this->pending_word_event->is_enqueued())
     {
       int latency = 1;
-      int64_t cycles = this->top->get_clock()->get_cycles();
+      int64_t cycles = this->top->get_periph_clock()->get_cycles();
       if (this->next_bit_cycle > cycles)
         latency = this->next_bit_cycle - cycles;
 
-      this->top->event_enqueue(this->pending_word_event, latency);
+      this->top->get_periph_clock()->enqueue_ext(this->pending_word_event, latency);
     }
   }
 }
@@ -279,6 +286,12 @@ vp::io_req_status_e Hyper_periph_v2::custom_req(vp::io_req *req, uint64_t offset
       this->r_timing_cfg.access(reg_offset, size, data, is_write);
       if (is_write)
         this->trace.msg("Setting TIMING_CFG (latency0: %d, latency1: %d, rw_recovery: %d, rwds_delay: %d, lat_autocheck: %d, cs_max: %d)\n", this->r_timing_cfg.latency0_get(), this->r_timing_cfg.latency1_get(), this->r_timing_cfg.rw_recovery_get(), this->r_timing_cfg.rwds_delay_get(), this->r_timing_cfg.additional_latency_autocheck_en_get(), this->r_timing_cfg.cs_max_get());
+      break;
+
+    case HYPER_CLK_DIV_OFFSET/4:
+      this->r_clk_div.access(reg_offset, size, data, is_write);
+      if (is_write)
+        this->trace.msg("Setting CLK_DIV (data: %d)\n", this->r_clk_div.data_get());
       break;
   }
 

@@ -88,7 +88,8 @@ void Hyper_periph_v1::handle_pending_word(void *__this, vp::clock_event *event)
   {
     if (_this->pending_bytes > 0)
     {
-      _this->state = HYPER_STATE_CS;
+      _this->state = HYPER_STATE_DELAY;
+      _this->delay = 72;
       _this->ca_count = 6;
       _this->ca.low_addr = ARCHI_REG_FIELD_GET(_this->regs[HYPER_EXT_ADDR_CHANNEL_OFFSET], 0, 3);
       _this->ca.high_addr = ARCHI_REG_FIELD_GET(_this->regs[HYPER_EXT_ADDR_CHANNEL_OFFSET], 3, 29);
@@ -101,6 +102,12 @@ void Hyper_periph_v1::handle_pending_word(void *__this, vp::clock_event *event)
       else
         _this->transfer_size = _this->tx_channel->current_cmd->size;
     }
+  }
+  else if (_this->state == HYPER_STATE_DELAY)
+  {
+    _this->delay--;
+    if (_this->delay == 0)
+      _this->state = HYPER_STATE_CS;
   }
   else if (_this->state == HYPER_STATE_CS)
   {
@@ -211,7 +218,7 @@ void Hyper_periph_v1::check_state()
       if (this->next_bit_cycle > cycles)
         latency = this->next_bit_cycle - cycles;
 
-      this->top->event_enqueue(this->pending_word_event, latency);
+      this->top->event_enqueue_ext(this->pending_word_event, latency);
     }
   }
 }

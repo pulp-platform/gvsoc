@@ -910,7 +910,6 @@ static bool pcer_write(iss_t *iss, unsigned int prev_val, unsigned int value) {
 
 static bool pcmr_write(iss_t *iss, unsigned int prev_val, unsigned int value) {
   iss->cpu.csr.pcmr = value;
-  iss->cpu.state.hw_counter_en = iss->cpu.csr.pcmr & CSR_PCMR_ACTIVE;
 
   check_perf_config_change(iss, iss->cpu.csr.pcer, prev_val);
   return false;
