@@ -104,7 +104,8 @@ vp::io_req_status_e interleaver::req(void *__this, vp::io_req *req)
     
     size -= loop_size;
     offset += loop_size;
-    data += loop_size;
+    if (data)
+      data += loop_size;
   }
 
   req->set_addr(init_offset);
