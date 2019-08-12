@@ -44,8 +44,8 @@ Tcdm_periph_v1::Tcdm_periph_v1(udma *top, int id, int itf_id) : Udma_periph(top,
   for (int i=0; i<4; i++)
   {
     vp::io_req *req = new vp::io_req();
-    req->set_data(new uint8_t[4]);
     req->set_is_write(true);
+    req->set_size(4);
     req->arg_alloc(); // Used to store read request;
     this->out_reqs->push(req);
   }
