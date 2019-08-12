@@ -36,6 +36,9 @@
 #include <vector>
 #include "archi/udma/udma_v2.h"
 #include "archi/udma/i2s/udma_i2s_v1_new.h"
+#ifdef HAS_TCDM
+#include "archi/udma/memcpy/udma_memcpy_v1.h"
+#endif
 
 class udma;
 class Udma_channel;
@@ -81,6 +84,27 @@ private:
   int        size;
 };
 
+template<class T>
+void Udma_queue<T>::push_from_latency(T *cmd)
+{
+  T *current = first, *prev = NULL;
+  while (current && cmd->get_latency() > current->get_latency())
+  {
+    prev = current;
+    current = current->get_next();
+  }
+
+  if (current == NULL)
+    last = cmd;
+
+  if (prev)
+    prev->set_next(cmd);
+  else
+    first = cmd;
+  cmd->set_next(current);
+  nb_cmd++;
+}
+
 
 class Udma_channel
 {
@@ -99,10 +123,10 @@ public:
   virtual void handle_ready() { }
 
   Udma_transfer *current_cmd;
+  Udma_queue<vp::io_req> *ready_reqs;
 
 protected:
   vp::trace     trace;
-  Udma_queue<vp::io_req> *ready_reqs;
   udma *top;
   void handle_transfer_end();
 
@@ -552,6 +576,60 @@ private:
 
 
 
+/*
+ * TCDM
+ */
+
+class Tcdm_periph_v1;
+
+
+class Tcdm_channel : public Udma_tx_channel
+{
+public:
+  Tcdm_channel(udma *top, Tcdm_periph_v1 *periph, int id, string name);
+  void handle_ready_reqs();
+
+private:
+  void reset(bool active);
+  static void handle_pending_word(void *__this, vp::clock_event *event);
+
+  Tcdm_periph_v1 *periph;
+
+  vp::clock_event *pending_word_event;
+};
+
+
+class Tcdm_periph_v1 : public Udma_periph
+{
+  friend class Tcdm_channel;
+
+public:
+  Tcdm_periph_v1(udma *top, int id, int itf_id);
+  vp::io_req_status_e custom_req(vp::io_req *req, uint64_t offset);
+  void reset(bool active);
+
+protected:
+  vp::io_master io_itf;
+
+private:
+
+  void check_state();
+  static void handle_reqs(void *__this, vp::clock_event *event);
+
+  vp_udma_memcpy_dst_addr r_dst_addr;
+  vp_udma_memcpy_src_addr r_src_addr;
+  vp_udma_memcpy_mem_sel  r_mem_sel;
+
+  Udma_queue<vp::io_req> *out_reqs;
+  Udma_queue<vp::io_req> *out_waiting_reqs;
+
+  vp::clock_event *pending_reqs_event;
+
+  vp::trace     trace;
+};
+
+
+
 
 /*
  * I2S
@@ -805,8 +883,9 @@ public:
   vp::trace *get_trace() { return &this->trace; }
   vp::clock_engine *get_periph_clock() { return this->periph_clock; }
 
-protected:
   vp::io_master l2_itf;
+
+protected:
   void push_l2_write_req(vp::io_req *req);
 
 private:

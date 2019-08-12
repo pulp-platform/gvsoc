@@ -781,6 +781,21 @@ int udma::build()
         }
       }
 #endif
+#ifdef HAS_TCDM
+      else if (strcmp(name.c_str(), "tcdm") == 0)
+      {
+        trace.msg("Instantiating TCDM channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 1)
+        {
+          Tcdm_periph_v1 *periph = new Tcdm_periph_v1(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
       else
       {
         trace.msg("Instantiating channel (id: %d, offset: 0x%x)\n", id, offset);
@@ -813,27 +828,6 @@ void udma::reset(bool active)
 
 
 
-
-template<class T>
-void Udma_queue<T>::push_from_latency(T *cmd)
-{
-  T *current = first, *prev = NULL;
-  while (current && cmd->get_latency() > current->get_latency())
-  {
-    prev = current;
-    current = current->get_next();
-  }
-
-  if (current == NULL)
-    last = cmd;
-
-  if (prev)
-    prev->set_next(cmd);
-  else
-    first = cmd;
-  cmd->set_next(current);
-  nb_cmd++;
-}
 
 
 
