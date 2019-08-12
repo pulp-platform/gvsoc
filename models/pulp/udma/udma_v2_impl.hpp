@@ -576,6 +576,8 @@ private:
 
 
 
+#ifdef HAS_TCDM
+
 /*
  * TCDM
  */
@@ -628,7 +630,7 @@ private:
   vp::trace     trace;
 };
 
-
+#endif 
 
 
 /*
