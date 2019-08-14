@@ -37,7 +37,8 @@
 #include "archi/udma/udma_v2.h"
 #include "archi/udma/i2s/udma_i2s_v1_new.h"
 #ifdef HAS_TCDM
-#include "archi/udma/memcpy/udma_memcpy_v1.h"
+#include "archi/udma/memcpy/v1/udma_memcpy_v1.h"
+#include "archi/udma/memcpy/v1/udma_memcpy_v1_gvsoc.h"
 #endif
 
 class udma;
