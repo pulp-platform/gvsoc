@@ -35,7 +35,9 @@
 #include <string.h>
 #include <vector>
 #include "archi/udma/udma_v2.h"
+#ifdef HAS_I2S
 #include "archi/udma/i2s/udma_i2s_v1_new.h"
+#endif
 #ifdef HAS_TCDM
 #include "archi/udma/memcpy/v1/udma_memcpy_v1.h"
 #include "archi/udma/memcpy/v1/udma_memcpy_v1_gvsoc.h"
@@ -634,6 +636,7 @@ private:
 #endif 
 
 
+#ifdef HAS_I2S
 /*
  * I2S
  */
@@ -725,6 +728,7 @@ private:
   int sck[2];
 };
 
+#endif
 
 
 
