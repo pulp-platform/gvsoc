@@ -1,5 +1,28 @@
-*~
 __pycache__/
 *sw[p,o]
 cscope*
-/docs/_build/
+
+# Build
+build/
+doc/
+
+# Log and backup
+*.log
+*.bk
+*.tmp
+
+# OS Files
+*~
+.nfs*
+.Trash*
+.DS_Store
+
+# Packages 
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
