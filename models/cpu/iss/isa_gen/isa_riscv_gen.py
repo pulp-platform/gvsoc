@@ -94,6 +94,12 @@ class R5(Instr):
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
                             ]
+        elif format == 'BITREV':
+            self.args = [   OutReg(0, Range(7,  5)),
+                            InReg (0, Range(15, 5)),
+                            UnsignedImm(0, Range(20, 5)),
+                            UnsignedImm(1, Range(25, 2)),
+                            ]
         elif format == 'LRRRR':
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (2, Range(7,  5), dumpName=False),
@@ -1532,7 +1538,7 @@ pulp_v2_insns = [
     R5('pv.shuffle2.h',   'RRRR','110010- ----- ----- 000 ----- 1010111'),
     R5('pv.shuffle2.b',   'RRRR','110010- ----- ----- 001 ----- 1010111'),
 
-    R5('pv.pack.h',       'RRRR','110100- ----- ----- 000 ----- 1010111'),
+    R5('pv.pack.h',       'RRRR','1101000 ----- ----- 000 ----- 1010111'),
     R5('pv.packhi.b',     'RRRR','110110- ----- ----- 001 ----- 1010111'),
     R5('pv.packlo.b',     'RRRR','111000- ----- ----- 001 ----- 1010111'),
 
@@ -1722,6 +1728,38 @@ gap8 = IsaSubset('gap8', [
     R5('pv.pack.h.l',       'R',   '110100- ----- ----- 100 ----- 1010111', mapTo="lib_VEC_PACK_SC_HL_16"),
 ])
 
+gap9 = IsaSubset('gap9',
+[
+    R5('pv.cplxmul.h.i',      'RRRR',   '0101011 ----- ----- 000 ----- 1010111', mapTo="gap9_CPLXMUL_H_I"),
+    R5('pv.cplxmul.h.i.div2', 'RRRR',   '0101011 ----- ----- 010 ----- 1010111', mapTo="gap9_CPLXMUL_H_I_DIV2"),
+    R5('pv.cplxmul.h.i.div4', 'RRRR',   '0101011 ----- ----- 100 ----- 1010111', mapTo="gap9_CPLXMUL_H_I_DIV4"),
+    R5('pv.cplxmul.h.i.div8', 'RRRR',   '0101011 ----- ----- 110 ----- 1010111', mapTo="gap9_CPLXMUL_H_I_DIV8"),
+
+    R5('pv.cplxmul.h.r',      'RRRR',   '0101010 ----- ----- 000 ----- 1010111', mapTo="gap9_CPLXMUL_H_R"),
+    R5('pv.cplxmul.h.r.div2', 'RRRR',   '0101010 ----- ----- 010 ----- 1010111', mapTo="gap9_CPLXMUL_H_R_DIV2"),
+    R5('pv.cplxmul.h.r.div4', 'RRRR',   '0101010 ----- ----- 100 ----- 1010111', mapTo="gap9_CPLXMUL_H_R_DIV4"),
+    R5('pv.cplxmul.h.r.div8', 'RRRR',   '0101010 ----- ----- 110 ----- 1010111', mapTo="gap9_CPLXMUL_H_R_DIV8"),
+
+    R5('pv.subrotmj.h',     'R',   '0110110 ----- ----- 000 ----- 1010111', mapTo="gap9_VEC_ADD_16_ROTMJ"),
+    R5('pv.subrotmj.h.div2','R',   '0110110 ----- ----- 010 ----- 1010111', mapTo="gap9_VEC_ADD_16_ROTMJ_DIV2"),
+    R5('pv.subrotmj.h.div4','R',   '0110110 ----- ----- 100 ----- 1010111', mapTo="gap9_VEC_ADD_16_ROTMJ_DIV4"),
+    R5('pv.subrotmj.h.div8','R',   '0110110 ----- ----- 110 ----- 1010111', mapTo="gap9_VEC_ADD_16_ROTMJ_DIV8"),
+
+    R5('pv.cplxconj.h',     'R1',  '0101110 00000 ----- 000 ----- 1010111', mapTo="gap9_CPLX_CONJ_16"),
+
+    R5('pv.add.h.div2',     'R',   '0111010 ----- ----- 010 ----- 1010111', mapTo="gap9_VEC_ADD_16_DIV2"),
+    R5('pv.add.h.div4',     'R',   '0111010 ----- ----- 100 ----- 1010111', mapTo="gap9_VEC_ADD_16_DIV4"),
+    R5('pv.add.h.div8',     'R',   '0111010 ----- ----- 110 ----- 1010111', mapTo="gap9_VEC_ADD_16_DIV8"),
+
+    R5('pv.sub.h.div2',     'R',   '0110010 ----- ----- 010 ----- 1010111', mapTo="gap9_VEC_SUB_16_DIV2"),
+    R5('pv.sub.h.div4',     'R',   '0110010 ----- ----- 100 ----- 1010111', mapTo="gap9_VEC_SUB_16_DIV4"),
+    R5('pv.sub.h.div8',     'R',   '0110010 ----- ----- 110 ----- 1010111', mapTo="gap9_VEC_SUB_16_DIV8"),
+
+    R5('pv.pack.h.h',       'R',   '1101001 ----- ----- 000 ----- 1010111', mapTo="gap9_VEC_PACK_SC_H_16"),
+
+    R5('p.bitrev',          'BITREV',   '11000-- ----- ----- 101 ----- 0110011', mapTo="gap9_BITREV"),
+])
+
 parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
 
 parser.add_argument("--version", dest="version", default=1, type=int, metavar="VALUE", help="Specify ISA version")
@@ -1762,6 +1800,7 @@ isa = Isa(
         IsaDecodeTree('f', [rv32f]),
         IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec, Xfaux]),
         IsaDecodeTree('gap8', [gap8]),
+        IsaDecodeTree('gap9', [gap9]),
         #IsaTree('fpud', rv32d),
         #IsaTree('gap8', gap8),
         #IsaTree('priv_pulp_v2', priv_pulp_v2),

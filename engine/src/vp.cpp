@@ -199,7 +199,7 @@ void vp::clock_engine::apply_frequency(int frequency)
     this->period = 1e12 / this->freq;
     if (reenqueue && period > 0)
     {
-      int cycles = (this->next_event_time - this->get_time()) / period;
+      int64_t cycles = (this->next_event_time - this->get_time()) / period;
       this->next_event_time = cycles*this->period;
       this->reenqueue_to_engine();
     }

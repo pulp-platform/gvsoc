@@ -437,6 +437,18 @@ static inline type lib_VEC_##operName##_##elemType##_to_##type##_div4(iss_cpu_st
   return out;                                                                     \
 }
 
+#define VEC_OP_DIV8(operName, type, elemType, elemSize, num_elem, oper)                \
+static inline type lib_VEC_##operName##_##elemType##_to_##type##_div8(iss_cpu_state_t *s, type a, type b) {  \
+  elemType *tmp_a = (elemType*)&a;                                                \
+  elemType *tmp_b = (elemType*)&b;                                                \
+  type out;                                                                       \
+  elemType *tmp_out = (elemType*)&out;                                            \
+  int i;                                                                          \
+  for (i = 0; i < num_elem; i++)                                                  \
+    tmp_out[i] = ((elemType)(tmp_a[i] oper tmp_b[i]))>>3;                         \
+  return out;                                                                     \
+}
+
 #define VEC_EXPR(operName, type, elemType, elemSize, num_elem, expr)                \
 static inline type lib_VEC_##operName##_##elemType##_to_##type(iss_cpu_state_t *s, type a, type b) {  \
   elemType *tmp_a = (elemType*)&a;                                                \
@@ -666,6 +678,7 @@ VEC_OP_DIV4(ADD, int32_t, int8_t, 1, 4, +)
 VEC_OP(ADD, int32_t, int16_t, 2, 2, +)
 VEC_OP_DIV2(ADD, int32_t, int16_t, 2, 2, +)
 VEC_OP_DIV4(ADD, int32_t, int16_t, 2, 2, +)
+VEC_OP_DIV8(ADD, int32_t, int16_t, 2, 2, +)
 
 VEC_OP(SUB, int32_t, int8_t, 1, 4, -)
 VEC_OP_DIV2(SUB, int32_t, int8_t, 1, 4, -)
@@ -673,6 +686,7 @@ VEC_OP_DIV4(SUB, int32_t, int8_t, 1, 4, -)
 VEC_OP(SUB, int32_t, int16_t, 2, 2, -)
 VEC_OP_DIV2(SUB, int32_t, int16_t, 2, 2, -)
 VEC_OP_DIV4(SUB, int32_t, int16_t, 2, 2, -)
+VEC_OP_DIV8(SUB, int32_t, int16_t, 2, 2, -)
 
 VEC_EXPR(AVG, int32_t, int8_t, 1, 4, ((int8_t)(tmp_a[i] + tmp_b[i])>>(int8_t)1))
 VEC_EXPR(AVG, int32_t, int16_t, 2, 2, ((int16_t)(tmp_a[i] + tmp_b[i])>>(int16_t)1))
@@ -1151,6 +1165,20 @@ static inline unsigned int lib_CLIP(iss_cpu_state_t *s, int a, int low, int high
 }
 
 // Complex numbers
+static inline unsigned int lib_CPLXMUL_H_I(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, int div) {
+  long long a_imm = (long long)(int16_t)(a >> 16), a_re = (long long)(int16_t)(a & 0xffff);
+  long long b_imm = (long long)(int16_t)(b >> 16), b_re = (long long)(int16_t)(b & 0xffff);
+// printf("a = [Re= %5d, Im= %5d], b = [Re= %5d, Im= %5d]\n", (int) a_re, (int) a_imm, (int) b_re, (int) b_imm);
+  return (((uint16_t)((a_imm*b_re + a_re*b_imm) >> (15+div))<<16)) | (c & 0xffff);
+}
+
+static inline unsigned int lib_CPLXMUL_H_R(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, int div) {
+  long long a_imm = (long long)(int16_t)(a >> 16), a_re = (long long)(int16_t)(a & 0xffff);
+  long long b_imm = (long long)(int16_t)(b >> 16), b_re = (long long)(int16_t)(b & 0xffff);
+// printf("a = [Re= %5d, Im= %5d], b = [Re= %5d, Im= %5d]\n", (int) a_re, (int) a_imm, (int) b_re, (int) b_imm);
+  return (c & 0xffff0000) | (uint16_t)((a_re*b_re - a_imm*b_imm) >> (15+div));
+}
+
 static inline unsigned int lib_CPLXMULS(iss_cpu_state_t *s, unsigned int a, unsigned int b) {
   long long a_imm = (long long)(int16_t)(a >> 16), a_re = (long long)(int16_t)(a & 0xffff);
   long long b_imm = (long long)(int16_t)(b >> 16), b_re = (long long)(int16_t)(b & 0xffff);
@@ -1196,6 +1224,34 @@ static inline unsigned int lib_VEC_ADD_16_ROTMJ_DIV4(iss_cpu_state_t *s, unsigne
   int16_t a_imm = (int16_t)(a >> 16), a_re = (int16_t)(a & 0xffff),
           b_imm = (int16_t)(b >> 16), b_re = (int16_t)(b & 0xffff);
   return (((int16_t) (b_re - a_re)>>2)<<16) | (((int16_t) (a_imm - b_imm)>>2) & 0x0ffff);
+}
+
+static inline unsigned int lib_VEC_ADD_16_ROTMJ_DIV8(iss_cpu_state_t *s, unsigned int a, int b) {
+  int16_t a_imm = (int16_t)(a >> 16), a_re = (int16_t)(a & 0xffff),
+          b_imm = (int16_t)(b >> 16), b_re = (int16_t)(b & 0xffff);
+  return (((int16_t) (b_re - a_re)>>3)<<16) | (((int16_t) (a_imm - b_imm)>>3) & 0x0ffff);
+}
+
+static inline unsigned int lib_BITREV(iss_cpu_state_t *s, unsigned int input, unsigned int points, unsigned int radix)
+{
+  points = 32 - points;
+  unsigned int mask = (1 << radix) - 1;
+  unsigned int input_reverse = input;
+
+  for (int i=1; i<points/radix; i++)
+  {
+    input >>= radix;
+    input_reverse <<= radix;
+    input_reverse |= (input & mask);
+  }
+
+  if (points < 32)
+  {
+    mask = (1 << points) - 1;
+    input_reverse &= mask;
+  }
+
+  return input_reverse;
 }
 
 

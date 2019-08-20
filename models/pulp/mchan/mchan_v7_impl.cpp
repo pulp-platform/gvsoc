@@ -392,6 +392,8 @@ bool Mchan_channel::check_command(Mchan_cmd *cmd)
 
   top->pending_bytes[current_counter] += cmd->size;
 
+  top->trace.msg("Incrementing counter (id: %d, bytes: %d, remaining bytes: %d)\n", current_counter, cmd->size, top->pending_bytes[current_counter]);
+
   // Enqueue the command to the core queue
   uint8_t one = 1;
   this->top->cmd_events[cmd->counter_id].event(&one);
@@ -427,7 +429,7 @@ void Mchan_channel::handle_req(vp::io_req *req, uint32_t *value)
 
 vp::io_req_status_e Mchan_channel::handle_queue_write(vp::io_req *req, uint32_t *value)
 {
-  top->trace.msg("Pushing word to queue (value: 0x%x, pending_cmd: %d)\n", *value, pending_cmd);
+  top->trace.msg("Pushing word to queue (queue: %d, value: 0x%x, pending_cmd: %d)\n", this->id, *value, pending_cmd);
 
   // In case the core command queue is full, stall the calling core
   if (pending_cmd == top->core_queue_depth)
@@ -924,6 +926,11 @@ void mchan::handle_cmd_termination(Mchan_cmd *cmd)
 void mchan::account_transfered_bytes(Mchan_cmd *cmd, int bytes)
 {
   pending_bytes[cmd->counter_id] -= bytes;
+
+  trace.msg("Decreasing counter (id: %d, bytes: %d, remaining bytes: %d)\n", cmd->counter_id, bytes, pending_bytes[cmd->counter_id]);
+
+  if (pending_bytes[cmd->counter_id] < 0)
+    this->warning.force_warning("Counter became negative (id: %d, count: %d)\n", cmd->counter_id, pending_bytes[cmd->counter_id]);
 
   if (pending_bytes[cmd->counter_id] == 0)
   {
