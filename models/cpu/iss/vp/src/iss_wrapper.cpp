@@ -831,7 +831,7 @@ int iss_wrapper::build()
 
   this->riscv_dbg_unit = this->get_js_config()->get_child_bool("riscv_dbg_unit");
   this->bootaddr_offset = get_config_int("bootaddr_offset");
-  this->cpu.config.mhartid = (get_config_int("cluster_id") << 5) | get_config_int("core_id");
+  this->cpu.config.mhartid = (get_config_int("cluster_id") << 16) | get_config_int("core_id"); // CHANGED
   string isa = get_config_str("isa");
   //transform(isa.begin(), isa.end(), isa.begin(),(int (*)(int))tolower);
   this->cpu.config.isa = strdup(isa.c_str());
