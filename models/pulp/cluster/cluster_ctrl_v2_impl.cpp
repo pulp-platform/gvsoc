@@ -56,7 +56,7 @@ private:
   vp::io_req_status_e fetch_en_req(bool is_write, uint32_t *data);
   vp::io_req_status_e dbg_halt_status_req(bool is_write, uint32_t *data);
   vp::io_req_status_e dbg_halt_mask_req(bool is_write, uint32_t *data);
-  vp::io_req_status_e bootaddr_req(int core, bool is_write, uint32_t *data);
+  vp::io_req_status_e bootaddr_req(bool is_write, uint32_t *data);
   void check_dbg_halt();
 
   vp::trace     trace;
@@ -96,9 +96,10 @@ vp::io_req_status_e cluster_ctrl::req(void *__this, vp::io_req *req)
   {
     return _this->fetch_en_req(is_write, (uint32_t *)data);
   }
-  else if (offset >= ARCHI_CLUSTER_CTRL_BOOTADDR(0) && offset < ARCHI_CLUSTER_CTRL_BOOTADDR(_this->nb_core))
+  else if (offset == ARCHI_CLUSTER_CTRL_BOOTADDR(0))
   {
-    return _this->bootaddr_req(ARCHI_CLUSTER_CTRL_BOOTADDR_COREID(offset), is_write, (uint32_t *)data);
+    // Only one bootaddress at the moment
+    return _this->bootaddr_req(is_write, (uint32_t *)data);
   }
   else if (offset == ARCHI_CLUSTER_CTRL_EVENT)
   {
@@ -206,27 +207,42 @@ void cluster_ctrl::check_dbg_halt()
 
 vp::io_req_status_e cluster_ctrl::fetch_en_req(bool is_write, uint32_t *data)
 {
-  for (int i=0; i<nb_core; i++)
+  if (*data == (uint32_t) -1)
   {
-    cores[i].fetchen_itf.sync(((*data) >> i) & 1);
+    // Enable Fetch for all cores
+    for (int i = 0; i < nb_core; i++)
+    {
+      cores[i].fetchen_itf.sync(1);
+    }
+  }
+  else
+  {
+    // Enable fetch only for the first 32 cores that are enabled in the mask
+    for (int i = 0; i < 32; i++)
+    {
+      cores[i].fetchen_itf.sync(((*data) >> i) & 1);
+    }
   }
   return vp::IO_REQ_OK;
 }
 
 
 
-vp::io_req_status_e cluster_ctrl::bootaddr_req(int core, bool is_write, uint32_t *data)
+vp::io_req_status_e cluster_ctrl::bootaddr_req(bool is_write, uint32_t *data)
 {
   if (is_write)
   {
-    trace.msg("Setting boot address (core: %d, addr: 0x%x)\n", core, *data);
+    for (int core = 0; core < nb_core; ++core)
+    {
+      trace.msg("Setting boot address (core: %d, addr: 0x%x)\n", core, *data);
 
-    cores[core].bootaddr_itf.sync(*data);
-    cores[core].bootaddr = *data;
+      cores[core].bootaddr_itf.sync(*data);
+      cores[core].bootaddr = *data;
+    }
   }
   else
   {
-    *data = cores[core].bootaddr;
+    *data = cores[0].bootaddr;
   }
   return vp::IO_REQ_OK;
 }
