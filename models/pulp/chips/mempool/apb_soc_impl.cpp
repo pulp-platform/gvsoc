@@ -54,6 +54,7 @@ private:
   vp::wire_master<uint32_t> confreg_soc_itf;
   vp::wire_slave<uint32_t> confreg_ext_itf;
 
+  uint32_t nb_core;
   uint32_t core_status;
   uint32_t bootaddr;
   int bootsel;
@@ -64,7 +65,7 @@ private:
 apb_soc_ctrl::apb_soc_ctrl(const char *config)
 : vp::component(config)
 {
-
+  nb_core = get_config_int("nb_cores_per_cluster");
 }
 
 vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
@@ -80,7 +81,18 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 
   if (size != 4) return vp::IO_REQ_INVALID;
 
-  if (offset == APB_SOC_CORESTATUS_OFFSET)
+  if (offset == APB_SOC_INFO_OFFSET)
+  {
+    if (!is_write)
+    {
+      *(uint32_t *)data = _this->nb_core;
+    }
+    else
+    {
+      return vp::IO_REQ_INVALID;
+    }
+  }
+  else if (offset == APB_SOC_CORESTATUS_OFFSET)
   {
     if (!is_write)
     {
