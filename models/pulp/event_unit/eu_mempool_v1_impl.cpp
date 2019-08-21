@@ -82,7 +82,7 @@ public:
   bool locked;
   uint32_t waiting_mask;
   uint32_t value;
-  vp::io_req *waiting_reqs[32];
+  vp::io_req *waiting_reqs[1024];
 };
 
 class Mutex_unit {
@@ -110,7 +110,7 @@ public:
   uint32_t status_mask;     // Cores that must get the value before it can be written again
   uint32_t config_mask;     // Cores that will get a valid value
   uint32_t waiting_mask;
-  vp::io_req *waiting_reqs[32];
+  vp::io_req *waiting_reqs[1024];
 };
 
 class Dispatch_core
@@ -203,7 +203,7 @@ protected:
 
 
   vp::io_req_status_e sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data);
-  void trigger_event(int event, uint32_t core_mask);
+  void trigger_event(int event, uint32_t core_offset, uint32_t core_mask);
   void send_event(int core, uint32_t mask);
   static void in_event_sync(void *__this, bool active, int id);
 
@@ -254,7 +254,7 @@ private:
   vp::io_req *pending_req;
 
   vp::wire_master<bool> barrier_itf;
-  vp::wire_slave<bool> in_event_itf[32];
+  vp::wire_slave<bool> in_event_itf[1024];
 
   vp::wire_master<bool>    clock_itf;
 
@@ -338,14 +338,18 @@ vp::io_req_status_e Event_unit::req(void *__this, vp::io_req *req)
 
 vp::io_req_status_e Event_unit::sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data)
 {
-  if (offset >= EU_CORE_TRIGG_SW_EVENT && offset <  EU_CORE_TRIGG_SW_EVENT_SIZE)
+  if (offset >= EU_CORE_TRIGG_SW_EVENT && offset < (EU_CORE_TRIGG_SW_EVENT + EU_CORE_TRIGG_SW_EVENT_SIZE))
   {
     if (!is_write) return vp::IO_REQ_INVALID;
 
-    int event = (offset - EU_CORE_TRIGG_SW_EVENT) >> 2;
+    // Calculate the register offset
+    int reg_offset = ((offset - EU_CORE_TRIGG_SW_EVENT) % EU_CORE_TRIGG_SW_EVENT_REG_SIZE) >> 2;
+    // Calculate event number from offset: new event every nb_reg * 4 bytes
+    int event = (offset - EU_CORE_TRIGG_SW_EVENT) / EU_CORE_TRIGG_SW_EVENT_REG_SIZE;
     trace.msg("SW event trigger (event: %d, coreMask: 0x%x)\n", event, *data);
-    trigger_event(1<<event, *data);
+    trigger_event(1<<event, reg_offset, *data);
   }
+  /* Ignore for now
   else if (offset >= EU_CORE_TRIGG_SW_EVENT_WAIT && offset <  EU_CORE_TRIGG_SW_EVENT_WAIT_SIZE)
   {
     trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
@@ -379,6 +383,7 @@ vp::io_req_status_e Event_unit::sw_events_req(vp::io_req *req, uint64_t offset, 
     //  return req->error != 0;
     //}
   }
+  */
   else
   {
     trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
@@ -388,12 +393,12 @@ vp::io_req_status_e Event_unit::sw_events_req(vp::io_req *req, uint64_t offset, 
   return vp::IO_REQ_OK;
 }
 
-
-void Event_unit::trigger_event(int event_mask, uint32_t core_mask)
+void Event_unit::trigger_event(int event_mask, uint32_t core_offset, uint32_t core_mask)
 {
-  for (unsigned int i=0; i<nb_core; i++) {
+  unsigned int core = core_offset*32;
+  for (unsigned int i=0; i<32 && core<nb_core; i++, core++) {
     if (core_mask == 0 || (core_mask & (1 << i))) {
-      send_event(i, event_mask);
+      send_event(core, event_mask);
     }
   }
 }
@@ -428,7 +433,7 @@ void Core_event_unit::build(Event_unit *top, int core_id)
   irq_ack_itf.set_sync_meth_muxed(&Event_unit::irq_ack_sync, core_id);
   top->new_slave_port("irq_ack_" + std::to_string(core_id), &irq_ack_itf);
 
-  for (int i=0; i<32; i++)
+  for (int i=0; i<top->nb_core; i++)
   {
     in_event_itf[i].set_sync_meth_muxed(&Event_unit::in_event_sync, (core_id << 16 | i));
     top->new_slave_port("in_event_" + std::to_string(i) + "_pe_" + std::to_string(core_id), &in_event_itf[i]);
@@ -1062,7 +1067,7 @@ vp::io_req_status_e Mutex_unit::req(vp::io_req *req, uint64_t offset, bool is_wr
           *(uint32_t *)waiting_req->get_data() = mutex->value;
 
           // And trigger the event to the core
-          top->trigger_event(1<<mutex_event, 1<<i);
+          top->trigger_event(1<<mutex_event, 0, 1<<i);
 
           break;
         }
@@ -1178,7 +1183,7 @@ Dispatch_unit::Dispatch_unit(Event_unit *top)
               mask &= ~(1<<i);
 
               // And trigger the event to the core
-              top->trigger_event(1<<dispatch_event, 1<<i);
+              top->trigger_event(1<<dispatch_event, 0, 1<<i);
             }
             // Otherwise keep him sleeping and increase its index so that he will bypass this entry when he wakes up
             else
@@ -1281,7 +1286,7 @@ void Barrier_unit::check_barrier(int barrier_id)
   {
     trace.msg("Barrier reached, triggering event (barrier: %d, coreMask: 0x%x, targetMask: 0x%x)\n", barrier_id, barrier->core_mask, barrier->target_mask);
     barrier->status = 0;
-    top->trigger_event(1<<barrier_event, barrier->target_mask);
+    top->trigger_event(1<<barrier_event, 0, barrier->target_mask);
   }
 }
 
@@ -1436,7 +1441,7 @@ void Soc_event_unit::check_state()
 {
   if (this->fifo_soc_event != -1 && this->nb_free_events != this->nb_fifo_events) {
     this->trace.msg("Generating FIFO event (id: %d)\n", this->fifo_soc_event);
-    this->top->trigger_event(1<<this->fifo_soc_event, -1);
+    this->top->trigger_event(1<<this->fifo_soc_event, 0, -1);
   }
 }
 
@@ -1473,7 +1478,7 @@ vp::io_req_status_e Soc_event_unit::ioReq(uint32_t offset, bool is_write, uint32
     if (nb_free_events != nb_fifo_events)
     {
       this->trace.msg("Generating FIFO soc event (id: %d)\n", this->fifo_soc_event);
-      this->top->trigger_event(1<<this->fifo_soc_event, -1);
+      this->top->trigger_event(1<<this->fifo_soc_event, 0, -1);
     }
   }
 
