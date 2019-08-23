@@ -35,7 +35,7 @@ class Mutex_unit;
 
 // Cycles required by the core to really wakeup after his clock is back
 // Could actually be split into 2 latencies:
-//   - THe one required by the event unit to grant the access.
+//   - The one required by the event unit to grant the access.
 //   - The one required by the core to continue after the grant is back.
 //     This one should be 2 or 3 cycles and should be moved to the core.
 #define EU_WAKEUP_REQ_LATENCY 6
@@ -80,7 +80,7 @@ public:
   void reset();
 
   bool locked;
-  uint32_t waiting_mask;
+  std::list<int> waiting_list;
   uint32_t value;
   vp::io_req *waiting_reqs[1024];
 };
@@ -104,47 +104,47 @@ private:
 
 
 
-class Dispatch {
-public:
-  uint32_t value;
-  uint32_t status_mask;     // Cores that must get the value before it can be written again
-  uint32_t config_mask;     // Cores that will get a valid value
-  uint32_t waiting_mask;
-  vp::io_req *waiting_reqs[1024];
-};
+// class Dispatch {
+// public:
+//   uint32_t value;
+//   uint32_t status_mask;     // Cores that must get the value before it can be written again
+//   uint32_t config_mask;     // Cores that will get a valid value
+//   uint32_t waiting_mask;
+//   vp::io_req *waiting_reqs[1024];
+// };
 
-class Dispatch_core
-{
-public:
-  int tail;
-};
+// class Dispatch_core
+// {
+// public:
+//   int tail;
+// };
 
-class Dispatch_unit {
-public:
-  Dispatch_unit(Event_unit *top);
+// class Dispatch_unit {
+// public:
+//   Dispatch_unit(Event_unit *top);
 
-  vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core);
-  void reset();
+//   vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core);
+//   void reset();
 
-  vp::io_req_status_e enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id, bool is_caller=true);
+//   vp::io_req_status_e enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id, bool is_caller=true);
 
-  unsigned int config;
-  int dispatch_event;
-private:
-  Event_unit *top;
-  Dispatch_core *core;
-  Dispatch *dispatches;
-  int size;
-  int fifo_head;
-};
+//   unsigned int config;
+//   int dispatch_event;
+// private:
+//   Event_unit *top;
+//   Dispatch_core *core;
+//   Dispatch *dispatches;
+//   int size;
+//   int fifo_head;
+// };
 
 
 
 class Barrier {
 public:
-  uint32_t core_mask;
-  uint32_t status;
-  uint32_t target_mask;
+  std::array<uint32_t, EU_MASK_REG_SIZE/4> core_mask;
+  std::array<uint32_t, EU_MASK_REG_SIZE/4> status;
+  std::array<uint32_t, EU_MASK_REG_SIZE/4> target_mask;
 };
 
 class Barrier_unit {
@@ -158,10 +158,10 @@ private:
   void check_barrier(int barrier_id);
 
   Event_unit *top;
-  vp::trace     trace;
-  Barrier *barriers;
-  int nb_barriers;
-  int barrier_event;
+  vp::trace  trace;
+  Barrier    *barriers;
+  int        nb_barriers;
+  int        barrier_event;
 };
 
 
@@ -170,7 +170,7 @@ class Event_unit : public vp::component
 {
 
   friend class Core_event_unit;
-  friend class Dispatch_unit;
+  // friend class Dispatch_unit;
   friend class Barrier_unit;
   friend class Mutex_unit;
   friend class Soc_event_unit;
@@ -195,15 +195,15 @@ protected:
 
   Mutex_unit *mutex;
   Core_event_unit *core_eu;
-  Dispatch_unit *dispatch;
+  // Dispatch_unit *dispatch;
   Barrier_unit *barrier_unit;
   Soc_event_unit *soc_event_unit;
 
   int nb_core;
 
 
-  vp::io_req_status_e sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data);
-  void trigger_event(int event, uint32_t core_offset, uint32_t core_mask);
+  vp::io_req_status_e sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core = -1);
+  void trigger_event(int event_mask, std::array<uint32_t, EU_MASK_REG_SIZE/4> core_mask);
   void send_event(int core, uint32_t mask);
   static void in_event_sync(void *__this, bool active, int id);
 
@@ -284,7 +284,7 @@ void Event_unit::reset(bool active)
     {
       core_eu[i].reset();
     }
-    dispatch->reset();
+    // dispatch->reset();
     barrier_unit->reset();
     mutex->reset();
     soc_event_unit->reset();
@@ -318,87 +318,99 @@ vp::io_req_status_e Event_unit::req(void *__this, vp::io_req *req)
   {
     return _this->soc_event_unit->ioReq(offset - EU_SOC_EVENTS_AREA_OFFSET, is_write, (uint32_t *)data);
   }
-  else if (offset >= EU_EXT_EVENT_AREA_OFFSET && offset < EU_EXT_EVENT_AREA_OFFSET + EU_EXT_EVENT_AREA_SIZE)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-  }
   else if (offset >= EU_SW_EVENTS_AREA_BASE && offset < EU_SW_EVENTS_AREA_BASE + EU_SW_EVENTS_AREA_SIZE)
   {
     return _this->sw_events_req(req, offset - EU_SW_EVENTS_AREA_BASE, is_write, (uint32_t *)data);
   }
   else if (offset >= EU_BARRIER_AREA_OFFSET && offset < EU_BARRIER_AREA_OFFSET + EU_BARRIER_AREA_SIZE)
   {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //return barrierUnit.barrierIoReq(req, offset - EU_BARRIER_AREA_OFFSET, isRead, data, -1, false);
+    return _this->barrier_unit->req(req, offset - EU_BARRIER_AREA_OFFSET, is_write, (uint32_t *)data, -1);
   }
 
   return vp::IO_REQ_INVALID;
 
 }
 
-vp::io_req_status_e Event_unit::sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data)
+/**
+ * Software event request
+ * @param  req      Request
+ * @param  offset   Address offset
+ * @param  is_write True is request is write
+ * @param  data     Pointer to data to write or return read data
+ * @param  core     Core who issued the request through the demux interface. -1 if the request came through the slave port.
+ * @return          Status
+ */
+vp::io_req_status_e Event_unit::sw_events_req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core /*= -1*/)
 {
   if (offset >= EU_CORE_TRIGG_SW_EVENT && offset < (EU_CORE_TRIGG_SW_EVENT + EU_CORE_TRIGG_SW_EVENT_SIZE))
   {
     if (!is_write) return vp::IO_REQ_INVALID;
 
-    // Calculate the register offset
-    int reg_offset = ((offset - EU_CORE_TRIGG_SW_EVENT) % EU_CORE_TRIGG_SW_EVENT_REG_SIZE) >> 2;
-    // Calculate event number from offset: new event every nb_reg * 4 bytes
-    int event = (offset - EU_CORE_TRIGG_SW_EVENT) / EU_CORE_TRIGG_SW_EVENT_REG_SIZE;
-    trace.msg("SW event trigger (event: %d, coreMask: 0x%x)\n", event, *data);
-    trigger_event(1<<event, reg_offset, *data);
+    trace.msg("SW event trigger (eventMask: 0x%x)\n", *data);
+    // Trigger all software events in the mask for all cores
+    for (int i = 0; i < nb_core; i++)
+    {
+      send_event(i, *data);
+    }
   }
-  /* Ignore for now
   else if (offset >= EU_CORE_TRIGG_SW_EVENT_WAIT && offset <  EU_CORE_TRIGG_SW_EVENT_WAIT_SIZE)
   {
-    trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) {
-    //  trace.msg("Writing event trigger target core mask (coreMask: 0x%x)\n", *data);
-    //  targetCoreMask = *data;
-    //}
-    //else
-    //{
-    //  int event = (offset - EU_CORE_TRIGG_SW_EVENT_WAIT) >> 2;
-    //  trace.msg("Event trigger and wait (event: %d, coreMask: 0x%x)\n", event, *data);
-    //  top->triggerEvent(1<<event, targetCoreMask);
-    //  *data = waitEvent(req);
-    //  return req->error != 0;
-    //}
+    // Register can only be read and only through the demux interface
+    if (is_write || core == -1 || core >= nb_core)
+    {
+      trace.warning("EU_CORE_TRIGG_SW_EVENT_WAIT can only be read through the demux interface (is_write = %d, core = %d)\n", is_write, core);
+      return vp::IO_REQ_INVALID;
+    }
+
+    int event = EU_CORE_TRIGG_SW_EVENT_WAIT_EVENT_GET(offset - EU_CORE_TRIGG_SW_EVENT_WAIT);
+    Core_event_unit* eu = &core_eu[core];
+    trace.msg("Event trigger and wait (event: %d, coreMask: 0x%x)\n", event, *data);
+    for (int i = 0; i < nb_core; i++)
+    {
+      send_event(i, 1 << event);
+    }
+    vp::io_req_status_e err = eu->wait_event(req);
+    *data = eu->evt_mask & eu->status;
+    return err;
   }
   else if (offset >= EU_CORE_TRIGG_SW_EVENT_WAIT_CLEAR && offset <  EU_CORE_TRIGG_SW_EVENT_WAIT_CLEAR_SIZE)
   {
-    trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) {
-    //  trace.msg("Writing event trigger target core mask (coreMask: 0x%x)\n", *data);
-    //  targetCoreMask = *data;
-    //}
-    //else
-    //{
-    //  int event = (offset - EU_CORE_TRIGG_SW_EVENT_WAIT) >> 2;
-    //  trace.msg("Event trigger, wait and clear (event: %d, coreMask: 0x%x)\n", event, *data);
-    //  top->triggerEvent(1<<event, targetCoreMask);
-    //  clearEvtMask = evtMask;
-    //  *data = waitEvent(req);
-    //  return req->error != 0;
-    //}
+    // Register can only be read and only through the demux interface
+    if (is_write || core == -1 || core >= nb_core)
+    {
+      trace.warning("EU_CORE_TRIGG_SW_EVENT_WAIT can only be read through the demux interface (is_write = %d, core = %d)\n", is_write, core);
+      return vp::IO_REQ_INVALID;
+    }
+
+    int event = EU_CORE_TRIGG_SW_EVENT_WAIT_EVENT_GET(offset - EU_CORE_TRIGG_SW_EVENT_WAIT);
+    Core_event_unit* eu = &core_eu[core];
+    trace.msg("Event trigger and wait (event: %d, coreMask: 0x%x)\n", event, *data);
+    for (int i = 0; i < nb_core; i++)
+    {
+      send_event(i, 1 << event);
+    }
+    eu->clear_evt_mask = eu->evt_mask;
+    vp::io_req_status_e err = eu->wait_event(req);
+    *data = eu->evt_mask & eu->status;
+    return err;
   }
-  */
   else
   {
-    trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
+    trace.warning("UNIMPLEMENTED offset at %s %d\n", __FILE__, __LINE__);
     return vp::IO_REQ_INVALID;
   }
 
   return vp::IO_REQ_OK;
 }
 
-void Event_unit::trigger_event(int event_mask, uint32_t core_offset, uint32_t core_mask)
+void Event_unit::trigger_event(int event_mask, std::array<uint32_t, EU_MASK_REG_SIZE/4> core_mask)
 {
-  unsigned int core = core_offset*32;
-  for (unsigned int i=0; i<32 && core<nb_core; i++, core++) {
-    if (core_mask == 0 || (core_mask & (1 << i))) {
-      send_event(core, event_mask);
+  // std::assert(nb_core <= core_mask.size()*32, "Register size too small for number of cores");
+  for (int i = 0; i < nb_core; ++i)
+  {
+    if (core_mask[i/32] & (1 << (i % 32)))
+    {
+      send_event(i, event_mask);
     }
   }
 }
@@ -410,8 +422,6 @@ void Event_unit::send_event(int core, uint32_t mask)
   eu->set_status(eu->status | mask);
   eu->check_state();
 }
-
-
 
 void Core_event_unit::build(Event_unit *top, int core_id)
 {
@@ -442,27 +452,7 @@ void Core_event_unit::build(Event_unit *top, int core_id)
 
 vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data)
 {
-  if (offset == EU_CORE_BUFFER)
-  {
-    if (is_write) return vp::IO_REQ_INVALID;
-    *data = status;
-    return vp::IO_REQ_OK;
-  }
-  else if (offset == EU_CORE_BUFFER_MASKED)
-  {
-    if (is_write) return vp::IO_REQ_INVALID;
-    *data = status & evt_mask;
-    return vp::IO_REQ_OK;
-  }
-  else if (offset == EU_CORE_BUFFER_CLEAR)
-  {
-    if (!is_write) return vp::IO_REQ_INVALID;
-    clear_status(*data);
-    top->trace.msg("Clearing buffer status (mask: 0x%x, newValue: 0x%x)\n", *data, status);
-    check_state();
-    return vp::IO_REQ_OK;
-  }
-  else if (offset == EU_CORE_MASK)
+  if (offset == EU_CORE_MASK)
   {
     if (!is_write) *data = evt_mask;
     else {
@@ -485,30 +475,6 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
     top->trace.msg("Setting event mask (mask: 0x%x, newValue: 0x%x)\n", *data, evt_mask);
     check_state();
   }
-  else if (offset == EU_CORE_STATUS)
-  {
-    top->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = active;
-    return vp::IO_REQ_INVALID;
-  }
-  else if (offset == EU_CORE_EVENT_WAIT)
-  {
-    if (is_write) return vp::IO_REQ_INVALID;
-    top->trace.msg("Wait\n");
-    vp::io_req_status_e err = wait_event(req);
-    *data = evt_mask & status;
-    return err;
-  }
-
-  else if (offset == EU_CORE_EVENT_WAIT_CLEAR)
-  {
-    top->trace.msg("Wait and clear\n");
-    clear_evt_mask = evt_mask;
-    vp::io_req_status_e err = wait_event(req);
-    *data = evt_mask & status;
-    return err;
-  }
   else if (offset == EU_CORE_MASK_IRQ)
   {
     if (!is_write) *data = irq_mask;
@@ -517,11 +483,6 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
       irq_mask = *data;
       check_state();
     }
-  }
-  else if (offset == EU_CORE_BUFFER_IRQ_MASKED)
-  {
-    if (is_write) return vp::IO_REQ_INVALID;
-    *data = status & irq_mask;
   }
   else if (offset == EU_CORE_MASK_IRQ_AND)
   {
@@ -536,6 +497,53 @@ vp::io_req_status_e Core_event_unit::req(vp::io_req *req, uint64_t offset, bool 
     irq_mask |= *data;
     top->trace.msg("Setting irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irq_mask);
     check_state();
+  }
+  else if (offset == EU_CORE_STATUS)
+  {
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = this->is_active.get();
+    return vp::IO_REQ_OK;
+  }
+  else if (offset == EU_CORE_BUFFER)
+  {
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = status;
+    return vp::IO_REQ_OK;
+  }
+  else if (offset == EU_CORE_BUFFER_MASKED)
+  {
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = status & evt_mask;
+    return vp::IO_REQ_OK;
+  }
+  else if (offset == EU_CORE_BUFFER_IRQ_MASKED)
+  {
+    if (is_write) return vp::IO_REQ_INVALID;
+    *data = status & irq_mask;
+  }
+  else if (offset == EU_CORE_BUFFER_CLEAR)
+  {
+    if (!is_write) return vp::IO_REQ_INVALID;
+    clear_status(*data);
+    top->trace.msg("Clearing buffer status (mask: 0x%x, newValue: 0x%x)\n", *data, status);
+    check_state();
+    return vp::IO_REQ_OK;
+  }
+  else if (offset == EU_CORE_EVENT_WAIT)
+  {
+    if (is_write) return vp::IO_REQ_INVALID;
+    top->trace.msg("Wait\n");
+    vp::io_req_status_e err = wait_event(req);
+    *data = evt_mask & status;
+    return err;
+  }
+  else if (offset == EU_CORE_EVENT_WAIT_CLEAR)
+  {
+    top->trace.msg("Wait and clear\n");
+    clear_evt_mask = evt_mask;
+    vp::io_req_status_e err = wait_event(req);
+    *data = evt_mask & status;
+    return err;
   }
   else
   {
@@ -559,9 +567,9 @@ vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int cor
   Event_unit *_this = (Event_unit *)__this;
 
   uint64_t offset = req->get_addr();
-  uint8_t *data = req->get_data();
-  uint64_t size = req->get_size();
-  bool is_write = req->get_is_write();
+  uint8_t *data   = req->get_data();
+  uint64_t size   = req->get_size();
+  bool is_write   = req->get_is_write();
 
   _this->trace.msg("Demux event_unit access (core: %d, offset: 0x%x, size: 0x%x, is_write: %d)\n", core, offset, size, is_write);
 
@@ -579,18 +587,13 @@ vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int cor
   {
     return _this->mutex->req(req, offset - EU_MUTEX_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
   }
-  else if (offset >= EU_DISPATCH_DEMUX_OFFSET && offset < EU_DISPATCH_DEMUX_OFFSET + EU_DISPATCH_DEMUX_SIZE)
-  {
-    return _this->dispatch->req(req, offset - EU_DISPATCH_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
-  }
-  else if (offset >= EU_LOOP_DEMUX_OFFSET && offset < EU_LOOP_DEMUX_OFFSET + EU_LOOP_DEMUX_SIZE)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //return loopUnit.ioReq(req, offset - EU_LOOP_DEMUX_OFFSET, isRead, data, coreId);
-  }
+  // else if (offset >= EU_DISPATCH_DEMUX_OFFSET && offset < EU_DISPATCH_DEMUX_OFFSET + EU_DISPATCH_DEMUX_SIZE)
+  // {
+  //   return _this->dispatch->req(req, offset - EU_DISPATCH_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
+  // }
   else if (offset >= EU_SW_EVENTS_DEMUX_OFFSET && offset < EU_SW_EVENTS_DEMUX_OFFSET + EU_SW_EVENTS_DEMUX_SIZE)
   {
-    return _this->sw_events_req(req, offset - EU_SW_EVENTS_DEMUX_OFFSET, is_write, (uint32_t *)data);
+    return _this->sw_events_req(req, offset - EU_SW_EVENTS_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
   }
   else if (offset >= EU_BARRIER_DEMUX_OFFSET && offset < EU_BARRIER_DEMUX_OFFSET + EU_BARRIER_DEMUX_SIZE)
   {
@@ -620,7 +623,7 @@ int Event_unit::build()
 
   core_eu = (Core_event_unit *)new Core_event_unit[nb_core];
   mutex = new Mutex_unit(this);
-  dispatch = new Dispatch_unit(this);
+  // dispatch = new Dispatch_unit(this);
   barrier_unit = new Barrier_unit(this);
   soc_event_unit = new Soc_event_unit(this);
 
@@ -707,7 +710,6 @@ vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core
   // go to sleep.
   req->inc_latency(EU_WAKEUP_REQ_LATENCY);
 
-#if 1
   // Experimental model where the core always go to sleep even if the event is there
   // This gives much better tming results on barrier.
   // Check if it is also the case for other features and check in the RTL how it is
@@ -727,147 +729,6 @@ vp::io_req_status_e Core_event_unit::wait_event(vp::io_req *req, Event_unit_core
   {
     return this->put_to_sleep(req, wait_state);
   }
-#else
-  if (evt_mask & status)
-  {
-    // Case where the core ask for clock-gating but the event status prevent him from doing so
-    // In this case, don't forget to clear the status in case of wait and clear.
-    // Still apply the latency as to core will go to sleep before continuing.
-    req->inc_latency(EU_WAKEUP_LATENCY);
-    check_wait_mask();
-    return vp::IO_REQ_OK;
-  }
-  else
-  {
-    state = wait_state;
-    pending_req = req;
-    return vp::IO_REQ_PENDING;
-  }
-#endif
-}
-
-vp::io_req_status_e Core_event_unit::req(void *__this, vp::io_req *req)
-{
-  Event_unit *_this = (Event_unit *)__this;
-
-  uint64_t offset = req->get_addr();
-  uint8_t *data = req->get_data();
-  uint64_t size = req->get_size();
-  bool is_write = req->get_is_write();
-
-  _this->trace.msg("Event_unit access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
-
-  if (offset == EU_CORE_BUFFER)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = status;
-    //checkCoreState();
-  }
-  else if (offset == EU_CORE_BUFFER_MASKED)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = status & evtMask;
-  }
-  else if (offset == EU_CORE_BUFFER_CLEAR)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //setStatus(req->getSecure(), status & (~*data));
-    //trace.msg("Clearing buffer status (mask: 0x%x, newValue: 0x%x)\n", *data, status);
-    //checkCoreState();
-  }
-  else if (offset == EU_CORE_MASK)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) *data = evtMask;
-    //else {
-    //  evtMask = *data;
-    //  trace.msg("Updating event mask (newValue: 0x%x)\n", *data);
-    //  checkCoreState();
-    //}
-  }
-  else if (offset == EU_CORE_MASK_AND)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //evtMask &= ~*data;
-    //trace.msg("Clearing event mask (mask: 0x%x, newValue: 0x%x)\n", *data, evtMask);
-    //checkCoreState();
-  }
-  else if (offset == EU_CORE_MASK_OR)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //evtMask |= *data;
-    //trace.msg("Setting event mask (mask: 0x%x, newValue: 0x%x)\n", *data, evtMask);
-    //checkCoreState();
-  }
-  else if (offset == EU_CORE_STATUS)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = active;
-  }
-  else if (offset == EU_CORE_EVENT_WAIT)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //trace.msg("Wait\n");
-    //*data = waitEvent(req);
-    //return req->error != 0;
-  }
-
-  else if (offset == EU_CORE_EVENT_WAIT_CLEAR)
-  {
-
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //trace.msg("Wait and clear\n");
-    //clearEvtMask = evtMask;
-    //*data = waitEvent(req);
-    //return req->error != 0;
-  }
-  else if (offset == EU_CORE_MASK_IRQ)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) *data = irqMask;
-    //else {
-    //  trace.msg("Updating irq mask (newValue: 0x%x)\n", *data);
-    //  irqMask = *data;
-    //  checkCoreState();
-    //}
-  }
-  else if (offset == EU_CORE_BUFFER_IRQ_MASKED)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (!isRead) return true;
-    //*data = status & irqMask;
-  }
-  else if (offset == EU_CORE_MASK_IRQ_AND)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //irqMask &= ~*data;
-    //trace.msg("Clearing irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irqMask);
-    //checkCoreState();
-  }
-  else if (offset == EU_CORE_MASK_IRQ_OR)
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    //if (isRead) return true;
-    //irqMask |= *data;
-    //trace.msg("Setting irq mask (mask: 0x%x, newValue: 0x%x)\n", *data, irqMask);
-    //checkCoreState();
-  }
-  else
-  {
-    _this->trace.warning("UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-  }
-
-  return vp::IO_REQ_INVALID;
-
-  return vp::IO_REQ_OK;
 }
 
 void Core_event_unit::reset()
@@ -959,11 +820,9 @@ void Core_event_unit::check_state()
 
 
 
-
 /****************
  * MUTEX UNIT
  ****************/
-
 Mutex_unit::Mutex_unit(Event_unit *top)
 : top(top)
 {
@@ -979,7 +838,7 @@ vp::io_req_status_e Mutex_unit::enqueue_sleep(Mutex *mutex, vp::io_req *req, int
 
   // Enqueue the request so that the core can be unstalled when a value is pushed
   mutex->waiting_reqs[core_id] = req;
-  mutex->waiting_mask |= 1<<core_id;
+  mutex->waiting_list.push_back(core_id);
 
   // Don't forget to remember to clear the event after wake-up by the dispatch event
   core_eu->clear_evt_mask = 1<<mutex_event;
@@ -999,25 +858,12 @@ void Mutex_unit::reset()
 void Mutex::reset()
 {
   locked = false;
-  waiting_mask = 0;
+  waiting_list.clear();
 }
-
-
-#if 0
-void Mutex::sleepCancel(int coreId)
-{
-  // The core is being interrupted while waiting on the mutex
-  // Clear the waiting bit so that this core is ignored in case the owner of the lock unlocks it
-  // and the core can redo the access to the mutex later on
-  waitMask &= ~(1<<coreId);
-  top->coreEvt[coreId].pendingSleep = false;
-}
-#endif
 
 vp::io_req_status_e Mutex_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core)
 {
   unsigned int id = EU_MUTEX_AREA_MUTEXID_GET(offset);
-  offset = offset - (id << 2);
   if (id >= nb_mutexes) return vp::IO_REQ_INVALID;
 
 
@@ -1045,33 +891,23 @@ vp::io_req_status_e Mutex_unit::req(vp::io_req *req, uint64_t offset, bool is_wr
     mutex->value = *(uint32_t *)req->get_data();
 
     // The core is unlocking the mutex, check if we have to wake-up someone
-    unsigned int waiting_mask = mutex->waiting_mask;
-    if (waiting_mask)
+    if (!mutex->waiting_list.empty())
     {
-      // We have to wake-up one core, take the first one
-      for (unsigned int i=0; i<32; i++)
-      {
-        if (waiting_mask & (1<<i))
-        {
-          top->trace.msg("Transfering mutex lock (mutex: %d, fromCore: %d, toCore: %d)\n", id, core, i);
-          // Clear the mask and wake-up the elected core. Don't unlock the mutex, as it is
-          // taken by the new core
-          top->trace.msg("Waking-up core waiting for dispatch value (coreId: %d)\n", i);
-          vp::io_req *waiting_req = mutex->waiting_reqs[i];
+      int i = mutex->waiting_list.front();
+      mutex->waiting_list.pop_front();
+      top->trace.msg("Transfering mutex lock (mutex: %d, fromCore: %d, toCore: %d)\n", id, core, i);
+      // Clear the mask and wake-up the elected core. Don't unlock the mutex, as it is
+      // taken by the new core
+      top->trace.msg("Waking-up core waiting for dispatch value (coreId: %d)\n", i);
+      vp::io_req *waiting_req = mutex->waiting_reqs[i];
 
-          mutex->waiting_mask &= ~(1<<i);
+      // Store the mutex value into the pending request
+      // Don't reply now to the initiator, this will be done by the wakeup event
+      // to introduce some delays
+      *(uint32_t *)waiting_req->get_data() = mutex->value;
 
-          // Store the mutex value into the pending request
-          // Don't reply now to the initiator, this will be done by the wakeup event
-          // to introduce some delays
-          *(uint32_t *)waiting_req->get_data() = mutex->value;
-
-          // And trigger the event to the core
-          top->trigger_event(1<<mutex_event, 0, 1<<i);
-
-          break;
-        }
-      }
+      // And trigger the event to the core
+      top->send_event(i, 1<<mutex_event);
     }
     else
     {
@@ -1090,185 +926,180 @@ vp::io_req_status_e Mutex_unit::req(vp::io_req *req, uint64_t offset, bool is_wr
  * DISPATCH UNIT
  ****************/
 
-vp::io_req_status_e Dispatch_unit::enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id, bool is_caller) {
-  Core_event_unit *core_eu = &top->core_eu[core_id];
+// vp::io_req_status_e Dispatch_unit::enqueue_sleep(Dispatch *dispatch, vp::io_req *req, int core_id, bool is_caller) {
+//   Core_event_unit *core_eu = &top->core_eu[core_id];
 
-  // Enqueue the request so that the core can be unstalled when a value is pushed
-  dispatch->waiting_reqs[core_id] = req;
-  dispatch->waiting_mask |= 1<<core_id;
+//   // Enqueue the request so that the core can be unstalled when a value is pushed
+//   dispatch->waiting_reqs[core_id] = req;
+//   dispatch->waiting_mask |= 1<<core_id;
 
-  // Don't forget to remember to clear the event after wake-up by the dispatch event
-  core_eu->clear_evt_mask = 1<<dispatch_event;
+//   // Don't forget to remember to clear the event after wake-up by the dispatch event
+//   core_eu->clear_evt_mask = 1<<dispatch_event;
 
-  if (is_caller)
-    return core_eu->wait_event(req);
-  else
-    return core_eu->put_to_sleep(req);
-}
-
-
-
-Dispatch_unit::Dispatch_unit(Event_unit *top)
-: top(top)
-{
-  dispatch_event = top->get_config_int("**/properties/events/dispatch");
-  size = top->get_config_int("**/properties/dispatch/size");
-  core = new Dispatch_core[top->nb_core];
-  dispatches = new Dispatch[size];
-}
-
-  void Dispatch_unit::reset()
-  {
-    fifo_head = 0;
-    config = 0;
-    for (int i=0; i<top->nb_core; i++)
-    {
-      core[i].tail = 0;
-    }
-    for (int i=0; i<size; i++)
-    {
-      dispatches[i].value = 0;
-      dispatches[i].status_mask = 0;
-      dispatches[i].config_mask = 0;
-      dispatches[i].waiting_mask = 0;
-    }
-  }
-
-  vp::io_req_status_e Dispatch_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core_id)
-  {
-    if (offset == EU_DISPATCH_FIFO_ACCESS)
-    {
-      if (is_write)
-      {
-        unsigned int id = fifo_head++;
-        if (fifo_head == size) fifo_head = 0;
-
-        Dispatch *dispatch = &dispatches[id];
-
-        // When pushing to the FIFO, the global config is pushed to the elected dispatcher
-        dispatch->config_mask = config;     // Cores that will get a valid value
-
-        top->trace.msg("Pushing dispatch value (dispatch: %d, value: 0x%x, coreMask: 0x%x)\n", id, *data, dispatch->config_mask);
-
-        // Case where the master push a value
-        dispatch->value = *data;
-        // Reinitialize the status mask to notify a new value is ready
-        dispatch->status_mask = -1;
-        // Then wake-up the waiting cores
-        unsigned int mask = dispatch->waiting_mask & dispatch->status_mask;
-        for (int i=0; i<32 && mask; i++)
-        {
-          if (mask & (1<<i))
-          {
-            // Only wake-up the core if he's actually involved in the team
-            if (dispatch->config_mask & (1<<i))
-            {
-              top->trace.msg("Waking-up core waiting for dispatch value (coreId: %d)\n", i);
-              vp::io_req *waiting_req = dispatch->waiting_reqs[i];
-
-              // Clear the status bit as the waking core takes the data
-              dispatch->status_mask &= ~(1<<i);
-              dispatch->waiting_mask &= ~(1<<i);
-
-              // Store the dispatch value into the pending request
-              // Don't reply now to the initiator, this will be done by the wakeup event
-              // to introduce some delays
-              *(uint32_t *)waiting_req->get_data() = dispatch->value;
-
-              // Update the core fifo
-              core[i].tail++;
-              if (core[i].tail == size) core[i].tail = 0;
-
-              // Clear the mask to stop iterating early
-              mask &= ~(1<<i);
-
-              // And trigger the event to the core
-              top->trigger_event(1<<dispatch_event, 0, 1<<i);
-            }
-            // Otherwise keep him sleeping and increase its index so that he will bypass this entry when he wakes up
-            else
-            {
-              // Cancel current dispatch sleep
-              dispatch->status_mask &= ~(1<<i);
-              dispatch->waiting_mask &= ~(1<<i);
-              vp::io_req *pending_req = dispatch->waiting_reqs[i];
-
-              // Bypass the current entry
-              core[i].tail++;
-              if (core[i].tail == size) core[i].tail = 0;
-
-              // And reenqueue to the next entry
-              id = core[i].tail;
-              enqueue_sleep(&dispatches[id], pending_req, i, false);
-              top->trace.msg("Incrementing core counter to bypass entry (coreId: %d, newIndex: %d)\n", i, id);
-            }
-          }
-        }
-
-        return vp::IO_REQ_OK;
-      }
-      else
-      {
-        int id = core[core_id].tail;
-        Dispatch *dispatch = &dispatches[id];
-
-        top->trace.msg("Trying to get dispatch value (dispatch: %d)\n", id);
-
-        // In case we found ready elements where this core is not involved, bypass them all
-        while ((dispatch->status_mask & (1<<core_id)) && !(dispatch->config_mask & (1<<core_id))) {
-          dispatch->status_mask &= ~(1<<core_id);
-          core[core_id].tail++;
-          if (core[core_id].tail == size) core[core_id].tail = 0;
-          id = core[core_id].tail;
-          dispatch = &dispatches[id];
-          top->trace.msg("Incrementing core counter to bypass entry (coreId: %d, newIndex: %d)\n", core_id, id);
-        }
-
-        // Case where a slave tries to get a value
-        if (dispatch->status_mask & (1<<core_id))
-        {
-          // A value is ready. Get it and clear the status bit to not read it again the next time
-          // In case the core is not involved in this dispatch, returns 0
-          if (dispatch->config_mask & (1<<core_id)) *data = dispatch->value;
-          else *data = 0;
-          dispatch->status_mask &= ~(1<<core_id);
-          top->trace.msg("Getting ready dispatch value (dispatch: %d, value: %x, dispatchStatus: 0x%x)\n", id, dispatch->value, dispatch->status_mask);
-          core[core_id].tail++;
-          if (core[core_id].tail == size) core[core_id].tail = 0;
-        }
-        else
-        {
-          // Nothing is ready, go to sleep
-          top->trace.msg("No ready dispatch value, going to sleep (dispatch: %d, value: %x, dispatchStatus: 0x%x)\n", id, dispatch->value, dispatch->status_mask);
-          return enqueue_sleep(dispatch, req, core_id);
-        }
-
-        return vp::IO_REQ_OK;
-      }
-
-      return vp::IO_REQ_INVALID;
-    }
-    else if (offset == EU_DISPATCH_TEAM_CONFIG)
-    {
-      config = *data;
-      return vp::IO_REQ_OK;
-    }
-    else
-    {
-      return vp::IO_REQ_INVALID;
-    }
-  }
+//   if (is_caller)
+//     return core_eu->wait_event(req);
+//   else
+//     return core_eu->put_to_sleep(req);
+// }
 
 
 
+// Dispatch_unit::Dispatch_unit(Event_unit *top)
+// : top(top)
+// {
+//   dispatch_event = top->get_config_int("**/properties/events/dispatch");
+//   size = top->get_config_int("**/properties/dispatch/size");
+//   core = new Dispatch_core[top->nb_core];
+//   dispatches = new Dispatch[size];
+// }
+
+//   void Dispatch_unit::reset()
+//   {
+//     fifo_head = 0;
+//     config = 0;
+//     for (int i=0; i<top->nb_core; i++)
+//     {
+//       core[i].tail = 0;
+//     }
+//     for (int i=0; i<size; i++)
+//     {
+//       dispatches[i].value = 0;
+//       dispatches[i].status_mask = 0;
+//       dispatches[i].config_mask = 0;
+//       dispatches[i].waiting_mask = 0;
+//     }
+//   }
+
+//   vp::io_req_status_e Dispatch_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core_id)
+//   {
+//     if (offset == EU_DISPATCH_FIFO_ACCESS)
+//     {
+//       if (is_write)
+//       {
+//         unsigned int id = fifo_head++;
+//         if (fifo_head == size) fifo_head = 0;
+
+//         Dispatch *dispatch = &dispatches[id];
+
+//         // When pushing to the FIFO, the global config is pushed to the elected dispatcher
+//         dispatch->config_mask = config;     // Cores that will get a valid value
+
+//         top->trace.msg("Pushing dispatch value (dispatch: %d, value: 0x%x, coreMask: 0x%x)\n", id, *data, dispatch->config_mask);
+
+//         // Case where the master push a value
+//         dispatch->value = *data;
+//         // Reinitialize the status mask to notify a new value is ready
+//         dispatch->status_mask = -1;
+//         // Then wake-up the waiting cores
+//         unsigned int mask = dispatch->waiting_mask & dispatch->status_mask;
+//         for (int i=0; i<32 && mask; i++)
+//         {
+//           if (mask & (1<<i))
+//           {
+//             // Only wake-up the core if he's actually involved in the team
+//             if (dispatch->config_mask & (1<<i))
+//             {
+//               top->trace.msg("Waking-up core waiting for dispatch value (coreId: %d)\n", i);
+//               vp::io_req *waiting_req = dispatch->waiting_reqs[i];
+
+//               // Clear the status bit as the waking core takes the data
+//               dispatch->status_mask &= ~(1<<i);
+//               dispatch->waiting_mask &= ~(1<<i);
+
+//               // Store the dispatch value into the pending request
+//               // Don't reply now to the initiator, this will be done by the wakeup event
+//               // to introduce some delays
+//               *(uint32_t *)waiting_req->get_data() = dispatch->value;
+
+//               // Update the core fifo
+//               core[i].tail++;
+//               if (core[i].tail == size) core[i].tail = 0;
+
+//               // Clear the mask to stop iterating early
+//               mask &= ~(1<<i);
+
+//               // And trigger the event to the core
+//               top->trigger_event(1<<dispatch_event, 0, 1<<i);
+//             }
+//             // Otherwise keep him sleeping and increase its index so that he will bypass this entry when he wakes up
+//             else
+//             {
+//               // Cancel current dispatch sleep
+//               dispatch->status_mask &= ~(1<<i);
+//               dispatch->waiting_mask &= ~(1<<i);
+//               vp::io_req *pending_req = dispatch->waiting_reqs[i];
+
+//               // Bypass the current entry
+//               core[i].tail++;
+//               if (core[i].tail == size) core[i].tail = 0;
+
+//               // And reenqueue to the next entry
+//               id = core[i].tail;
+//               enqueue_sleep(&dispatches[id], pending_req, i, false);
+//               top->trace.msg("Incrementing core counter to bypass entry (coreId: %d, newIndex: %d)\n", i, id);
+//             }
+//           }
+//         }
+
+//         return vp::IO_REQ_OK;
+//       }
+//       else
+//       {
+//         int id = core[core_id].tail;
+//         Dispatch *dispatch = &dispatches[id];
+
+//         top->trace.msg("Trying to get dispatch value (dispatch: %d)\n", id);
+
+//         // In case we found ready elements where this core is not involved, bypass them all
+//         while ((dispatch->status_mask & (1<<core_id)) && !(dispatch->config_mask & (1<<core_id))) {
+//           dispatch->status_mask &= ~(1<<core_id);
+//           core[core_id].tail++;
+//           if (core[core_id].tail == size) core[core_id].tail = 0;
+//           id = core[core_id].tail;
+//           dispatch = &dispatches[id];
+//           top->trace.msg("Incrementing core counter to bypass entry (coreId: %d, newIndex: %d)\n", core_id, id);
+//         }
+
+//         // Case where a slave tries to get a value
+//         if (dispatch->status_mask & (1<<core_id))
+//         {
+//           // A value is ready. Get it and clear the status bit to not read it again the next time
+//           // In case the core is not involved in this dispatch, returns 0
+//           if (dispatch->config_mask & (1<<core_id)) *data = dispatch->value;
+//           else *data = 0;
+//           dispatch->status_mask &= ~(1<<core_id);
+//           top->trace.msg("Getting ready dispatch value (dispatch: %d, value: %x, dispatchStatus: 0x%x)\n", id, dispatch->value, dispatch->status_mask);
+//           core[core_id].tail++;
+//           if (core[core_id].tail == size) core[core_id].tail = 0;
+//         }
+//         else
+//         {
+//           // Nothing is ready, go to sleep
+//           top->trace.msg("No ready dispatch value, going to sleep (dispatch: %d, value: %x, dispatchStatus: 0x%x)\n", id, dispatch->value, dispatch->status_mask);
+//           return enqueue_sleep(dispatch, req, core_id);
+//         }
+
+//         return vp::IO_REQ_OK;
+//       }
+
+//       return vp::IO_REQ_INVALID;
+//     }
+//     else if (offset == EU_DISPATCH_TEAM_CONFIG)
+//     {
+//       config = *data;
+//       return vp::IO_REQ_OK;
+//     }
+//     else
+//     {
+//       return vp::IO_REQ_INVALID;
+//     }
+//   }
 
 
 
 /****************
  * BARRIER UNIT
  ****************/
-
-
 Barrier_unit::Barrier_unit(Event_unit *top)
 : top(top)
 {
@@ -1284,9 +1115,9 @@ void Barrier_unit::check_barrier(int barrier_id)
 
   if (barrier->status == barrier->core_mask)
   {
-    trace.msg("Barrier reached, triggering event (barrier: %d, coreMask: 0x%x, targetMask: 0x%x)\n", barrier_id, barrier->core_mask, barrier->target_mask);
-    barrier->status = 0;
-    top->trigger_event(1<<barrier_event, 0, barrier->target_mask);
+    trace.msg("Barrier reached, triggering event (barrier: %d, coreMask: 0x%x, targetMask: 0x%x)\n", barrier_id, barrier->core_mask[0], barrier->target_mask[0]);
+    barrier->status.fill(0);
+    top->trigger_event(1<<barrier_event, barrier->target_mask);
   }
 }
 
@@ -1295,43 +1126,50 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
 {
   unsigned int barrier_id = EU_BARRIER_AREA_BARRIERID_GET(offset);
   offset = offset - EU_BARRIER_AREA_OFFSET_GET(barrier_id);
+  int internal_offset = (offset % EU_MASK_REG_SIZE) >> 2;
   if (barrier_id >= nb_barriers) return vp::IO_REQ_INVALID;
   Barrier *barrier = &barriers[barrier_id];
 
-  if (offset == EU_HW_BARR_TRIGGER_MASK)
+  if (offset >= EU_HW_BARR_TRIGGER_MASK && offset < EU_HW_BARR_TRIGGER_MASK+EU_MASK_REG_SIZE)
   {
-    if (!is_write) *data = barrier->core_mask;
+    if (!is_write) *data = barrier->core_mask[internal_offset];
     else {
       trace.msg("Setting barrier core mask (barrier: %d, mask: 0x%x)\n", barrier_id, *data);
-      barrier->core_mask = *data;
+      barrier->core_mask[internal_offset] = *data;
       check_barrier(barrier_id);
     }
   }
-
-  else if (offset == EU_HW_BARR_TARGET_MASK)
+  else if (offset >= EU_HW_BARR_STATUS && offset < EU_HW_BARR_STATUS+EU_MASK_REG_SIZE)
   {
-    if (!is_write) *data = barrier->target_mask;
-    else {
-      trace.msg("Setting barrier target mask (barrier: %d, mask: 0x%x)\n", barrier_id, *data);
-      barrier->target_mask = *data;
-      check_barrier(barrier_id);
-    }
-  }
-  else if (offset == EU_HW_BARR_STATUS)
-  {
-    if (!is_write) *data = barrier->status;
+    if (!is_write) *data = barrier->status[internal_offset];
     else {
       trace.msg("Setting barrier status (barrier: %d, status: 0x%x)\n", barrier_id, *data);
-      barrier->status = *data;
+      barrier->status[internal_offset] = *data;
       check_barrier(barrier_id);
     }
   }
-  else if (offset == EU_HW_BARR_TRIGGER)
+  else if (offset >= EU_HW_BARR_STATUS_SUMMARY && offset < EU_HW_BARR_STATUS_SUMMARY+EU_MASK_REG_SIZE)
+  {
+    if (is_write) return vp::IO_REQ_INVALID;
+    uint32_t status = 0;
+    for (unsigned int i=1; i<nb_barriers; i++) status |= barriers[i].status[internal_offset];
+    *data = status;
+  }
+  else if (offset >= EU_HW_BARR_TARGET_MASK && offset < EU_HW_BARR_TARGET_MASK+EU_MASK_REG_SIZE)
+  {
+    if (!is_write) *data = barrier->target_mask[internal_offset];
+    else {
+      trace.msg("Setting barrier target mask (barrier: %d, mask: 0x%x)\n", barrier_id, *data);
+      barrier->target_mask[internal_offset] = *data;
+      check_barrier(barrier_id);
+    }
+  }
+  else if (offset >= EU_HW_BARR_TRIGGER && offset < EU_HW_BARR_TRIGGER+EU_MASK_REG_SIZE)
   {
     if (!is_write) return vp::IO_REQ_INVALID;
     else {
-      barrier->status |= *data;
-      trace.msg("Barrier mask trigger (barrier: %d, mask: 0x%x, newStatus: 0x%x)\n", barrier_id, *data, barrier->status);
+      barrier->status[internal_offset] |= *data;
+      trace.msg("Barrier mask trigger (barrier: %d, mask: 0x%x, newStatus: 0x%x)\n", barrier_id, *data, barrier->status[internal_offset]);
     }
 
     check_barrier(barrier_id);
@@ -1340,9 +1178,8 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
   {
     // The access is valid only through the demux
     if (core == -1) return vp::IO_REQ_INVALID;
-    barrier->status |= 1 << core
-    ;
-    trace.msg("Barrier trigger (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
+    barrier->status[core/32] |= 1 << (core % 32);
+    trace.msg("Barrier trigger (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status[core/32]);
 
     check_barrier(barrier_id);
   }
@@ -1356,12 +1193,12 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     {
       // The core was already waiting for the barrier which means it was interrupted
       // by an interrupt. Just resume the barrier by going to sleep
-      trace.msg("Resuming barrier trigger and wait (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
+      trace.msg("Resuming barrier trigger and wait (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status[core/32]);
     }
     else
     {
-      barrier->status |= 1 << core;
-      trace.msg("Barrier trigger and wait (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
+      barrier->status[core/32] |= 1 << (core % 32);
+      trace.msg("Barrier trigger and wait (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status[core/32]);
     }
 
     check_barrier(barrier_id);
@@ -1378,12 +1215,12 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
     {
       // The core was already waiting for the barrier which means it was interrupted
       // by an interrupt. Just resume the barrier by going to sleep
-      trace.msg("Resuming barrier trigger and wait (barrier: %d, coreId: %d, mask: 0x%x, newStatus: 0x%x)\n", barrier_id, core, barrier->core_mask, barrier->status);
+      trace.msg("Resuming barrier trigger and wait (barrier: %d, coreId: %d, mask: 0x%x, newStatus: 0x%x)\n", barrier_id, core, barrier->core_mask[core/32], barrier->status[core/32]);
     }
     else
     {
-      barrier->status |= 1 << core;
-      trace.msg("Barrier trigger, wait and clear (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status);
+      barrier->status[core/32] |= 1 << (core % 32);
+      trace.msg("Barrier trigger, wait and clear (barrier: %d, coreId: %d, newStatus: 0x%x)\n", barrier_id, core, barrier->status[core/32]);
     }
     core_eu->clear_evt_mask = core_eu->evt_mask;
 
@@ -1391,15 +1228,10 @@ vp::io_req_status_e Barrier_unit::req(vp::io_req *req, uint64_t offset, bool is_
 
     return core_eu->wait_event(req, CORE_STATE_WAITING_BARRIER);
   }
-  else if (offset == EU_HW_BARR_STATUS_SUMMARY)
+  else
   {
-    if (is_write) return vp::IO_REQ_INVALID;
-    uint32_t status = 0;
-    for (unsigned int i=1; i<nb_barriers; i++) status |= barriers[i].status;
-    *data = status;
+    return vp::IO_REQ_INVALID;
   }
-  else return vp::IO_REQ_INVALID;
-
   return vp::IO_REQ_OK;
 }
 
@@ -1408,9 +1240,9 @@ void Barrier_unit::reset()
   for (int i=0; i<nb_barriers; i++)
   {
     Barrier *barrier = &barriers[i];
-    barrier->core_mask = 0;
-    barrier->status = 0;
-    barrier->target_mask = 0;
+    barrier->core_mask.fill(0);
+    barrier->status.fill(0);
+    barrier->target_mask.fill(0);
   }
 }
 
@@ -1441,7 +1273,9 @@ void Soc_event_unit::check_state()
 {
   if (this->fifo_soc_event != -1 && this->nb_free_events != this->nb_fifo_events) {
     this->trace.msg("Generating FIFO event (id: %d)\n", this->fifo_soc_event);
-    this->top->trigger_event(1<<this->fifo_soc_event, 0, -1);
+    std::array<uint32_t, EU_MASK_REG_SIZE/4> core_mask;
+    core_mask.fill((uint32_t) -1);
+    this->top->trigger_event(1<<this->fifo_soc_event, core_mask);
   }
 }
 
@@ -1478,7 +1312,9 @@ vp::io_req_status_e Soc_event_unit::ioReq(uint32_t offset, bool is_write, uint32
     if (nb_free_events != nb_fifo_events)
     {
       this->trace.msg("Generating FIFO soc event (id: %d)\n", this->fifo_soc_event);
-      this->top->trigger_event(1<<this->fifo_soc_event, 0, -1);
+      std::array<uint32_t, EU_MASK_REG_SIZE/4> core_mask;
+      core_mask.fill((uint32_t) -1);
+      this->top->trigger_event(1<<this->fifo_soc_event, core_mask);
     }
   }
 
