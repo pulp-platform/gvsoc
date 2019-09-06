@@ -463,7 +463,7 @@ vp::io_req_status_e Mchan_channel::handle_status_req(vp::io_req *req, bool is_wr
 {
   if (is_write)
   {
-    top->trace.msg("Freeing counters (mask: 0x%x)\n", *value);
+    top->trace.msg("Freeing counters (mask: 0x%x, free_counters: 0%x)\n", *value, top->free_counter_mask);
     top->free_counters(*value);
   }
   else
@@ -641,6 +641,9 @@ uint32_t mchan::get_status()
 
 void mchan::free_counters(uint32_t counter_mask)
 {
+  if ((counter_mask & this->free_counter_mask) != 0)
+    trace.force_warning("Freeing non-allocated counters (free_counters: 0x%x, freeing counters: 0x%x)\n", this->free_counter_mask, counter_mask);
+
   free_counter_mask |= counter_mask & ((1<<MCHAN_NB_COUNTERS)-1);
 
   // Now that we freed a counter, check if a core is waiting for it
@@ -675,7 +678,7 @@ int mchan::alloc_counter(vp::io_req *req, Mchan_channel *channel)
   if (free_counter_mask) {
     return do_alloc_counter(channel);
   } else {
-    trace.msg("No more counter, stalling core\n");
+    trace.force_warning("No more counter, stalling core\n");
 
     // In case no counter is available, put the request in the queue, 
     // this will stall the calling core
