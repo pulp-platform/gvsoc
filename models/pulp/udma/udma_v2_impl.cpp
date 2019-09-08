@@ -82,6 +82,11 @@ void Udma_channel::handle_transfer_end()
   free_reqs->push(current_cmd);
   current_cmd = NULL;
   top->trigger_event(id);
+  if (this->irq_itf.is_bound())
+  {
+    this->trace.msg("Triggering interrupt\n");
+    this->irq_itf.sync(1);
+  }
 
   if (continuous)
   {
@@ -285,6 +290,8 @@ Udma_channel::Udma_channel(udma *top, int id, string name) : top(top), id(id), n
   free_reqs->push( new Udma_transfer());
 
   event = top->event_new(udma::channel_handler, this);
+
+  this->top->new_master_port(name + "_irq", &this->irq_itf);
 
   top->traces.new_trace_event(name + "/state", &this->state_event, 8);
 }

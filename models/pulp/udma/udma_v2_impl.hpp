@@ -158,6 +158,8 @@ private:
   Udma_queue<Udma_transfer> *pending_reqs;
 
   vp::trace     state_event;
+
+  vp::wire_master<bool>    irq_itf;
 };
 
 
