@@ -1291,6 +1291,8 @@ class Runner(Platform):
         autorun = self.get_json().get('**/debug_bridge/autorun')
         bridge_active = self.get_json().get('**/debug_bridge/active')
 
+        self.get_json().set('**/debug_bridge/cable/type', 'jtag-proxy')
+
         bridge = autorun is not None and autorun.get_bool() or \
           self.get_json().get('**/gdb/active').get_bool() or \
           bridge_active is not None and bridge_active.get_bool()

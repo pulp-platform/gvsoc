@@ -299,8 +299,32 @@ void Spim_tx_channel::handle_data(uint32_t data)
     }
 
     case SPI_CMD_DUMMY_ID: {
-      int cycles = (data >> SPI_CMD_DUMMY_CYCLE_OFFSET) & ((1<<SPI_CMD_DUMMY_CYCLE_WIDTH)-1);
-      trace.msg("Received command DUMMY (cycles: %d)\n", cycles);
+      if (this->periph->cmd_pending_bits <= 0)
+      {
+        int cycles = ((data >> SPI_CMD_DUMMY_CYCLE_OFFSET) & ((1<<SPI_CMD_DUMMY_CYCLE_WIDTH)-1)) + 1;
+        trace.msg("Received command DUMMY (cycles: %d)\n", cycles);
+        // TODO dirty hack to avoir adding wait cycles to spiflash model
+        if (cycles <= 8)
+          this->periph->cmd_pending_bits = cycles;
+      }
+      else
+      {
+        if (this->spi_tx_pending_bits > 0)
+        {
+
+          handled_all = false;
+          this->periph->waiting_tx = true;
+        }
+        else
+        {
+          if (this->periph->qspim_itf.is_bound())
+          {
+            this->periph->qspim_itf.sync_cycle(0, 0, 0, 0, 0);
+          }
+          this->periph->cmd_pending_bits--;
+          handled_all = false;
+        }
+      }
       break;
     }
 
