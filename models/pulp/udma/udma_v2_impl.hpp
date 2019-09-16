@@ -294,6 +294,9 @@ protected:
   uint32_t rx_pending_word;
   uint32_t tx_pending_word;
   int eot_event;
+  int rx_count;
+  int tx_count;
+  uint32_t received_bits;
   
   int      spi_rx_pending_bits;   // Tell how many bits should be received from spi pads
 

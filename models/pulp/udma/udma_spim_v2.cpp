@@ -58,6 +58,7 @@ void Spim_periph_v2::reset(bool active)
     this->tx_pending_word = 0x57575757;
     this->spi_rx_pending_bits = 0;
     this->clkdiv = 0;
+    this->rx_count = 0;
   }
 }
 
@@ -70,14 +71,7 @@ void Spim_periph_v2::slave_sync(void *__this, int data_0, int data_1, int data_2
 
 void Spim_rx_channel::handle_rx_bits(int data_0, int data_1, int data_2, int data_3, int mask)
 {
-  if (this->periph->qpi)
-  {
-    this->periph->rx_pending_word = (data_3 << 3) | (data_2 << 2) | (data_1 << 1) | (data_0 << 0) | (this->periph->rx_pending_word << 4);
-  }
-  else
-  {
-    this->periph->rx_pending_word = data_1 | (this->periph->rx_pending_word << 1);
-  }
+  this->periph->received_bits = (data_3 << 3) | (data_2 << 2) | (data_1 << 1) | (data_0 << 0);
 }
 
 void Spim_tx_channel::check_state()
@@ -125,7 +119,7 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   Spim_tx_channel *_this = (Spim_tx_channel *)__this;
   bool raised_edge = false;
 
-  if (_this->periph->spi_rx_pending_bits > 0 && (_this->spi_tx_pending_bits == 0 || _this->periph->is_full_duplex))
+  if (_this->periph->spi_rx_pending_bits > 0 && (static_cast<Spim_rx_channel *>(_this->periph->channel0))->has_cmd() && (_this->spi_tx_pending_bits == 0 || _this->periph->is_full_duplex))
   {
     int nb_bits = _this->periph->qpi ? 4 : 1;
     _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
@@ -135,12 +129,52 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
     if (!_this->periph->is_full_duplex)
       _this->periph->cmd_pending_bits -= nb_bits;
 
+
+  if (_this->periph->qpi)
+  {
+    uint32_t value = _this->periph->received_bits;
+
+    if (_this->periph->byte_align)
+    {
+      _this->periph->rx_pending_word = value | (_this->periph->rx_pending_word << 4);
+    }
+    else
+    {
+      int byte = _this->periph->rx_count / 2;
+      int shift = (1 - (_this->periph->rx_count & 1)) * 4 + byte*8;
+      _this->periph->rx_pending_word = (_this->periph->rx_pending_word & ~((0xf << shift))) | (value << shift);
+
+      _this->periph->rx_count++;
+      if (_this->periph->rx_count == 8)
+        _this->periph->rx_count = 0;
+    }
+  }
+  else
+  {
+    uint32_t value = (_this->periph->received_bits >> 1) & 1;
+    if (_this->periph->byte_align)
+    {
+      _this->periph->rx_pending_word = value | (_this->periph->rx_pending_word << 1);
+    }
+    else
+    {
+      int byte = _this->periph->rx_count / 8;
+      int shift = 7 - (_this->periph->rx_count % 8) + byte*8;
+
+      _this->periph->rx_pending_word = (_this->periph->rx_pending_word & ~((0x1 << shift))) | (value << shift);
+
+      _this->periph->rx_count++;
+      if (_this->periph->rx_count == 32)
+        _this->periph->rx_count = 0;
+    }
+  }
+
+
     _this->top->get_trace()->msg("Received bits (nb_bits: %d, value: 0x%x, pending_word_bits: %d)\n", nb_bits, _this->periph->rx_pending_word & ((1<<nb_bits) - 1), _this->periph->nb_received_bits);
+
 
     if (_this->periph->nb_received_bits == 32 || _this->periph->spi_rx_pending_bits <= 0)
     {
-      if (!_this->periph->byte_align) _this->periph->rx_pending_word = __bswap_32(_this->periph->rx_pending_word);
-
       (static_cast<Spim_rx_channel *>(_this->periph->channel0))->push_data((uint8_t *)&_this->periph->rx_pending_word, 4);
       
       _this->periph->nb_received_bits = 0;
@@ -171,8 +205,46 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
     int nb_bits = _this->spi_tx_quad ? 4 : 1;
     _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
 
-    unsigned int bits = ARCHI_REG_FIELD_GET(_this->spi_tx_pending_word, 32 - nb_bits, nb_bits);
-    _this->spi_tx_pending_word <<= nb_bits;
+    unsigned int bits;
+
+    if (_this->spi_tx_byte_align)
+    {
+      bits = ARCHI_REG_FIELD_GET(_this->spi_tx_pending_word, 32 - nb_bits, nb_bits);
+      _this->spi_tx_pending_word <<= nb_bits;
+    }
+    else
+    {
+      bits = ARCHI_REG_FIELD_GET(_this->spi_tx_pending_word, 8 - nb_bits, nb_bits);
+
+      if (_this->spi_tx_quad)
+      {
+        if (_this->periph->tx_count)
+        {
+          _this->spi_tx_pending_word >>= 8;
+          _this->periph->tx_count = 0;
+        }
+        else
+        {
+          _this->periph->tx_count = 1;
+          _this->spi_tx_pending_word = (_this->spi_tx_pending_word & 0xFFFFFF00) | ((_this->spi_tx_pending_word & 0xF) << 4);
+        }
+      }
+      else
+      {
+        if (_this->periph->tx_count == 7)
+        {
+          _this->spi_tx_pending_word >>= 8;
+
+          _this->periph->tx_count = 0;
+        }
+        else
+        {
+          _this->periph->tx_count++;
+          _this->spi_tx_pending_word = (_this->spi_tx_pending_word & 0xFFFFFF00) | ((_this->spi_tx_pending_word & 0x7F) << 1);
+        }
+      }
+    }
+
     _this->top->get_trace()->msg("Sending bits (nb_bits: %d, value: 0x%x)\n", nb_bits, bits);
 
     raised_edge = true;
@@ -193,6 +265,9 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
     {
       _this->periph->waiting_tx = false;
     }
+
+    if (_this->spi_tx_pending_bits <= 0)
+      _this->periph->tx_count = 0;
   }
 
   _this->check_state();
@@ -256,10 +331,10 @@ void Spim_tx_channel::handle_data(uint32_t data)
       trace.msg("Received command SEND_CMD (cmd: 0x%x, size: %d, qpi: %d)\n", cmd, size, this->periph->qpi);
       if (this->spi_tx_pending_bits == 0)
       {
-        this->spi_tx_pending_word = cmd << 16;
+        this->spi_tx_pending_word = ((cmd >> 8) & 0xff) | (cmd << 8); 
         this->spi_tx_pending_bits = size;
         this->spi_tx_quad = this->periph->qpi;
-        this->spi_tx_byte_align = this->periph->byte_align;
+        this->spi_tx_byte_align = false;
       }
       else
       {
@@ -287,12 +362,12 @@ void Spim_tx_channel::handle_data(uint32_t data)
         else
         {
           this->spi_tx_quad = this->periph->qpi;
-          this->spi_tx_byte_align = true;
-          this->spi_tx_pending_word = this->tx_pending_word;
+          this->spi_tx_byte_align = false;
+          this->spi_tx_pending_word = __bswap_32(this->tx_pending_word);
           this->spi_tx_pending_bits = this->periph->cmd_pending_bits;
           this->periph->cmd_pending_bits = 0;
 
-          if (!this->spi_tx_byte_align) this->spi_tx_pending_word = __bswap_32(this->spi_tx_pending_word);
+          //if (!this->spi_tx_byte_align) this->spi_tx_pending_word = __bswap_32(this->spi_tx_pending_word);
         }
       }
       break;
@@ -359,7 +434,7 @@ void Spim_tx_channel::handle_data(uint32_t data)
           this->spi_tx_pending_bits = nb_bits;
           this->periph->cmd_pending_bits -= nb_bits;
       
-          if (!this->spi_tx_byte_align) this->spi_tx_pending_word = __bswap_32(this->spi_tx_pending_word);
+          //if (!this->spi_tx_byte_align) this->spi_tx_pending_word = __bswap_32(this->spi_tx_pending_word);
         }
       }
       break;
@@ -375,6 +450,7 @@ void Spim_tx_channel::handle_data(uint32_t data)
         this->periph->cmd_pending_bits = bits;
         this->periph->spi_rx_pending_bits = bits;
         this->periph->waiting_rx = true;
+        this->periph->rx_count = 0;
       }
 
       //int size = (bits+7)/8;
@@ -418,6 +494,7 @@ void Spim_tx_channel::handle_data(uint32_t data)
           this->spi_tx_pending_word = this->tx_pending_word;
           this->spi_tx_pending_bits = nb_bits;
           this->periph->cmd_pending_bits -= nb_bits;
+          this->periph->rx_count = 0;
         }
       }
       break;
