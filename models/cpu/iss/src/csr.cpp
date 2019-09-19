@@ -1373,7 +1373,7 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
   return true;
 }
 
-void iss_csr_init(iss_t *iss)
+void iss_csr_init(iss_t *iss, int reset)
 {
   iss->cpu.csr.status = 0;
   iss->cpu.csr.mcause = 0;

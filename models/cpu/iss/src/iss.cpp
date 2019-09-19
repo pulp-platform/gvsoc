@@ -253,21 +253,24 @@ static int iss_parse_isa(iss_t *iss)
 
 
 
-void iss_reset(iss_t *iss)
+void iss_reset(iss_t *iss, int active)
 {
-  for (int i=0; i<ISS_NB_TOTAL_REGS; i++)
+  if (active)
   {
-    iss->cpu.regfile.regs[i] = 0;
+    for (int i=0; i<ISS_NB_TOTAL_REGS; i++)
+    {
+      iss->cpu.regfile.regs[i] = 0;
+    }
+
+    iss_cache_flush(iss);
+    
+    iss->cpu.prev_insn = NULL;
+    iss->cpu.state.elw_insn = NULL;
+
+    iss_irq_init(iss);
   }
 
-  iss_cache_flush(iss);
-  
-  iss->cpu.prev_insn = NULL;
-  iss->cpu.state.elw_insn = NULL;
-
-  iss_irq_init(iss);
-
-  iss_csr_init(iss);
+  iss_csr_init(iss, active);
 }
 
 int iss_open(iss_t *iss)

@@ -895,10 +895,19 @@ void iss_wrapper::reset(bool active)
     this->ipc_stat_nb_insn = 0;
     this->ipc_stat_delay = 10;
 
-    iss_reset(this);
+    iss_reset(this, 1);
   }
   else
   {
+    iss_reset(this, 0);
+
+    uint64_t zero = 0;
+    for (int i=0; i<CSR_PCER_NB_EVENTS; i++)
+    {
+      this->pcer_trace_event[i].event((uint8_t *)&zero);
+    }
+    this->misaligned_req_event.event((uint8_t *)&zero);
+
     iss_pc_set(this, this->bootaddr_reg.get() + this->bootaddr_offset);
     iss_irq_set_vector_table(this, this->bootaddr_reg.get());
 

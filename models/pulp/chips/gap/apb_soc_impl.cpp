@@ -186,12 +186,17 @@ vp::io_req_status_e apb_soc_ctrl::req(void *__this, vp::io_req *req)
 
       if (_this->cluster_reset != new_cluster_reset)
       {
-        if (_this->cluster_reset_itf.is_bound())
-        {
-          _this->cluster_reset_itf.sync(~new_cluster_reset);
-        }
+        _this->trace.msg("Setting cluster reset (reset: 0x%d)\n", new_cluster_reset);
 
-        _this->cluster_reset = new_cluster_reset;
+        if ((_this->cluster_power && !new_cluster_reset) || (!_this->cluster_power && new_cluster_reset))
+        {
+          if (_this->cluster_reset_itf.is_bound())
+          {
+            _this->cluster_reset_itf.sync(new_cluster_reset);
+          }
+
+          _this->cluster_reset = new_cluster_reset;
+        }
       }
 
       if (_this->cluster_power != new_cluster_power)
@@ -358,6 +363,12 @@ void apb_soc_ctrl::reset(bool active)
     cluster_reset = false;
     cluster_clock_gate = false;
     this->confreg_soc_itf.sync(0);
+
+    if (this->cluster_reset_itf.is_bound())
+    {
+      this->cluster_reset = 1;
+      this->cluster_reset_itf.sync(1);
+    }
   }
 }
 

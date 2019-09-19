@@ -41,7 +41,7 @@ static inline void iss_exec_insn_terminate(iss_t *iss);
 
 
 int iss_open(iss_t *iss);
-void iss_reset(iss_t *iss);
+void iss_reset(iss_t *iss, int active);
 void iss_start(iss_t *iss);
 
 void iss_register_debug_info(iss_t *iss, const char *binary);
@@ -56,7 +56,7 @@ void iss_decode_activate_isa(iss_t *cpu, char *isa);
 
 
 
-void iss_csr_init(iss_t *iss);
+void iss_csr_init(iss_t *iss, int active);
 bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value);
 bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value);
 

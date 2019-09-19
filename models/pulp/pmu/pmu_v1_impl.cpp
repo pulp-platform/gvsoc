@@ -79,9 +79,9 @@ class pmu_icu : public pmu_picl_slave
 public:
   pmu_icu(pmu *top, int index);
   void set_state(int index, int supply, int clock, int regulator);
-  void start();
   void reset(bool active);
 
+  void start();
   void handle_req(int addr, bool is_write, uint16_t pwdata);
   void icu_ctrl_req(bool is_write, uint16_t pwdata);
   void icu_mode_req(bool is_write, uint16_t pwdata);
@@ -108,6 +108,9 @@ public:
   vp::reg_8    r_ispmr[2];
   vp::reg_8    r_icr[16];
 
+  int nb_irq_regs;
+  unsigned int pending_irqs;
+
 private:
 
   void ispmr_req(int index, bool is_write, uint16_t pwdata);
@@ -116,9 +119,6 @@ private:
   void check_state();
 
   pmu *top;
-  unsigned int pending_irqs;
-
-  int nb_irq_regs;
 
 };
 
@@ -137,11 +137,11 @@ public:
   void reset(bool active);
   void picl_reply();
   void picl_set_rdata(uint8_t data);
-  bool is_busy() { return this->active_sequence != NULL; }
+  bool is_busy() { return this->active_sequence >= -1; }
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
-  void exec_sequence(pmu_scu_seq *seq);
+  void exec_sequence(int seq);
 
 private:
 
@@ -171,7 +171,7 @@ private:
   pmu_picl_slave *picl_slaves[NB_PICL_SLAVES];
   pmu_wiu *wiu;
 
-  pmu_scu_seq *active_sequence;
+  int active_sequence;
   int active_sequence_step;
   bool pending_access;
   int wakeup_seq;
@@ -182,6 +182,8 @@ private:
   vp::clock_event *sequence_event;
 
   vp::wire_master<int>  event_itf;
+  vp::wire_master<bool> scu_irq_itf;
+  vp::wire_master<bool> picl_irq_itf;
   vp::wire_slave<bool>          wakeup_itf;
   vp::wire_slave<unsigned int>  wakeup_seq_itf;
   vp::clk_slave    ref_clock_itf;
@@ -314,7 +316,7 @@ void pmu_wiu::check_state()
           {
             int irq = i*8 + j;
             this->top->trace.msg("Detected active interrupt (irq: %d)\n", irq);
-            this->top->exec_sequence(&this->top->sequences[this->r_icr[irq].get()]);
+            this->top->exec_sequence(this->r_icr[irq].get());
             return;
           }
         }
@@ -337,13 +339,13 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
 {
   pmu *_this = (pmu *)__this;
 
-  if (_this->active_sequence != NULL)
+  if (_this->active_sequence >= -1)
   {
     if (_this->active_sequence_step != -1)
     {
-      _this->trace.msg("Executing sequence step (sequence: %d, step: %d)\n", _this->active_sequence->id, _this->active_sequence_step);
+      _this->trace.msg("Executing sequence step (sequence: %d, step: %d)\n", _this->active_sequence, _this->active_sequence_step);
 
-      pmu_scu_seq *seq = _this->active_sequence;
+      pmu_scu_seq *seq = &_this->sequences[_this->active_sequence];
       pmu_scu_seq_step *step = &seq->steps[_this->active_sequence_step];
       maestro_dlc_pctrl_t reg;
 
@@ -361,8 +363,15 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
     }
     else
     {
-      _this->trace.msg("Finished sequence (sequence: %d)\n", _this->active_sequence->id);
-      _this->active_sequence = NULL;
+      _this->trace.msg("Finished sequence (sequence: %d)\n", _this->active_sequence);
+
+      for (int i=0; i<_this->wiu->nb_irq_regs; i++)
+      {
+        _this->wiu->r_ifr[i].set(0);
+      }
+      _this->wiu->pending_irqs = 0;
+
+      _this->active_sequence = -2;
       _this->event_itf.sync(37);
     }
   }
@@ -375,15 +384,15 @@ void pmu::picl_set_rdata(uint8_t data)
 
 void pmu::check_state()
 {
-  if (!this->sequence_event->is_enqueued() && this->active_sequence != NULL && !this->pending_access)
+  if (!this->sequence_event->is_enqueued() && this->active_sequence >= -1 && !this->pending_access)
   {
     this->ref_clock->enqueue(this->sequence_event, 1);
   }
 }
 
-void pmu::exec_sequence(pmu_scu_seq *seq)
+void pmu::exec_sequence(int seq)
 {
-  this->trace.msg("Executing sequence (sequence: %d)\n", seq->id);
+  this->trace.msg("Executing sequence (sequence: %d)\n", seq);
   this->active_sequence = seq;
   this->active_sequence_step = 0;
   this->check_state();
@@ -412,6 +421,7 @@ vp::io_req_status_e pmu::pctrl_req(int reg_offset, int size, bool is_write, uint
       }
 
       pmu_picl_slave *slave = this->picl_slaves[cs];
+
       slave->handle_req(addr, reg.dir == 0, reg.pwdata);
     }
   }
@@ -458,11 +468,18 @@ vp::io_req_status_e pmu::dlc_imcifr_req(int reg_offset, int size, bool is_write,
   return vp::IO_REQ_OK;
 }
 
-void pmu_icu::start()
+
+void pmu_icu::reset(bool active)
 {
-  if (this->reset_itf.is_bound())
-    this->reset_itf.sync(1);
+  if (active)
+  {
+    this->current_supply_state = MAESTRO_ICU_SUPPLY_EXT;
+    if (this->reset_itf.is_bound())
+      this->reset_itf.sync(true);
+  }
 }
+
+
 
 void pmu_icu::set_state(int index, int supply, int clock, int regulator)
 {
@@ -470,6 +487,18 @@ void pmu_icu::set_state(int index, int supply, int clock, int regulator)
   this->states[index].clock = clock;
   this->states[index].regulator = regulator;
 }
+
+
+
+void pmu_icu::start()
+{
+  //if (this->state->supply != MAESTRO_ICU_SUPPLY_ON)
+  //{
+  if (this->reset_itf.is_bound())
+    this->reset_itf.sync(1);
+}
+
+
 
 void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
 {
@@ -605,17 +634,6 @@ pmu_icu::pmu_icu(pmu *top, int index)
   }
 }
 
-
-void pmu_icu::reset(bool active)
-{
-  if (active)
-  {
-    this->current_supply_state = MAESTRO_ICU_SUPPLY_EXT;
-    if (this->reset_itf.is_bound())
-      this->reset_itf.sync(true);
-  }
-}
-
 void pmu_picl_slave::handle_req(int addr, bool is_write, uint16_t pwdata)
 {
   // Default behavior for all slaves is to quickly reply 0. Any slave can then
@@ -657,7 +675,7 @@ void pmu::ref_clock_reg(component *__this, component *clock)
 
 int pmu::build()
 {
-  traces.new_trace("trace", & trace, vp::DEBUG);
+  traces.new_trace("trace", &trace, vp::DEBUG);
   in.set_req_meth(&pmu::req);
   new_slave_port("input", &in);
 
@@ -665,6 +683,8 @@ int pmu::build()
   this->new_reg("rdata", &this->r_dlc_rdata, 0x00000000);
 
   new_master_port("event", &event_itf);
+  new_master_port("scu_ok", &scu_irq_itf);
+  new_master_port("picl_ok", &picl_irq_itf);
 
   this->wakeup_itf.set_sync_meth(&pmu::wakeup_sync);
   new_slave_port("wakeup", &this->wakeup_itf);
@@ -682,7 +702,7 @@ int pmu::build()
 
   for (int i=0; i<NB_PICL_SLAVES; i++)
   {
-    this->picl_slaves[i] == NULL;
+    this->picl_slaves[i] = NULL;
   }
 
   this->wiu = new pmu_wiu(this);
@@ -701,7 +721,7 @@ void pmu::reset(bool active)
 {
   if (active)
   {
-    this->active_sequence = NULL;
+    this->active_sequence = -2;
     this->pending_access = false;
     this->wakeup_seq = 0;
 
@@ -716,14 +736,13 @@ void pmu::reset(bool active)
         this->wiu->r_icr[i].set(icr_value);
       }
     }
-
   }
 
   this->wiu->reset(active);
 
   if (!active)
   {
-    this->exec_sequence(&this->boot_sequence);
+    this->exec_sequence(this->boot_sequence.id);
   }
 
   for (int i=0; i<this->nb_icu; i++)

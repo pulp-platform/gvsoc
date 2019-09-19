@@ -63,6 +63,7 @@ public:
   pmu_scu_seq_step steps[32];
 
   int nb_step;
+  int id;
 };
 
 class pmu_icu_state
@@ -78,7 +79,9 @@ class pmu_icu : public pmu_picl_slave
 public:
   pmu_icu(pmu *top, int index);
   void set_state(int index, int supply, int clock, int regulator);
+  void reset(bool active);
 
+  void start();
   void handle_req(int addr, bool is_write, uint16_t pwdata);
   void icu_ctrl_req(bool is_write, uint16_t pwdata);
   void icu_mode_req(bool is_write, uint16_t pwdata);
@@ -87,9 +90,10 @@ public:
 
 private:
   pmu *top;
-  vp::wire_master<bool>  reset;
+  vp::wire_master<bool>  reset_itf;
   pmu_icu_state states[16];
   int index;
+  int current_supply_state;
 };
 
 class pmu_wiu : public pmu_picl_slave
@@ -133,7 +137,7 @@ public:
   void reset(bool active);
   void picl_reply();
   void picl_set_rdata(uint8_t data);
-  bool is_busy() { return this->active_sequence != -1; }
+  bool is_busy() { return this->active_sequence >= -1; }
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -335,7 +339,7 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
 {
   pmu *_this = (pmu *)__this;
 
-  if (_this->active_sequence != -1)
+  if (_this->active_sequence >= -1)
   {
     if (_this->active_sequence_step != -1)
     {
@@ -367,7 +371,7 @@ void pmu::sequence_event_handle(void *__this, vp::clock_event *event)
       }
       _this->wiu->pending_irqs = 0;
 
-      _this->active_sequence = -1;
+      _this->active_sequence = -2;
       if (_this->scu_irq_itf.is_bound())
       {
         _this->scu_irq_itf.sync(1);
@@ -383,7 +387,7 @@ void pmu::picl_set_rdata(uint8_t data)
 
 void pmu::check_state()
 {
-  if (!this->sequence_event->is_enqueued() && this->active_sequence != -1 && !this->pending_access)
+  if (!this->sequence_event->is_enqueued() && this->active_sequence >= -1 && !this->pending_access)
   {
     this->ref_clock->enqueue(this->sequence_event, 1);
   }
@@ -468,12 +472,36 @@ vp::io_req_status_e pmu::dlc_imcifr_req(int reg_offset, int size, bool is_write,
 }
 
 
+void pmu_icu::reset(bool active)
+{
+  if (active)
+  {
+    this->current_supply_state = MAESTRO_ICU_SUPPLY_EXT;
+    if (this->reset_itf.is_bound())
+      this->reset_itf.sync(true);
+  }
+}
+
+
+
 void pmu_icu::set_state(int index, int supply, int clock, int regulator)
 {
   this->states[index].supply = supply;
   this->states[index].clock = clock;
   this->states[index].regulator = regulator;
 }
+
+
+
+void pmu_icu::start()
+{
+  //if (this->state->supply != MAESTRO_ICU_SUPPLY_ON)
+  //{
+  if (this->reset_itf.is_bound())
+    this->reset_itf.sync(1);
+}
+
+
 
 void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
 {
@@ -489,21 +517,28 @@ void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
   if (state->supply != MAESTRO_ICU_SUPPLY_ON)
   {
     this->top->trace.msg("Shutting down island (index: %d)\n", this->index);
-    if (this->reset.is_bound())
+    if (this->reset_itf.is_bound())
     {
       this->top->trace.msg("Asserting island reset (index: %d)\n", this->index);
-      this->reset.sync(1);
+      this->reset_itf.sync(1);
     }
   }
   else
   {
     this->top->trace.msg("Powering-up island (index: %d)\n", this->index);
-    if (this->reset.is_bound())
+
+    // Be careful to not do the reset when the supply is already on
+    if (this->current_supply_state != MAESTRO_ICU_SUPPLY_ON)
     {
-      this->top->trace.msg("Releasing island reset (index: %d)\n", this->index);
-      this->reset.sync(0);
+      if (this->reset_itf.is_bound())
+      {
+        this->top->trace.msg("Releasing island reset (index: %d)\n", this->index);
+        this->reset_itf.sync(0);
+      }
     }
   }
+
+  this->current_supply_state = state->supply;
 
   top->picl_reply();
 }
@@ -593,7 +628,7 @@ error:
 pmu_icu::pmu_icu(pmu *top, int index)
 : pmu_picl_slave(top), top(top), index(index)
 {
-  top->new_master_port("icu" + std::to_string(index) + "_reset", &this->reset);
+  top->new_master_port("icu" + std::to_string(index) + "_reset", &this->reset_itf);
 
   for (int i=0; i<16; i++)
   {
@@ -688,7 +723,7 @@ void pmu::reset(bool active)
 {
   if (active)
   {
-    this->active_sequence = -1;
+    this->active_sequence = -2;
     this->pending_access = false;
     this->wakeup_seq = 0;
 
@@ -706,6 +741,17 @@ void pmu::reset(bool active)
   }
 
   this->wiu->reset(active);
+
+  if (!active)
+  {
+    this->exec_sequence(this->boot_sequence.id);
+  }
+
+  for (int i=0; i<this->nb_icu; i++)
+  {
+    pmu_icu *icu = (pmu_icu *)this->picl_slaves[i+2];
+    icu->reset(active);
+  }
 }
 
 void pmu::start()
@@ -727,9 +773,15 @@ void pmu::start()
         std::string desc = step_config->get_elem(3)->get_str();
         this->trace.msg("Recording sequence step (sequence: %d, cs: %d, offset: 0x%x, value: 0x%2.2x, desc: %s)\n", id, cs, offset, value, desc.c_str());
         if (id == -1)
+        {
+          this->boot_sequence.id = -1;
           this->boot_sequence.add_step(cs, offset, value);
+        }
         else
+        {
+          this->sequences[id].id = -1;
           this->sequences[id].add_step(cs, offset, value);
+        }
       }
     }
   }
@@ -750,6 +802,7 @@ void pmu::start()
         this->trace.msg("Recording ICU state (state: %d, supply: %d, freq: %d, regu: %d)\n", j, supply, freq, regu);
         icu->set_state(j, supply,  freq, regu);
       }
+      icu->start();
     }
   }
 
