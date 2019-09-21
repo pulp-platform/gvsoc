@@ -19,12 +19,14 @@
  */
 
 
-#include "udma_impl.hpp"
+#include "udma_i2s_v2.hpp"
+#include "../udma_impl.hpp"
 #include "archi/utils.h"
 #include "vp/itf/i2s.hpp"
 
 
-I2s_periph_v2::I2s_periph_v2(udma *top, int id, int itf_id) : Udma_periph(top, id)
+
+I2s_periph::I2s_periph(udma *top, int id, int itf_id) : Udma_periph(top, id)
 {
   std::string itf_name = "i2s" + std::to_string(itf_id);
 
@@ -36,32 +38,34 @@ I2s_periph_v2::I2s_periph_v2(udma *top, int id, int itf_id) : Udma_periph(top, i
   top->new_slave_port(this, "i2s" + std::to_string(itf_id*2), &this->ch_itf[0]);
   top->new_slave_port(this, "i2s" + std::to_string(itf_id*2+1), &this->ch_itf[1]);
 
-  this->ch_itf[0].set_sync_meth_muxed(&I2s_periph_v2::rx_sync, 0);
-  this->ch_itf[1].set_sync_meth_muxed(&I2s_periph_v2::rx_sync, 1);
+  this->ch_itf[0].set_sync_meth_muxed(&I2s_periph::rx_sync, 0);
+  this->ch_itf[1].set_sync_meth_muxed(&I2s_periph::rx_sync, 1);
 
   this->top->new_reg(itf_name + "i2s_clkcfg_setup", &this->r_i2s_clkcfg_setup, 0);
   this->top->new_reg(itf_name + "i2s_slv_setup", &this->r_i2s_slv_setup, 0);
   this->top->new_reg(itf_name + "i2s_mst_setup", &this->r_i2s_mst_setup, 0);
   this->top->new_reg(itf_name + "i2s_pdm_setup", &this->r_i2s_pdm_setup, 0);
 
-  this->clkgen0_event = this->top->event_new(this, I2s_periph_v2::clkgen_event_routine);
+  this->clkgen0_event = this->top->event_new(this, I2s_periph::clkgen_event_routine);
   this->clkgen0_event->get_args()[0] = (void *)0;
 
-  this->clkgen1_event = this->top->event_new(this, I2s_periph_v2::clkgen_event_routine);
+  this->clkgen1_event = this->top->event_new(this, I2s_periph::clkgen_event_routine);
   this->clkgen1_event->get_args()[0] = (void *)1;
 }
  
 
-void I2s_periph_v2::reset(bool active)
+void I2s_periph::reset(bool active)
 {
   Udma_periph::reset(active);
   this->reset_clkgen0();
   this->reset_clkgen1();
+  this->current_channel = 0;
+  this->current_bit = 0;
 }
 
 
 
-void I2s_periph_v2::handle_clkgen_tick(int clkgen, int channel)
+void I2s_periph::handle_clkgen_tick(int clkgen, int channel)
 {
   this->trace.msg("Clock edge (sck: %d)\n", this->sck[clkgen]);
 
@@ -69,13 +73,34 @@ void I2s_periph_v2::handle_clkgen_tick(int clkgen, int channel)
   {
     this->ch_itf[0].sync(this->sck[clkgen], 1, 0);
     this->ch_itf[1].sync(this->sck[clkgen], 1, 0);
+    this->sck[clkgen] ^= 1;
   }
   else
   {
-    this->ch_itf[channel].sync(this->sck[clkgen], 1, 0);
-  }
+    int strobe = 0;
 
-  this->sck[clkgen] ^= 1;
+    if (this->current_channel == 0)
+      strobe = 1;
+
+    this->ch_itf[channel].sync(this->sck[clkgen], strobe, 0);
+
+    this->sck[clkgen] ^= 1;
+
+    if (this->sck[clkgen] == 0)
+    {
+      this->current_bit++;
+      if (this->current_bit == this->r_i2s_slv_setup.slave_bits_get() + 1)
+      {
+        this->current_bit = 0;
+
+        this->current_channel++;
+        if (this->current_channel == this->r_i2s_slv_setup.slave_words_get() + 1)
+        {
+          this->current_channel = 0;
+        }
+      }
+    }
+  }
 
   if (clkgen == 0)
     this->check_clkgen0();
@@ -85,9 +110,9 @@ void I2s_periph_v2::handle_clkgen_tick(int clkgen, int channel)
 
 
 
-void I2s_periph_v2::clkgen_event_routine(void *__this, vp::clock_event *event)
+void I2s_periph::clkgen_event_routine(void *__this, vp::clock_event *event)
 {
-  I2s_periph_v2 *_this = (I2s_periph_v2 *)__this;
+  I2s_periph *_this = (I2s_periph *)__this;
 
   int clkgen = *(int *)&(event->get_args()[0]);
 
@@ -100,7 +125,7 @@ void I2s_periph_v2::clkgen_event_routine(void *__this, vp::clock_event *event)
 
 
 
-vp::io_req_status_e I2s_periph_v2::reset_clkgen0()
+vp::io_req_status_e I2s_periph::reset_clkgen0()
 {
   if (this->clkgen0_event->is_enqueued())
     this->top->get_periph_clock()->cancel(this->clkgen0_event);
@@ -111,7 +136,7 @@ vp::io_req_status_e I2s_periph_v2::reset_clkgen0()
 
 
 
-vp::io_req_status_e I2s_periph_v2::reset_clkgen1()
+vp::io_req_status_e I2s_periph::reset_clkgen1()
 {
   if (this->clkgen1_event->is_enqueued())
     this->top->get_periph_clock()->cancel(this->clkgen1_event);
@@ -122,7 +147,7 @@ vp::io_req_status_e I2s_periph_v2::reset_clkgen1()
 
 
 
-vp::io_req_status_e I2s_periph_v2::check_clkgen0()
+vp::io_req_status_e I2s_periph::check_clkgen0()
 {
   if (this->r_i2s_clkcfg_setup.slave_clk_en_get() && !this->clkgen0_event->is_enqueued())
   {
@@ -135,7 +160,7 @@ vp::io_req_status_e I2s_periph_v2::check_clkgen0()
 
 
 
-vp::io_req_status_e I2s_periph_v2::check_clkgen1()
+vp::io_req_status_e I2s_periph::check_clkgen1()
 {
   if (this->r_i2s_clkcfg_setup.master_clk_en_get() && !this->clkgen1_event->is_enqueued())
   {
@@ -148,7 +173,7 @@ vp::io_req_status_e I2s_periph_v2::check_clkgen1()
 
 
 
-vp::io_req_status_e I2s_periph_v2::i2s_clkcfg_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
+vp::io_req_status_e I2s_periph::i2s_clkcfg_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
 {
   this->r_i2s_clkcfg_setup.access(reg_offset, size, data, is_write);
 
@@ -182,13 +207,14 @@ vp::io_req_status_e I2s_periph_v2::i2s_clkcfg_setup_req(int reg_offset, int size
 
 
 
-vp::io_req_status_e I2s_periph_v2::i2s_slv_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
+vp::io_req_status_e I2s_periph::i2s_slv_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
 {
   this->r_i2s_slv_setup.access(reg_offset, size, data, is_write);
 
   if (is_write)
   {
-    this->trace.msg("Modified I2S_SLV_SETUP (slave_words: %d, slave_bits: %d, slave_lsb: %d, slave_2ch: %d, slave_en: %d)\n",
+    this->trace.msg("Modified I2S_SLV_SETUP (raw: 0x%8.8x, slave_words: %d, slave_bits: %d, slave_lsb: %d, slave_2ch: %d, slave_en: %d)\n",
+      this->r_i2s_slv_setup.get_32(),
       this->r_i2s_slv_setup.slave_words_get(),
       this->r_i2s_slv_setup.slave_bits_get(),
       this->r_i2s_slv_setup.slave_lsb_get(),
@@ -203,7 +229,7 @@ vp::io_req_status_e I2s_periph_v2::i2s_slv_setup_req(int reg_offset, int size, b
 
 
 
-vp::io_req_status_e I2s_periph_v2::i2s_mst_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
+vp::io_req_status_e I2s_periph::i2s_mst_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
 {
   this->r_i2s_mst_setup.access(reg_offset, size, data, is_write);
 
@@ -223,7 +249,7 @@ vp::io_req_status_e I2s_periph_v2::i2s_mst_setup_req(int reg_offset, int size, b
 
 
 
-vp::io_req_status_e I2s_periph_v2::i2s_pdm_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
+vp::io_req_status_e I2s_periph::i2s_pdm_setup_req(int reg_offset, int size, bool is_write, uint8_t *data)
 {
   this->r_i2s_pdm_setup.access(reg_offset, size, data, is_write);
 
@@ -241,7 +267,7 @@ vp::io_req_status_e I2s_periph_v2::i2s_pdm_setup_req(int reg_offset, int size, b
 }
 
 
-vp::io_req_status_e I2s_periph_v2::custom_req(vp::io_req *req, uint64_t offset)
+vp::io_req_status_e I2s_periph::custom_req(vp::io_req *req, uint64_t offset)
 {
   uint8_t *data = req->get_data();
   uint64_t size = req->get_size();
@@ -291,9 +317,9 @@ error:
 
 
 
-void I2s_periph_v2::rx_sync(void *__this, int sck, int ws, int sd, int channel)
+void I2s_periph::rx_sync(void *__this, int sck, int ws, int sd, int channel)
 {
-  I2s_periph_v2 *_this = (I2s_periph_v2 *)__this;
+  I2s_periph *_this = (I2s_periph *)__this;
 
   _this->trace.msg("Received data (channel: %d, sck: %d, ws: %d, sd: %d)\n", channel, sck, ws, sd);
 
@@ -305,7 +331,7 @@ void I2s_periph_v2::rx_sync(void *__this, int sck, int ws, int sd, int channel)
 
 
 
-I2s_rx_channel::I2s_rx_channel(udma *top, I2s_periph_v2 *periph, int id, int event_id, string name) : Udma_rx_channel(top, event_id, name), periph(periph), id(id)
+I2s_rx_channel::I2s_rx_channel(udma *top, I2s_periph *periph, int id, int event_id, string name) : Udma_rx_channel(top, event_id, name), periph(periph), id(id)
 {
   for (int i=0; i<2; i++)
   {

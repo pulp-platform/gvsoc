@@ -31,12 +31,22 @@
 #include "mram/udma_mram_v1.hpp"
 #endif
 
+#if defined(I2S_VERSION)
+#if I2S_VERSION == 2
+#include "i2s/udma_i2s_v2.hpp"
+#endif
+#if I2S_VERSION == 3
+#include "i2s/udma_i2s_v3.hpp"
+#endif
+#endif
+
+
 
 void Udma_rx_channel::push_data(uint8_t *data, int size)
 {
   if (current_cmd == NULL)
   {
-    top->warning.warning("Received data while there is no ready command\n");
+    //top->warning.warning("Received data while there is no ready command\n");
     return;
   }
 
@@ -176,10 +186,12 @@ void Udma_channel::check_state()
 
   if (free_reqs->is_full())
   {
+    trace.msg("Inactive\n");;
     this->state_event.event(NULL);
   }
   else
   {
+    trace.msg("Active\n");;
     uint8_t one = 1;
     this->state_event.event(&one);
   }
@@ -541,7 +553,7 @@ vp::io_req_status_e udma::conf_req(vp::io_req *req, uint64_t offset)
       clock_gating = *data;
       for (int i=0; i<nb_periphs; i++)
       {
-        if (periphs[i] != NULL)
+        if (periphs[i] != NULL && periphs[i]->id == i)
           periphs[i]->clock_gate((clock_gating >> i) & 1);
       }
     }
@@ -569,13 +581,16 @@ vp::io_req_status_e udma::periph_req(vp::io_req *req, uint64_t offset)
   if (size != 4) return vp::IO_REQ_INVALID;
 
   int periph_id = UDMA_PERIPH_GET(offset);
+
   if (periph_id >= nb_periphs || periphs[periph_id] == NULL)
   {
     trace.force_warning("Accessing invalid periph (id: %d)\n", periph_id);
     return vp::IO_REQ_INVALID;
   }
 
-  return periphs[periph_id]->req(req, offset - (UDMA_PERIPH_OFFSET(periph_id) - UDMA_FIRST_CHANNEL_OFFSET));
+  int real_id = periphs[periph_id]->id;
+
+  return periphs[periph_id]->req(req, offset - (UDMA_PERIPH_OFFSET(real_id) - UDMA_FIRST_CHANNEL_OFFSET));
 }
 
 
@@ -681,6 +696,7 @@ int udma::build()
     int nb_channels = interface->get("nb_channels")->get_int();
     js::config *ids = interface->get("ids");
     js::config *offsets = interface->get("offsets");
+    int size = interface->get_child_int("size");
     int version = interface->get("version")->get_int();
 
     trace.msg("Instantiating interface (type: %s, nb_channels: %d, version: %d)\n", name.c_str(), nb_channels, version);
@@ -782,14 +798,28 @@ int udma::build()
         }
       }
 #endif
-#ifdef HAS_I2S
+#ifdef I2S_VERSION
       else if (strcmp(name.c_str(), "i2s") == 0)
       {
-        trace.msg("Instantiating I2S channel (id: %d, offset: 0x%x)\n", id, offset);
-        if (version == 2)
+        trace.msg("Instantiating I2S channel (version: %d, id: %d, offset: 0x%x)\n", I2S_VERSION, id, offset);
+        if (version == I2S_VERSION)
         {
-          I2s_periph_v2 *periph = new I2s_periph_v2(this, id, j);
-          periphs[id] = periph;
+          I2s_periph *periph = new I2s_periph(this, id, j);
+
+          if (size)
+          {
+            int periph_size = size;
+            while(periph_size)
+            {
+              periphs[id] = periph;
+              id++;
+              periph_size -= UDMA_PERIPH_AREA_SIZE;
+            }
+          }
+          else
+          {
+            periphs[id] = periph;
+          }
         }
         else
         {
@@ -820,7 +850,7 @@ void udma::reset(bool active)
 
   for (int i=0; i<nb_periphs; i++)
   {
-    if (periphs[i] != NULL)
+    if (periphs[i] != NULL && periphs[i]->id == i)
       periphs[i]->reset(active);
   }
 
