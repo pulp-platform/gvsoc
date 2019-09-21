@@ -459,7 +459,6 @@ void pmu_icu::set_state(int index, int supply, int clock, int regulator)
   this->states[index].supply = supply;
   this->states[index].clock = clock;
   this->states[index].regulator = regulator;
-  this->icu_ctrl_req(true, 8);
 }
 
 void pmu_icu::icu_ctrl_req(bool is_write, uint16_t pwdata)
