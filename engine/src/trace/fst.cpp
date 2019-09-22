@@ -30,6 +30,7 @@ vp::Fst_file::Fst_file(vp::Event_dumper *dumper, string path)
   {
     dumper->comp->get_engine()->fatal("Error while opening FST file (path: %s)\n", path.c_str());
   }
+  fstWriterSetTimescale(this->writer, -12);
 }
 
 
