@@ -288,4 +288,21 @@ static inline void iss_lsu_store(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, 
   }
 }
 
+static inline void iss_lsu_amo(iss_t *iss, iss_insn_t *insn, iss_addr_t addr, int size, int reg, iss_reg_t operand, vp::io_req_amo_e amo)
+{
+  // Initialize the output register to the operand to share the pointer
+  iss_set_reg(iss, reg, operand);
+  if (!iss->amo_req(addr, (uint8_t *)iss_reg_ref(iss, reg), size, amo))
+  {
+    // For now we don't have to do anything as the register was written directly
+    // by the request but we cold support sign-extended loads here;
+  }
+  else
+  {
+    iss->cpu.state.stall_callback = iss_lsu_load_resume;
+    iss->cpu.state.stall_reg = reg;
+    iss_exec_insn_stall(iss);
+  }
+}
+
 #endif
