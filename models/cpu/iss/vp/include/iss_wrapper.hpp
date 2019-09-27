@@ -272,6 +272,7 @@ inline int iss_wrapper::amo_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int 
   req->set_size(size);
   req->set_data(data_ptr);
   req->set_amo(amo);
+  req->set_core_id(this->cpu.config.mhartid);
   if (amo == vp::io_req_amo_e::LR)
   {
     req->set_is_write(false);
