@@ -90,6 +90,9 @@ namespace vp {
     uint64_t get_is_write() { return is_write; }
     void set_is_write(bool is_write) { this->is_write = is_write; }
 
+    uint64_t get_core_id() { return core_id; }
+    void set_core_id(uint64_t value) { core_id = value; }
+
     io_req_amo_e get_amo() { return this->amo; }
     void set_amo(io_req_amo_e amo) { this->amo = amo; }
 
@@ -147,6 +150,7 @@ namespace vp {
     uint8_t *data;
     uint64_t size;
     uint64_t actual_size;
+    uint64_t core_id;
     io_req_amo_e amo;
     bool is_write;
     io_req_status_e status;
