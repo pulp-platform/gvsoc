@@ -2,3 +2,4 @@
 __pycache__/
 *sw[p,o]
 cscope*
+/docs/_build/
