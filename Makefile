@@ -27,8 +27,8 @@ ifdef VP_USE_SYSTEMC_DRAMSYS
 endif # VP_USE_SYSTEMC_DRAMSYS
 	make -C engine build
 	make -C launcher build
-	make -C models props
-	make -C models build
+	make -C models props ARCHI_DIR=$(ARCHI_DIR)
+	make -C models build ARCHI_DIR=$(ARCHI_DIR)
 
 checkout:
 	git submodule update --init

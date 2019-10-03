@@ -11,6 +11,11 @@ CC=gcc
 VP_COMP_PYBIND_FLAGS := $(shell python3-config --includes)
 
 VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -D__GVSOC__=1 -I$(INSTALL_DIR)/include $(VP_COMP_PYBIND_FLAGS)
+
+ifdef ARCHI_DIR
+VP_COMP_CFLAGS += -I$(ARCHI_DIR)
+endif
+
 VP_COMP_CPPFLAGS=-std=c++11
 VP_COMP_LDFLAGS=-O2 -g -shared -L$(INSTALL_DIR)/lib
 VP_COMP_STD_LDFLAGS=-lpulpvp
