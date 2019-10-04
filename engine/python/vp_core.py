@@ -159,6 +159,7 @@ class default_implementation_class(object):
         self.module = ctypes.CDLL(path)
 
         self.module.vp_constructor.argtypes = [ctypes.c_char_p]
+        self.module.vp_constructor.restype = ctypes.c_void_p
 
         self.module.vp_comp_set_config.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
@@ -214,9 +215,12 @@ class default_implementation_class(object):
             config_str = config.get_string().encode('utf-8')
         else:
             config_str = None
+
         self.instance = self.module.vp_constructor(config_str)
 
         self.module.vp_comp_conf.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_void_p]
+        self.module.vp_run_status.argtypes = [ctypes.c_void_p]
+        self.module.vp_run_status.restype = ctypes.c_int
 
         self.module.vp_comp_conf(self.instance, self.get_path().encode('utf-8'), self.parent.get_parent_implem_class())
 

@@ -60,7 +60,12 @@ class component(vp.component):
         self.traces = []
 
         config = self.get_json()
+        self.impl.module.vp_trace_add_paths.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_char_p)]
+        self.impl.module.vp_trace_level.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        self.impl.module.vp_trace_exchange_max_path_len.argtypes = [ctypes.c_void_p, ctypes.c_int]
         if config is not None:
+          self.impl.module.vp_trace_level.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+
           self.impl.module.vp_trace_level(self.impl.instance, config.get_child_str('trace-level').encode('utf-8'))
           self.reg_traces(config.get('trace').get_dict(), 0)
           self.reg_traces(config.get('event').get_dict(), 1)

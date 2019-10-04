@@ -95,5 +95,7 @@ int power_manager::build()
 
 extern "C" void *vp_constructor(const char *config)
 {
-  return (void *)new power_manager(config);
+  void *engine = (void *)new power_manager(config);
+
+  return engine;
 }

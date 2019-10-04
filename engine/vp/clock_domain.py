@@ -24,7 +24,7 @@ class component(vp.component):
     implementation = 'vp.clock_domain_impl'
 
     def build(self):
-        pass
+        self.get_impl().module.vp_set_time_engine.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
     def pre_start(self):
         self.get_impl().module.vp_set_time_engine(
