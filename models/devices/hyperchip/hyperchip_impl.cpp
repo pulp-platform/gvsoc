@@ -159,7 +159,7 @@ void Hyperram::handle_access(int reg_access, int address, int read, uint8_t data
 {
   if (address >= this->size)
   {
-    this->top->warning.warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", address, this->size);
+    this->top->warning.force_warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", address, this->size);
   }
   else
   {
@@ -200,7 +200,7 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
 {
   if (address >= this->size)
   {
-    this->top->warning.warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", address, this->size);
+    this->top->warning.force_warning("Received out-of-bound request (addr: 0x%x, ram_size: 0x%x)\n", address, this->size);
   }
   else
   {
@@ -351,6 +351,10 @@ void hyperchip::sync_cycle(void *__this, int data)
       _this->current_address = (_this->ca.low_addr | (_this->ca.high_addr << 3)) & ~1;
 
       _this->flash_access = ARCHI_REG_FIELD_GET(_this->current_address, REG_MBR_WIDTH, 1);
+      uint32_t top_addr = ARCHI_REG_FIELD_GET(_this->current_address, REG_MBR_WIDTH+1, 32-REG_MBR_WIDTH-1);
+      if (top_addr != 0)
+        _this->trace.force_warning("Truncated hyper address (address: 0x%lx, mask: 0x%lx)\n", _this->current_address, (1<<REG_MBR_WIDTH)-1);
+
       _this->current_address = ARCHI_REG_FIELD_GET(_this->current_address, 0, REG_MBR_WIDTH);
       _this->reg_access = _this->ca.address_space == 1;
 
