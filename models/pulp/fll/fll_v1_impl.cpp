@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
@@ -334,6 +334,7 @@ vp::io_req_status_e fll::req(void *__this, vp::io_req *req)
     _this->first_pending = req;
 
   _this->last_pending = req;
+  req->set_next(NULL);
 
   return vp::IO_REQ_PENDING;
 }
