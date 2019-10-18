@@ -103,13 +103,16 @@ vp::io_req_status_e memory_atomic::req(void *__this, vp::io_req *req)
 #define MAX(a,b) (((a)>(b))?(a):(b))
     int duration = MAX(size >> _this->width_bits, 1);
     req->set_duration(duration);
+    // printf("Duration: %d\n", duration);
     int64_t cycles = _this->get_cycles();
+    // printf("Cycles: %d\n", cycles);
     int64_t diff = _this->next_packet_start - cycles;
     if (diff > 0) {
       _this->trace.msg("Delayed packet (latency: %ld)\n", diff);
       req->inc_latency(diff);
     }
     _this->next_packet_start = MAX(_this->next_packet_start, cycles) + duration;
+    // printf("Next_packet_start: %d\n", _this->next_packet_start);
   }
 
   if (offset + size > _this->size) {
