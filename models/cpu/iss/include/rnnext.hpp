@@ -21,26 +21,57 @@
 #ifndef __CPU_ISS_RNNEXT_HPP
 #define __CPU_ISS_RNNEXT_HPP
 
-static inline void pl_sdotsp_h_load_resume(iss_t *iss)
+static inline void pl_sdotsp_h_0_load_resume(iss_t *iss)
 {
   iss_insn_t *insn = iss->cpu.rnnext.sdot_insn;
-  iss_csr_msg(iss, "Loaded new sdot_prefetch value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch);
+  iss_csr_msg(iss, "Loaded new sdot_prefetch_0 value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch_0);
 }
 
-static inline iss_insn_t *pl_sdotsp_h_exec(iss_t *iss, iss_insn_t *insn)
+static inline iss_insn_t *pl_sdotsp_h_0_exec(iss_t *iss, iss_insn_t *insn)
 {
   iss_reg_t addr = REG_GET(0);
   IN_REG_SET(0, addr + 4);
 
-  REG_SET(0, LIB_CALL3(lib_VEC_SDOTSP_16, REG_GET(2), iss->cpu.rnnext.sdot_prefetch, REG_GET(1)));
+  REG_SET(0, LIB_CALL3(lib_VEC_SDOTSP_16, REG_GET(2), iss->cpu.rnnext.sdot_prefetch_0, REG_GET(1)));
 
-  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.rnnext.sdot_prefetch, 4, false))
+  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.rnnext.sdot_prefetch_0, 4, false))
   {
-    iss_csr_msg(iss, "Loaded new sdot_prefetch value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch);
+    iss_csr_msg(iss, "Loaded new sdot_prefetch_0 value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch_0);
   }
   else
   {
-    iss->cpu.state.stall_callback = pl_sdotsp_h_load_resume;
+    iss->cpu.state.stall_callback = pl_sdotsp_h_0_load_resume;
+    iss->cpu.rnnext.sdot_insn = insn;
+    iss_exec_insn_stall(iss);
+  }
+
+
+
+  return insn->next;
+}
+
+
+
+static inline void pl_sdotsp_h_1_load_resume(iss_t *iss)
+{
+  iss_insn_t *insn = iss->cpu.rnnext.sdot_insn;
+  iss_csr_msg(iss, "Loaded new sdot_prefetch_1 value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch_1);
+}
+
+static inline iss_insn_t *pl_sdotsp_h_1_exec(iss_t *iss, iss_insn_t *insn)
+{
+  iss_reg_t addr = REG_GET(0);
+  IN_REG_SET(0, addr + 4);
+
+  REG_SET(0, LIB_CALL3(lib_VEC_SDOTSP_16, REG_GET(2), iss->cpu.rnnext.sdot_prefetch_1, REG_GET(1)));
+
+  if (!iss->data_req(addr, (uint8_t *)&iss->cpu.rnnext.sdot_prefetch_1, 4, false))
+  {
+    iss_csr_msg(iss, "Loaded new sdot_prefetch_1 value (value: 0x%x)\n", iss->cpu.rnnext.sdot_prefetch_1);
+  }
+  else
+  {
+    iss->cpu.state.stall_callback = pl_sdotsp_h_1_load_resume;
     iss->cpu.rnnext.sdot_insn = insn;
     iss_exec_insn_stall(iss);
   }

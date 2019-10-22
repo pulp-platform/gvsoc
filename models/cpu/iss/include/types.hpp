@@ -424,7 +424,8 @@ typedef struct iss_pulpv2_s
 typedef struct iss_rnnext_s
 {
   iss_insn_t *sdot_insn;
-  iss_reg_t sdot_prefetch;
+  iss_reg_t sdot_prefetch_0;
+  iss_reg_t sdot_prefetch_1;
 } iss_rnnext_t;
 
 
