@@ -1067,6 +1067,10 @@ def gen_gtkw_files(config, gv_config):
                             with gtkw.group('pe_%d' % i, closed=True):
                                 gen_gtkw_core_traces(gtkw, tp, 'sys.board.chip.cluster.pe%d' % i)
 
+                        with gtkw.group('icache', closed=True):
+                            check_user_traces(gtkw, tp, 'chip.cluster.icache', user_traces)
+                            gen_gtkw_icache_traces(gtkw, tp, 'sys.board.chip.cluster.icache', 1<<config.get_int('**/cluster/icache/nb_ways_bits'), 1<<config.get_int('**/cluster/icache/nb_sets_bits'))
+
 
         print ()
         print ('A Gtkwave script has been generated and can be opened with the following command:')
