@@ -72,6 +72,7 @@ public:
   void check_state();
 
   void handle_ebreak();
+  void handle_riscv_ebreak();
 
   void dump_debug_traces();
 

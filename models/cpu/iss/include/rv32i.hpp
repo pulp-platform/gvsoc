@@ -612,13 +612,20 @@ static inline iss_insn_t *fence_i_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *ebreak_exec(iss_t *iss, iss_insn_t *insn)
 {
-  if (iss->cpu.state.debug_mode)
+  if (insn->next && insn->next->opcode == 0x40705013)
   {
-    return iss->cpu.irq.debug_handler;
+    iss_handle_riscv_ebreak(iss, insn);
   }
   else
   {
-    iss_handle_ebreak(iss, insn);
+    if (iss->cpu.state.debug_mode)
+    {
+      return iss->cpu.irq.debug_handler;
+    }
+    else
+    {
+      iss_handle_ebreak(iss, insn);
+    }
   }
 
   //cpu->state.error = GVSIM_STATE_DEBUG_STALL;

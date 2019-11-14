@@ -514,9 +514,27 @@ std::string iss_wrapper::read_user_string(iss_addr_t addr)
 }
 
 
+void iss_wrapper::handle_riscv_ebreak()
+{
+  int id = this->cpu.regfile.regs[10];
+
+  if (id == 0x4)
+  {
+    std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
+    printf("%s", path.c_str());
+  }
+  else
+  {
+    this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
+  }
+}
+
+
+
 void iss_wrapper::handle_ebreak()
 {
   int id = this->cpu.regfile.regs[10];
+
   switch (id)
   {
     case GV_SEMIHOSTING_VCD_CONFIGURE:
