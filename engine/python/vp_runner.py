@@ -1242,6 +1242,7 @@ class Runner(Platform):
                     raise Exception('Error while generating debug symbols information, make sure the toolchain and the binaries are accessible ')
 
         comps = []
+        raw_fs = self.get_json().get_str('**/flash/raw_fs')
         comps_conf = self.get_json().get('**/flash/fs/files')
         if comps_conf is not None:
             comps = comps_conf.get_dict()
@@ -1269,6 +1270,7 @@ class Runner(Platform):
                 raw_stim=self.get_flash_preload_file(),
                 bootBinary=binary,
                 comps=comps,
+                raw_fs=raw_fs,
                 verbose=self.get_json().get('**/runner/verbose').get(),
                 archi=self.get_json().get('**/pulp_chip_family').get(),
                 flashType=self.get_json().get('**/runner/flash_type').get(),
