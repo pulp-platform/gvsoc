@@ -61,7 +61,8 @@ public:
   inline int data_req_aligned(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);
   int data_misaligned_req(iss_addr_t addr, uint8_t *data_ptr, int size, bool is_write);
 
-  std::string read_user_string(iss_addr_t addr);
+  bool user_access(iss_addr_t addr, uint8_t *data, iss_addr_t size, bool is_write);
+  std::string read_user_string(iss_addr_t addr, int len=-1);
 
   static vp::io_req_status_e dbg_unit_req(void *__this, vp::io_req *req);
 
