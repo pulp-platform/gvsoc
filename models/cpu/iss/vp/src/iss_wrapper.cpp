@@ -615,11 +615,14 @@ void iss_wrapper::handle_riscv_ebreak()
         return;
       }
 
-      this->cpu.regfile.regs[10] = write(args[0], (void *)(long)buffer, iter_size);
+      if (write(args[0], (void *)(long)buffer, iter_size) != iter_size)
+        break;
 
       size -= iter_size;
       addr += iter_size;
     }
+
+    this->cpu.regfile.regs[10] = size;
   }
   else if (id == 0x6)
   {
@@ -639,7 +642,9 @@ void iss_wrapper::handle_riscv_ebreak()
       if (size < 1024)
         iter_size = size;
 
-      this->cpu.regfile.regs[10] = read(args[0], (void *)(long)buffer, iter_size);
+      if (read(args[0], (void *)(long)buffer, iter_size) != iter_size)
+        break;
+
       if (this->user_access(addr, buffer, iter_size, true))
       {
         this->cpu.regfile.regs[10] = -1;
@@ -649,6 +654,7 @@ void iss_wrapper::handle_riscv_ebreak()
       size -= iter_size;
       addr += iter_size;
     }
+    this->cpu.regfile.regs[10] = size;
   }
   else if (id == 0xA)
   {
@@ -659,7 +665,8 @@ void iss_wrapper::handle_riscv_ebreak()
       return;
     }
 
-    this->cpu.regfile.regs[10] = lseek(args[0], args[1], SEEK_SET);
+    int pos = lseek(args[0], args[1], SEEK_SET);
+    this->cpu.regfile.regs[10] = pos != args[1];
   }
   else if (id == 0x18)
   {
