@@ -544,21 +544,6 @@ std::string iss_wrapper::read_user_string(iss_addr_t addr, int size)
   return str;
 }
 
-static const int open_modeflags[12] = {
-        O_RDONLY,
-        O_RDONLY,
-        O_RDWR,
-        O_RDWR,
-        O_WRONLY | O_CREAT | O_TRUNC,
-        O_WRONLY | O_CREAT | O_TRUNC,
-        O_RDWR | O_CREAT | O_TRUNC,
-        O_RDWR | O_CREAT | O_TRUNC,
-        O_WRONLY | O_CREAT | O_APPEND,
-        O_WRONLY | O_CREAT | O_APPEND,
-        O_RDWR | O_CREAT | O_APPEND,
-        O_RDWR | O_CREAT | O_APPEND
-};
-
 
 void iss_wrapper::handle_riscv_ebreak()
 {
@@ -581,10 +566,8 @@ void iss_wrapper::handle_riscv_ebreak()
 
 
     unsigned int mode = args[1];
-    if (mode >= sizeof(open_modeflags)/sizeof(int))
-      mode = 0;
 
-    this->cpu.regfile.regs[10] = open(path.c_str(), open_modeflags[mode], 0644);
+    this->cpu.regfile.regs[10] = open(path.c_str(), mode, 0644);
 
   }
   else if (id == 0x2)
