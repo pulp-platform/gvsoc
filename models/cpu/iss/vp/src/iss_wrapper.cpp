@@ -663,7 +663,10 @@ void iss_wrapper::handle_riscv_ebreak()
   }
   else if (id == 0x18)
   {
-    exit(this->cpu.regfile.regs[11]);
+    if (this->cpu.regfile.regs[11] == 0x20026)
+      exit(0);
+    else
+      exit(1);
   }
   else if (id == 0x0C)
   {
