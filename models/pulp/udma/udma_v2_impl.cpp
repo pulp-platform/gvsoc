@@ -238,8 +238,6 @@ vp::io_req_status_e Udma_channel::cfg_req(vp::io_req *req)
 
     if (channel_clear)
     {
-      trace.msg("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
-      return vp::IO_REQ_INVALID;
     }
 
     if (channel_enabled)
