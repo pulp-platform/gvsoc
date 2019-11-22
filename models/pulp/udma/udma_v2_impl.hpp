@@ -731,6 +731,8 @@ private:
   vp::clock_event *clkgen1_event;
 
   int sck[2];
+  int current_ws[2];
+  int current_ws_count[2];
 };
 
 #endif
