@@ -828,7 +828,6 @@ void udma::start()
   if (this->periph_clock == NULL)
   {
     this->periph_clock = this->get_clock();
-    printf("Set periph_clock to %p\n", this->periph_clock);
   }
 }
 
