@@ -307,6 +307,20 @@ void I2s_periph_v1::rx_sync(void *__this, int sck, int ws, int sd, int channel)
     (static_cast<I2s_rx_channel *>(_this->channel0))->handle_rx_bit(sck, ws, sd);
   else
     (static_cast<I2s_rx_channel *>(_this->channel1))->handle_rx_bit(sck, ws, sd);
+
+  if (_this->current_ws_count[channel] == 0)
+  {
+    if (channel == 0)
+    {
+      (static_cast<I2s_rx_channel *>(_this->channel0))->pending_bits[0] = 0;
+      (static_cast<I2s_rx_channel *>(_this->channel0))->pending_bits[1] = 0;
+    }
+    else
+    {
+      (static_cast<I2s_rx_channel *>(_this->channel1))->pending_bits[0] = 0;
+      (static_cast<I2s_rx_channel *>(_this->channel1))->pending_bits[1] = 0;
+    }
+  }
 }
 
 

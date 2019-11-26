@@ -675,6 +675,8 @@ public:
 
 class I2s_rx_channel : public Udma_rx_channel
 {
+  friend class I2s_periph_v1;
+  
 public:
   I2s_rx_channel(udma *top, I2s_periph_v1 *periph, int id, int event_id, string name);
   void handle_rx_bit(int sck, int ws, int bit);
