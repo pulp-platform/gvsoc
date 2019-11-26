@@ -645,6 +645,7 @@ int udma::build()
   in.set_req_meth(&udma::req);
   new_slave_port("input", &in);
 
+  this->periph_clock = NULL;
   this->periph_clock_itf.set_reg_meth(&udma::clk_reg);
   new_slave_port("periph_clock", &this->periph_clock_itf);
 
@@ -824,6 +825,11 @@ int udma::build()
 
 void udma::start()
 {
+  if (this->periph_clock == NULL)
+  {
+    this->periph_clock = this->get_clock();
+    printf("Set periph_clock to %p\n", this->periph_clock);
+  }
 }
 
 void udma::reset(bool active)
