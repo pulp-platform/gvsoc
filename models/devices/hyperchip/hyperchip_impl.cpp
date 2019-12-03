@@ -21,6 +21,13 @@
 #include <vp/vp.hpp>
 #include <stdio.h>
 #include <string.h>
+
+#include <sys/mman.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "vp/itf/hyper.hpp"
 #include "vp/itf/wire.hpp"
 #include "archi/utils.h"
@@ -70,6 +77,7 @@ protected:
   hyperchip *top;
   int size;
   uint8_t *data;
+  bool data_is_mmapped;
   uint8_t *reg_data;
 
   hyperflash_state_e state;
@@ -187,6 +195,7 @@ Hyperflash::Hyperflash(hyperchip *top, int size) : top(top), size(size)
 {
   this->data = new uint8_t[this->size];
   memset(this->data, 0x57, this->size);
+  this->data_is_mmapped = false;
 
   this->reg_data = new uint8_t[REGS_AREA_SIZE];
   memset(this->reg_data, 0x57, REGS_AREA_SIZE);
@@ -207,15 +216,11 @@ void Hyperflash::erase_sector(unsigned int addr)
 
   if (addr >= this->size)
   {
-    this->top->warning.force_warning("Received out-of-bound erase request (addr: 0x%x, ram_size: 0x%x)\n", addr, this->size);
+    this->top->warning.force_warning("Received out-of-bound erase request (addr: 0x%x, flash_size: 0x%x)\n", addr, this->size);
     return;
   }
 
-
-  for (unsigned int current; current < addr + FLASH_SECTOR_SIZE; current++)
-  {
-    this->data[current] = 0xff;
-  }
+  memset(&this->data[addr], 0xff, FLASH_SECTOR_SIZE);
 }
 
 
@@ -268,7 +273,7 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
           this->top->warning.force_warning("Trying to program flash without erasing sector (addr: 0x%x)\n", address);
         }
 
-        this->data[address] = data;
+        this->data[address] &= data;
       }
       else
       {
@@ -282,6 +287,7 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
         else
         {
           uint16_t cmd = this->pending_cmd | data << 8;
+          //printf("[%d] cmd 0x%x (address >> 1) == %x\n", this->state, cmd, address >> 1);
 
           this->pending_cmd = 0;
           this->pending_bytes = 0;
@@ -370,6 +376,48 @@ int Hyperflash::preload_file(char *path)
 
   return 0;
 }
+
+/*
+ * Bback the data memory to a mmap file to provide access to the hyperflash content
+ * at the end of the execution.
+ */
+int Hyperflash::setup_writeback_file(const char *path)
+{
+  this->top->get_trace()->msg("writeback memory to an output file (path: %s)\n", path);
+  int fd = open(path, O_RDWR | O_CREAT, 0600);
+  if (fd < 0) {
+	  printf("Unable to open writeback file (path: %s, error: %s)\n", path, strerror(errno));
+	  return 0;
+  }
+
+  if (ftruncate(fd, this->size) < 0) {
+	  printf("Unable to truncate writeback file (path: %s, error: %s)\n", path, strerror(errno));
+	  close(fd);
+	  return -1;
+  }
+  uint8_t *mmapped_data = (uint8_t *) mmap(NULL, this->size, PROT_READ | PROT_WRITE, MAP_SHARED , fd, 0);
+  if (!mmapped_data) {
+	  printf("Unable to mmap writeback file (path: %s, error: %s)\n", path, strerror(errno));
+	  close(fd);
+	  return -1;
+  }
+
+  /* copy the current data content into the mmap area and replace data pointer with the mmap pointer */
+  memcpy(mmapped_data, this->data, this->size);
+  free(this->data);
+  this->data = mmapped_data;
+  this->data_is_mmapped = true;
+
+  /*
+   * fd is even not useful anymore and can be closed.
+   * Data are automatically write back to the file
+   * at random time during execution (depending of the kernel cache behavior)
+   * and, anyway, at the termination of the application.
+   */
+  close(fd);
+  return 0;
+}
+
 
 hyperchip::hyperchip(const char *config)
 : vp::component(config)
@@ -466,6 +514,7 @@ int hyperchip::build()
   js::config *flash_conf = conf->get("flash");
   if (flash_conf)
     flash_size = flash_conf->get("size")->get_int();
+
   this->flash = new Hyperflash(this, flash_size);
 
   if (flash_conf)
@@ -476,8 +525,14 @@ int hyperchip::build()
       if (this->flash->preload_file((char *)preload_file_conf->get_str().c_str()))
         return -1;
     }
-  }
 
+    js::config *writeback_file_conf = flash_conf->get("writeback_file");
+    if (writeback_file_conf)
+    {
+      if (this->flash->setup_writeback_file(writeback_file_conf->get_str().c_str()))
+      return -1;
+    }
+  }
   return 0;
 }
 
