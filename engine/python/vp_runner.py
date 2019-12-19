@@ -1103,6 +1103,8 @@ class Runner(Platform):
 
         parser.add_argument("--trace-level", dest="trace_level", default=None, help="Specify trace level")
 
+        parser.add_argument("--stdin", dest="stdin", action="store_true", help="Activate input console")
+
         parser.add_argument("--vcd", dest="vcd", action="store_true", help="Activate VCD traces")
 
         parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
@@ -1128,6 +1130,9 @@ class Runner(Platform):
         self.addCommand('devices', 'Show available devices')
 
         self.__prepare_env()
+
+        if args.stdin:
+            self.get_json().set('**/uart/stdin', True)
 
         if args.vcd:
             self.get_json().set('gvsoc/vcd/active', True)
