@@ -1054,9 +1054,10 @@ def gen_gtkw_files(config, gv_config):
                     check_user_traces(gtkw, tp, 'chip.fc', user_traces)
                     gen_gtkw_core_traces(gtkw, tp, 'sys.board.chip.soc.fc')
 
-                with gtkw.group('fc_icache', closed=True):
-                    check_user_traces(gtkw, tp, 'chip.fc_icache', user_traces)
-                    gen_gtkw_icache_traces(gtkw, tp, 'sys.board.chip.soc.fc_icache', 1<<config.get_int('**/fc_icache/nb_ways_bits'), 1<<config.get_int('**/fc_icache/nb_sets_bits'))
+                if config.get('**/fc_icache') is not None:
+                    with gtkw.group('fc_icache', closed=True):
+                        check_user_traces(gtkw, tp, 'chip.fc_icache', user_traces)
+                        gen_gtkw_icache_traces(gtkw, tp, 'sys.board.chip.soc.fc_icache', 1<<config.get_int('**/fc_icache/nb_ways_bits'), 1<<config.get_int('**/fc_icache/nb_sets_bits'))
 
 
                 if nb_pe is not None:
