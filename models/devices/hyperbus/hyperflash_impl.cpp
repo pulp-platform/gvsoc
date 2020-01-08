@@ -409,7 +409,7 @@ int Hyperflash::build()
   this->size = conf->get("size")->get_int();
 
   this->data = new uint8_t[this->size];
-  memset(this->data, 0x57, this->size);
+  memset(this->data, 0xff, this->size);
   this->data_is_mmapped = false;
 
   this->reg_data = new uint8_t[REGS_AREA_SIZE];
