@@ -823,6 +823,6 @@ private:
 };
 
 
-#include "udma_spim_v3.hpp"
+#include "spim/udma_spim_v3.hpp"
 
 #endif

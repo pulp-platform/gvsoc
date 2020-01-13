@@ -19,7 +19,7 @@
  */
 
 
-#include "udma_impl.hpp"
+#include "../udma_impl.hpp"
 #include "archi/udma/i2c/udma_i2c_v2.h"
 #include "archi/utils.h"
 #include "vp/itf/i2c.hpp"

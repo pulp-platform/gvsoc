@@ -18,7 +18,7 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
-#include "udma_v3_impl.hpp"
+#include "../udma_v3_impl.hpp"
 #include "archi/udma/spim/udma_spim_v3.h"
 #include "archi/utils.h"
 #include "vp/itf/qspim.hpp"
