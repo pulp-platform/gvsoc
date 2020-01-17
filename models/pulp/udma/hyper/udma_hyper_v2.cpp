@@ -116,9 +116,29 @@ void Hyper_periph_v2::handle_pending_word(void *__this, vp::clock_event *event)
   int cs;
 
   if (mba1 >= mba0)
-    cs = addr >= mba1 ? 1 : 0;
+  {
+    if (addr >= mba1)
+    {
+      cs = 1;
+      addr -= mba1;
+    }
+    else
+    {
+      cs = 0;
+    }
+  }
   else
-    cs = addr >= mba0 ? 0 : 0;
+  {
+    if (addr >= mba0)
+    {
+      cs = 0;
+      addr -= mba0;
+    }
+    else
+    {
+      cs = 1;
+    }
+  }
 
 
   if (_this->state == HYPER_STATE_IDLE)
@@ -128,8 +148,9 @@ void Hyper_periph_v2::handle_pending_word(void *__this, vp::clock_event *event)
       _this->state = HYPER_STATE_DELAY;
       _this->delay = 72;
       _this->ca_count = 6;
-      _this->ca.low_addr = ARCHI_REG_FIELD_GET(_this->regs[HYPER_EXT_ADDR_CHANNEL_OFFSET/4], 0, 3);
-      _this->ca.high_addr = ARCHI_REG_FIELD_GET(_this->regs[HYPER_EXT_ADDR_CHANNEL_OFFSET/4], 3, 29);
+      _this->ca.low_addr = ARCHI_REG_FIELD_GET(addr, 0, 3);
+      _this->ca.high_addr = ARCHI_REG_FIELD_GET(addr, 3, 29);
+
       _this->ca.burst_type = 0;
       _this->ca.address_space = ARCHI_REG_FIELD_GET(_this->regs[HYPER_MEM_CFG3_CHANNEL_OFFSET/4], HYPER_MEM_CFG3_CRT0_OFFSET, 1);
       _this->ca.read = _this->pending_rx ? 1 : 0;
@@ -157,6 +178,7 @@ void Hyper_periph_v2::handle_pending_word(void *__this, vp::clock_event *event)
     send_byte = true;
     _this->ca_count--;
     byte = _this->ca.raw[_this->ca_count];
+
     if (_this->ca_count == 0)
     {
       _this->state = HYPER_STATE_DATA;
