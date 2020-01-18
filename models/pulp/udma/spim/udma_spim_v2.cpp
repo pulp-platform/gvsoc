@@ -122,7 +122,7 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   if (_this->periph->spi_rx_pending_bits > 0 && (static_cast<Spim_rx_channel *>(_this->periph->channel0))->has_cmd() && (_this->spi_tx_pending_bits == 0 || _this->periph->is_full_duplex))
   {
     int nb_bits = _this->periph->qpi ? 4 : 1;
-    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
+    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv*2;
 
     _this->periph->nb_received_bits += nb_bits;
     _this->periph->spi_rx_pending_bits -= nb_bits;
@@ -203,7 +203,7 @@ void Spim_tx_channel::handle_spi_pending_word(void *__this, vp::clock_event *eve
   if (_this->spi_tx_pending_bits > 0)
   {
     int nb_bits = _this->spi_tx_quad ? 4 : 1;
-    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv;
+    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->periph->clkdiv*2;
 
     unsigned int bits;
 
