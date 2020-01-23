@@ -23,12 +23,16 @@
 #include <vp/itf/io.hpp>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef __VP_USE_SYSTEMC
 #include <systemc.h>
+#endif
 
 #define NB_MASTER_PORTS 4
 
 class hwacc;
 
+#ifdef __VP_USE_SYSTEMC
 SC_MODULE(hwacc_module)
 {
 
@@ -47,6 +51,7 @@ private:
   hwacc *vp_module;
 
 };
+#endif
 
 class hwacc : public vp::component
 {
@@ -78,7 +83,9 @@ private:
   int current_reqs = 0;
   int count = 0;
   vp::io_req *last_pending_reqs = NULL;
+#ifdef __VP_USE_SYSTEMC
   hwacc_module *sc_module;
+#endif
 };
 
 hwacc::hwacc(js::config *config)
@@ -130,7 +137,9 @@ vp::io_req_status_e hwacc::req(void *__this, vp::io_req *req)
   }
   else
   {
+#ifdef __VP_USE_SYSTEMC
     _this->sc_module->event.notify();
+#endif
     return vp::IO_REQ_PENDING;
   }
 }
@@ -160,7 +169,9 @@ int hwacc::build()
 
 void hwacc::elab()
 {
+#ifdef __VP_USE_SYSTEMC
   sc_module = new hwacc_module("wrapper2", this);
+#endif
 }
 
 
@@ -174,6 +185,7 @@ extern "C" vp::component *vp_constructor(js::config *config)
 }
 
 
+#ifdef __VP_USE_SYSTEMC
 // This is a System C thread which can interact with gvsoc and gem5 to do the bridge
 void hwacc_module::run()
 {
@@ -223,3 +235,4 @@ void hwacc_module::run()
 
   }
 }
+#endif

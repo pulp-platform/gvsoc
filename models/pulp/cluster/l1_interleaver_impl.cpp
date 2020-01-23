@@ -120,6 +120,11 @@ int interleaver::build()
   nb_masters = get_config_int("nb_masters");
   stage_bits = get_config_int("stage_bits");
 
+  if (stage_bits == 0)
+  {
+    stage_bits = log2(nb_slaves);
+  }
+
   bank_mask = (1<<stage_bits) - 1;
 
   out = new vp::io_master *[nb_slaves];
