@@ -287,6 +287,7 @@ namespace vp {
     component(const char *config);
     component(js::config *config);
 
+    virtual void pre_pre_build() { }
     virtual int build() { return 0; }
     virtual void pre_start() {}
     virtual void start() {}
@@ -385,6 +386,8 @@ namespace vp {
 
     virtual void add_slave_port(std::string name, vp::slave_port *port);
     virtual void add_master_port(std::string name, vp::master_port *port);
+
+    void throw_error(std::string error);
 
     component_trace traces;
     component_power power;

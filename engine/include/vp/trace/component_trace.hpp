@@ -65,6 +65,8 @@ namespace vp {
     trace_engine *trace_manager = NULL;
 
   private:
+    void reg_trace(trace *trace);
+
     component &top;
 
   };

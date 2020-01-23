@@ -54,7 +54,7 @@ namespace vp {
 
     Event_dumper event_dumper;
 
-    vp::trace *get_trace(std::string path);
+    vp::trace *get_trace_from_path(std::string path);
 
     vp::trace *get_trace_from_id(int id);
 

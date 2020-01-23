@@ -117,20 +117,3 @@ extern "C" vp::component *vp_constructor(js::config *config)
 {
     return new power_manager(config);
 }
-
-
-
-extern "C" vp::component *vp_new_component(const char *config)
-{
-    js::config *js_config = js::import_config_from_string(strdup(config));
-
-    vp::component *instance = vp_constructor(js_config);
-
-    instance->set_vp_config(js_config->get("**/gvsoc"));
-
-    instance->pre_build();
-    instance->build();
-    instance->build_new();
-
-    return instance;
-}

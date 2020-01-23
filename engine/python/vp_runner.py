@@ -1387,7 +1387,10 @@ class Runner(Platform):
         gen_gtkw_files(self.get_json(), gvsoc_config)
 
 
-        name = 'vp.power_engine_impl'
+        name = 'vp.trace_domain_impl'
+
+        if debug_mode:
+            name = 'debug.' + name
 
         path = None
 

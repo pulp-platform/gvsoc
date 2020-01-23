@@ -69,7 +69,7 @@ time_domain::time_domain(js::config *config)
 
 int time_domain::build()
 {
-  this->new_component("", this->get_js_config(), "vp.trace_domain_impl");
+  this->new_component("sys", this->get_js_config()->get("system_tree"));
   return 0;
 }
 

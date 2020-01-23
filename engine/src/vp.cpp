@@ -167,12 +167,9 @@ void vp::component::pre_start_all()
 
 void vp::component_clock::clk_reg(component *_this, component *clock)
 {
-    //printf("%s CLOCK REG %p\n", _this->get_path().c_str(), clock);
-
     _this->clock = (clock_engine *)clock;
     for (auto &x : _this->childs)
     {
-        //printf("Child %s CLOCK REG\n", x->get_path().c_str());
         x->clk_reg(x, clock);
     }
 }
@@ -607,7 +604,8 @@ vp::master_port::master_port(vp::component *owner)
 
 void vp::component::new_master_port(std::string name, vp::master_port *port)
 {
-    //printf("New master port %s\n", name.c_str());
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New master port (name: %s, port: %p)\n", name.c_str(), port);
+
     port->set_owner(this);
     port->set_context(this);
     port->set_name(name);
@@ -618,7 +616,8 @@ void vp::component::new_master_port(std::string name, vp::master_port *port)
 
 void vp::component::new_master_port(void *comp, std::string name, vp::master_port *port)
 {
-    //printf("New master port %s\n", name.c_str());
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New master port (name: %s, port: %p)\n", name.c_str(), port);
+
     port->set_owner(this);
     port->set_context(comp);
     port->set_name(name);
@@ -647,7 +646,8 @@ void vp::component::add_master_port(std::string name, vp::master_port *port)
 
 void vp::component::new_slave_port(std::string name, vp::slave_port *port)
 {
-    //printf("New slave port %s\n", name.c_str());
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New slave port (name: %s, port: %p)\n", name.c_str(), port);
+
     port->set_owner(this);
     port->set_context(this);
     port->set_name(name);
@@ -658,7 +658,8 @@ void vp::component::new_slave_port(std::string name, vp::slave_port *port)
 
 void vp::component::new_slave_port(void *comp, std::string name, vp::slave_port *port)
 {
-    //printf("New slave port %s\n", name.c_str());
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New slave port (name: %s, port: %p)\n", name.c_str(), port);
+
     port->set_owner(this);
     port->set_context(comp);
     port->set_name(name);
@@ -679,6 +680,8 @@ void vp::component::add_service(std::string name, void *service)
 
 void vp::component::new_service(std::string name, void *service)
 {
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New service (name: %s, service: %p)\n", name.c_str(), service);
+
     if (this->parent)
         this->parent->add_service(name, service);
 
@@ -1078,6 +1081,14 @@ vp::component::component(string path, const char *config, vp::component *parent)
     this->conf("", path, parent);
 }
 
+
+void vp::component::throw_error(std::string error)
+{
+    throw std::invalid_argument("[\033[31m" + this->get_path() + "\033[0m] " + error);
+}
+
+
+
 vp::component *vp::component::new_component(std::string name, js::config *config, std::string module_name)
 {
     if (module_name == "")
@@ -1090,31 +1101,30 @@ vp::component *vp::component::new_component(std::string name, js::config *config
         module_name = "debug." + module_name;
     }
 
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New component (name: %s, module: %s)\n", name.c_str(), module_name.c_str());
+
     std::replace(module_name.begin(), module_name.end(), '.', '/');
 
     std::string path = std::string(getenv("GVSOC_PATH")) + "/" + module_name + ".so";
 
-    //printf("Loading %s\n", path.c_str());
-
     void *module = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
     if (module == NULL)
     {
-        throw std::runtime_error("ERROR, Failed to open periph model (" + module_name + ") with error: " + std::string(dlerror()));
+        this->throw_error("ERROR, Failed to open periph model (module: " + module_name + ", error: " + std::string(dlerror()) + ")");
     }
 
     vp::component *(*constructor)(js::config *) = (vp::component * (*)(js::config *)) dlsym(module, "vp_constructor");
-    // if (model_new == NULL)
-    // {
-    //   dpi_fatal_stub(handle, "ERROR, invalid DPI model being loaded (%s)", module_name.c_str());
-    //   return NULL;
-    // }
+    if (constructor == NULL)
+    {
+        this->throw_error("ERROR, couldn't find vp_constructor in loaded module (module: " + module_name + ")");
+    }
 
     vp::component *instance = constructor(config);
 
     std::string comp_path = this->get_path() != "" ? this->get_path() + "/" + name : name;
 
     instance->conf(name, comp_path, this);
-
+    instance->pre_pre_build();
     instance->pre_build();
     instance->build();
 
@@ -1131,16 +1141,19 @@ vp::component::component(js::config *config)
 
 void vp::component::create_ports()
 {
-    //printf("[%s] Creating ports\n", this->get_path().c_str());
     js::config *config = this->get_js_config();
     js::config *ports = config->get("vp_ports");
 
     if (ports != NULL)
     {
+        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating ports\n");
+
         for (auto x : ports->get_elems())
         {
             std::string port_name = x->get_str();
-            //printf("Creating port %s\n", port_name.c_str());
+
+            this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating port (name: %s)\n", port_name.c_str());
+
             if (this->get_master_port(port_name) == NULL && this->get_slave_port(port_name) == NULL)
                 this->add_master_port(port_name, new vp::virtual_port(this));
         }
@@ -1154,6 +1167,8 @@ void vp::component::create_bindings()
 
     if (bindings != NULL)
     {
+        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating bindings\n");
+
         for (auto x : bindings->get_elems())
         {
             std::string master_binding = x->get_elem(0)->get_str();
@@ -1165,10 +1180,10 @@ void vp::component::create_bindings()
             std::string slave_comp_name = slave_binding.substr(0, pos);
             std::string slave_port_name = slave_binding.substr(pos + 2);
 
-            //printf("Binding %s->%s to %s->%s\n",
-            //    master_comp_name.c_str(), master_port_name.c_str(),
-            //    slave_comp_name.c_str(), slave_port_name.c_str()
-            //);
+            this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating binding (%s:%s -> %s:%s)\n",
+                master_comp_name.c_str(), master_port_name.c_str(),
+                slave_comp_name.c_str(), slave_port_name.c_str()
+            );
 
             vp::component *master_comp = master_comp_name == "self" ? this : this->get_childs_dict()[master_comp_name];
             vp::component *slave_comp = slave_comp_name == "self" ? this : this->get_childs_dict()[slave_comp_name];
@@ -1213,17 +1228,16 @@ std::vector<vp::slave_port *> vp::master_port::get_final_ports()
 
 void vp::master_port::bind_to_slaves()
 {
-    //printf("%s %s bind to slave\n", this->get_owner()->get_path().c_str(), this->get_name().c_str());
     for (auto x : this->slave_ports)
     {
         for (auto y : x->get_final_ports())
         {
-            //printf("Binding %s/%s(%p) to %s/%s(%p)\n",
-            //    this->get_owner()->get_path().c_str(), this->get_name().c_str(), this,
-            //    y->get_owner()->get_path().c_str(), y->get_name().c_str(), y
-            //);
-            this->bind_to(y, NULL);
+            this->get_owner()->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating final binding (%s:%s -> %s:%s)\n",
+                this->get_owner()->get_path().c_str(), this->get_name().c_str(),
+                y->get_owner()->get_path().c_str(), y->get_name().c_str()
+            );
 
+            this->bind_to(y, NULL);
             y->bind_to(this, NULL);
         }
     }
@@ -1231,7 +1245,8 @@ void vp::master_port::bind_to_slaves()
 
 void vp::component::bind_comps()
 {
-    //printf("%s Binding ports\n", this->get_path().c_str());
+    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating final bindings\n");
+
     for (auto x : this->get_childs())
     {
         x->bind_comps();
@@ -1257,10 +1272,10 @@ void vp::component::create_comps()
     js::config *config = this->get_js_config();
     js::config *comps = config->get("vp_comps");
 
-    //printf("%s\n", this->get_path().c_str());
-
     if (comps != NULL)
     {
+        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating components\n");
+
         for (auto x : comps->get_elems())
         {
             std::string comp_name = x->get_str();

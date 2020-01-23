@@ -691,7 +691,7 @@ void iss_wrapper::handle_ebreak()
       }
       else
       {
-        vp::trace *trace = this->traces.get_trace_manager()->get_trace(path);
+        vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_path(path);
         if (trace == NULL)
         {
           this->warning.force_warning("Invalid trace (path: %s)\n", path.c_str());
@@ -735,7 +735,7 @@ void iss_wrapper::handle_ebreak()
       }
       else
       {
-        vp::trace *trace = this->traces.get_trace_manager()->get_trace(path);
+        vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_path(path);
         if (trace == NULL)
         {
           this->warning.force_warning("Invalid VCD trace (path: %s)\n", path.c_str());
@@ -1009,7 +1009,7 @@ int iss_wrapper::build()
   new_slave_port("bootaddr", &bootaddr_itf);
 
   clock_itf.set_sync_meth(&iss_wrapper::clock_sync);
-  new_slave_port("clock_enable", &clock_itf);
+  new_slave_port("clock", &clock_itf);
 
   irq_req_itf.set_sync_meth(&iss_wrapper::irq_req_sync);
   new_slave_port("irq_req", &irq_req_itf);

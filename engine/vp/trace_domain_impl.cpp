@@ -39,8 +39,11 @@ public:
   void add_trace_path(int events, std::string path);
   void reg_trace(vp::trace *trace, int event, string path, string name);
 
+  void pre_pre_build();
   int build();
   void start();
+  std::string run();
+
 
   int get_max_path_len() { return max_path_len; }
 
@@ -61,6 +64,8 @@ private:
   vp::trace_level_e trace_level = vp::TRACE;
   std::vector<vp::trace *> init_traces;
   std::map<std::string, FILE *> trace_files;
+
+  vp::component *power_engine;
 };
 
 
@@ -88,6 +93,12 @@ trace_domain::trace_domain(js::config *config)
 {
 }
 
+
+
+std::string trace_domain::run()
+{
+    return this->power_engine->run();
+}
 
 
 void trace_domain::reg_trace(vp::trace *trace, int event, string path, string name)
@@ -151,11 +162,25 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
   }
 }
 
+
+
+void trace_domain::pre_pre_build()
+{
+  new_service("trace", static_cast<trace_engine *>(this));
+
+  for (auto x: this->get_vp_config()->get("trace")->get_elems())
+  {
+    std::string trace_path = x->get_str();
+    printf("ADD TRACE PATH\n");
+    this->add_trace_path(0, trace_path);
+  }
+}
+
+
+
 int trace_domain::build()
 {
-  this->new_component("sys", this->get_js_config()->get("system_tree"));
-
-  new_service("trace", static_cast<trace_engine *>(this));
+  this->power_engine = this->new_component("", this->get_js_config(), "vp.power_engine_impl");
 
   js::config *config = get_js_config()->get("gvsoc");
 
@@ -180,12 +205,6 @@ int trace_domain::build()
         this->init_traces.push_back(trace);
       }
     }
-  }
-
-  for (auto x: this->get_vp_config()->get("trace")->get_elems())
-  {
-    std::string trace_path = x->get_str();
-    this->add_trace_path(0, trace_path);
   }
 
   return 0;
@@ -290,4 +309,20 @@ extern "C" int vp_trace_exchange_max_path_len(void *comp, int max_len)
 extern "C" vp::component *vp_constructor(js::config *config)
 {
   return new trace_domain(config);
+}
+
+extern "C" vp::component *vp_new_component(const char *config)
+{
+    js::config *js_config = js::import_config_from_string(strdup(config));
+
+    vp::component *instance = vp_constructor(js_config);
+
+    instance->set_vp_config(js_config->get("**/gvsoc"));
+
+    instance->pre_pre_build();
+    instance->pre_build();
+    instance->build();
+    instance->build_new();
+
+    return instance;
 }

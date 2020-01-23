@@ -31,12 +31,24 @@ vp::component_trace::component_trace(vp::component &top)
 {
 }
 
+void vp::component_trace::reg_trace(trace *trace)
+{
+  if (this->trace_manager == NULL)
+  {
+    this->trace_manager = (vp::trace_engine *)top.get_service("trace");
+  }
+
+  this->trace_manager->reg_trace(trace, 0, top.get_path(), trace->get_name());
+}
+
 void vp::component_trace::new_trace(std::string name, trace *trace, trace_level_e level)
 {
   traces[name] = trace;
   trace->level = level;
   trace->comp = static_cast<vp::component *>(&top);
   trace->name = top.get_path() + "/" + name;
+
+  this->reg_trace(trace);
 }
 
 void vp::component_trace::new_trace_event(std::string name, trace *trace, int width)
@@ -281,7 +293,7 @@ void vp::trace_engine::check_pending_events(int64_t timestamp)
     trace->prev = NULL;
 }
 
-vp::trace *vp::trace_engine::get_trace(std::string path)
+vp::trace *vp::trace_engine::get_trace_from_path(std::string path)
 {
   return this->traces_map[path];
 }
