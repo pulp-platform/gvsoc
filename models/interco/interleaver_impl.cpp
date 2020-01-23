@@ -138,6 +138,11 @@ int interleaver::build()
   interleaving_bits = get_config_int("interleaving_bits");
   remove_offset = get_config_int("remove_offset");
 
+  if (stage_bits == 0)
+  {
+    stage_bits = log2(nb_slaves);
+  }
+
   offset_mask = -1;
   offset_mask &= ~((1 << (interleaving_bits + stage_bits)) - 1);
 
