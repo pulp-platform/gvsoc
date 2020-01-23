@@ -883,7 +883,7 @@ class udma : public vp::component
 
 public:
 
-  udma(const char *config);
+  udma(js::config *config);
 
   int build();
   void start();

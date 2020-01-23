@@ -55,15 +55,22 @@ class time_domain : public vp::time_engine
 
 public:
 
-  time_domain(const char *config);
+  time_domain(js::config *config);
 
+  int build();
 
 };
 
 
-time_domain::time_domain(const char *config)
+time_domain::time_domain(js::config *config)
 : vp::time_engine(config)
 {
+}
+
+int time_domain::build()
+{
+  this->new_component("", this->get_js_config(), "vp.trace_domain_impl");
+  return 0;
 }
 
 // Global signal handler to catch sigint when we are in C world and after
@@ -118,7 +125,7 @@ static void *engine_routine(void *arg) {
   return NULL;
 }
 
-vp::time_engine::time_engine(const char *config)
+vp::time_engine::time_engine(js::config *config)
   : vp::component(config), first_client(NULL)
 {
   pthread_mutex_init(&mutex, NULL);
@@ -447,7 +454,7 @@ static void init_sigint_handler(int s) {
 }
 
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
   // This should be the first C method called by python.
   // As python is not catching SIGINT where we are in C world, we have to
@@ -455,5 +462,5 @@ extern "C" void *vp_constructor(const char *config)
   // until the engine is started and we can better handle it.
   signal (SIGINT, init_sigint_handler);
 
-  return (void *)new time_domain(config);
+  return new time_domain(config);
 }

@@ -25,9 +25,3 @@ class component(vp.component):
 
     def build(self):
         self.get_impl().module.vp_set_time_engine.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-
-    def pre_start(self):
-        self.get_impl().module.vp_set_time_engine(
-          self.get_impl().instance,
-          self.get_time_engine().get_impl().instance
-        )

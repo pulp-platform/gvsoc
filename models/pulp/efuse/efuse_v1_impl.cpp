@@ -29,7 +29,7 @@ class efuse : public vp::component
 
 public:
 
-  efuse(const char *config);
+  efuse(js::config *config);
 
   int build();
   void start();
@@ -54,7 +54,7 @@ private:
 
 
 
-efuse::efuse(const char *config)
+efuse::efuse(js::config *config)
 : vp::component(config)
 {
 
@@ -258,7 +258,7 @@ error:
 
 
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new efuse(config);
+  return new efuse(config);
 }

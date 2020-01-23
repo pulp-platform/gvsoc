@@ -34,7 +34,7 @@ class rtc : public vp::component
 
 public:
 
-  rtc(const char *config);
+  rtc(js::config *config);
 
   int build();
   void start();
@@ -123,7 +123,7 @@ private:
 
 
 
-rtc::rtc(const char *config)
+rtc::rtc(js::config *config)
 : vp::component(config)
 {
 
@@ -740,7 +740,7 @@ void rtc::start()
 
 
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new rtc(config);
+  return new rtc(config);
 }

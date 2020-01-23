@@ -35,7 +35,7 @@ namespace vp {
   class trace_engine : public component
   {
   public:
-    trace_engine(const char *config);
+    trace_engine(js::config *config);
 
     void stop();
 

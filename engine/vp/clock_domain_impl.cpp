@@ -28,7 +28,7 @@ class clock_domain : public vp::clock_engine
 
 public:
 
-  clock_domain(const char *config);
+  clock_domain(js::config *config);
 
   int build();
 
@@ -47,7 +47,7 @@ private:
 };
 
 
-clock_domain::clock_domain(const char *config)
+clock_domain::clock_domain(js::config *config)
 : vp::clock_engine(config)
 {
   this->apply_frequency(get_config_int("frequency"));
@@ -71,6 +71,9 @@ int clock_domain::build()
 
   this->traces.new_trace_event_real("cycles", &this->cycles_trace);
 
+  // TODO check why this step is needed.
+  this->set_time_engine(this->get_time_engine());
+
   return 0;
 }
 
@@ -80,7 +83,7 @@ void clock_domain::pre_start()
 }
 
 
-vp::clock_engine::clock_engine(const char *config)
+vp::clock_engine::clock_engine(js::config *config)
   : vp::time_engine_client(config), cycles(0), period(0), freq(0), must_flush_delayed_queue(true)
 {
   delayed_queue = NULL;
@@ -97,7 +100,7 @@ extern "C" void vp_set_time_engine(void *comp, void *engine)
   ((vp::clock_engine *)comp)->set_time_engine((vp::time_engine *)engine);
 }
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new clock_domain(config);
+  return new clock_domain(config);
 }

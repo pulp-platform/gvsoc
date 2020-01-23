@@ -72,7 +72,7 @@ class Hyperflash : public vp::component
 public:
   int build();
 
-  Hyperflash(const char *config);
+  Hyperflash(js::config *config);
 
   void handle_access(int reg_access, int address, int read, uint8_t data);
   int preload_file(char *path);
@@ -333,7 +333,7 @@ int Hyperflash::setup_writeback_file(const char *path)
 
 
 
-Hyperflash::Hyperflash(const char *config)
+Hyperflash::Hyperflash(js::config *config)
 : vp::component(config)
 {
 }
@@ -438,7 +438,7 @@ int Hyperflash::build()
 
 
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new Hyperflash(config);
+  return new Hyperflash(config);
 }

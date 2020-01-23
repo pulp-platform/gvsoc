@@ -36,7 +36,7 @@ namespace vp {
 
   class time_engine : public component {
   public:
-    time_engine(const char *config);
+    time_engine(js::config *config);
 
     void start();
 
@@ -111,7 +111,7 @@ namespace vp {
     friend class time_engine;
 
   public:
-    time_engine_client(const char *config)
+    time_engine_client(js::config *config)
       : vp::component(config)
     {
     }

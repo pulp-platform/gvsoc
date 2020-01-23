@@ -31,11 +31,12 @@ class trace_domain : public vp::trace_engine
 
 public:
 
-  trace_domain(const char *config);
+  trace_domain(js::config *config);
 
   void set_trace_level(const char *trace_level);
   void add_paths(int events, int nb_path, const char **paths);
   void add_path(int events, const char *path);
+  void add_trace_path(int events, std::string path);
   void reg_trace(vp::trace *trace, int event, string path, string name);
 
   int build();
@@ -63,7 +64,7 @@ private:
 };
 
 
-vp::trace_engine::trace_engine(const char *config)
+vp::trace_engine::trace_engine(js::config *config)
   : event_dumper(this), vp::component(config), first_trace_to_dump(NULL)
 {
 
@@ -82,10 +83,9 @@ vp::trace_engine::trace_engine(const char *config)
   thread = new std::thread(&trace_engine::vcd_routine, this);
 }
 
-trace_domain::trace_domain(const char *config)
+trace_domain::trace_domain(js::config *config)
 : vp::trace_engine(config)
 {
-
 }
 
 
@@ -153,9 +153,13 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
 
 int trace_domain::build()
 {
+  this->new_component("sys", this->get_js_config()->get("system_tree"));
+
   new_service("trace", static_cast<trace_engine *>(this));
 
-  auto vcd_traces = get_js_config()->get("vcd/traces");
+  js::config *config = get_js_config()->get("gvsoc");
+
+  auto vcd_traces = config->get("vcd/traces");
 
   if (vcd_traces != NULL)
   {
@@ -176,6 +180,12 @@ int trace_domain::build()
         this->init_traces.push_back(trace);
       }
     }
+  }
+
+  for (auto x: this->get_vp_config()->get("trace")->get_elems())
+  {
+    std::string trace_path = x->get_str();
+    this->add_trace_path(0, trace_path);
   }
 
   return 0;
@@ -222,6 +232,12 @@ void trace_domain::add_path(int events, const char *path)
 
   regcomp(regex, path, 0);
 }
+
+void trace_domain::add_trace_path(int events, std::string path)
+{
+  this->add_path(events, path.c_str());
+}
+
 
 void trace_domain::add_paths(int events, int nb_path, const char **paths)
 {
@@ -270,7 +286,8 @@ extern "C" int vp_trace_exchange_max_path_len(void *comp, int max_len)
   return ((trace_domain *)comp)->exchange_max_path_len(max_len);
 }
 
-extern "C" void *vp_constructor(const char *config)
+
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new trace_domain(config);
+  return new trace_domain(config);
 }

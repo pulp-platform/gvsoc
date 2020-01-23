@@ -48,7 +48,7 @@ typedef enum
 class Hyperram : public vp::component
 {
 public:
-  Hyperram(const char *config);
+  Hyperram(js::config *config);
 
   void handle_access(int reg_access, int address, int read, uint8_t data);
 
@@ -116,7 +116,7 @@ void Hyperram::handle_access(int reg_access, int address, int read, uint8_t data
 
 
 
-Hyperram::Hyperram(const char *config)
+Hyperram::Hyperram(js::config *config)
 : vp::component(config)
 {
 }
@@ -186,7 +186,7 @@ int Hyperram::build()
 
 
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new Hyperram(config);
+  return new Hyperram(config);
 }

@@ -55,7 +55,7 @@ class hwacc : public vp::component
 
 public:
 
-  hwacc(const char *config);
+  hwacc(js::config *config);
 
   int build();
   void start();
@@ -81,7 +81,7 @@ private:
   hwacc_module *sc_module;
 };
 
-hwacc::hwacc(const char *config)
+hwacc::hwacc(js::config *config)
 : vp::component(config)
 {
 
@@ -168,9 +168,9 @@ void hwacc::start()
 {
 }
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new hwacc(config);
+  return new hwacc(config);
 }
 
 

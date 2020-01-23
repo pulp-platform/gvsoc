@@ -149,7 +149,7 @@ class padframe : public vp::component
 
 public:
 
-  padframe(const char *config);
+  padframe(js::config *config);
 
   int build();
   void start();
@@ -209,7 +209,7 @@ private:
   int nb_itf = 0;
 };
 
-padframe::padframe(const char *config)
+padframe::padframe(js::config *config)
 : vp::component(config)
 {
 
@@ -799,7 +799,7 @@ void padframe::start()
 {
 }
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new padframe(config);
+  return new padframe(config);
 }

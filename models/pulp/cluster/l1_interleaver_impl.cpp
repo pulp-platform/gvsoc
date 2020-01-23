@@ -28,7 +28,7 @@ class interleaver : public vp::component
 
 public:
 
-  interleaver(const char *config);
+  interleaver(js::config *config);
 
   int build();
 
@@ -52,7 +52,7 @@ private:
   vp::io_req ts_req;
 };
 
-interleaver::interleaver(const char *config)
+interleaver::interleaver(js::config *config)
 : vp::component(config)
 {
 
@@ -145,9 +145,9 @@ int interleaver::build()
   return 0;
 }
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new interleaver(config);
+  return new interleaver(config);
 }
 
 

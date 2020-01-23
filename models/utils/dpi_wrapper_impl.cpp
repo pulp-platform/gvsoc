@@ -147,7 +147,7 @@ class dpi_wrapper : public vp::component
 
 public:
 
-  dpi_wrapper(const char *config);
+  dpi_wrapper(js::config *config);
 
   int build();
   void start();
@@ -250,7 +250,7 @@ void dpi_periodic_handler::entry_stub(void *__this, vp::clock_event *event)
 }
 
 
-dpi_wrapper::dpi_wrapper(const char *config)
+dpi_wrapper::dpi_wrapper(js::config *config)
 : vp::component(config)
 {
   this->wakeup_evt = this->event_new(this, dpi_wrapper::wakeup_handler);
@@ -789,7 +789,7 @@ extern "C" void dpi_create_periodic_handler(void *handle, int id, int64_t period
   dpi->create_periodic_handler(id, period);
 }
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new dpi_wrapper(config);
+  return new dpi_wrapper(config);
 }

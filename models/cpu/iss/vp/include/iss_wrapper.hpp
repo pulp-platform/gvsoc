@@ -35,7 +35,7 @@ class iss_wrapper : public vp::component
 
 public:
 
-  iss_wrapper(const char *config);
+  iss_wrapper(js::config *config);
 
   int build();
   void start();

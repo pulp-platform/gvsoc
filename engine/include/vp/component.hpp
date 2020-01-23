@@ -283,7 +283,9 @@ namespace vp {
     friend class component_clock;
 
   public:
+    component(string path, const char *config, vp::component *parent=NULL);
     component(const char *config);
+    component(js::config *config);
 
     virtual int build() { return 0; }
     virtual void pre_start() {}
@@ -297,9 +299,10 @@ namespace vp {
     virtual int run_status() { return 0; }
 
 
-    void set_config(const char *config);
-
     inline js::config *get_js_config() { return comp_js_config; }
+
+    js::config *get_vp_config();
+    void set_vp_config(js::config *config);
 
     inline config *get_config(std::string name);
 
@@ -319,9 +322,9 @@ namespace vp {
     string get_path() { return path; }
 
 
-    void conf(string path, vp::component *parent);
+    void conf(string name, string path, vp::component *parent);
 
-    void add_child(vp::component *child);
+    void add_child(std::string name, vp::component *child);
 
     config *import_config(const char *config_string);
 
@@ -333,7 +336,17 @@ namespace vp {
       component_clock::pre_build(this);
     }
 
+    int build_new();
+
+    void load_all();
+
+    void post_post_build_all();
+
     void pre_start_all();
+
+    void start_all();
+
+    void final_bind();
 
     void reset_all(bool active, bool from_itf=false);
 
@@ -347,14 +360,13 @@ namespace vp {
 
     void new_service(std::string name, void *service);
 
+    void add_service(std::string name, void *service);
+
+    vp::component *new_component(std::string name, js::config *config, std::string module="");
 
     int get_ports(bool master, int size, const char *names[], void *ports[]);
 
-    int get_services(int size, const char *names[], void *services[]);
-
     void *get_service(string name);
-
-    void set_services(int nb_services, const char *name[], void *services[]);
 
     void new_reg_any(std::string name, vp::reg *reg, int bits, uint8_t *reset_val);
     void new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val, bool reset=true);
@@ -366,6 +378,13 @@ namespace vp {
     inline trace *get_trace() { return &this->root_trace; }
 
     std::vector<vp::component *> get_childs() { return childs; }
+    std::map<std::string, vp::component *> get_childs_dict() { return childs_dict; }
+
+    virtual vp::port *get_slave_port(std::string name) { return this->slave_ports[name]; }
+    virtual vp::port *get_master_port(std::string name) { return this->master_ports[name]; }
+
+    virtual void add_slave_port(std::string name, vp::slave_port *port);
+    virtual void add_master_port(std::string name, vp::master_port *port);
 
     component_trace traces;
     component_power power;
@@ -373,21 +392,24 @@ namespace vp {
     trace warning;
 
   protected:
-    template<typename P> int get_ports(std::map<std::string, P *> ports_map,
-      int size, const char *names[], void *ports[]);
+    void create_comps();
+    void create_ports();
+    void create_bindings();
+    void bind_comps();
 
-    std::map<std::string, master_port *> master_ports;
-    std::map<std::string, slave_port *> slave_ports;
-    std::map<std::string, void *> services;
     std::map<std::string, void *> all_services;
  
     std::vector<component *> childs;
+    std::map<std::string, component *> childs_dict;
 
   private:
 
     js::config *comp_js_config;
+    js::config *vp_config = NULL;
     trace root_trace;
 
+    std::map<std::string, master_port *> master_ports;
+    std::map<std::string, slave_port *> slave_ports;
 
     string path;
 

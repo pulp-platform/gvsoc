@@ -1009,7 +1009,7 @@ int iss_wrapper::build()
   new_slave_port("bootaddr", &bootaddr_itf);
 
   clock_itf.set_sync_meth(&iss_wrapper::clock_sync);
-  new_slave_port("clock", &clock_itf);
+  new_slave_port("clock_enable", &clock_itf);
 
   irq_req_itf.set_sync_meth(&iss_wrapper::irq_req_sync);
   new_slave_port("irq_req", &irq_req_itf);
@@ -1120,13 +1120,13 @@ void iss_wrapper::reset(bool active)
 }
 
 
-iss_wrapper::iss_wrapper(const char *config)
+iss_wrapper::iss_wrapper(js::config *config)
 : vp::component(config)
 {
 }
 
 
-extern "C" void *vp_constructor(const char *config)
+extern "C" vp::component *vp_constructor(js::config *config)
 {
-  return (void *)new iss_wrapper(config);
+  return new iss_wrapper(config);
 }

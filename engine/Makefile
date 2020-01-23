@@ -80,10 +80,16 @@ $(INSTALL_DIR)/lib/libpulpvp.so: $(ENGINE_BUILD_DIR)/libpulpvp.so
 $(INSTALL_DIR)/lib/libpulpvp-debug.so: $(ENGINE_BUILD_DIR)/libpulpvp-debug.so
 	install -D $^ $@
 
+$(INSTALL_DIR)/python/libpulpvp.so: $(ENGINE_BUILD_DIR)/libpulpvp.so
+	install -D $^ $@
+
+$(INSTALL_DIR)/python/libpulpvp-debug.so: $(ENGINE_BUILD_DIR)/libpulpvp-debug.so
+	install -D $^ $@
+
 
 headers: $(INSTALL_FILES)
 
-build: headers $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so vp_build
+build: headers $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so $(INSTALL_DIR)/python/libpulpvp.so $(INSTALL_DIR)/python/libpulpvp-debug.so vp_build
 
 clean: vp_clean
 	rm -rf $(ENGINE_BUILD_DIR)

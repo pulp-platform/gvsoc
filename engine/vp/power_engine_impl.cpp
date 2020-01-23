@@ -26,76 +26,111 @@
 #include <string.h>
 
 
+
 class power_manager : public vp::power_engine
 {
 public:
+    power_manager(js::config *config);
 
-  power_manager(const char *config);
+    int build();
+    std::string run();
 
-  int build();
+    void start_capture();
 
-  void start_capture();
+    void stop_capture();
 
-  void stop_capture();
-
-  void reg_trace(vp::power_trace *trace);
+    void reg_trace(vp::power_trace *trace);
 
 private:
-  std::vector<vp::power_trace *> traces;
+    std::vector<vp::power_trace *> traces;
+
+    vp::component *time_engine;
 };
+
+
+std::string power_manager::run()
+{
+    return this->time_engine->run();
+}
 
 void power_manager::start_capture()
 {
-  for (auto trace: this->traces)
-  {
-    trace->clear();
-  }
+    for (auto trace : this->traces)
+    {
+        trace->clear();
+    }
 }
+
+
 
 void power_manager::stop_capture()
 {
-  FILE *file = fopen("power_report.csv", "w");
-  if (file == NULL)
-  {
-    vp_warning_always(&this->warning, "Failed to open power report file (path: %s)\n", "power_report.csv");
-    return;
-  }
+    FILE *file = fopen("power_report.csv", "w");
+    if (file == NULL)
+    {
+        vp_warning_always(&this->warning, "Failed to open power report file (path: %s)\n", "power_report.csv");
+        return;
+    }
 
-  fprintf(file, "Trace path; Dynamic power (W); Leakage power (W); Total (W);");
+    fprintf(file, "Trace path; Dynamic power (W); Leakage power (W); Total (W);");
 
-  for (auto trace: this->traces)
-  {
-    if (!trace->is_dumped())
-      trace->get_top_trace()->dump(file);
-  }
+    for (auto trace : this->traces)
+    {
+        if (!trace->is_dumped())
+            trace->get_top_trace()->dump(file);
+    }
 }
+
+
 
 void power_manager::reg_trace(vp::power_trace *trace)
 {
-  this->traces.push_back(trace);
+    this->traces.push_back(trace);
 }
 
 
-vp::power_engine::power_engine(const char *config)
-  : vp::component(config)
+
+vp::power_engine::power_engine(js::config *config)
+    : vp::component(config)
 {
-  new_service("power", static_cast<power_engine *>(this));
+    this->new_service("power", static_cast<power_engine *>(this));
 }
 
-power_manager::power_manager(const char *config)
-: vp::power_engine(config)
+
+
+power_manager::power_manager(js::config *config)
+    : vp::power_engine(config)
 {
-
 }
+
+
 
 int power_manager::build()
 {
-  return 0;
+    this->time_engine = this->new_component("", this->get_js_config(), "vp.time_domain_impl");
+    return 0;
 }
 
-extern "C" void *vp_constructor(const char *config)
-{
-  void *engine = (void *)new power_manager(config);
 
-  return engine;
+
+extern "C" vp::component *vp_constructor(js::config *config)
+{
+    return new power_manager(config);
+}
+
+
+
+extern "C" vp::component *vp_new_component(const char *config)
+{
+    js::config *js_config = js::import_config_from_string(strdup(config));
+
+    vp::component *instance = vp_constructor(js_config);
+
+    instance->set_vp_config(js_config->get("**/gvsoc"));
+
+    instance->pre_build();
+    instance->build();
+    instance->build_new();
+
+    return instance;
 }

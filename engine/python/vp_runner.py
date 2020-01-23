@@ -31,6 +31,8 @@ import shlex
 import json_tools as js
 import pulp_config
 from prettytable import PrettyTable
+import imp
+import ctypes
 
 import gtkw_new
 
@@ -1364,6 +1366,11 @@ class Runner(Platform):
             if self.get_json().get('**/flash') is not None:
                 self.get_json().get('**/flash').set('preload_file', self.get_flash_preload_file())
 
+        gvsoc_config = self.get_json().get('gvsoc')
+
+        debug_mode = gvsoc_config.get_bool('trace-enable') or gvsoc_config.get_bool('vcd/active') or len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
+        self.get_json().get('**/gvsoc').set('debug-mode', debug_mode)
+
 
         with open('plt_config.json', 'w') as file:
             file.write(self.get_json().dump_to_string())
@@ -1377,11 +1384,49 @@ class Runner(Platform):
             raise Exception("The specified configuration does not contain any"
                             " top component")
 
-        gvsoc_config = self.get_json().get('gvsoc')
-
         gen_gtkw_files(self.get_json(), gvsoc_config)
 
-        debug_mode = gvsoc_config.get_bool('trace-enable') or gvsoc_config.get_bool('vcd/active') or len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
+
+        name = 'vp.power_engine_impl'
+
+        path = None
+
+        for x in name.split('.'):
+            if path is not None:
+                path=[path]
+
+            file, path, descr = imp.find_module(x, path)
+
+        module = ctypes.CDLL(path)
+
+
+        module.vp_new_component.argtypes = [ctypes.c_char_p]
+        module.vp_new_component.restype = ctypes.c_void_p
+        module.vp_run.argtypes = [ctypes.c_void_p]
+        module.vp_run.restype = ctypes.c_char_p
+        module.vp_stop.argtypes = [ctypes.c_void_p]
+        module.vp_run_status.argtypes = [ctypes.c_void_p]
+        module.vp_run_status.restype = ctypes.c_int
+
+        instance = module.vp_new_component(self.get_json().dump_to_string().encode('utf-8'))
+
+        status = module.vp_run(instance)
+
+        module.vp_stop(instance)
+
+        if status == 'killed':
+          print ('The top engine was not responding and was killed')
+          return -1
+        elif status == 'error':
+          return -1
+        else:
+          return module.vp_run_status(instance)
+
+
+        return 0
+
+
+
 
         power_engine = vp.power_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
 
@@ -1407,15 +1452,27 @@ class Runner(Platform):
 
         power_engine.bind()
 
-        power_engine.post_post_build_all()
 
-        power_engine.pre_start_all()
 
-        power_engine.start_all()
 
-        power_engine.post_start_all()
 
-        power_engine.final_bind()
+
+
+
+        # file, path, descr = imp.find_module('libpulpvp')
+# 
+        # module = ctypes.CDLL(path)
+# 
+        # module.vp_instantiate.argtypes = [ctypes.c_char_p]
+        # module.vp_instantiate.restype = ctypes.c_void_p
+# 
+        # module.vp_instantiate(self.get_json().dump_to_string().encode('utf-8'))
+
+
+        
+
+
+        power_engine.build_new()
 
         power_engine.reset_all(True)
 
