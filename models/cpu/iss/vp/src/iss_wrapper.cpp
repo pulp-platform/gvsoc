@@ -723,7 +723,10 @@ void iss_wrapper::handle_ebreak()
       break; 
     }
     
-    case GV_SEMIHOSTING_VCD_CONFIGURE:
+    case GV_SEMIHOSTING_VCD_CONFIGURE: {
+      int enabled = this->cpu.regfile.regs[11];
+      this->traces.get_trace_manager()->set_global_enable(enabled);
+    }
     break;
 
     case GV_SEMIHOSTING_VCD_OPEN_TRACE: {

@@ -190,6 +190,9 @@ void vp::trace_engine::flush()
 
 void vp::trace_engine::dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes, bool include_size)
 {
+  if (!this->global_enable)
+    return;
+
   uint8_t flags = 0;
   int size = bytes + sizeof(trace) + sizeof(timestamp) + 1;
   if (include_size)
