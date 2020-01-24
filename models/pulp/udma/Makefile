@@ -70,14 +70,12 @@ endif
 
 ifeq '$(udma/version)' '2'
 IMPLEMENTATIONS += pulp/udma/udma_v2_$(pulp_chip_family)_impl
-COMPONENTS += pulp/udma/udma_v2
 pulp/udma/udma_v2_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_v2_impl.cpp
 pulp/udma/udma_v2_$(pulp_chip_family)_impl_SRCS += pulp/udma/uart/udma_uart_v1.cpp
 endif
 
 ifeq '$(udma/version)' '3'
 IMPLEMENTATIONS += pulp/udma/udma_v3_$(pulp_chip_family)_impl
-COMPONENTS += pulp/udma/udma_v3
 pulp/udma/udma_v3_$(pulp_chip_family)_impl_CFLAGS += $(UDMA_CFLAGS)
 pulp/udma/udma_v3_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_v3_impl.cpp
 pulp/udma/udma_v3_$(pulp_chip_family)_impl_SRCS += pulp/udma/io/udma_io.cpp
@@ -86,7 +84,6 @@ endif
 
 ifeq '$(udma/version)' '4'
 IMPLEMENTATIONS += pulp/udma/udma_v4_$(pulp_chip_family)_impl
-COMPONENTS += pulp/udma/udma_v4
 pulp/udma/udma_v4_$(pulp_chip_family)_impl_CFLAGS += $(UDMA_CFLAGS)
 pulp/udma/udma_v4_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_v4_impl.cpp
 endif

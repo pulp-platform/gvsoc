@@ -16,9 +16,6 @@
 
 # Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  
-import vp.time_domain
-import vp.trace_engine
-import vp.power_engine
 import vp_core
 import runner.stim_utils
 from os import listdir

@@ -1,7 +1,6 @@
 ifeq '$(pulp_chip)' 'gap9_v2'
 
 IMPLEMENTATIONS += pulp/chips/gap9_v2/apb_soc_impl
-COMPONENTS += pulp/chips/gap9_v2/apb_soc
 pulp/chips/gap9_v2/apb_soc_impl_SRCS = pulp/chips/gap9_v2/apb_soc_impl.cpp
 
 VP_INSTALL_TARGETS += $(INSTALL_DIR)/python/pulp/chips/gap9_v2/rom.bin

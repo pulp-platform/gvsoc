@@ -252,6 +252,7 @@ vp::io_req_status_e Hyper_periph_v1::custom_req(vp::io_req *req, uint64_t offset
   else
   { 
     this->regs[reg_id] = *(uint32_t *)(req->get_data());
+    trace.msg("Setting hyper register (id: %d, value: 0x%x)\n", reg_id, this->regs[reg_id]);
   }
 
 

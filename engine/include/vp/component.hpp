@@ -283,8 +283,6 @@ namespace vp {
     friend class component_clock;
 
   public:
-    component(string path, const char *config, vp::component *parent=NULL);
-    component(const char *config);
     component(js::config *config);
 
     virtual void pre_pre_build() { }

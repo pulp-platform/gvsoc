@@ -72,7 +72,7 @@ $(VP_BUILD_DIR)/$(1)/%.o: %.c $($(1)_DEPS)
 	$(CC) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS)
 
 
-$(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT): $($(1)_OBJS) $($(1)_DEPS)
+$(VP_BUILD_DIR)/$(1)$(VP_COMP_EXT): $($(1)_OBJS) $($(1)_DEPS) $(INSTALL_DIR)/lib/libpulpvp.so
 	@mkdir -p `dirname $$@`
 	$(CPP) $($(1)_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS) $(VP_COMP_STD_LDFLAGS)
 
@@ -104,7 +104,7 @@ $(VP_BUILD_DIR)/$(1)/debug/%.o: %.c $($(1)_DEPS)
 	$(CC) -c $$< -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) -DVP_TRACE_ACTIVE=1
 
 
-$(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT): $($(1)_DBG_OBJS) $($(1)_DEPS)
+$(VP_BUILD_DIR)/debug/$(1)$(VP_COMP_EXT): $($(1)_DBG_OBJS) $($(1)_DEPS) $(INSTALL_DIR)/lib/libpulpvp-debug.so
 	@mkdir -p `dirname $$@`
 	$(CPP) $($(1)_DBG_OBJS) -o $$@ $($(1)_CFLAGS) $(VP_COMP_CFLAGS) $($(1)_LDFLAGS) $(VP_COMP_LDFLAGS) $(VP_COMP_DBG_LDFLAGS)
 
@@ -147,7 +147,7 @@ $(foreach file, $(VP_HEADERS), $(eval $(call declareInstallFile,$(file))))
 
 
 
-vp_build: $(VP_INSTALL_HEADERS) $(VP_INSTALL_TARGETS)
+build: $(VP_INSTALL_HEADERS) $(VP_INSTALL_TARGETS)
 	find $(VP_PY_INSTALL_PATH) -type d -exec touch {}/__init__.py \;
 
 vp_clean:

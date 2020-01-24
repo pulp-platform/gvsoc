@@ -38,10 +38,6 @@
 
 char vp_error[VP_ERROR_SIZE];
 
-vp::component::component(const char *config_string) : traces(*this), power(*this), reset_done_from_itf(false)
-{
-}
-
 void vp::component::reg_step_pre_start(std::function<void()> callback)
 {
     this->pre_start_callbacks.push_back(callback);
@@ -1075,12 +1071,6 @@ extern "C" void vp_port_bind_to(void *_master, void *_slave, const char *config_
     slave->bind_to(master, config);
 }
 
-vp::component::component(string path, const char *config, vp::component *parent)
-    : traces(*this), power(*this), reset_done_from_itf(false)
-{
-    this->conf("", path, parent);
-}
-
 
 void vp::component::throw_error(std::string error)
 {
@@ -1290,11 +1280,6 @@ void vp::component::create_comps()
             this->new_component(comp_name, comp_config, vp_component);
         }
     }
-}
-
-extern "C" void *vp_instantiate(const char *config)
-{
-    return new vp::component("top", config);
 }
 
 extern "C" void vp_comp_conf(void *comp, const char *path, void *parent)

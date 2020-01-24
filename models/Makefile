@@ -31,8 +31,6 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
 props:
 	plpinfo mkgen --makefile=$(ROOT_VP_BUILD_DIR)/props.mk $(properties)
 
-build: vp_build
-
 clean: vp_clean
 
 .PHONY: clean build props
