@@ -31,7 +31,6 @@
 #include "vp/itf/hyper.hpp"
 #include "vp/itf/wire.hpp"
 #include "archi/utils.h"
-#include "archi/udma/hyper/udma_hyper_v1.h"
 
 #define REGS_AREA_SIZE 1024
 
@@ -138,7 +137,6 @@ void Hyperram::sync_cycle(void *__this, int data)
       _this->state = HYPERBUS_STATE_DATA;
       _this->current_address = (_this->ca.low_addr | (_this->ca.high_addr << 3)) & ~1;
 
-      _this->current_address = ARCHI_REG_FIELD_GET(_this->current_address, 0, REG_MBR_WIDTH);
       _this->reg_access = _this->ca.address_space == 1;
 
       _this->trace.msg(vp::trace::LEVEL_TRACE, "Received command header (reg_access: %d, addr: 0x%x, read: %d)\n", _this->ca.address_space, _this->current_address, _this->ca.read);

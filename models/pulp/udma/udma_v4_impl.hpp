@@ -35,8 +35,8 @@
 #include <string.h>
 #include <vector>
 #include "archi/udma/udma_v4.h"
-#include "archi/udma/v4/core_lin/udma_core_lin.h"
-#include "archi/udma/v4/core_lin/udma_core_lin_gvsoc.h"
+#include "udma_core_lin/udma_core_lin.h"
+#include "udma_core_lin/udma_core_lin_gvsoc.h"
 
 class udma;
 class Udma_channel;
@@ -164,6 +164,10 @@ public:
   void handle_pending_word(void *__this, vp::clock_event *event);
 
 };
+
+
+
+
 
 
 
@@ -355,6 +359,10 @@ private:
 
 #ifdef HAS_SPIM
 #include "spim/udma_spim_v4.hpp"
+#endif
+
+#ifdef HAS_HYPER
+#include "hyper/udma_hyper_v3.hpp"
 #endif
 
 #endif

@@ -25,7 +25,7 @@
 #include <vector>
 #include "archi/utils.h"
 #include "udma_v4_impl.hpp"
-#include "archi/udma/v4/ctrl/udma_ctrl.h"
+#include "udma_ctrl/udma_ctrl.h"
 
 
 void Udma_rx_channel::push_data(uint8_t *data, int size)
@@ -748,6 +748,21 @@ int udma::build()
         if (version == 4)
         {
           Spim_periph_v4 *periph = new Spim_periph_v4(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
+#ifdef HAS_HYPER
+      else if (strcmp(name.c_str(), "hyper") == 0)
+      {
+        trace.msg("Instantiating HYPER channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 3)
+        {
+          Hyper_periph *periph = new Hyper_periph(this, id, j);
           periphs[id] = periph;
         }
         else

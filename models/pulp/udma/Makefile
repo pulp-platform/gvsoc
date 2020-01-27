@@ -30,6 +30,11 @@ pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_HYPER
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/hyper/udma_hyper_v2.cpp
 endif
 
+ifeq '$(udma/hyper/version)' '3'
+pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_HYPER
+pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/hyper/udma_hyper_v3.cpp
+endif
+
 ifeq '$(udma/i2c/version)' '2'
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_CFLAGS += -DHAS_I2C
 pulp/udma/udma_v$(udma/version)_$(pulp_chip_family)_impl_SRCS += pulp/udma/i2c/udma_i2c_v2.cpp
@@ -84,6 +89,7 @@ endif
 
 ifeq '$(udma/version)' '4'
 IMPLEMENTATIONS += pulp/udma/udma_v4_$(pulp_chip_family)_impl
+pulp/udma/udma_v4_$(pulp_chip_family)_impl_CFLAGS += -I$(INSTALL_DIR)/include/archi/chips/$(pulp_chip_family)
 pulp/udma/udma_v4_$(pulp_chip_family)_impl_CFLAGS += $(UDMA_CFLAGS)
 pulp/udma/udma_v4_$(pulp_chip_family)_impl_SRCS += pulp/udma/udma_v4_impl.cpp
 endif

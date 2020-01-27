@@ -19,7 +19,7 @@
  */
 
 #include "../udma_v4_impl.hpp"
-#include "archi/udma/spim/v4/udma_spim.h"
+#include "udma_spim/udma_spim.h"
 #include "archi/udma/spim/spim_v4.h"
 #include "archi/utils.h"
 #include "vp/itf/qspim.hpp"
@@ -692,19 +692,19 @@ void Spim_v4_cmd_channel::handle_data(uint32_t data)
 
 vp::io_req_status_e Spim_periph_v4::custom_req(vp::io_req *req, uint64_t offset)
 {
-  if (offset == UDMA_SPIM_SPIM_RX_DEST_OFFSET)
+  if (offset == UDMA_SPIM_RX_DEST_OFFSET)
   {
     if (req->get_is_write())
       this->top->channel_register(*(uint32_t *)req->get_data(), this->channel0);
     return vp::IO_REQ_OK;
   }
-  else if (offset == UDMA_SPIM_SPIM_TX_DEST_OFFSET)
+  else if (offset == UDMA_SPIM_TX_DEST_OFFSET)
   {
     if (req->get_is_write())
       this->top->channel_register(*(uint32_t *)req->get_data(), this->channel1);
     return vp::IO_REQ_OK;
   }
-  else if (offset == UDMA_SPIM_SPIM_CMD_DEST_OFFSET)
+  else if (offset == UDMA_SPIM_CMD_DEST_OFFSET)
   {
     if (req->get_is_write())
       this->top->channel_register(*(uint32_t *)req->get_data(), this->channel2);

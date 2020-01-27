@@ -18,21 +18,25 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
-#ifndef __PULP_UDMA_UDMA_IMPL_HPP__
-#define __PULP_UDMA_UDMA_IMPL_HPP__
 
-#ifdef UDMA_VERSION
+#include "../udma_impl.hpp"
+#include "archi/utils.h"
+#include "vp/itf/hyper.hpp"
 
-#if UDMA_VERSION == 2
-#include "udma_v2_impl.hpp"
-#elif UDMA_VERSION == 3
-#include "udma_v3_impl.hpp"
-#elif UDMA_VERSION == 4
-#include "udma_v4_impl.hpp"
-#else
-#error Unsupported UDMA version
-#endif
 
-#endif
 
-#endif
+Hyper_periph::Hyper_periph(udma *top, int id, int itf_id) : Udma_periph(top, id)
+{
+  std::string itf_name = "hyper" + std::to_string(itf_id);
+
+  top->traces.new_trace(itf_name, &trace, vp::DEBUG);
+
+  this->hyper_itf.set_sync_cycle_meth(&Hyper_periph::rx_sync);
+  top->new_master_port(this, itf_name, &this->hyper_itf);
+}
+
+
+
+void Hyper_periph::rx_sync(void *__this, int data)
+{
+}

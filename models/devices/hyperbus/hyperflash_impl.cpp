@@ -31,7 +31,6 @@
 #include "vp/itf/hyper.hpp"
 #include "vp/itf/wire.hpp"
 #include "archi/utils.h"
-#include "archi/udma/hyper/udma_hyper_v1.h"
 
 #define REGS_AREA_SIZE 1024
 
