@@ -70,9 +70,11 @@ namespace vp {
 
   #ifndef VP_TRACE_ACTIVE
     inline bool get_active() { return false; }
+    inline bool get_active(int level) { return false; }
     inline bool get_event_active() { return false; }
   #else
     inline bool get_active() { return is_active; }
+    bool get_active(int level);
     inline bool get_event_active() { return is_event_active; }
   #endif
     bool is_active = false;
@@ -91,6 +93,7 @@ namespace vp {
     trace_engine *trace_manager;
     bool is_event_active = false;
     string name;
+    string path;
     uint8_t *buffer = NULL;
     uint8_t *buffer2 = NULL;
     trace *next;

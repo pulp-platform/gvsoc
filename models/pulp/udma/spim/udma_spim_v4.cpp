@@ -219,7 +219,7 @@ void Spim_periph_v4::handle_spi_pending_word(void *__this, vp::clock_event *even
   {
     int nb_bits = _this->qpi ? 4 : 1;
     unsigned int received_bits =  _this->qpi ? _this->rx_received_bits & ((1<<nb_bits)-1) : (_this->rx_received_bits >> 1) & 1;
-    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->clkdiv;
+    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->clkdiv*2;
 
     _this->nb_received_bits += nb_bits;
     _this->spi_rx_pending_bits -= nb_bits;
@@ -299,7 +299,7 @@ void Spim_periph_v4::handle_spi_pending_word(void *__this, vp::clock_event *even
 
   if (_this->spi_tx_pending_bits > 0)
   {
-    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->clkdiv;
+    _this->next_bit_cycle = _this->top->get_clock()->get_cycles() + _this->clkdiv*2;
 
 
     int bit_index;

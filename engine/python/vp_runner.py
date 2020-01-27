@@ -1202,7 +1202,20 @@ class Runner(Platform):
         self.gen_rom_stimuli = False
 
         if self.args.debug_syms:
-            for binary in self.get_json().get('**/runner/binaries').get_dict():
+            debug_binaries = self.get_json().get('**/runner/binaries').get_dict()
+            rom_binary = self.get_json().get_child_str('**/soc/rom/binary')
+
+            if rom_binary is not None:
+                try:
+                    rom_binary = eval(rom_binary)
+                except:
+                    rom_binary = rom_binary
+                    raise
+                
+                if os.path.exists(rom_binary):
+                    debug_binaries.append(rom_binary)
+
+            for binary in debug_binaries:
                 debug_binary = binary + '.debugInfo'
                 self.get_json().set('**/debug_binaries', debug_binary)
 

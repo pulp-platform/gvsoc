@@ -171,7 +171,6 @@ void trace_domain::pre_pre_build()
   for (auto x: this->get_vp_config()->get("trace")->get_elems())
   {
     std::string trace_path = x->get_str();
-    printf("ADD TRACE PATH\n");
     this->add_trace_path(0, trace_path);
   }
 }

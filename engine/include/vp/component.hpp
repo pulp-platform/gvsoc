@@ -52,12 +52,26 @@ namespace vp {
   class clock_engine;
   class component;
 
+  class regfield
+  {
+    public:
+      regfield(std::string name, int bit, int width) : name(name), bit(bit), width(width) {}
+      std::string name;
+      int bit;
+      int width;
+  };
+
   class reg
   {
 
     public:
+      std::string get_hw_name() { return this->hw_name; }
+      std::string get_name() { return this->name != "" ? this->name : this->hw_name; }
       void init(vp::component *top, std::string name, int bits, uint8_t *value, uint8_t *reset_val);
       void reset(bool active);
+      virtual void access(uint64_t reg_offset, int size, uint8_t *value, bool is_write) {}
+
+      virtual void build(vp::component *comp) {}
 
       inline uint8_t *get_bytes() { return this->value_bytes; }
       inline void set_1(uint8_t value) { *(uint8_t *)this->value_bytes = value; }
@@ -73,21 +87,29 @@ namespace vp {
       inline uint16_t get_16() { return *(uint16_t *)this->value_bytes; }
       inline uint32_t get_32() { return *(uint32_t *)this->value_bytes; }
       inline uint64_t get_64() { return *(uint64_t *)this->value_bytes; }
+      uint64_t get_field(int offset, int width);
+
 
       int nb_bytes;
       int bits;
       uint8_t *reset_value_bytes;
       uint8_t *value_bytes;
-      std::string name;
+      std::string name = "";
+      std::string hw_name;
       component *top;
       vp::trace trace;
       vp::trace reg_event;
+      std::vector<regfield *> regfields;
+      bool do_reset;
+      uint64_t offset;
+      int width;
   };
 
   class reg_1: public reg
   {
   public:
     void init(vp::component *top, std::string name, uint8_t *reset_val);
+    void build(vp::component *comp);
 
     inline uint8_t get() { return this->value; }
     inline void set(uint8_t value) {
@@ -106,13 +128,16 @@ namespace vp {
         this->reg_event.event((uint8_t *)this->value_bytes);
     }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
-    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    inline void access(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
     {
       if (is_write)
         this->write(reg_offset, size, value);
       else
         this->read(reg_offset, size, value);
     }
+    
+  protected:
+    uint8_t reset_val;
 
   private:
     uint8_t value;
@@ -123,6 +148,7 @@ namespace vp {
   {
   public:
     void init(vp::component *top, std::string name, uint8_t *reset_val);
+    void build(vp::component *comp);
 
     inline uint8_t get() { return this->value; }
     inline void set(uint8_t value) {
@@ -147,7 +173,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)this->value_bytes);
     }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
-    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    inline void access(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
     {
       if (is_write)
         this->write(reg_offset, size, value);
@@ -155,6 +181,9 @@ namespace vp {
         this->read(reg_offset, size, value);
     }
 
+  protected:
+    uint8_t reset_val;
+    
   private:
     uint8_t value;
 
@@ -164,6 +193,7 @@ namespace vp {
   {
   public:
     void init(vp::component *top, std::string name, uint8_t *reset_val);
+    void build(vp::component *comp);
 
     inline uint16_t get() { return this->value; }
     inline void set(uint16_t value) {
@@ -188,7 +218,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)this->value_bytes);
     }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
-    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    inline void access(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
     {
       if (is_write)
         this->write(reg_offset, size, value);
@@ -196,6 +226,9 @@ namespace vp {
         this->read(reg_offset, size, value);
     }
 
+  protected:
+    uint16_t reset_val;
+    
   private:
     uint16_t value;
 
@@ -205,6 +238,7 @@ namespace vp {
   {
   public:
     void init(vp::component *top, std::string name, uint8_t *reset_val);
+    void build(vp::component *comp);
 
     inline uint32_t get() { return this->value; }
     inline void set(uint32_t value) {
@@ -229,7 +263,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)this->value_bytes);
     }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
-    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    inline void access(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
     {
       if (is_write)
         this->write(reg_offset, size, value);
@@ -237,15 +271,30 @@ namespace vp {
         this->read(reg_offset, size, value);
     }
 
+  protected:
+    uint32_t reset_val;
+    
   private:
     uint32_t value;
 
+  };
+
+  class regmap {
+  public:
+    std::vector<reg *> get_registers() { return this->registers; }
+    void build(vp::component *comp);
+    bool access(uint64_t offset, int size, uint8_t *value, bool is_write);
+
+  protected:
+    std::vector<reg *> registers;
+    vp::component *comp;
   };
 
   class reg_64: public reg
   {
   public:
     void init(vp::component *top, std::string name, uint8_t *reset_val);
+    void build(vp::component *comp);
 
     inline uint64_t get() { return this->value; }
     inline void set(uint64_t value) {
@@ -264,7 +313,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)this->value_bytes);
     }
     inline void dump_after_write() { this->trace.msg("Modified register (value: 0x%x)\n", this->value); }
-    inline void access(int reg_offset, int size, uint8_t *value, bool is_write)
+    inline void access(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
     {
       if (is_write)
         this->write(reg_offset, size, value);
@@ -272,8 +321,11 @@ namespace vp {
         this->read(reg_offset, size, value);
     }
 
+  protected:
+    uint64_t reset_val;
+    
   private:
-    uint64_t value;
+    uint64_t value; 
 
   };
 
