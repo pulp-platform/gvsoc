@@ -572,7 +572,10 @@ vp::io_req_status_e udma::channel_req(vp::io_req *req, uint64_t offset)
 
 void udma::channel_register(int id, Udma_channel *channel)
 {
-  if (id != 0x7F && id >= this->nb_channels)
+  if (id == 0x7f)
+      return;
+
+  if (id >= this->nb_channels)
   {
     trace.force_warning("Registering invalid channel (id: %d)\n", id);
     return;
