@@ -1044,6 +1044,8 @@ int iss_wrapper::build()
   this->cpu.config.isa = strdup(isa.c_str());
   this->cpu.config.debug_handler = this->get_js_config()->get_int("debug_handler");
 
+  this->is_active_reg.set(false);
+
   ipc_clock_event = this->event_new(iss_wrapper::ipc_stat_handler);
 
   return 0;

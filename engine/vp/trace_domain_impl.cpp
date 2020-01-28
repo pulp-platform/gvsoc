@@ -289,39 +289,7 @@ void trace_domain::set_trace_level(const char *trace_level)
   }
 }
 
-extern "C" void vp_trace_add_paths(void *comp, int events, int nb_path, const char **paths)
-{
-  ((trace_domain *)comp)->add_paths(events, nb_path, paths);
-}
-
-extern "C" void vp_trace_level(void *comp, const char *level)
-{
-  ((trace_domain *)comp)->set_trace_level(level);
-}
-
-extern "C" int vp_trace_exchange_max_path_len(void *comp, int max_len)
-{
-  return ((trace_domain *)comp)->exchange_max_path_len(max_len);
-}
-
-
 extern "C" vp::component *vp_constructor(js::config *config)
 {
   return new trace_domain(config);
-}
-
-extern "C" vp::component *vp_new_component(const char *config)
-{
-    js::config *js_config = js::import_config_from_string(strdup(config));
-
-    vp::component *instance = vp_constructor(js_config);
-
-    instance->set_vp_config(js_config->get("**/gvsoc"));
-
-    instance->pre_pre_build();
-    instance->pre_build();
-    instance->build();
-    instance->build_new();
-
-    return instance;
 }

@@ -405,15 +405,13 @@ int dpi_wrapper::build()
   for(int i = 0; i < nb_comp; i++)
   {
     const char *comp_name = dpi_driver_get_comp_name(driver_handle, i);
-    void *comp_config = dpi_driver_get_comp_config(driver_handle, i);
-    const char *comp_type = dpi_config_get_str(dpi_config_get_config(comp_config, "type"));
+    js::config *comp_config = (js::config *)dpi_driver_get_comp_config(driver_handle, i);
+    std::string comp_type = comp_config->get_child_str("type");
     int nb_itf = dpi_driver_get_comp_nb_itf(comp_config, i);
 
-    this->trace.msg("Found TB driver component (index: %d, name: %s, type: %s, nb_itf: %d)\n", i, comp_name, comp_type, nb_itf);
+    this->trace.msg("Found TB driver component (index: %d, name: %s, type: %s, nb_itf: %d)\n", i, comp_name, comp_type.c_str(), nb_itf);
 
-
-
-    if (strcmp(comp_type, "dpi") == 0)
+    if (comp_type == "dpi")
     {
 //      dpi_models::periph_wrapper i_comp = new();
 //      int err;

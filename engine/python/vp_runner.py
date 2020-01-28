@@ -1099,6 +1099,8 @@ class Runner(Platform):
 
         parser.add_argument("--trace-enable", dest="trace", action="store_true", help="Activate GVSOC traces")
 
+        parser.add_argument("--cmd", dest="cmd", action="store_true", help="Just display GVSOC command")
+
         parser.add_argument("--trace", dest="traces", default=[], action="append", help="Specify gvsoc trace")
 
         parser.add_argument("--trace-level", dest="trace_level", default=None, help="Specify trace level")
@@ -1386,7 +1388,8 @@ class Runner(Platform):
             file.write(self.get_json().dump_to_string())
 
 
-        os.environ['PULP_CONFIG_FILE'] = os.path.join(os.getcwd(), 'plt_config.json')
+        plt_config = os.path.join(os.getcwd(), 'plt_config.json')
+        os.environ['PULP_CONFIG_FILE'] = plt_config
 
         top = self.get_json().get_child_str('system_tree/vp_class')
 
@@ -1396,118 +1399,18 @@ class Runner(Platform):
 
         gen_gtkw_files(self.get_json(), gvsoc_config)
 
-
-        name = 'vp.trace_domain_impl'
-
         if debug_mode:
-            name = 'debug.' + name
-
-        path = None
-
-        for x in name.split('.'):
-            if path is not None:
-                path=[path]
-
-            file, path, descr = imp.find_module(x, path)
-
-        module = ctypes.CDLL(path)
-
-
-        module.vp_new_component.argtypes = [ctypes.c_char_p]
-        module.vp_new_component.restype = ctypes.c_void_p
-        module.vp_run.argtypes = [ctypes.c_void_p]
-        module.vp_run.restype = ctypes.c_char_p
-        module.vp_stop.argtypes = [ctypes.c_void_p]
-        module.vp_run_status.argtypes = [ctypes.c_void_p]
-        module.vp_run_status.restype = ctypes.c_int
-
-        instance = module.vp_new_component(self.get_json().dump_to_string().encode('utf-8'))
-
-        status = module.vp_run(instance)
-
-        module.vp_stop(instance)
-
-        if status == 'killed':
-          print ('The top engine was not responding and was killed')
-          return -1
-        elif status == 'error':
-          return -1
+            launcher = 'gvsoc_launcher_debug'
         else:
-          return module.vp_run_status(instance)
+            launcher = 'gvsoc_launcher'
 
-
-        return 0
-
-
-
-
-        power_engine = vp.power_engine.component(name=None, config=gvsoc_config, debug=debug_mode)
-
-        time_engine = power_engine.new(
-            name=None,
-            component='vp.time_domain',
-            config=self.get_json()
-        )
-
-        trace_engine = time_engine.new(
-            name=None,
-            component='vp.trace_engine',
-            config=gvsoc_config
-        )
-
-        top_comp = time_engine.new(
-            name='sys',
-            component=top,
-            config=self.get_json().get('system_tree')
-        )
-
-        trace_engine.get_port('out').bind_to(top_comp.get_port('trace'))
-
-        power_engine.bind()
-
-
-
-
-
-
-
-
-        # file, path, descr = imp.find_module('libpulpvp')
-# 
-        # module = ctypes.CDLL(path)
-# 
-        # module.vp_instantiate.argtypes = [ctypes.c_char_p]
-        # module.vp_instantiate.restype = ctypes.c_void_p
-# 
-        # module.vp_instantiate(self.get_json().dump_to_string().encode('utf-8'))
-
-
-        
-
-
-        power_engine.build_new()
-
-        power_engine.reset_all(True)
-
-        if not self.get_json().get_child_bool('**/gvsoc/use_external_bridge'):
-            power_engine.reset_all(False)
-
-        power_engine.load_all()
-
-        status = time_engine.run()
-
-        power_engine.stop_all()
-
-        if status == 'killed':
-          print ('The top engine was not responding and was killed')
-          return -1
-        elif status == 'error':
-          return -1
+        if self.args.cmd:
+            print ('GVSOC command:')
+            print ('%s --config=%s' % (launcher, plt_config))
+            return 0
         else:
-          return time_engine.run_status()
+            return os.execvp(launcher, [launcher, '--config=' + plt_config])
 
-
-        return 0
 
     def power(self):
         if os.system('power_report_extract --report=power_report.csv --dump --config=plt_config.json --output=power_synthesis.txt') != 0:

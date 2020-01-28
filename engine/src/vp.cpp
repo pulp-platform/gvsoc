@@ -1400,47 +1400,6 @@ void vp::component::create_comps()
     }
 }
 
-extern "C" void vp_comp_conf(void *comp, const char *path, void *parent)
-{
-    ((vp::component *)comp)->conf("", path, (vp::component *)parent);
-}
-
-extern "C" void vp_load(void *comp)
-{
-    ((vp::component *)comp)->load();
-}
-
-extern "C" void vp_reset(void *comp, int active)
-{
-    ((vp::component *)comp)->reset_all(active);
-}
-
-extern "C" void vp_stop(void *comp)
-{
-    ((vp::component *)comp)->stop();
-}
-
-extern "C" const char *vp_run(void *comp)
-{
-    return ((vp::component *)comp)->run().c_str();
-}
-
-extern "C" int vp_run_status(void *comp)
-{
-    return ((vp::component *)comp)->run_status();
-}
-
-extern "C" int vp_build(void *comp)
-{
-    ((vp::component *)comp)->pre_build();
-    return ((vp::component *)comp)->build();
-}
-
-extern "C" int vp_build_new(void *comp)
-{
-    return ((vp::component *)comp)->build_new();
-}
-
 #ifdef __VP_USE_SYSTEMC
 
 static void *(*sc_entry)(void *);

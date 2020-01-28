@@ -12,7 +12,7 @@ CC = g++
 
 CFLAGS +=  -MMD -MP -O2 -g -fpic -Isrc -std=c++11 -Werror -Wall -I$(INSTALL_DIR)/include
 
-LDFLAGS += -O2 -g -shared -Werror -Wall -lz -L$(INSTALL_DIR)/lib -Wl,--whole-archive -ljson -Wl,--no-whole-archive
+LDFLAGS += -O2 -g -Werror -Wall -lz -L$(INSTALL_DIR)/lib -Wl,--whole-archive -ljson -Wl,--no-whole-archive
 
 ifdef VP_USE_SYSTEMC
 CFLAGS += -D__VP_USE_SYSTEMC -I$(SYSTEMC_HOME)/include
@@ -62,17 +62,31 @@ $(ENGINE_BUILD_DIR)/dbg/%.o: src/%.cpp
 
 $(ENGINE_BUILD_DIR)/libpulpvp.so: $(VP_OBJS)
 	@mkdir -p $(basename $@)
-	$(CC) $^ -o $@ $(LDFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS) -shared 
 
 
 $(ENGINE_BUILD_DIR)/libpulpvp-debug.so: $(VP_DBG_OBJS)
 	@mkdir -p $(basename $@)
-	$(CC) $^ -o $@ $(LDFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS) -shared 
+
+$(ENGINE_BUILD_DIR)/gvsoc_launcher: $(ENGINE_BUILD_DIR)/main.o $(INSTALL_DIR)/lib/libpulpvp.so
+	@mkdir -p `dirname $@`
+	$(CC) $^ -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp
+
+$(ENGINE_BUILD_DIR)/gvsoc_launcher_debug: $(ENGINE_BUILD_DIR)/dbg/main.o $(INSTALL_DIR)/lib/libpulpvp-debug.so
+	@mkdir -p `dirname $@`
+	$(CC) $^ -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp-debug
 
 
 $(foreach file, $(VP_HEADERS), $(eval $(call declareInstallFile,$(file))))
 
 
+
+$(INSTALL_DIR)/bin/gvsoc_launcher: $(ENGINE_BUILD_DIR)/gvsoc_launcher
+	install -D $^ $@
+
+$(INSTALL_DIR)/bin/gvsoc_launcher_debug: $(ENGINE_BUILD_DIR)/gvsoc_launcher_debug
+	install -D $^ $@
 
 $(INSTALL_DIR)/lib/libpulpvp.so: $(ENGINE_BUILD_DIR)/libpulpvp.so
 	install -D $^ $@
@@ -89,7 +103,7 @@ $(INSTALL_DIR)/python/libpulpvp-debug.so: $(ENGINE_BUILD_DIR)/libpulpvp-debug.so
 
 headers: $(INSTALL_FILES)
 
-build: $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so $(INSTALL_DIR)/python/libpulpvp.so $(INSTALL_DIR)/python/libpulpvp-debug.so
+build: $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so $(INSTALL_DIR)/python/libpulpvp.so $(INSTALL_DIR)/python/libpulpvp-debug.so $(INSTALL_DIR)/bin/gvsoc_launcher $(INSTALL_DIR)/bin/gvsoc_launcher_debug
 
 clean: vp_clean
 	rm -rf $(ENGINE_BUILD_DIR)

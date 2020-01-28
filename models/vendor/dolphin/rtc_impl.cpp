@@ -324,6 +324,7 @@ void rtc::soft_reset()
   this->alarm_date.raw = 0x00000000;
   this->cntdwn_ctrl.raw = 0x00000003;
   this->cntdwn_init = 0xffffffff;
+  this->ctrl_reg.raw = 0;
 }
 
 
