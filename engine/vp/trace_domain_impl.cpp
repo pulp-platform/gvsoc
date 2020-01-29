@@ -265,6 +265,8 @@ void trace_domain::add_paths(int events, int nb_path, const char **paths)
   }
 }
 
+
+
 void trace_domain::set_trace_level(const char *trace_level)
 {
   if (strcmp(trace_level, "error") == 0)

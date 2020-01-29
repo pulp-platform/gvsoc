@@ -71,11 +71,11 @@ $(ENGINE_BUILD_DIR)/libpulpvp-debug.so: $(VP_DBG_OBJS)
 
 $(ENGINE_BUILD_DIR)/gvsoc_launcher: $(ENGINE_BUILD_DIR)/main.o $(INSTALL_DIR)/lib/libpulpvp.so
 	@mkdir -p `dirname $@`
-	$(CC) $^ -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp
+	$(CC) $(ENGINE_BUILD_DIR)/main.o -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp
 
 $(ENGINE_BUILD_DIR)/gvsoc_launcher_debug: $(ENGINE_BUILD_DIR)/dbg/main.o $(INSTALL_DIR)/lib/libpulpvp-debug.so
 	@mkdir -p `dirname $@`
-	$(CC) $^ -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp-debug
+	$(CC) $(ENGINE_BUILD_DIR)/dbg/main.o -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp-debug
 
 
 $(foreach file, $(VP_HEADERS), $(eval $(call declareInstallFile,$(file))))
