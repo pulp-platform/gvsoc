@@ -43,6 +43,7 @@ public:
   int build();
   void start();
   std::string run();
+  int run_status() { return this->power_engine->run_status(); }
 
 
   int get_max_path_len() { return max_path_len; }

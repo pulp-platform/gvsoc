@@ -34,6 +34,7 @@ public:
 
     int build();
     std::string run();
+    int run_status() { return this->time_engine->run_status(); }
 
     void start_capture();
 
