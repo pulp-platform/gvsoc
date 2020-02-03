@@ -1223,7 +1223,7 @@ class Runner(Platform):
 
         comps_conf = self.get_json().get('**/fs/files')
 
-        if (comps_conf is not None and len(comps_conf.get_dict()) != 0) or self.get_json().get_child_bool('**/runner/boot_from_flash'):
+        if self.get_json().get('**/flash/preload_file') is None and (comps_conf is not None and len(comps_conf.get_dict()) != 0) or self.get_json().get_child_bool('**/runner/boot_from_flash'):
             self.gen_flash_stimuli = True
 
         if self.get_json().get('**/soc/debug_rom/stim_file') is not None:
@@ -1374,7 +1374,7 @@ class Runner(Platform):
                 self.get_json().get('**/plt_loader').set('start_value', '0x%x' % start_value)
 
         files_conf = self.get_json().get('**/fs/files')
-        if (files_conf is not None and len(files_conf.get_dict())) or self.get_json().get_child_bool('**/runner/boot_from_flash'):
+        if self.get_json().get('**/flash/preload_file') is None and ((files_conf is not None and len(files_conf.get_dict())) or self.get_json().get_child_bool('**/runner/boot_from_flash')):
             if self.get_json().get('**/flash') is not None:
                 self.get_json().get('**/flash').set('preload_file', self.get_flash_preload_file())
 
