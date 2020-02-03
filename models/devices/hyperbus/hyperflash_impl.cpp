@@ -181,12 +181,14 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
       {
         this->trace.msg(vp::trace::LEVEL_TRACE, "Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
 
-        if (this->data[address] != 0xff)
+        uint8_t new_value = this->data[address] & data;
+
+        if (new_value != data)
         {
-          this->warning.force_warning("Trying to program flash without erasing sector (addr: 0x%x)\n", address);
+          this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
         }
 
-        this->data[address] &= data;
+        this->data[address] &= new_value;
       }
       else
       {
