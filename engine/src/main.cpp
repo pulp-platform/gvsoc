@@ -18,9 +18,11 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
-#include <vp/vp.hpp>
+#include <gv/gvsoc.h>
 #include <algorithm>
 #include <dlfcn.h>
+#include <string.h>
+#include <stdio.h>
 
 
 
@@ -28,11 +30,17 @@
 int main(int argc, char *argv[])
 {
     char *config_path = NULL;
+    bool open_proxy = true;
+
     for (int i=1; i<argc; i++)
     {
         if (strncmp(argv[i], "--config=", 9) == 0)
         {
             config_path = &argv[i][9];
+        }
+        else if (strcmp(argv[i], "--proxy") == 0)
+        {
+            open_proxy = true;
         }
     }
 
@@ -42,62 +50,17 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    js::config *js_config = js::import_config_from_file(config_path);
-    if (js_config == NULL)
+    int proxy_socket;
+    void *instance = gv_open(config_path, open_proxy, &proxy_socket);
+
+    if (open_proxy)
     {
-        fprintf(stderr, "Invalid configuration.");
-        return -1;
+        printf("Opened proxy on socket %d\n", proxy_socket);
     }
 
-    js::config *gv_config = js_config->get("**/gvsoc");
+    int retval = gv_run(instance);
 
-    std::string module_name = "vp.trace_domain_impl";
+    gv_stop(instance);
 
-    if (gv_config->get_child_bool("debug-mode"))
-    {
-        module_name = "debug." + module_name;
-    }
-
-    std::replace(module_name.begin(), module_name.end(), '.', '/');
-
-    std::string path = std::string(getenv("GVSOC_PATH")) + "/" + module_name + ".so";
-
-    void *module = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
-    if (module == NULL)
-    {
-        throw std::invalid_argument("ERROR, Failed to open periph model (module: " + module_name + ", error: " + std::string(dlerror()) + ")");
-    }
-
-    vp::component *(*constructor)(js::config *) = (vp::component * (*)(js::config *)) dlsym(module, "vp_constructor");
-    if (constructor == NULL)
-    {
-        throw std::invalid_argument("ERROR, couldn't find vp_constructor in loaded module (module: " + module_name + ")");
-    }
-
-    vp::component *instance = constructor(js_config);
-
-    instance->set_vp_config(gv_config);
-
-    instance->pre_pre_build();
-    instance->pre_build();
-    instance->build();
-    instance->build_new();
-
-    std::string status = instance->run();
-
-    instance->stop();
-
-    if (status == "killer")
-    {
-        fprintf(stderr, "The top engine was not responding and was killed.\n");
-        return -1;
-    }
-    else if (status == "error")
-    {
-        return -1;
-    }
-    else
-    {
-        return instance->run_status();
-    }
+    return retval;
 }

@@ -329,6 +329,9 @@ namespace vp {
 
   };
 
+
+
+
   class component : public component_clock
   {
 
@@ -342,12 +345,15 @@ namespace vp {
     virtual void pre_start() {}
     virtual void start() {}
     virtual void stop() {}
+    virtual void flush() {}
+    virtual void quit() {}
     virtual void pre_reset() {}
     virtual void reset(bool active) {}
     virtual void load() {}
     virtual void elab();
-    virtual string run() { return "error"; }
-    virtual int run_status() { return 0; }
+    virtual void run() {}
+    virtual void pause() {}
+    virtual int join() { return -1; }
 
 
     inline js::config *get_js_config() { return comp_js_config; }
@@ -390,6 +396,8 @@ namespace vp {
     int build_new();
 
     void load_all();
+
+    void flush_all();
 
     void post_post_build_all();
 

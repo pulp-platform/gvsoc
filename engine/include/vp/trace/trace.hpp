@@ -59,14 +59,21 @@ namespace vp {
     inline void event_real_pulse(int64_t duration, double pulse_value, double background_value);
     inline void event_real_delayed(double value);
 
+    void register_callback(std::function<void()> callback) { this->callbacks.push_back(callback); }
+
     inline string get_name() { return this->name; }
+
+    void set_full_path(std::string path) { this->full_path = path; }
+    std::string get_full_path() { return this->full_path; }
 
     void dump_header();
     void dump_warning_header();
     void dump_fatal_header();
 
-    void set_active(bool active) { is_active = active; }
+    void set_active(bool active);
     void set_event_active(bool active) { is_event_active = active; }
+
+    void set_trace_manager(vp::trace_engine *engine) { this->trace_manager = engine; }
 
   #ifndef VP_TRACE_ACTIVE
     inline bool get_active() { return false; }
@@ -99,6 +106,8 @@ namespace vp {
     trace *next;
     trace *prev;
     int64_t pending_timestamp;
+    string full_path;
+    vector<std::function<void()>> callbacks;
   };    
 
 

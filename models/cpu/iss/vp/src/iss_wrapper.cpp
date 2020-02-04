@@ -552,7 +552,6 @@ void iss_wrapper::handle_riscv_ebreak()
   if (id == 0x4)
   {
     std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
-    printf("%s", path.c_str());
   }
   else if (id == 0x1)
   {
@@ -943,11 +942,23 @@ vp::io_req_status_e iss_wrapper::dbg_unit_req(void *__this, vp::io_req *req)
 }
 
 
+
+void iss_wrapper::insn_trace_callback()
+{
+  // This is called when the state of the instruction trace has changed, we need
+  // to flush the ISS instruction cache, as it keeps the state of the trace
+  iss_cache_flush(this);
+}
+
+
+
 int iss_wrapper::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
   traces.new_trace("decode_trace", &decode_trace, vp::DEBUG);
   traces.new_trace("insn", &insn_trace, vp::DEBUG);
+  this->insn_trace.register_callback(std::bind(&iss_wrapper::insn_trace_callback, this));
+
   traces.new_trace("csr", &csr_trace, vp::TRACE);
   traces.new_trace("perf", &perf_counter_trace, vp::TRACE);
 

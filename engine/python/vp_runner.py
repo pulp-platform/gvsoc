@@ -1384,9 +1384,6 @@ class Runner(Platform):
         self.get_json().get('**/gvsoc').set('debug-mode', debug_mode)
 
 
-        with open('plt_config.json', 'w') as file:
-            file.write(self.get_json().dump_to_string())
-
 
         plt_config = os.path.join(os.getcwd(), 'plt_config.json')
         os.environ['PULP_CONFIG_FILE'] = plt_config
@@ -1398,6 +1395,9 @@ class Runner(Platform):
                             " top component")
 
         gen_gtkw_files(self.get_json(), gvsoc_config)
+
+        with open('plt_config.json', 'w') as file:
+            file.write(self.get_json().dump_to_string())
 
         if debug_mode:
             launcher = 'gvsoc_launcher_debug'

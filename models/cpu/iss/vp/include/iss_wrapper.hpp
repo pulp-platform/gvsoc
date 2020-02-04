@@ -79,6 +79,8 @@ public:
 
   inline void trigger_check_all() { current_event = check_all_event; }
 
+  void insn_trace_callback();
+
   vp::io_master data;
   vp::io_master fetch;
   vp::io_slave  dbg_unit;

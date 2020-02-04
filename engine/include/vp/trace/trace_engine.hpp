@@ -60,6 +60,10 @@ namespace vp {
 
     vp::trace *get_trace_from_id(int id);
 
+    virtual void add_trace_path(int events, std::string path) {}
+    virtual void add_exclude_trace_path(int events, std::string path) {}
+    virtual void check_traces() {}
+
   protected:
     std::map<std::string, trace *> traces_map;
     std::vector<trace *> traces_array;

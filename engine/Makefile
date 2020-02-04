@@ -7,6 +7,9 @@ VP_DIRS = vp
 
 -include $(INSTALL_DIR)/rules/vp_models.mk
 
+ifndef VERBOSE
+V = @
+endif
 
 CC = g++
 
@@ -35,7 +38,8 @@ VP_HEADERS += $(shell find python -name *.py)
 define declareInstallFile
 
 $(INSTALL_DIR)/$(1): $(1)
-	install -D $(1) $$@
+	@echo "CP $$<"
+	$(V)install -D $(1) $$@
 
 INSTALL_FILES += $(INSTALL_DIR)/$(1)
 
@@ -45,37 +49,45 @@ endef
 -include $(VP_DBG_OBJS:.o=.d)
 
 $(ENGINE_BUILD_DIR)/%.o: src/%.c
+	@echo "CXX $<"
 	@mkdir -p $(basename $@)
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(V)$(CC) $(CFLAGS) -o $@ -c $<
 
 $(ENGINE_BUILD_DIR)/%.o: src/%.cpp
+	@echo "CXX $<"
 	@mkdir -p $(basename $@)
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(V)$(CC) $(CFLAGS) -o $@ -c $<
 
 $(ENGINE_BUILD_DIR)/dbg/%.o: src/%.c
+	@echo "CXX DBG $<"
 	@mkdir -p $(basename $@)
-	$(CC) $(CFLAGS) $(CFLAGS_DBG) -o $@ -c $<
+	$(V)$(CC) $(CFLAGS) $(CFLAGS_DBG) -o $@ -c $<
 
 $(ENGINE_BUILD_DIR)/dbg/%.o: src/%.cpp
+	@echo "CXX DBG $<"
 	@mkdir -p $(basename $@)
-	$(CC) $(CFLAGS) $(CFLAGS_DBG) -o $@ -c $<
+	$(V)$(CC) $(CFLAGS) $(CFLAGS_DBG) -o $@ -c $<
 
 $(ENGINE_BUILD_DIR)/libpulpvp.so: $(VP_OBJS)
+	@echo "CXX $<"
 	@mkdir -p $(basename $@)
-	$(CC) $^ -o $@ $(LDFLAGS) -shared 
+	$(V)$(CC) $^ -o $@ $(LDFLAGS) -shared -ldl -lpthread
 
 
 $(ENGINE_BUILD_DIR)/libpulpvp-debug.so: $(VP_DBG_OBJS)
+	@echo "CXX DBG $<"
 	@mkdir -p $(basename $@)
-	$(CC) $^ -o $@ $(LDFLAGS) -shared 
+	$(V)$(CC) $^ -o $@ $(LDFLAGS) -shared  -ldl -lpthread
 
 $(ENGINE_BUILD_DIR)/gvsoc_launcher: $(ENGINE_BUILD_DIR)/main.o $(INSTALL_DIR)/lib/libpulpvp.so
+	@echo "CXX $<"
 	@mkdir -p `dirname $@`
-	$(CC) $(ENGINE_BUILD_DIR)/main.o -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp
+	$(V)$(CC) $(ENGINE_BUILD_DIR)/main.o -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp
 
 $(ENGINE_BUILD_DIR)/gvsoc_launcher_debug: $(ENGINE_BUILD_DIR)/dbg/main.o $(INSTALL_DIR)/lib/libpulpvp-debug.so
+	@echo "CXX DBG $<"
 	@mkdir -p `dirname $@`
-	$(CC) $(ENGINE_BUILD_DIR)/dbg/main.o -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp-debug
+	$(V)$(CC) $(ENGINE_BUILD_DIR)/dbg/main.o -o $@ $(LDFLAGS) -lpthread -ldl -lpulpvp-debug
 
 
 $(foreach file, $(VP_HEADERS), $(eval $(call declareInstallFile,$(file))))
@@ -83,22 +95,28 @@ $(foreach file, $(VP_HEADERS), $(eval $(call declareInstallFile,$(file))))
 
 
 $(INSTALL_DIR)/bin/gvsoc_launcher: $(ENGINE_BUILD_DIR)/gvsoc_launcher
-	install -D $^ $@
+	@echo "CP $<"
+	$(V)install -D $^ $@
 
 $(INSTALL_DIR)/bin/gvsoc_launcher_debug: $(ENGINE_BUILD_DIR)/gvsoc_launcher_debug
-	install -D $^ $@
+	@echo "CP DBG $<"
+	$(V)install -D $^ $@
 
 $(INSTALL_DIR)/lib/libpulpvp.so: $(ENGINE_BUILD_DIR)/libpulpvp.so
-	install -D $^ $@
+	@echo "CP $<"
+	$(V)install -D $^ $@
 
 $(INSTALL_DIR)/lib/libpulpvp-debug.so: $(ENGINE_BUILD_DIR)/libpulpvp-debug.so
-	install -D $^ $@
+	@echo "CP DBG $<"
+	$(V)install -D $^ $@
 
 $(INSTALL_DIR)/python/libpulpvp.so: $(ENGINE_BUILD_DIR)/libpulpvp.so
-	install -D $^ $@
+	@echo "CP $<"
+	$(V)install -D $^ $@
 
 $(INSTALL_DIR)/python/libpulpvp-debug.so: $(ENGINE_BUILD_DIR)/libpulpvp-debug.so
-	install -D $^ $@
+	@echo "CP DBG $<"
+	$(V)install -D $^ $@
 
 
 headers: $(INSTALL_FILES)

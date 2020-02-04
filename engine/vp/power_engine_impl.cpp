@@ -32,9 +32,17 @@ class power_manager : public vp::power_engine
 public:
     power_manager(js::config *config);
 
+    void pre_pre_build();
+
     int build();
-    std::string run();
-    int run_status() { return this->time_engine->run_status(); }
+
+    void run();
+
+    void quit();
+
+    void pause();
+
+    int join();
 
     void start_capture();
 
@@ -49,10 +57,34 @@ private:
 };
 
 
-std::string power_manager::run()
+
+void power_manager::run()
 {
-    return this->time_engine->run();
+    this->time_engine->run();
 }
+
+
+
+void power_manager::quit()
+{
+    this->time_engine->quit();
+}
+
+
+
+void power_manager::pause()
+{
+    this->time_engine->pause();
+}
+
+
+
+int power_manager::join()
+{
+    return this->time_engine->join();
+}
+
+
 
 void power_manager::start_capture()
 {
@@ -93,6 +125,12 @@ void power_manager::reg_trace(vp::power_trace *trace)
 
 vp::power_engine::power_engine(js::config *config)
     : vp::component(config)
+{
+}
+
+
+
+void power_manager::pre_pre_build()
 {
     this->new_service("power", static_cast<power_engine *>(this));
 }

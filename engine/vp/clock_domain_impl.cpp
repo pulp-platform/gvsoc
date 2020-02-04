@@ -71,8 +71,7 @@ int clock_domain::build()
 
   this->traces.new_trace_event_real("cycles", &this->cycles_trace);
 
-  // TODO check why this step is needed.
-  this->set_time_engine(this->get_time_engine());
+  this->set_time_engine((vp::time_engine*)this->get_service("time"));
 
   return 0;
 }
@@ -94,11 +93,6 @@ vp::clock_engine::clock_engine(js::config *config)
   current_cycle = 0;
 }
 
-
-extern "C" void vp_set_time_engine(void *comp, void *engine)
-{
-  ((vp::clock_engine *)comp)->set_time_engine((vp::time_engine *)engine);
-}
 
 extern "C" vp::component *vp_constructor(js::config *config)
 {

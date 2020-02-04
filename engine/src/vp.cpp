@@ -18,6 +18,7 @@
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -31,6 +32,14 @@
 #include <dlfcn.h>
 #include <algorithm>
 #include <string>
+#include <common/telnet_proxy.hpp>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <signal.h>
+#include <regex>
+
 
 #ifdef __VP_USE_SYSTEMC
 #include <systemc.h>
@@ -38,6 +47,34 @@
 
 char vp_error[VP_ERROR_SIZE];
 
+
+
+class Gv_proxy
+{
+  public:
+    Gv_proxy(vp::component *top): top(top) {}
+    int open(int port, int *out_port);
+    void stop();
+    
+  private:
+ 
+
+    void listener(void);
+    void proxy_loop(int);
+    
+    int telnet_socket;
+    int socket_port;
+    
+    std::thread *loop_thread;
+    std::thread *listener_thread;
+
+    std::vector<int> sockets;
+
+    vp::component *top;
+};
+
+
+static Gv_proxy *proxy = NULL;
 
 
 uint64_t vp::reg::get_field(int offset, int width)
@@ -200,6 +237,8 @@ int vp::component::build_new()
     return 0;
 }
 
+
+
 void vp::component::post_post_build_all()
 {
     for (auto &x : this->childs)
@@ -210,6 +249,8 @@ void vp::component::post_post_build_all()
     this->post_post_build();
 }
 
+
+
 void vp::component::start_all()
 {
     for (auto &x : this->childs)
@@ -219,6 +260,20 @@ void vp::component::start_all()
 
     this->start();
 }
+
+
+
+void vp::component::flush_all()
+{
+    for (auto &x : this->childs)
+    {
+        x->flush_all();
+    }
+
+    this->flush();
+}
+
+
 
 void vp::component::pre_start_all()
 {
@@ -233,6 +288,8 @@ void vp::component::pre_start_all()
         x();
     }
 }
+
+
 
 void vp::component_clock::clk_reg(component *_this, component *clock)
 {
@@ -656,7 +713,7 @@ vp::time_engine *vp::component::get_time_engine()
 {
     if (this->time_engine_ptr == NULL)
     {
-        this->time_engine_ptr = this->parent->get_time_engine();
+        this->time_engine_ptr = (vp::time_engine*)this->get_service("time");
     }
 
     return this->time_engine_ptr;
@@ -673,7 +730,7 @@ vp::master_port::master_port(vp::component *owner)
 
 void vp::component::new_master_port(std::string name, vp::master_port *port)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New master port (name: %s, port: %p)\n", name.c_str(), port);
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New master port (name: %s, port: %p)\n", name.c_str(), port);
 
     port->set_owner(this);
     port->set_context(this);
@@ -685,7 +742,7 @@ void vp::component::new_master_port(std::string name, vp::master_port *port)
 
 void vp::component::new_master_port(void *comp, std::string name, vp::master_port *port)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New master port (name: %s, port: %p)\n", name.c_str(), port);
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New master port (name: %s, port: %p)\n", name.c_str(), port);
 
     port->set_owner(this);
     port->set_context(comp);
@@ -715,7 +772,7 @@ void vp::component::add_master_port(std::string name, vp::master_port *port)
 
 void vp::component::new_slave_port(std::string name, vp::slave_port *port)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New slave port (name: %s, port: %p)\n", name.c_str(), port);
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New slave port (name: %s, port: %p)\n", name.c_str(), port);
 
     port->set_owner(this);
     port->set_context(this);
@@ -727,7 +784,7 @@ void vp::component::new_slave_port(std::string name, vp::slave_port *port)
 
 void vp::component::new_slave_port(void *comp, std::string name, vp::slave_port *port)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New slave port (name: %s, port: %p)\n", name.c_str(), port);
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New slave port (name: %s, port: %p)\n", name.c_str(), port);
 
     port->set_owner(this);
     port->set_context(comp);
@@ -749,7 +806,7 @@ void vp::component::add_service(std::string name, void *service)
 
 void vp::component::new_service(std::string name, void *service)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New service (name: %s, service: %p)\n", name.c_str(), service);
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New service (name: %s, service: %p)\n", name.c_str(), service);
 
     if (this->parent)
         this->parent->add_service(name, service);
@@ -1025,7 +1082,7 @@ void vp::component::new_reg_any(std::string name, vp::reg *reg, int bits, uint8_
 
 void vp::component::new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val, bool reset)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
         name.c_str(), 1, reset_val, reset
     );
 
@@ -1035,7 +1092,7 @@ void vp::component::new_reg(std::string name, vp::reg_1 *reg, uint8_t reset_val,
 
 void vp::component::new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val, bool reset)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
         name.c_str(), 8, reset_val, reset
     );
 
@@ -1045,7 +1102,7 @@ void vp::component::new_reg(std::string name, vp::reg_8 *reg, uint8_t reset_val,
 
 void vp::component::new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_val, bool reset)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
         name.c_str(), 16, reset_val, reset
     );
 
@@ -1055,7 +1112,7 @@ void vp::component::new_reg(std::string name, vp::reg_16 *reg, uint16_t reset_va
 
 void vp::component::new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_val, bool reset)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
         name.c_str(), 32, reset_val, reset
     );
 
@@ -1065,7 +1122,7 @@ void vp::component::new_reg(std::string name, vp::reg_32 *reg, uint32_t reset_va
 
 void vp::component::new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_val, bool reset)
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New register (name: %s, width: %d, reset_val: 0x%x, reset: %d)\n",
         name.c_str(), 64, reset_val, reset
     );
 
@@ -1209,7 +1266,7 @@ vp::component *vp::component::new_component(std::string name, js::config *config
         module_name = "debug." + module_name;
     }
 
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "New component (name: %s, module: %s)\n", name.c_str(), module_name.c_str());
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "New component (name: %s, module: %s)\n", name.c_str(), module_name.c_str());
 
     std::replace(module_name.begin(), module_name.end(), '.', '/');
 
@@ -1229,7 +1286,7 @@ vp::component *vp::component::new_component(std::string name, js::config *config
 
     vp::component *instance = constructor(config);
 
-    std::string comp_path = this->get_path() != "" ? this->get_path() + "/" + name : name;
+    std::string comp_path = this->get_path() != "" ? this->get_path() + "/" + name : name == "" ? "" : "/" + name;
 
     instance->conf(name, comp_path, this);
     instance->pre_pre_build();
@@ -1254,13 +1311,13 @@ void vp::component::create_ports()
 
     if (ports != NULL)
     {
-        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating ports\n");
+        this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating ports\n");
 
         for (auto x : ports->get_elems())
         {
             std::string port_name = x->get_str();
 
-            this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating port (name: %s)\n", port_name.c_str());
+            this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating port (name: %s)\n", port_name.c_str());
 
             if (this->get_master_port(port_name) == NULL && this->get_slave_port(port_name) == NULL)
                 this->add_master_port(port_name, new vp::virtual_port(this));
@@ -1275,7 +1332,7 @@ void vp::component::create_bindings()
 
     if (bindings != NULL)
     {
-        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating bindings\n");
+        this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating bindings\n");
 
         for (auto x : bindings->get_elems())
         {
@@ -1288,7 +1345,7 @@ void vp::component::create_bindings()
             std::string slave_comp_name = slave_binding.substr(0, pos);
             std::string slave_port_name = slave_binding.substr(pos + 2);
 
-            this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating binding (%s:%s -> %s:%s)\n",
+            this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating binding (%s:%s -> %s:%s)\n",
                 master_comp_name.c_str(), master_port_name.c_str(),
                 slave_comp_name.c_str(), slave_port_name.c_str()
             );
@@ -1340,7 +1397,7 @@ void vp::master_port::bind_to_slaves()
     {
         for (auto y : x->get_final_ports())
         {
-            this->get_owner()->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating final binding (%s:%s -> %s:%s)\n",
+            this->get_owner()->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating final binding (%s:%s -> %s:%s)\n",
                 this->get_owner()->get_path().c_str(), this->get_name().c_str(),
                 y->get_owner()->get_path().c_str(), y->get_name().c_str()
             );
@@ -1353,7 +1410,7 @@ void vp::master_port::bind_to_slaves()
 
 void vp::component::bind_comps()
 {
-    this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating final bindings\n");
+    this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating final bindings\n");
 
     for (auto x : this->get_childs())
     {
@@ -1382,7 +1439,7 @@ void vp::component::create_comps()
 
     if (comps != NULL)
     {
-        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Creating components\n");
+        this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Creating components\n");
 
         for (auto x : comps->get_elems())
         {
@@ -1399,6 +1456,248 @@ void vp::component::create_comps()
         }
     }
 }
+
+
+
+void Gv_proxy::proxy_loop(int socket_fd)
+{
+    FILE *sock = fdopen(socket_fd, "r");
+
+    while(1)
+    {
+        char line[1024];
+
+		if (!fgets(line, 1024, sock)) 
+			return ;
+
+        std::string s = std::string(line);
+        std::regex regex{R"([\s]+)"};
+        std::sregex_token_iterator it{s.begin(), s.end(), regex, -1};
+        std::vector<std::string> words{it, {}};
+
+        if (words.size() > 0)
+        {
+            if (words[0] == "run")
+            {
+                this->top->run();
+            }
+            else if (words[0] == "stop")
+            {
+                this->top->pause();
+                this->top->flush_all();
+                fflush(NULL);
+            }
+            else if (words[0] == "quit")
+            {
+                this->top->quit();
+            }
+            else if (words[0] == "trace")
+            {
+                if (words.size() != 3)
+                {
+                    fprintf(stderr, "This command requires 2 arguments: trace [add|remove] regexp");
+                }
+                else
+                {
+                    if (words[1] == "add")
+                    {
+                        this->top->traces.get_trace_manager()->add_trace_path(0, words[2]);
+                        this->top->traces.get_trace_manager()->check_traces();
+                    }
+                    else
+                    {
+                        this->top->traces.get_trace_manager()->add_exclude_trace_path(0, words[2]);
+                        this->top->traces.get_trace_manager()->check_traces();
+                    }
+                }
+            }
+            else if (words[0] == "event")
+            {
+                if (words.size() != 3)
+                {
+                    fprintf(stderr, "This command requires 2 arguments: event [add|remove] regexp");
+                }
+                else
+                {
+                    if (words[1] == "add")
+                    {
+                        this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
+                        this->top->traces.get_trace_manager()->check_traces();
+                    }
+                    else
+                    {
+                        this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
+                        this->top->traces.get_trace_manager()->check_traces();
+                    }
+                }
+            }
+            else
+            {
+                printf("Ignoring invalid command: %s\n", words[0].c_str());
+            }
+        }
+    }
+}
+
+
+void Gv_proxy::listener(void)
+{
+    int client_fd;
+    while(1)
+    {
+        if ((client_fd = accept(this->telnet_socket, NULL, NULL)) == -1)
+        {
+            if(errno == EAGAIN) continue;
+            fprintf(stderr, "Failed to accept connection: %s\n", strerror(errno));
+            return;
+        }
+
+        this->sockets.push_back(client_fd);
+        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, client_fd);
+    }
+}
+
+
+
+int Gv_proxy::open(int port, int *out_port)
+{
+    struct sockaddr_in addr;
+    int yes = 1;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    socklen_t size = sizeof(addr.sin_zero);
+    memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
+
+    this->telnet_socket = socket(PF_INET, SOCK_STREAM, 0);
+
+    if (this->telnet_socket < 0)
+    {
+        fprintf(stderr, "Unable to create comm socket: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if (setsockopt(this->telnet_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
+            sizeof(int)) == -1) {
+        fprintf(stderr, "Unable to setsockopt on the socket: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if (bind(this->telnet_socket, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+        fprintf(stderr, "Unable to bind the socket: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if (listen(this->telnet_socket, 1) == -1) {
+        fprintf(stderr, "Unable to listen: %s\n", strerror(errno));
+        return -1;
+    }
+
+    getsockname(this->telnet_socket, (sockaddr*)&addr, &size);
+
+    if (out_port)
+    {
+        *out_port = ntohs(addr.sin_port);
+    }
+
+    this->listener_thread = new std::thread(&Gv_proxy::listener, this);
+
+    return 0;
+}
+
+
+
+void Gv_proxy::stop()
+{
+    for (auto x: this->sockets)
+    {
+        shutdown(x, SHUT_RDWR);
+    }
+}
+
+
+
+extern "C" void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket)
+{
+    js::config *js_config = js::import_config_from_file(config_path);
+    if (js_config == NULL)
+    {
+        fprintf(stderr, "Invalid configuration.");
+        return NULL;
+    }
+
+    js::config *gv_config = js_config->get("**/gvsoc");
+
+    std::string module_name = "vp.trace_domain_impl";
+
+    if (gv_config->get_child_bool("debug-mode"))
+    {
+        module_name = "debug." + module_name;
+    }
+
+    std::replace(module_name.begin(), module_name.end(), '.', '/');
+
+    std::string path = std::string(getenv("GVSOC_PATH")) + "/" + module_name + ".so";
+
+    void *module = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
+    if (module == NULL)
+    {
+        throw std::invalid_argument("ERROR, Failed to open periph model (module: " + module_name + ", error: " + std::string(dlerror()) + ")");
+    }
+
+    vp::component *(*constructor)(js::config *) = (vp::component * (*)(js::config *)) dlsym(module, "vp_constructor");
+    if (constructor == NULL)
+    {
+        throw std::invalid_argument("ERROR, couldn't find vp_constructor in loaded module (module: " + module_name + ")");
+    }
+
+    vp::component *instance = constructor(js_config);
+
+    instance->set_vp_config(gv_config);
+
+    instance->pre_pre_build();
+    instance->pre_build();
+    instance->build();
+    instance->build_new();
+
+    if (open_proxy)
+    {
+        proxy = new Gv_proxy(instance);
+        proxy->open(0, proxy_socket);
+    }
+
+    return (void *)instance;
+}
+
+
+
+extern "C" int gv_run(void *_instance)
+{
+    vp::component *instance = (vp::component *)_instance;
+
+    if (!proxy)
+    {
+        instance->run();
+    }
+
+    return instance->join();
+}
+
+
+
+extern "C" void gv_stop(void *_instance)
+{
+    vp::component *instance = (vp::component *)_instance;
+
+    if (proxy)
+    {
+        proxy->stop();
+    }
+
+    instance->stop();
+}
+
+
 
 #ifdef __VP_USE_SYSTEMC
 
