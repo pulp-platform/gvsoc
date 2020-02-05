@@ -500,9 +500,9 @@ bool iss_wrapper::user_access(iss_addr_t addr, uint8_t *buffer, iss_addr_t size,
   if (err != vp::IO_REQ_OK) 
   {
     if (err == vp::IO_REQ_INVALID)
-      this->warning.fatal("Invalid IO response during debug request");
+      this->warning.fatal("Invalid IO response during debug request\n");
     else
-      this->warning.fatal("Pending IO response during debug request");
+      this->warning.fatal("Pending IO response during debug request\n");
 
     return true;
   }
@@ -528,7 +528,7 @@ std::string iss_wrapper::read_user_string(iss_addr_t addr, int size)
       if (err == vp::IO_REQ_INVALID)
         return "";
       else
-        this->warning.fatal("Pending IO response during debug request");
+        this->warning.fatal("Pending IO response during debug request\n");
     }
 
     if (buffer == 0)
@@ -1059,6 +1059,8 @@ int iss_wrapper::build()
   this->is_active_reg.set(false);
 
   ipc_clock_event = this->event_new(iss_wrapper::ipc_stat_handler);
+
+  this->ipc_stat_delay = 0;
 
   return 0;
 }
