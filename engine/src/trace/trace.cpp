@@ -149,6 +149,18 @@ void vp::trace::set_active(bool active)
 }
 
 
+
+void vp::trace::set_event_active(bool active)
+{
+    this->is_event_active = active;
+
+    for (auto x: this->callbacks)
+    {
+        x();
+    }
+}
+
+
 char *vp::trace_engine::get_event_buffer(int bytes)
 {
   if (current_buffer == NULL || bytes > TRACE_EVENT_BUFFER_SIZE - current_buffer_size)
@@ -157,8 +169,12 @@ char *vp::trace_engine::get_event_buffer(int bytes)
 
     if (current_buffer && bytes > TRACE_EVENT_BUFFER_SIZE - current_buffer_size)
     {
-      *(vp::trace **)(current_buffer + current_buffer_size) = NULL;
+      if ((unsigned int)(TRACE_EVENT_BUFFER_SIZE - current_buffer_size) > sizeof(vp::trace *))
+        *(vp::trace **)(current_buffer + current_buffer_size) = NULL;
+
       ready_event_buffers.push_back(current_buffer);
+      current_buffer = NULL;
+
       pthread_cond_broadcast(&cond);
     }
 
@@ -181,6 +197,7 @@ char *vp::trace_engine::get_event_buffer(int bytes)
 
 void vp::trace_engine::stop()
 {
+  this->check_pending_events(-1);
   this->flush();
   pthread_mutex_lock(&mutex);
   this->end = 1;
@@ -192,14 +209,20 @@ void vp::trace_engine::stop()
 
 void vp::trace_engine::flush()
 {
-  this->check_pending_events(-1);
+  // Flush only the events until the current timestamp as we may resume
+  // the execution right after
+  this->check_pending_events(this->get_time());
 
   if (current_buffer_size)
   {
     pthread_mutex_lock(&mutex);
-    *(vp::trace **)(current_buffer + current_buffer_size) = NULL;
-    ready_event_buffers.push_back(current_buffer);
-    current_buffer = NULL;
+
+    if (current_buffer)
+    {
+        *(vp::trace **)(current_buffer + current_buffer_size) = NULL;
+        ready_event_buffers.push_back(current_buffer);
+        current_buffer = NULL;
+    }
     pthread_cond_broadcast(&cond);
     pthread_mutex_unlock(&mutex);
   }
@@ -303,6 +326,7 @@ void vp::trace_engine::dump_event_pulse(vp::trace *trace, int64_t timestamp, int
 void vp::trace_engine::check_pending_events(int64_t timestamp)
 {
   vp::trace *trace = this->first_pending_event;
+
   while (trace && (timestamp == -1 || trace->pending_timestamp <= timestamp))
   {
     this->dump_event_to_buffer(trace, trace->pending_timestamp, trace->buffer, trace->bytes);
@@ -407,8 +431,7 @@ void vp::trace_engine::vcd_routine()
 
     pthread_mutex_unlock(&this->mutex);
 
-    int size = 0;
-    while (size < TRACE_EVENT_BUFFER_SIZE)
+    while (event_buffer - event_buffer_start < (int)(TRACE_EVENT_BUFFER_SIZE - sizeof(vp::trace *)))
     {
       int64_t timestamp;
       uint8_t flags;
@@ -458,8 +481,6 @@ void vp::trace_engine::vcd_routine()
 
       memcpy((void *)&event, (void *)event_buffer, bytes);
       event_buffer += bytes;
-
-      size += sizeof(trace) + bytes;
 
       if (trace->event_trace)
       {

@@ -964,6 +964,7 @@ int iss_wrapper::build()
 
   traces.new_trace_event("state", &state_event, 8);
   traces.new_trace_event("pc", &pc_trace_event, 32);
+  this->pc_trace_event.register_callback(std::bind(&iss_wrapper::insn_trace_callback, this));
   traces.new_trace_event_string("asm", &insn_trace_event);
   traces.new_trace_event_string("func", &func_trace_event);
   traces.new_trace_event_string("inline_func", &inline_trace_event);

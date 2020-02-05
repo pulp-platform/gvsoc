@@ -134,6 +134,8 @@ void trace_domain::check_trace_active(vp::trace *trace, int event)
 {
     std::string full_path = trace->get_full_path();
 
+    trace->set_event_active(false);
+
     if (event)
     {
         for (auto &x : events_path_regex)
@@ -141,7 +143,7 @@ void trace_domain::check_trace_active(vp::trace *trace, int event)
             if (regexec(x.second->regex, full_path.c_str(), 0, NULL, 0) == 0)
             {
                 std::string file_path = x.second->file_path;
-
+                
                 vp::Event_trace *event_trace;
                 if (trace->is_real)
                     event_trace = event_dumper.get_trace_real(full_path, file_path);
@@ -151,6 +153,14 @@ void trace_domain::check_trace_active(vp::trace *trace, int event)
                     event_trace = event_dumper.get_trace(full_path, file_path, trace->width);
                 trace->set_event_active(true);
                 trace->event_trace = event_trace;
+            }
+        }
+
+        for (auto &x : this->events_exclude_path_regex)
+        {
+            if (regexec(x.second->regex, full_path.c_str(), 0, NULL, 0) == 0)
+            {
+                trace->set_event_active(false);
             }
         }
     }
@@ -179,15 +189,16 @@ void trace_domain::check_trace_active(vp::trace *trace, int event)
                 trace->set_active(true);
             }
         }
-    }
-    for (auto &x : this->trace_exclude_regexs)
-    {
-        if (regexec(x.second->regex, full_path.c_str(), 0, NULL, 0) == 0)
+
+        for (auto &x : this->trace_exclude_regexs)
         {
-            if (event)
-                trace->set_event_active(false);
-            else
-                trace->set_active(false);
+            if (regexec(x.second->regex, full_path.c_str(), 0, NULL, 0) == 0)
+            {
+                if (event)
+                    trace->set_event_active(false);
+                else
+                    trace->set_active(false);
+            }
         }
     }
 }
@@ -196,7 +207,7 @@ void trace_domain::check_traces()
 {
     for (auto x : this->traces_array)
     {
-        this->check_trace_active(x);
+        this->check_trace_active(x, x->is_event);
     }
 }
 
@@ -220,6 +231,7 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
 
     traces_map[full_path] = trace;
     trace->set_full_path(full_path);
+    trace->is_event = event;
 
     trace->trace_file = stdout;
 

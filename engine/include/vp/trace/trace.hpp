@@ -71,7 +71,7 @@ namespace vp {
     void dump_fatal_header();
 
     void set_active(bool active);
-    void set_event_active(bool active) { is_event_active = active; }
+    void set_event_active(bool active);
 
     void set_trace_manager(vp::trace_engine *engine) { this->trace_manager = engine; }
 
@@ -93,6 +93,7 @@ namespace vp {
     bool is_string = false;
     int id;
     FILE *trace_file = stdout;
+    int is_event;
 
   protected:
     int level;

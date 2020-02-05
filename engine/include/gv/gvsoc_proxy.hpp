@@ -18,21 +18,39 @@
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#ifndef __GV__GVSOC_H__
-#define __GV__GVSOC_H__
+#ifndef __GV__GVSOC_PROXY_HPP__
+#define __GV__GVSOC_PROXY_HPP__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
 
-void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe);
+class Gvsoc_proxy
+{
+public:
+    Gvsoc_proxy(std::string config_path);
 
-int gv_run(void *_instance);
+    int open();
 
-void gv_stop(void *_instance);
+    void run();
 
-#ifdef __cplusplus
-}
-#endif
+    void pause();
+
+    void close();
+
+    void add_event_regex(std::string regex);
+
+    void remove_event_regex(std::string regex);
+
+    void add_trace_regex(std::string regex);
+
+    void remove_trace_regex(std::string regex);
+
+private: 
+
+    int req_pipe[2];
+    int reply_pipe[2];
+    std::string config_path;
+
+};
+
 
 #endif

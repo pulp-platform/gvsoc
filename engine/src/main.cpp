@@ -30,7 +30,7 @@
 int main(int argc, char *argv[])
 {
     char *config_path = NULL;
-    bool open_proxy = true;
+    bool open_proxy = false;
 
     for (int i=1; i<argc; i++)
     {
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     }
 
     int proxy_socket;
-    void *instance = gv_open(config_path, open_proxy, &proxy_socket);
+    void *instance = gv_open(config_path, open_proxy, &proxy_socket, -1, -1);
 
     if (open_proxy)
     {

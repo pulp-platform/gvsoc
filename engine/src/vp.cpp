@@ -32,13 +32,19 @@
 #include <dlfcn.h>
 #include <algorithm>
 #include <string>
-#include <common/telnet_proxy.hpp>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <signal.h>
 #include <regex>
+#include <gv/gvsoc_proxy.hpp>
+#include <gv/gvsoc.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/prctl.h>
+
+
 
 
 #ifdef __VP_USE_SYSTEMC
@@ -52,7 +58,7 @@ char vp_error[VP_ERROR_SIZE];
 class Gv_proxy
 {
   public:
-    Gv_proxy(vp::component *top): top(top) {}
+    Gv_proxy(vp::component *top, int req_pipe, int reply_pipe): top(top), req_pipe(req_pipe), reply_pipe(reply_pipe) {}
     int open(int port, int *out_port);
     void stop();
     
@@ -71,6 +77,8 @@ class Gv_proxy
     std::vector<int> sockets;
 
     vp::component *top;
+    int req_pipe;
+    int reply_pipe;
 };
 
 
@@ -1467,8 +1475,8 @@ void Gv_proxy::proxy_loop(int socket_fd)
     {
         char line[1024];
 
-		if (!fgets(line, 1024, sock)) 
-			return ;
+        if (!fgets(line, 1024, sock)) 
+            return ;
 
         std::string s = std::string(line);
         std::regex regex{R"([\s]+)"};
@@ -1561,46 +1569,53 @@ void Gv_proxy::listener(void)
 
 int Gv_proxy::open(int port, int *out_port)
 {
-    struct sockaddr_in addr;
-    int yes = 1;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
-    socklen_t size = sizeof(addr.sin_zero);
-    memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
-
-    this->telnet_socket = socket(PF_INET, SOCK_STREAM, 0);
-
-    if (this->telnet_socket < 0)
+    if (this->req_pipe == -1)
     {
-        fprintf(stderr, "Unable to create comm socket: %s\n", strerror(errno));
-        return -1;
+        struct sockaddr_in addr;
+        int yes = 1;
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(port);
+        addr.sin_addr.s_addr = INADDR_ANY;
+        socklen_t size = sizeof(addr.sin_zero);
+        memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
+
+        this->telnet_socket = socket(PF_INET, SOCK_STREAM, 0);
+
+        if (this->telnet_socket < 0)
+        {
+            fprintf(stderr, "Unable to create comm socket: %s\n", strerror(errno));
+            return -1;
+        }
+
+        if (setsockopt(this->telnet_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
+                sizeof(int)) == -1) {
+            fprintf(stderr, "Unable to setsockopt on the socket: %s\n", strerror(errno));
+            return -1;
+        }
+
+        if (bind(this->telnet_socket, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+            fprintf(stderr, "Unable to bind the socket: %s\n", strerror(errno));
+            return -1;
+        }
+
+        if (listen(this->telnet_socket, 1) == -1) {
+            fprintf(stderr, "Unable to listen: %s\n", strerror(errno));
+            return -1;
+        }
+
+        getsockname(this->telnet_socket, (sockaddr*)&addr, &size);
+
+        if (out_port)
+        {
+            *out_port = ntohs(addr.sin_port);
+        }
+
+        this->listener_thread = new std::thread(&Gv_proxy::listener, this);
     }
-
-    if (setsockopt(this->telnet_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
-            sizeof(int)) == -1) {
-        fprintf(stderr, "Unable to setsockopt on the socket: %s\n", strerror(errno));
-        return -1;
-    }
-
-    if (bind(this->telnet_socket, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-        fprintf(stderr, "Unable to bind the socket: %s\n", strerror(errno));
-        return -1;
-    }
-
-    if (listen(this->telnet_socket, 1) == -1) {
-        fprintf(stderr, "Unable to listen: %s\n", strerror(errno));
-        return -1;
-    }
-
-    getsockname(this->telnet_socket, (sockaddr*)&addr, &size);
-
-    if (out_port)
+    else
     {
-        *out_port = ntohs(addr.sin_port);
+        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, this->req_pipe);
     }
-
-    this->listener_thread = new std::thread(&Gv_proxy::listener, this);
 
     return 0;
 }
@@ -1617,7 +1632,7 @@ void Gv_proxy::stop()
 
 
 
-extern "C" void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket)
+extern "C" void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe)
 {
     js::config *js_config = js::import_config_from_file(config_path);
     if (js_config == NULL)
@@ -1662,12 +1677,109 @@ extern "C" void *gv_open(const char *config_path, bool open_proxy, int *proxy_so
 
     if (open_proxy)
     {
-        proxy = new Gv_proxy(instance);
+        proxy = new Gv_proxy(instance, req_pipe, reply_pipe);
         proxy->open(0, proxy_socket);
     }
 
     return (void *)instance;
 }
+
+
+
+Gvsoc_proxy::Gvsoc_proxy(std::string config_path)
+    : config_path(config_path)
+{
+
+}
+
+
+
+int Gvsoc_proxy::open()
+{
+    pid_t ppid_before_fork = getpid();
+
+    if (pipe(this->req_pipe) == -1)
+        return -1;
+
+    if (pipe(this->reply_pipe) == -1)
+        return -1;
+
+    pid_t child_id = fork();
+
+    if(child_id == -1)
+    {
+        return -1;
+    }
+    else if (child_id == 0)
+    {
+        int r = prctl(PR_SET_PDEATHSIG, SIGTERM);
+        if (r == -1) { perror(0); exit(1); }
+        // test in case the original parent exited just
+        // before the prctl() call
+        if (getppid() != ppid_before_fork) exit(1);
+        
+        void *instance = gv_open(this->config_path.c_str(), true, NULL, this->req_pipe[0], this->reply_pipe[1]);
+
+        int retval = gv_run(instance);
+
+        gv_stop(instance);
+
+        return retval;
+    }
+
+    return 0;
+}
+
+
+
+void Gvsoc_proxy::run()
+{
+    dprintf(this->req_pipe[1], "run\n");
+}
+
+
+
+void Gvsoc_proxy::pause()
+{
+    dprintf(this->req_pipe[1], "stop\n");
+}
+
+
+
+void Gvsoc_proxy::close()
+{
+    dprintf(this->req_pipe[1], "quit\n");
+}
+
+
+
+void Gvsoc_proxy::add_event_regex(std::string regex)
+{
+    dprintf(this->req_pipe[1], "event add %s\n", regex.c_str());
+
+}
+
+
+
+void Gvsoc_proxy::remove_event_regex(std::string regex)
+{
+    dprintf(this->req_pipe[1], "event remove %s\n", regex.c_str());
+}
+
+
+
+void Gvsoc_proxy::add_trace_regex(std::string regex)
+{
+    dprintf(this->req_pipe[1], "trace add %s\n", regex.c_str());
+}
+
+
+
+void Gvsoc_proxy::remove_trace_regex(std::string regex)
+{
+    dprintf(this->req_pipe[1], "trace remove %s\n", regex.c_str());
+}
+
 
 
 
