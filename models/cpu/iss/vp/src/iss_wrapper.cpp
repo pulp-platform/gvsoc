@@ -552,6 +552,7 @@ void iss_wrapper::handle_riscv_ebreak()
   if (id == 0x4)
   {
     std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
+    printf("%s", path.c_str());
   }
   else if (id == 0x1)
   {
