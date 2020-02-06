@@ -1304,10 +1304,6 @@ class Runner(Platform):
             efuse = runner.stim_utils.Efuse(self.get_json(), verbose=self.get_json().get('**/runner/verbose').get())
             efuse.gen_stim_txt('efuse_preload.data')
 
-        return 0
-
-    def run(self):
-
         autorun_conf = self.get_json().get('**/debug_bridge/autorun')
         if autorun_conf is not None and autorun_conf.get_bool() and not self.config.getOption('reentrant'):
 
@@ -1383,27 +1379,29 @@ class Runner(Platform):
         debug_mode = gvsoc_config.get_bool('trace-enable') or gvsoc_config.get_bool('vcd/active') or len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
         self.get_json().get('**/gvsoc').set('debug-mode', debug_mode)
 
-
-
         plt_config = os.path.join(os.getcwd(), 'plt_config.json')
         os.environ['PULP_CONFIG_FILE'] = plt_config
-
-        top = self.get_json().get_child_str('system_tree/vp_class')
-
-        if top is None:
-            raise Exception("The specified configuration does not contain any"
-                            " top component")
 
         gen_gtkw_files(self.get_json(), gvsoc_config)
 
         with open('plt_config.json', 'w') as file:
             file.write(self.get_json().dump_to_string())
 
+        return 0
+
+    def run(self):
+
+        gvsoc_config = self.get_json().get('gvsoc')
+
+        debug_mode = gvsoc_config.get_bool('trace-enable') or gvsoc_config.get_bool('vcd/active') or len(gvsoc_config.get('trace').get()) != 0 or len(gvsoc_config.get('event').get()) != 0
+        
         if debug_mode:
             launcher = 'gvsoc_launcher_debug'
         else:
             launcher = 'gvsoc_launcher'
 
+        plt_config = os.path.join(os.getcwd(), 'plt_config.json')
+        
         if self.args.cmd:
             print ('GVSOC command:')
             print ('%s --config=%s' % (launcher, plt_config))
