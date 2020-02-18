@@ -24,7 +24,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "archi/chips/gap9_v2/apb_soc_ctrl/apb_soc_ctrl.h"
+#include "archi/chips/gap9_v2/apb_soc_ctrl/apb_soc_ctrl_regs.h"
+#include "archi/chips/gap9_v2/apb_soc_ctrl/apb_soc_ctrl_regfields.h"
 #include "archi/chips/gap9_v2/apb_soc_ctrl/apb_soc_ctrl_gvsoc.h"
 
 #define L2_NB_BANKS 16

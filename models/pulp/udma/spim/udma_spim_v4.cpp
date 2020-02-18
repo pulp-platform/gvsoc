@@ -19,7 +19,8 @@
  */
 
 #include "../udma_v4_impl.hpp"
-#include "udma_spim/udma_spim.h"
+#include "udma_spim/udma_spim_regs.h"
+#include "udma_spim/udma_spim_regfields.h"
 #include "archi/udma/spim/spim_v4.h"
 #include "archi/utils.h"
 #include "vp/itf/qspim.hpp"

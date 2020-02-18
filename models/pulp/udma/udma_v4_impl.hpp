@@ -35,7 +35,8 @@
 #include <string.h>
 #include <vector>
 #include "archi/udma/udma_v4.h"
-#include "udma_core_lin/udma_core_lin.h"
+#include "udma_core_lin/udma_core_lin_regs.h"
+#include "udma_core_lin/udma_core_lin_regfields.h"
 #include "udma_core_lin/udma_core_lin_gvsoc.h"
 
 class udma;
