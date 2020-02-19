@@ -14,11 +14,27 @@
 # limitations under the License.
 #
 
-import default_runner
+import runner.default_runner
 import os
+import argparse
+import json_tools as js
 
 
-class Runner(default_runner.Runner):
+def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None:
+    """
+    Append specific runner arguments.
+    """
+    
+    parser.add_argument("--trace",
+                        dest="traces",
+                        default=[],
+                        action="append",
+                        help="Specify gvsoc trace")
+
+
+
+
+class Runner(runner.default_runner.Runner):
 
     def __init__(self, args, config):
         super(Runner, self).__init__(args, config)
@@ -33,7 +49,10 @@ class Runner(default_runner.Runner):
 
 
     def launch(self):
-        gvsoc_config = self.config.get('gvsoc')
+
+        full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
+
+        gvsoc_config = full_config.get('gvsoc')
 
         verbose = gvsoc_config.get_bool('verbose')
 
@@ -43,6 +62,8 @@ class Runner(default_runner.Runner):
             len(gvsoc_config.get('traces/include_regex')) != 0 or \
             len(gvsoc_config.get('events/include_regex')) != 0
 
+        gvsoc_config.set("debug-mode", debug_mode)
+
         if debug_mode:
             launcher = gvsoc_config.get_str('launchers/debug')
         else:
@@ -51,7 +72,7 @@ class Runner(default_runner.Runner):
         gvsoc_config_path = os.path.join(os.getcwd(), 'gvsoc_config.json')
 
         with open(gvsoc_config_path, 'w') as file:
-            file.write(self.config.dump_to_string())
+            file.write(full_config.dump_to_string())
 
         os.environ['PULP_CONFIG_FILE'] = gvsoc_config_path
 
