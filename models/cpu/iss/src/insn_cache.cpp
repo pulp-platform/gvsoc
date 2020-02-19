@@ -87,21 +87,28 @@ iss_insn_t *insn_cache_get(iss_t *iss, iss_addr_t pc)
 
   while (block)
   {
-    if (block->pc == pc_base) return &block->insns[insn_id];
+    if (block->pc == pc_base)
+    {
+      return &block->insns[insn_id];
+    }
     if (!block->is_init)
+    {
       first_free = block;
+    }
+
     block = block->next;
   }
 
   iss_insn_block_t *b = first_free;
-  if (b == NULL)  
+  if (b == NULL)
+  {
     b = (iss_insn_block_t *)malloc(sizeof(iss_insn_block_t));
+    b->next = cache->blocks[block_id];
+    cache->blocks[block_id] = b;
+  }
 
   b->pc = pc_base;
   
-  b->next = cache->blocks[block_id];
-  cache->blocks[block_id] = b;
-
   insn_block_init(b, pc_base);
 
   return &b->insns[insn_id];
