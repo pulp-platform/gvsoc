@@ -25,7 +25,9 @@
 #include <vector>
 #include "archi/utils.h"
 #include "udma_v4_impl.hpp"
-#include "udma_ctrl/udma_ctrl.h"
+#include "udma_ctrl/udma_ctrl_regs.h"
+#include "udma_ctrl/udma_ctrl_regfields.h"
+#include "udma_ctrl/udma_ctrl_gvsoc.h"
 
 
 void Udma_rx_channel::push_data(uint8_t *data, int size)
@@ -510,7 +512,7 @@ vp::io_req_status_e udma::conf_req(vp::io_req *req, uint64_t offset)
   uint64_t size = req->get_size();
   bool is_write = req->get_is_write();
 
-  if (offset == UDMA_CTRL_UDMACTRL_CFG_CG_OFFSET)
+  if (offset == UDMA_CTRL_CFG_CG_OFFSET)
   {
     if (is_write)
     {
@@ -528,11 +530,11 @@ vp::io_req_status_e udma::conf_req(vp::io_req *req, uint64_t offset)
 
     return vp::IO_REQ_OK;
   }
-  else if (offset == UDMA_CTRL_UDMACTRL_CFG_EVENT_OFFSET)
+  else if (offset == UDMA_CTRL_CFG_EVENT_OFFSET)
   {
     trace.msg("Unimplemented at %s %d\n", __FILE__, __LINE__);
   }
-  else if (offset == UDMA_CTRL_UDMACTRL_CFG_RSTN_OFFSET)
+  else if (offset == UDMA_CTRL_CFG_RSTN_OFFSET)
   {
     if (is_write)
     {
@@ -766,6 +768,21 @@ int udma::build()
         if (version == 3)
         {
           Hyper_periph *periph = new Hyper_periph(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
+#ifdef HAS_I2S
+      else if (strcmp(name.c_str(), "i2s") == 0)
+      {
+        trace.msg("Instantiating I2S channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 3)
+        {
+          I2s_periph *periph = new I2s_periph(this, id, j);
           periphs[id] = periph;
         }
         else

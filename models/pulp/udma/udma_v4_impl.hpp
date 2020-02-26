@@ -362,6 +362,10 @@ private:
 #include "spim/udma_spim_v4.hpp"
 #endif
 
+//#ifdef HAS_I2S
+#include "i2s/udma_i2s_v3.hpp"
+//#endif
+
 #ifdef HAS_HYPER
 #include "hyper/udma_hyper_v3.hpp"
 #endif

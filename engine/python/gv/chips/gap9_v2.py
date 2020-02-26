@@ -15,11 +15,17 @@
 #
 
 import gv.gvsoc
+import runner.chips.gap9_v2
 
 
 
-class Runner(gv.gvsoc.Runner):
+class Runner(gv.gvsoc.Runner, runner.chips.gap9_v2.Runner):
 
     def __init__(self, args, config):
-        super(Runner, self).__init__(args, config)
-        print ('gap9')
+        gv.gvsoc.Runner.__init__(self, args, config)
+        runner.chips.gap9_v2.Runner.__init__(self, args, config)
+
+    def gen_stimuli(self):
+        gv.gvsoc.Runner.gen_stimuli(self)
+
+        self.gen_efuse_stim('efuse_preload.data')
