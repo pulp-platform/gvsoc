@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, ETH (germain.haugou@iis.ee.ethz.ch)
  */
 
@@ -90,9 +90,14 @@ vp::io_req_status_e cluster_ctrl::req(void *__this, vp::io_req *req)
   {
     _this->trace.warning("Only 32 bits accesses are allowed\n");
     return vp::IO_REQ_INVALID;
-  } 
+  }
 
-  if (offset == ARCHI_CLUSTER_CTRL_FETCH_EN)
+  if (offset == ARCHI_CLUSTER_CTRL_EOC)
+  {
+    _this->clock->stop_engine(*(uint32_t *)data);
+    return vp::IO_REQ_OK;
+  }
+  else if (offset == ARCHI_CLUSTER_CTRL_FETCH_EN)
   {
     return _this->fetch_en_req(is_write, (uint32_t *)data);
   }
