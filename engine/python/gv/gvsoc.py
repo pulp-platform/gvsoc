@@ -41,14 +41,7 @@ class Runner(runner.default_runner.Runner):
         self.__process_args()
 
 
-    def run(self):
-
-        self.gen_stimuli()
-
-        return self.launch()
-
-
-    def launch(self):
+    def exec(self):
 
         full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
 
