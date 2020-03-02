@@ -18,6 +18,7 @@ import runner.default_runner
 import os
 import argparse
 import json_tools as js
+import errors
 
 
 def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None:
@@ -31,6 +32,12 @@ def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None
                         action="append",
                         help="Specify gvsoc trace")
 
+    parser.add_argument("--trace-level",
+                        dest="trace_level",
+                        default=None,
+                        help="Specify trace level")
+
+
 
 
 
@@ -41,11 +48,38 @@ class Runner(runner.default_runner.Runner):
         self.__process_args()
 
 
+    def __gen_debug_info(self, full_config, gvsoc_config):
+        debug_binaries = []
+
+        if self.args.binary is not None:
+            debug_binaries.append(self.args.binary)
+
+        rom_binary = full_config.get_str('**/soc/rom/binary')
+
+        if rom_binary is not None:
+            try:
+                rom_binary = eval(rom_binary)
+            except:
+                rom_binary = rom_binary
+                raise
+            
+            if os.path.exists(rom_binary):
+                debug_binaries.append(rom_binary)
+
+        for binary in debug_binaries:
+            if os.system('pulp-pc-info --file %s --all-file %s' % (binary, binary + '.debugInfo')) != 0:
+                raise errors.InputError('Error while generating debug symbols information, make sure the toolchain and the binaries are accessible ')
+
+            full_config.set('**/debug_binaries', binary + '.debugInfo')
+
+
     def exec(self):
 
         full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
 
         gvsoc_config = full_config.get('gvsoc')
+
+        self.__gen_debug_info(full_config, gvsoc_config)
 
         verbose = gvsoc_config.get_bool('verbose')
 
@@ -82,3 +116,5 @@ class Runner(runner.default_runner.Runner):
         for trace in self.args.traces:
             self.config.set('gvsoc/traces/include_regex', trace)
 
+        if self.args.trace_level is not None:
+            self.config.set('gvsoc/traces/level', self.args.trace_level)

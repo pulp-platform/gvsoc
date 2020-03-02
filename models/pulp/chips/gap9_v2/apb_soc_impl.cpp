@@ -653,7 +653,7 @@ int apb_soc_ctrl::build()
   this->l1_power = (1<<L1_NB_BANKS)-1;
   this->l1_standby = 0;
 
-  this->regmap.build(this);
+  this->regmap.build(this, &this->trace);
 
   return 0;
 }

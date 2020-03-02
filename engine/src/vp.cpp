@@ -88,7 +88,7 @@ static Gv_proxy *proxy = NULL;
 uint64_t vp::reg::get_field(int offset, int width)
 {
     uint64_t value = 0;
-    this->read(0, 0, (uint8_t *)&value);
+    this->read(0, (offset + width + 7)/8, (uint8_t *)&value);
     return (value >> offset) & ((1<<width)-1);
 }
 
@@ -98,11 +98,11 @@ bool vp::regmap::access(uint64_t offset, int size, uint8_t *value, bool is_write
 {
     for (auto x: this->get_registers())
     {
-        if (offset >= x->offset && offset < x->offset + x->width/8)
+        if (offset >= x->offset && offset + size <= x->offset + (x->width+7)/8)
         {
             x->access((offset - x->offset), size, value, is_write);
             
-            if (this->comp->get_trace()->get_active(vp::trace::LEVEL_DEBUG))
+            if (x->trace.get_active(vp::trace::LEVEL_DEBUG))
             {
                 std::string regfields_values = "";
 
@@ -128,7 +128,7 @@ bool vp::regmap::access(uint64_t offset, int size, uint8_t *value, bool is_write
                     regfields_values = std::string(buff);
                 }
 
-                this->comp->get_trace()->msg(vp::trace::LEVEL_DEBUG,
+                x->trace.msg(vp::trace::LEVEL_DEBUG,
                     "Register access (name: %s, offset: 0x%x, size: 0x%x, is_write: 0x%x, value: %s)\n",
                     x->get_name().c_str(), offset, size, is_write, regfields_values.c_str()
                 );
@@ -138,19 +138,26 @@ bool vp::regmap::access(uint64_t offset, int size, uint8_t *value, bool is_write
         }
     }
 
-    vp_warning_always(this->comp->get_trace(), "Accessing invalid register (offset: 0x%lx, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+    vp_warning_always(this->trace, "Accessing invalid register (offset: 0x%lx, size: 0x%x, is_write: %d)\n", offset, size, is_write);
     return true;
 }
 
 
 
-void vp::regmap::build(vp::component *comp)
+void vp::regmap::build(vp::component *comp, vp::trace *trace, std::string name)
 {
     this->comp = comp;
+    this->trace = trace;
 
     for (auto x: this->get_registers())
     {
-        x->build(comp);
+        std::string reg_name = name;
+        if (reg_name == "")
+            reg_name = x->get_hw_name();
+        else
+            reg_name = reg_name + "/" + x->get_hw_name();
+
+        x->build(comp, reg_name);
     }
 }
 
@@ -1138,6 +1145,14 @@ void vp::component::new_reg(std::string name, vp::reg_64 *reg, uint64_t reset_va
     this->regs.push_back(reg);
 }
 
+bool vp::reg::access_callback(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
+{
+    if (this->callback != NULL)
+        this->callback(reg_offset, size, value, is_write);
+
+    return this->callback != NULL;
+}
+
 void vp::reg::init(vp::component *top, std::string name, int bits, uint8_t *value, uint8_t *reset_value)
 {
     this->top = top;
@@ -1195,29 +1210,29 @@ void vp::reg_64::init(vp::component *top, std::string name, uint8_t *reset_val)
     reg::init(top, name, 64, (uint8_t *)&this->value, reset_val);
 }
 
-void vp::reg_1::build(vp::component *top)
+void vp::reg_1::build(vp::component *top, std::string name)
 {
-    top->new_reg(this->get_hw_name(), this, this->reset_val, this->do_reset);
+    top->new_reg(name, this, this->reset_val, this->do_reset);
 }
 
-void vp::reg_8::build(vp::component *top)
+void vp::reg_8::build(vp::component *top, std::string name)
 {
-    top->new_reg(this->get_hw_name(), this, this->reset_val, this->do_reset);
+    top->new_reg(name, this, this->reset_val, this->do_reset);
 }
 
-void vp::reg_16::build(vp::component *top)
+void vp::reg_16::build(vp::component *top, std::string name)
 {
-    top->new_reg(this->get_hw_name(), this, this->reset_val, this->do_reset);
+    top->new_reg(name, this, this->reset_val, this->do_reset);
 }
 
-void vp::reg_32::build(vp::component *top)
+void vp::reg_32::build(vp::component *top, std::string name)
 {
-    top->new_reg(this->get_hw_name(), this, this->reset_val, this->do_reset);
+    top->new_reg(name, this, this->reset_val, this->do_reset);
 }
 
-void vp::reg_64::build(vp::component *top)
+void vp::reg_64::build(vp::component *top, std::string name)
 {
-    top->new_reg(this->get_hw_name(), this, this->reset_val, this->do_reset);
+    top->new_reg(name, this, this->reset_val, this->do_reset);
 }
 
 void vp::master_port::final_bind()

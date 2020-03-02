@@ -251,6 +251,8 @@ void trace_domain::pre_pre_build()
         std::string trace_path = x->get_str();
         this->add_trace_path(1, trace_path);
     }
+
+    this->set_trace_level(this->get_vp_config()->get_child_str("traces/level").c_str());
 }
 
 int trace_domain::build()

@@ -54,7 +54,7 @@ void Udma_rx_channel::push_data(uint8_t *data, int size)
     vp::io_req *req = this->top->l2_itf.req_new(0, new uint8_t[4], 4, true);
     *(uint32_t *)req->get_data() = this->pending_word;
     bool end = current_cmd->prepare_req(req);
-    trace.msg("Writing 4 bytes to memory (value: 0x%x, addr: 0x%x)\n", this->pending_word, req->get_addr());
+    trace.msg(vp::trace::LEVEL_TRACE, "Writing 4 bytes to memory (value: 0x%x, addr: 0x%x)\n", this->pending_word, req->get_addr());
     this->top->push_l2_write_req(req);
     if (end)
     {
@@ -77,7 +77,7 @@ void Udma_rx_channel::reset(bool active)
 
 void Udma_channel::handle_transfer_end()
 {
-  trace.msg("Current transfer is finished\n");
+  trace.msg(vp::trace::LEVEL_DEBUG, "Current transfer is finished\n");
   free_reqs->push(current_cmd);
   current_cmd = NULL;
   top->trigger_event(this->channel_id);
@@ -115,8 +115,8 @@ void Udma_channel::push_ready_req(vp::io_req *req)
 {
   current_cmd->received_size += req->get_size();
 
-  trace.msg("Received\n");
-  trace.msg("Received data from L2 (cmd: %p, data_size: 0x%x, transfer_size: 0x%x, received_size: 0x%x, value: 0x%x)\n",
+  trace.msg(vp::trace::LEVEL_TRACE, "Received\n");
+  trace.msg(vp::trace::LEVEL_TRACE, "Received data from L2 (cmd: %p, data_size: 0x%x, transfer_size: 0x%x, received_size: 0x%x, value: 0x%x)\n",
     current_cmd, req->get_size(), current_cmd->size, current_cmd->received_size, *(uint32_t *)req->get_data());
 
   handle_ready_req(req);
@@ -127,7 +127,7 @@ vp::io_req_status_e Udma_channel::saddr_req(vp::io_req *req)
   uint32_t *data = (uint32_t *)req->get_data();
   if (req->get_is_write())
   {
-    trace.msg("Setting saddr register (value: 0x%x)\n", *data);
+    trace.msg(vp::trace::LEVEL_INFO, "Setting saddr register (value: 0x%x)\n", *data);
     saddr = *data;
   }
   else
@@ -144,7 +144,7 @@ vp::io_req_status_e Udma_channel::size_req(vp::io_req *req)
   uint32_t *data = (uint32_t *)req->get_data();
   if (req->get_is_write())
   {
-    trace.msg("Setting size register (value: 0x%x)\n", *data);
+    trace.msg(vp::trace::LEVEL_INFO, "Setting size register (value: 0x%x)\n", *data);
     size = *(int32_t *)data;
   }
   else
@@ -160,7 +160,7 @@ void Udma_channel::event_handler()
   if (!pending_reqs->is_empty() && current_cmd == NULL)
   {
     current_cmd = pending_reqs->pop();
-    trace.msg("New ready transfer (cmd: %p)\n", current_cmd);
+    trace.msg(vp::trace::LEVEL_DEBUG, "New ready transfer (cmd: %p)\n", current_cmd);
     top->enqueue_ready(this);
   }
 }
@@ -174,12 +174,12 @@ void Udma_channel::check_state()
 
   if (free_reqs->is_full())
   {
-    trace.msg("Inactive\n");;
+    trace.msg(vp::trace::LEVEL_TRACE, "Inactive\n");;
     this->state_event.event(NULL);
   }
   else
   {
-    trace.msg("Active\n");;
+    trace.msg(vp::trace::LEVEL_TRACE, "Active\n");;
     uint8_t one = 1;
     this->state_event.event(&one);
   }
@@ -197,7 +197,7 @@ void Udma_channel::enqueue_transfer()
 
   Udma_transfer *req = free_reqs->pop();
 
-  trace.msg("Enqueueing new transfer (req: %p, addr: 0x%x, size: 0x%x, transfer_size: %s, continuous: %d)\n",
+  trace.msg(vp::trace::LEVEL_DEBUG, "Enqueueing new transfer (req: %p, addr: 0x%x, size: 0x%x, transfer_size: %s, continuous: %d)\n",
     req, saddr, size, transfer_size == 0 ? "8bits" : transfer_size == 1 ? "16bits" : "32bits",
     continuous_mode);
 
@@ -225,12 +225,12 @@ vp::io_req_status_e Udma_channel::cfg_req(vp::io_req *req)
     this->continuous_mode = this->r_cfg.cont_get();
     bool channel_enabled = this->r_cfg.en_get();
     bool channel_clear = this->r_cfg.stop_get();
-    trace.msg("Setting cfg register (continuous: %d, enable: %d, clear: %d)\n",
+    trace.msg(vp::trace::LEVEL_INFO, "Setting cfg register (continuous: %d, enable: %d, clear: %d)\n",
       continuous_mode, channel_enabled, channel_clear);
 
     if (channel_clear)
     {
-      trace.msg("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+      trace.msg(vp::trace::LEVEL_TRACE, "UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
       return vp::IO_REQ_INVALID;
     }
 
@@ -314,9 +314,9 @@ void Udma_periph::clock_gate(bool new_is_on)
   if (is_on != new_is_on)
   {
     if (new_is_on)
-      top->trace.msg("Activating periph (periph: %d)\n", id);
+      top->trace.msg(vp::trace::LEVEL_INFO, "Activating periph (periph: %d)\n", id);
     else
-      top->trace.msg("Dectivating periph (periph: %d)\n", id);
+      top->trace.msg(vp::trace::LEVEL_INFO, "Dectivating periph (periph: %d)\n", id);
   }
   is_on = new_is_on;
 }
@@ -390,7 +390,7 @@ bool Udma_transfer::prepare_req(vp::io_req *req)
 
 void udma::trigger_event(int event)
 {
-  trace.msg("Triggering event (event: %d)\n", event);
+  trace.msg(vp::trace::LEVEL_DEBUG, "Triggering event (event: %d)\n", event);
   event_itf.sync(event);
 }
 
@@ -434,7 +434,7 @@ void udma::event_handler(void *__this, vp::clock_event *event)
   if (!_this->l2_write_reqs->is_empty())
   {
     vp::io_req *req = _this->l2_write_reqs->pop();
-    _this->trace.msg("Sending write request to L2 (value: 0x%x, addr: 0x%x, size: 0x%x)\n", *(uint32_t *)req->get_data(), req->get_addr(), req->get_size());
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "Sending write request to L2 (value: 0x%x, addr: 0x%x, size: 0x%x)\n", *(uint32_t *)req->get_data(), req->get_addr(), req->get_size());
     int err = _this->l2_itf.req(req);
     if (err == vp::IO_REQ_OK)
     {
@@ -455,11 +455,11 @@ void udma::event_handler(void *__this, vp::clock_event *event)
       _this->ready_tx_channels->push(channel);
     }
 
-    _this->trace.msg("Sending read request to L2 (addr: 0x%x, size: 0x%x)\n", req->get_addr(), req->get_size());
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "Sending read request to L2 (addr: 0x%x, size: 0x%x)\n", req->get_addr(), req->get_size());
     int err = _this->l2_itf.req(req);
     if (err == vp::IO_REQ_OK)
     {
-      _this->trace.msg("Read FIFO received word from L2 (value: 0x%x)\n", *(uint32_t *)req->get_data());
+      _this->trace.msg(vp::trace::LEVEL_TRACE, "Read FIFO received word from L2 (value: 0x%x)\n", *(uint32_t *)req->get_data());
       req->set_latency(req->get_latency() + _this->get_cycles() + 1);
       _this->l2_read_waiting_reqs->push_from_latency(req);
     }
@@ -472,7 +472,7 @@ void udma::event_handler(void *__this, vp::clock_event *event)
   vp::io_req *req = _this->l2_read_waiting_reqs->get_first();
   while (req != NULL && req->get_latency() <= _this->get_cycles())
   {
-    _this->trace.msg("Read request is ready, pushing to channel (req: %p)\n", req);
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "Read request is ready, pushing to channel (req: %p)\n", req);
 
     Udma_channel *channel = *(Udma_channel **)req->arg_get(0);
     _this->l2_read_waiting_reqs->pop();
@@ -516,7 +516,7 @@ vp::io_req_status_e udma::conf_req(vp::io_req *req, uint64_t offset)
   {
     if (is_write)
     {
-      trace.msg("Writing clock-enable register (current_value: 0x%x, new_value: 0x%x)\n",
+      trace.msg(vp::trace::LEVEL_TRACE, "Writing clock-enable register (current_value: 0x%x, new_value: 0x%x)\n",
         clock_gating, *data);
       clock_gating = *data;
       for (int i=0; i<nb_periphs; i++)
@@ -532,13 +532,13 @@ vp::io_req_status_e udma::conf_req(vp::io_req *req, uint64_t offset)
   }
   else if (offset == UDMA_CTRL_CFG_EVENT_OFFSET)
   {
-    trace.msg("Unimplemented at %s %d\n", __FILE__, __LINE__);
+    trace.msg(vp::trace::LEVEL_TRACE, "Unimplemented at %s %d\n", __FILE__, __LINE__);
   }
   else if (offset == UDMA_CTRL_CFG_RSTN_OFFSET)
   {
     if (is_write)
     {
-      trace.msg("Writing reset register (current_value: 0x%x, new_value: 0x%x)\n", clock_gating, *data);
+      trace.msg(vp::trace::LEVEL_INFO, "Writing reset register (current_value: 0x%x, new_value: 0x%x)\n", clock_gating, *data);
       this->ctrl_reset = *data;
       for (int i=0; i<this->nb_periphs; i++)
       {
@@ -634,7 +634,7 @@ vp::io_req_status_e udma::req(void *__this, vp::io_req *req)
   uint64_t size = req->get_size();
   bool is_write = req->get_is_write();
 
-  _this->trace.msg("UDMA access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
+  _this->trace.msg(vp::trace::LEVEL_TRACE, "UDMA access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, is_write);
 
   if (offset < UDMA_PERIPH_AREA_OFFSET)
   {
@@ -715,7 +715,7 @@ int udma::build()
   for (int i=0; i<nb_periphs; i++)
     periphs[i] = NULL;
 
-  trace.msg("Instantiating udma channels (nb_periphs: %d)\n", nb_periphs);
+  trace.msg(vp::trace::LEVEL_INFO, "Instantiating udma channels (nb_periphs: %d)\n", nb_periphs);
 
   js::config *interfaces = get_js_config()->get("interfaces");
 
@@ -736,7 +736,7 @@ int udma::build()
     int size = interface->get_child_int("size");
     int version = interface->get("version")->get_int();
 
-    trace.msg("Instantiating interface (type: %s, nb_channels: %d, version: %d)\n", name.c_str(), nb_channels, version);
+    trace.msg(vp::trace::LEVEL_INFO, "Instantiating interface (type: %s, nb_channels: %d, version: %d)\n", name.c_str(), nb_channels, version);
 
     for (int j=0; j<nb_channels; j++)
     {
@@ -749,7 +749,7 @@ int udma::build()
 #ifdef HAS_SPIM
       else if (strcmp(name.c_str(), "spim") == 0)
       {
-        trace.msg("Instantiating SPIM channel (id: %d, offset: 0x%x)\n", id, offset);
+        trace.msg(vp::trace::LEVEL_INFO, "Instantiating SPIM channel (id: %d, offset: 0x%x)\n", id, offset);
         if (version == 4)
         {
           Spim_periph_v4 *periph = new Spim_periph_v4(this, id, j);
@@ -761,10 +761,25 @@ int udma::build()
         }
       }
 #endif
+#ifdef HAS_UART
+      else if (strcmp(name.c_str(), "uart") == 0)
+      {
+        trace.msg(vp::trace::LEVEL_INFO, "Instantiating UART channel (id: %d, offset: 0x%x)\n", id, offset);
+        if (version == 2)
+        {
+          Uart_periph *periph = new Uart_periph(this, id, j);
+          periphs[id] = periph;
+        }
+        else
+        {
+          throw logic_error("Non-supported udma version: " + std::to_string(version));
+        }
+      }
+#endif
 #ifdef HAS_HYPER
       else if (strcmp(name.c_str(), "hyper") == 0)
       {
-        trace.msg("Instantiating HYPER channel (id: %d, offset: 0x%x)\n", id, offset);
+        trace.msg(vp::trace::LEVEL_INFO, "Instantiating HYPER channel (id: %d, offset: 0x%x)\n", id, offset);
         if (version == 3)
         {
           Hyper_periph *periph = new Hyper_periph(this, id, j);
@@ -779,7 +794,7 @@ int udma::build()
 #ifdef HAS_I2S
       else if (strcmp(name.c_str(), "i2s") == 0)
       {
-        trace.msg("Instantiating I2S channel (id: %d, offset: 0x%x)\n", id, offset);
+        trace.msg(vp::trace::LEVEL_INFO, "Instantiating I2S channel (id: %d, offset: 0x%x)\n", id, offset);
         if (version == 3)
         {
           I2s_periph *periph = new I2s_periph(this, id, j);
@@ -793,7 +808,7 @@ int udma::build()
 #endif
       else
       {
-        trace.msg("Instantiating channel (id: %d, offset: 0x%x)\n", id, offset);
+        trace.msg(vp::trace::LEVEL_INFO, "Instantiating channel (id: %d, offset: 0x%x)\n", id, offset);
       }
     }
   }
