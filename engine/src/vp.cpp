@@ -89,7 +89,7 @@ uint64_t vp::reg::get_field(int offset, int width)
 {
     uint64_t value = 0;
     this->read(0, (offset + width + 7)/8, (uint8_t *)&value);
-    return (value >> offset) & ((1<<width)-1);
+    return (value >> offset) & ((1UL<<width)-1);
 }
 
 

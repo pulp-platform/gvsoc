@@ -169,7 +169,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)&this->value);
     }
     inline void set_field(uint8_t value, int offset, int width) {
-      this->value = (this->value & (((1<<width)-1)<<offset)) | (value << offset);
+      this->value = (this->value & ~(((1UL<<width)-1)<<offset)) | (value << offset);
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
     }
@@ -222,7 +222,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)&this->value);
     }
     inline void set_field(uint16_t value, int offset, int width) {
-      this->value = (this->value & (((1<<width)-1)<<offset)) | (value << offset);
+      this->value = (this->value & ~(((1UL<<width)-1)<<offset)) | (value << offset);
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
     }
@@ -275,7 +275,7 @@ namespace vp {
         this->reg_event.event((uint8_t *)&this->value);
     }
     inline void set_field(uint32_t value, int offset, int width) {
-      this->value = (this->value & (((1<<width)-1)<<offset)) | (value << offset);
+      this->value = (this->value & ~(((1UL<<width)-1)<<offset)) | (value << offset);
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
     }
