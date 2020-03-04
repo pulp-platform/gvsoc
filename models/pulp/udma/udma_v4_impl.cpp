@@ -312,6 +312,7 @@ bool Udma_transfer::prepare_req(vp::io_req *req)
     req->prepare();
     req->set_addr(current_addr);
     req->set_size(remaining_size > 4 ? 4 : remaining_size);
+    req->set_actual_size(remaining_size > 4 ? 4 : remaining_size);
 
     *(Udma_channel **)req->arg_get(0) = channel;
 
@@ -447,6 +448,24 @@ void udma::cfg_cg_req(uint64_t reg_offset, int size, uint8_t *value, bool is_wri
 }
 
 
+void udma::cfg_cg_set_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
+{
+    uint32_t mask = 0;
+    memcpy((void *)(((uint8_t *)&mask)+reg_offset), value, size);
+    uint32_t reg_val = this->ctrl_regmap.cfg_cg.get_32() | mask;
+    this->cfg_cg_req(0, 4, (uint8_t *)&reg_val, 1);
+}
+
+
+void udma::cfg_cg_clr_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
+{
+    uint32_t mask = 0;
+    memcpy((void *)(((uint8_t *)&mask)+reg_offset), value, size);
+    uint32_t reg_val = this->ctrl_regmap.cfg_cg.get_32() & ~mask;
+    this->cfg_cg_req(0, 4, (uint8_t *)&reg_val, 1);
+}
+
+
 void udma::cfg_rstn_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
 {
     this->ctrl_regmap.cfg_rstn.update(reg_offset, size, value, is_write);
@@ -459,6 +478,24 @@ void udma::cfg_rstn_req(uint64_t reg_offset, int size, uint8_t *value, bool is_w
                 this->periphs[i]->reset(!((this->ctrl_regmap.cfg_rstn.get_32() >> i) & 1));
         }
     }
+}
+
+
+void udma::cfg_rstn_set_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
+{
+    uint32_t mask = 0;
+    memcpy((void *)(((uint8_t *)&mask)+reg_offset), value, size);
+    uint32_t reg_val = this->ctrl_regmap.cfg_rstn.get_32() | mask;
+    this->cfg_rstn_req(0, 4, (uint8_t *)&reg_val, 1);
+}
+
+
+void udma::cfg_rstn_clr_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write)
+{
+    uint32_t mask = 0;
+    memcpy((void *)(((uint8_t *)&mask)+reg_offset), value, size);
+    uint32_t reg_val = this->ctrl_regmap.cfg_rstn.get_32() & ~mask;
+    this->cfg_rstn_req(0, 4, (uint8_t *)&reg_val, 1);
 }
 
 
@@ -621,7 +658,11 @@ int udma::build()
     this->ctrl_regmap.build(this, &this->trace, "ctrl");
 
     this->ctrl_regmap.cfg_cg.register_callback(std::bind(&udma::cfg_cg_req, this, _1, _2, _3, _4));
+    this->ctrl_regmap.cfg_cg_set.register_callback(std::bind(&udma::cfg_cg_set_req, this, _1, _2, _3, _4));
+    this->ctrl_regmap.cfg_cg_clr.register_callback(std::bind(&udma::cfg_cg_clr_req, this, _1, _2, _3, _4));
     this->ctrl_regmap.cfg_rstn.register_callback(std::bind(&udma::cfg_rstn_req, this, _1, _2, _3, _4));
+    this->ctrl_regmap.cfg_rstn_set.register_callback(std::bind(&udma::cfg_rstn_set_req, this, _1, _2, _3, _4));
+    this->ctrl_regmap.cfg_rstn_clr.register_callback(std::bind(&udma::cfg_rstn_clr_req, this, _1, _2, _3, _4));
 
     for (int i = 0; i < nb_periphs; i++)
         periphs[i] = NULL;

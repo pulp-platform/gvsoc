@@ -327,7 +327,11 @@ private:
   void check_state();
 
   void cfg_cg_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write);
+  void cfg_cg_set_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write);
+  void cfg_cg_clr_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write);
   void cfg_rstn_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write);
+  void cfg_rstn_set_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write);
+  void cfg_rstn_clr_req(uint64_t reg_offset, int size, uint8_t *value, bool is_write);
   vp::io_req_status_e conf_req(vp::io_req *req, uint64_t offset);
   vp::io_req_status_e periph_req(vp::io_req *req, uint64_t offset);
   vp::io_req_status_e channel_req(vp::io_req *req, uint64_t offset);
