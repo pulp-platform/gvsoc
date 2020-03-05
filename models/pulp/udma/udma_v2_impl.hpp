@@ -681,6 +681,9 @@ public:
   I2s_rx_channel(udma *top, I2s_periph_v1 *periph, int id, int event_id, string name);
   void handle_rx_bit(int sck, int ws, int bit);
 
+protected:
+  bool wait_ws_start = false;
+
 private:
   void reset(bool active);
   I2s_periph_v1 *periph;
