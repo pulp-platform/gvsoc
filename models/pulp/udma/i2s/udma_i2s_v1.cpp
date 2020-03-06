@@ -531,6 +531,7 @@ void I2s_rx_channel::handle_rx_bit(int sck, int ws, int bit)
     if (width < 32)
       result = result & ((1<<width)-1);
     int bytes = width <= 8 ? 1 : width <= 16 ? 2 : 4;
-    this->push_data((uint8_t *)&result, bytes);
+    if (this->push_data((uint8_t *)&result, bytes))
+      this->wait_ws_start = true;
   }
 }
