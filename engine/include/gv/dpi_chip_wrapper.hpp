@@ -18,23 +18,23 @@
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#ifndef __GV__GVSOC_H__
-#define __GV__GVSOC_H__
+#ifndef __GV__DPI_CHIP_WRAPPER_H__
+#define __GV__DPI_CHIP_WRAPPER_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
 
-void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe);
+class Dpi_chip_wrapper_callback
+{
+public:
+    void (*function)(void *_this, int64_t, int);
+    void *_this;
 
-int gv_run(void *_instance);
-
-void gv_stop(void *_instance);
-
-void *gv_chip_pad_bind(void *handle, char *name);
-
-#ifdef __cplusplus
-}
-#endif
+    int *pad_value;
+    std::string name;
+    bool is_cs;
+    bool is_sck;
+    void *group;
+    int cs_id;
+};
 
 #endif

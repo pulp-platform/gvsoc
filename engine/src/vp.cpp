@@ -1449,6 +1449,20 @@ void vp::component::bind_comps()
     }
 }
 
+
+void *vp::component::external_bind(std::string name)
+{
+    for (auto &x : this->childs)
+    {
+        void *result = x->external_bind(name);
+        if (result != NULL)
+            return result;
+    }
+
+    return NULL;
+}
+
+
 void vp::master_port::bind_to_virtual(vp::port *port)
 {
     vp_assert_always(port != NULL, this->get_comp()->get_trace(), "Trying to bind master port to NULL\n");
@@ -1843,3 +1857,10 @@ int sc_main(int argc, char *argv[])
     return 0;
 }
 #endif
+
+
+extern "C" void *gv_chip_pad_bind(void *handle, char *name)
+{
+    vp::component *instance = (vp::component *)handle;
+    return instance->external_bind(name);
+}

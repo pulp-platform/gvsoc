@@ -452,6 +452,8 @@ namespace vp {
 
     void final_bind();
 
+    virtual void *external_bind(std::string name);
+
     void reset_all(bool active, bool from_itf=false);
 
     void new_master_port(std::string name, master_port *port);
