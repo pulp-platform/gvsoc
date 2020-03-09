@@ -170,7 +170,7 @@ public:
   Udma_rx_channel(udma *top, int id, string name) : Udma_channel(top, id, name) {}
   bool is_tx() { return false; }
   void reset(bool active);
-  void push_data(uint8_t *data, int size);
+  bool push_data(uint8_t *data, int size);
   bool has_cmd() { return this->current_cmd != NULL; }
 
 private:
