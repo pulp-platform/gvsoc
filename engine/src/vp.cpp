@@ -1516,13 +1516,16 @@ void Gv_proxy::proxy_loop(int socket_fd)
         {
             if (words[0] == "run")
             {
+                int64_t timestamp = top->get_time();
                 this->top->run();
+                dprintf(this->reply_pipe, "running %ld\n", timestamp);
             }
             else if (words[0] == "stop")
             {
                 this->top->pause();
                 this->top->flush_all();
                 fflush(NULL);
+                dprintf(this->reply_pipe, "stopped %ld\n", top->get_time());
             }
             else if (words[0] == "quit")
             {
@@ -1723,6 +1726,58 @@ Gvsoc_proxy::Gvsoc_proxy(std::string config_path)
 
 
 
+void Gvsoc_proxy::proxy_loop()
+{
+    FILE *sock = fdopen(this->reply_pipe[0], "r");
+
+    while(1)
+    {
+        char line[1024];
+
+        if (!fgets(line, 1024, sock)) 
+            return ;
+
+        std::string s = std::string(line);
+        std::regex regex{R"([\s]+)"};
+        std::sregex_token_iterator it{s.begin(), s.end(), regex, -1};
+        std::vector<std::string> words{it, {}};
+
+
+        for (auto x: words)
+        {
+            printf("%s\n", x.c_str());
+        }
+
+        if (words.size() > 0)
+        {
+            if (words[0] == "stopped")
+            {
+                int64_t timestamp = std::atoll(words[1].c_str());
+                printf("GOT STOP AT %ld\n", timestamp);
+                this->mutex.lock();
+                this->stopped_timestamp = timestamp;
+                this->running = false;
+                this->cond.notify_all();
+                this->mutex.unlock();
+            }
+            else if (words[0] == "running")
+            {
+                int64_t timestamp = std::atoll(words[1].c_str());
+                printf("GOT RUN AT %ld\n", timestamp);
+                this->mutex.lock();
+                this->running = true;
+                this->cond.notify_all();
+                this->mutex.unlock();
+            }
+            else
+            {
+                printf("Ignoring invalid command: %s\n", words[0].c_str());
+            }
+        }
+    }
+}
+
+
 int Gvsoc_proxy::open()
 {
     pid_t ppid_before_fork = getpid();
@@ -1755,6 +1810,11 @@ int Gvsoc_proxy::open()
 
         return retval;
     }
+    else
+    {
+        this->running = false;
+        this->loop_thread = new std::thread(&Gvsoc_proxy::proxy_loop, this);
+    }
 
     return 0;
 }
@@ -1768,9 +1828,18 @@ void Gvsoc_proxy::run()
 
 
 
-void Gvsoc_proxy::pause()
+int64_t Gvsoc_proxy::pause()
 {
+    int64_t result;
     dprintf(this->req_pipe[1], "stop\n");
+    std::unique_lock<std::mutex> lock(this->mutex);
+    while (this->running)
+    {
+        this->cond.wait(lock);
+    }
+    result = this->stopped_timestamp;
+    lock.unlock();
+    return result;
 }
 
 
