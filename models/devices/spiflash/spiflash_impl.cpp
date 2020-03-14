@@ -495,6 +495,10 @@ void spiflash::start()
   {
     stim_file_conf = this->get_js_config()->get("content/image");
   }
+  if (stim_file_conf == NULL)
+  {
+    stim_file_conf = this->get_js_config()->get("preload_file");
+  }
 
   if (stim_file_conf != NULL)
   {
