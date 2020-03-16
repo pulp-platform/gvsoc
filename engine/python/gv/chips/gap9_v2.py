@@ -16,6 +16,7 @@
 
 import gv.gvsoc
 import runner.chips.gap9_v2
+import os
 
 
 
