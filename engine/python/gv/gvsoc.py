@@ -75,13 +75,17 @@ class Runner(runner.default_runner.Runner):
 
     def exec(self):
 
+        os.chdir(self.config.get_str('gapy/work_dir'))
+
+        config_path = os.path.join(os.getcwd(), 'config.json')
+        with open(config_path, 'w') as file:
+            file.write(self.config.dump_to_string())
+
         full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
 
         gvsoc_config = full_config.get('gvsoc')
 
         self.__gen_debug_info(full_config, gvsoc_config)
-
-        verbose = gvsoc_config.get_bool('verbose')
 
         debug_mode = gvsoc_config.get_bool('debug-mode') or \
             gvsoc_config.get_bool('traces/enabled') or \
@@ -105,7 +109,7 @@ class Runner(runner.default_runner.Runner):
 
         command = [launcher, '--config=' + gvsoc_config_path]
 
-        if verbose:
+        if self.verbose:
             print ('Launching GVSOC with command: ')
             print (' '.join(command))
 

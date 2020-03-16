@@ -28,4 +28,5 @@ class Runner(gv.gvsoc.Runner, runner.chips.gap9_v2.Runner):
     def gen_stimuli(self):
         gv.gvsoc.Runner.gen_stimuli(self)
 
-        self.gen_efuse_stim('efuse_preload.data')
+        path = os.path.join(self.config.get_str('gapy/work_dir'), 'efuse_preload.data')
+        self.gen_efuse_stim(path)
