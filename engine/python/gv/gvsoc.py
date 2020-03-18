@@ -19,6 +19,7 @@ import os
 import argparse
 import json_tools as js
 import errors
+import gv.gtkwave
 
 
 def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None:
@@ -36,6 +37,16 @@ def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None
                         dest="trace_level",
                         default=None,
                         help="Specify trace level")
+
+    parser.add_argument("--vcd", dest="vcd", action="store_true", help="Activate VCD traces")
+
+    parser.add_argument("--event", dest="events", default=[], action="append", help="Specify gvsoc event (for VCD traces)")
+
+    parser.add_argument("--event-tags", dest="event_tags", default=[], action="append", help="Specify gvsoc event through tags(for VCD traces)")
+
+    parser.add_argument("--event-format", dest="format", default=None, help="Specify events format (vcd or fst)")
+
+    parser.add_argument("--gtkw", dest="gtkw", action="store_true", help="Dump events to pipe and open gtkwave in interactive mode")
 
 
 
@@ -95,6 +106,8 @@ class Runner(runner.default_runner.Runner):
 
         gvsoc_config.set("debug-mode", debug_mode)
 
+        gv.gtkwave.gen_gtkw_files(full_config, gvsoc_config)
+
         if debug_mode:
             launcher = gvsoc_config.get_str('launchers/debug')
         else:
@@ -122,3 +135,18 @@ class Runner(runner.default_runner.Runner):
 
         if self.args.trace_level is not None:
             self.config.set('gvsoc/traces/level', self.args.trace_level)
+
+        if self.args.vcd:
+            self.config.set('gvsoc/events/enabled', True)
+
+        for event in self.args.events:
+            self.config.set('gvsoc/events/include_regex', event)
+
+        for tag in self.args.event_tags:
+            self.config.set('gvsoc/events/tags', tag)
+
+        if self.args.format is not None:
+            self.config.set('gvsoc/events/format', args.format)
+
+        if self.args.gtkw:
+            self.config.set('gvsoc/events/gtkw', True)
