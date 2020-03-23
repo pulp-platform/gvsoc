@@ -49,14 +49,57 @@ def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None
     parser.add_argument("--gtkw", dest="gtkw", action="store_true", help="Dump events to pipe and open gtkwave in interactive mode")
 
 
+def process_args(args, config):
+    for trace in args.traces:
+        config.set('gvsoc/traces/include_regex', trace)
 
+    if args.trace_level is not None:
+        config.set('gvsoc/traces/level', args.trace_level)
+
+    if args.vcd:
+        config.set('gvsoc/events/enabled', True)
+
+    for event in args.events:
+        config.set('gvsoc/events/include_regex', event)
+
+    for tag in args.event_tags:
+        config.set('gvsoc/events/tags', tag)
+
+    if args.format is not None:
+        config.set('gvsoc/events/format', args.format)
+
+    if args.gtkw:
+        config.set('gvsoc/events/gtkw', True)
+
+
+def prepare_exec(config):
+    full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
+
+    gvsoc_config = full_config.get('gvsoc')
+
+    debug_mode = gvsoc_config.get_bool('debug-mode') or \
+        gvsoc_config.get_bool('traces/enabled') or \
+        gvsoc_config.get_bool('events/enabled') or \
+        len(gvsoc_config.get('traces/include_regex')) != 0 or \
+        len(gvsoc_config.get('events/include_regex')) != 0
+
+    gvsoc_config.set("debug-mode", debug_mode)
+
+    gv.gtkwave.gen_gtkw_files(full_config, gvsoc_config)
+
+    gvsoc_config_path = os.path.join(os.getcwd(), 'gvsoc_config.json')
+
+    with open(gvsoc_config_path, 'w') as file:
+        file.write(full_config.dump_to_string())
+
+    return full_config, gvsoc_config_path
 
 
 class Runner(runner.default_runner.Runner):
 
     def __init__(self, args, config):
         super(Runner, self).__init__(args, config)
-        self.__process_args()
+        process_args(args, config)
 
 
     def __gen_debug_info(self, full_config, gvsoc_config):
@@ -92,33 +135,18 @@ class Runner(runner.default_runner.Runner):
         with open(config_path, 'w') as file:
             file.write(self.config.dump_to_string())
 
-        full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
+        full_config, gvsoc_config_path = prepare_exec(self.config)
 
         gvsoc_config = full_config.get('gvsoc')
 
         self.__gen_debug_info(full_config, gvsoc_config)
 
-        debug_mode = gvsoc_config.get_bool('debug-mode') or \
-            gvsoc_config.get_bool('traces/enabled') or \
-            gvsoc_config.get_bool('events/enabled') or \
-            len(gvsoc_config.get('traces/include_regex')) != 0 or \
-            len(gvsoc_config.get('events/include_regex')) != 0
+        os.environ['PULP_CONFIG_FILE'] = gvsoc_config_path
 
-        gvsoc_config.set("debug-mode", debug_mode)
-
-        gv.gtkwave.gen_gtkw_files(full_config, gvsoc_config)
-
-        if debug_mode:
+        if gvsoc_config.get("debug-mode"):
             launcher = gvsoc_config.get_str('launchers/debug')
         else:
             launcher = gvsoc_config.get_str('launchers/default')
-
-        gvsoc_config_path = os.path.join(os.getcwd(), 'gvsoc_config.json')
-
-        with open(gvsoc_config_path, 'w') as file:
-            file.write(full_config.dump_to_string())
-
-        os.environ['PULP_CONFIG_FILE'] = gvsoc_config_path
 
         command = [launcher, '--config=' + gvsoc_config_path]
 
@@ -128,25 +156,3 @@ class Runner(runner.default_runner.Runner):
 
         return os.execvp(launcher, command)
 
-
-    def __process_args(self):
-        for trace in self.args.traces:
-            self.config.set('gvsoc/traces/include_regex', trace)
-
-        if self.args.trace_level is not None:
-            self.config.set('gvsoc/traces/level', self.args.trace_level)
-
-        if self.args.vcd:
-            self.config.set('gvsoc/events/enabled', True)
-
-        for event in self.args.events:
-            self.config.set('gvsoc/events/include_regex', event)
-
-        for tag in self.args.event_tags:
-            self.config.set('gvsoc/events/tags', tag)
-
-        if self.args.format is not None:
-            self.config.set('gvsoc/events/format', args.format)
-
-        if self.args.gtkw:
-            self.config.set('gvsoc/events/gtkw', True)
