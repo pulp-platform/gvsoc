@@ -72,7 +72,7 @@ def process_args(args, config):
         config.set('gvsoc/events/gtkw', True)
 
 
-def prepare_exec(config):
+def prepare_exec(config, gen=False):
     full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
 
     gvsoc_config = full_config.get('gvsoc')
@@ -85,12 +85,14 @@ def prepare_exec(config):
 
     gvsoc_config.set("debug-mode", debug_mode)
 
-    gv.gtkwave.gen_gtkw_files(full_config, gvsoc_config)
+    if gen and gvsoc_config.get_bool('events/gen_gtkw'):
+        gv.gtkwave.gen_gtkw_files(full_config, gvsoc_config)
 
     gvsoc_config_path = os.path.join(os.getcwd(), 'gvsoc_config.json')
 
-    with open(gvsoc_config_path, 'w') as file:
-        file.write(full_config.dump_to_string())
+    if gen:
+        with open(gvsoc_config_path, 'w') as file:
+            file.write(full_config.dump_to_string())
 
     return full_config, gvsoc_config_path
 
@@ -127,19 +129,28 @@ class Runner(runner.default_runner.Runner):
             full_config.set('**/debug_binaries', binary + '.debugInfo')
 
 
-    def exec(self):
-
+    def exec_prepare(self):
         os.chdir(self.config.get_str('gapy/work_dir'))
 
         config_path = os.path.join(os.getcwd(), 'config.json')
         with open(config_path, 'w') as file:
             file.write(self.config.dump_to_string())
 
-        full_config, gvsoc_config_path = prepare_exec(self.config)
+        full_config, gvsoc_config_path = prepare_exec(self.config, gen=True)
 
         gvsoc_config = full_config.get('gvsoc')
 
         self.__gen_debug_info(full_config, gvsoc_config)
+
+        return 0
+
+    def exec(self):
+
+        os.chdir(self.config.get_str('gapy/work_dir'))
+
+        full_config, gvsoc_config_path = prepare_exec(self.config)
+
+        gvsoc_config = full_config.get('gvsoc')
 
         os.environ['PULP_CONFIG_FILE'] = gvsoc_config_path
 
