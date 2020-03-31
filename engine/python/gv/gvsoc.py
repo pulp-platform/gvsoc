@@ -72,8 +72,9 @@ def process_args(args, config):
         config.set('gvsoc/events/gtkw', True)
 
 
-def prepare_exec(config, gen=False):
-    full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
+def prepare_exec(config, gen=False, full_config=None):
+    if full_config is None:
+        full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
 
     gvsoc_config = full_config.get('gvsoc')
 
@@ -136,11 +137,11 @@ class Runner(runner.default_runner.Runner):
         with open(config_path, 'w') as file:
             file.write(self.config.dump_to_string())
 
-        full_config, gvsoc_config_path = prepare_exec(self.config, gen=True)
+        full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
 
-        gvsoc_config = full_config.get('gvsoc')
+        self.__gen_debug_info(full_config, full_config.get('gvsoc'))
 
-        self.__gen_debug_info(full_config, gvsoc_config)
+        prepare_exec(self.config, gen=True, full_config=full_config)
 
         return 0
 
