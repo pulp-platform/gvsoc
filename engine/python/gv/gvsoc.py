@@ -114,11 +114,6 @@ class Runner(runner.default_runner.Runner):
         rom_binary = full_config.get_str('**/soc/rom/binary')
 
         if rom_binary is not None:
-            try:
-                rom_binary = eval(rom_binary)
-            except:
-                rom_binary = rom_binary
-                raise
             
             if os.path.exists(rom_binary):
                 debug_binaries.append(rom_binary)
