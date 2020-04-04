@@ -72,9 +72,16 @@ def process_args(args, config):
         config.set('gvsoc/events/gtkw', True)
 
 
-def prepare_exec(config, gen=False, full_config=None):
-    if full_config is None:
-        full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
+def prepare_exec(config, full_config, gen=False):
+
+    pass
+
+def gen_config(args, config):
+
+    config_path = os.path.join(config.get_str('gapy/work_dir'), 'config.json')
+
+    full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
+
 
     gvsoc_config = full_config.get('gvsoc')
 
@@ -86,14 +93,25 @@ def prepare_exec(config, gen=False, full_config=None):
 
     gvsoc_config.set("debug-mode", debug_mode)
 
-    if gen and gvsoc_config.get_bool('events/gen_gtkw'):
-        gv.gtkwave.gen_gtkw_files(full_config, gvsoc_config)
 
-    gvsoc_config_path = os.path.join(os.getcwd(), 'gvsoc_config.json')
+    if debug_mode:
+        debug_binaries = []
 
-    if gen:
-        with open(gvsoc_config_path, 'w') as file:
-            file.write(full_config.dump_to_string())
+        if args.binary is not None:
+            debug_binaries.append(args.binary)
+
+        rom_binary = full_config.get_str('**/soc/rom/binary')
+
+        if rom_binary is not None:
+            
+            if os.path.exists(rom_binary):
+                debug_binaries.append(rom_binary)
+
+        for binary in debug_binaries:
+            full_config.set('**/debug_binaries', binary + '.debugInfo')
+
+
+    gvsoc_config_path = os.path.join(config.get_str('gapy/work_dir'), 'gvsoc_config.json')
 
     return full_config, gvsoc_config_path
 
@@ -104,39 +122,23 @@ class Runner(runner.default_runner.Runner):
         super(Runner, self).__init__(args, config)
         process_args(args, config)
 
+    def conf(self):
+        runner.default_runner.Runner.conf(self)
+
+        self.full_config, self.gvsoc_config_path = gen_config(self.args, self.config)
+
 
     def __gen_debug_info(self, full_config, gvsoc_config):
-        debug_binaries = []
-
-        if self.args.binary is not None:
-            debug_binaries.append(self.args.binary)
-
-        rom_binary = full_config.get_str('**/soc/rom/binary')
-
-        if rom_binary is not None:
-            
-            if os.path.exists(rom_binary):
-                debug_binaries.append(rom_binary)
-
-        for binary in debug_binaries:
-            if os.system('pulp-pc-info --file %s --all-file %s' % (binary, binary + '.debugInfo')) != 0:
+        for binary in full_config.get('**/debug_binaries').get_dict():
+            if os.system('pulp-pc-info --file %s --all-file %s' % (binary.replace('.debugInfo', ''), binary)) != 0:
                 raise errors.InputError('Error while generating debug symbols information, make sure the toolchain and the binaries are accessible ')
 
-            full_config.set('**/debug_binaries', binary + '.debugInfo')
 
 
     def exec_prepare(self):
         os.chdir(self.config.get_str('gapy/work_dir'))
 
-        config_path = os.path.join(os.getcwd(), 'config.json')
-        with open(config_path, 'w') as file:
-            file.write(self.config.dump_to_string())
-
-        full_config =  js.import_config(self.config.get_dict(), interpret=True, gen=True)
-
-        self.__gen_debug_info(full_config, full_config.get('gvsoc'))
-
-        prepare_exec(self.config, gen=True, full_config=full_config)
+        prepare_exec(self.config, self.full_config, gen=True)
 
         return 0
 
@@ -144,18 +146,26 @@ class Runner(runner.default_runner.Runner):
 
         os.chdir(self.config.get_str('gapy/work_dir'))
 
-        full_config, gvsoc_config_path = prepare_exec(self.config)
+        prepare_exec(self.config, self.full_config)
 
-        gvsoc_config = full_config.get('gvsoc')
+        gvsoc_config = self.full_config.get('gvsoc')
 
-        os.environ['PULP_CONFIG_FILE'] = gvsoc_config_path
+        if gvsoc_config.get_bool('events/gen_gtkw'):
+            gv.gtkwave.gen_gtkw_files(self.full_config, gvsoc_config)
+
+        self.__gen_debug_info(self.full_config, self.full_config.get('gvsoc'))
+
+        with open(self.gvsoc_config_path, 'w') as file:
+            file.write(self.full_config.dump_to_string())
+
+        os.environ['PULP_CONFIG_FILE'] = self.gvsoc_config_path
 
         if gvsoc_config.get("debug-mode"):
             launcher = gvsoc_config.get_str('launchers/debug')
         else:
             launcher = gvsoc_config.get_str('launchers/default')
 
-        command = [launcher, '--config=' + gvsoc_config_path]
+        command = [launcher, '--config=' + self.gvsoc_config_path]
 
         if self.verbose:
             print ('Launching GVSOC with command: ')
