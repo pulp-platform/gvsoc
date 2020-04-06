@@ -66,8 +66,11 @@ public:
 protected:
   vp::io_req *first_pending_reqs = NULL;
   vp::io_req *first_stalled_req = NULL;
+  bool clock_enable;
 
 private:
+
+    static void clock_handle(void *__this, vp::clock_event *event);
 
   vp::trace     trace;
   vp::io_slave in;
@@ -79,6 +82,8 @@ private:
   int count = 0;
   vp::io_req *last_pending_reqs = NULL;
   hwacc_module *sc_module;
+
+  vp::clock_event *clock_event;
 };
 
 hwacc::hwacc(const char *config)
@@ -130,7 +135,12 @@ vp::io_req_status_e hwacc::req(void *__this, vp::io_req *req)
   }
   else
   {
-    _this->sc_module->event.notify();
+    if (! _this->clock_enable)
+    {
+      _this->clock_enable = true;
+      _this->event_enqueue(_this->clock_event, 1);
+    }
+
     return vp::IO_REQ_PENDING;
   }
 }
@@ -154,7 +164,22 @@ int hwacc::build()
     this->new_master_port("out_" + std::to_string(i), &this->out[i]);
   }
 
+  this->clock_enable = false;
+  this->clock_event = this->event_new(&hwacc::clock_handle);
+
   return 0;
+}
+
+
+void hwacc::clock_handle(void *__this, vp::clock_event *event)
+{
+  hwacc *_this = (hwacc *)__this;
+  
+  if (_this->clock_enable)
+  {
+    _this->sc_module->event.notify();
+    _this->event_enqueue(_this->clock_event, 1);
+  }
 }
 
 
@@ -206,8 +231,13 @@ void hwacc_module::run()
     // The latency cn be taken into account to simulate some timing behaviors
     printf("Received read %x latency %ld\n", word, l1_req.get_latency());
 
-    // Such a wait can be used to model timing
-    wait(100, SC_NS);
+    // Such a wait can be used to model timing, this will wait 10 clock cycles
+    for (int i=0; i<10; i++)
+    {
+      wait(event); 
+    }
+
+    vp_module->clock_enable = false;
 
     vp_module->current_reqs--;
 
