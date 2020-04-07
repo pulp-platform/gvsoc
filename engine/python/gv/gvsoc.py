@@ -78,8 +78,6 @@ def prepare_exec(config, full_config, gen=False):
 
 def gen_config(args, config):
 
-    config_path = os.path.join(config.get_str('gapy/work_dir'), 'config.json')
-
     full_config =  js.import_config(config.get_dict(), interpret=True, gen=True)
 
 
@@ -116,6 +114,10 @@ def gen_config(args, config):
     return full_config, gvsoc_config_path
 
 
+def dump_config(full_config, gvsoc_config_path):
+    with open(gvsoc_config_path, 'w') as file:
+        file.write(full_config.dump_to_string())
+
 class Runner(runner.default_runner.Runner):
 
     def __init__(self, args, config):
@@ -140,6 +142,8 @@ class Runner(runner.default_runner.Runner):
 
         prepare_exec(self.config, self.full_config, gen=True)
 
+        dump_config(self.full_config, self.gvsoc_config_path)
+
         return 0
 
     def exec(self):
@@ -155,8 +159,7 @@ class Runner(runner.default_runner.Runner):
 
         self.__gen_debug_info(self.full_config, self.full_config.get('gvsoc'))
 
-        with open(self.gvsoc_config_path, 'w') as file:
-            file.write(self.full_config.dump_to_string())
+        dump_config(self.full_config, self.gvsoc_config_path)
 
         os.environ['PULP_CONFIG_FILE'] = self.gvsoc_config_path
 
