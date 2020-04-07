@@ -27,6 +27,7 @@ import os.path
 
 from plp_platform import *
 import runner.plp_flash_stimuli as plp_flash_stimuli
+import runner.plp_flash_stimuli_vivo3 as plp_flash_stimuli_vivo3
 import shlex
 import json_tools as js
 import pulp_config
@@ -1271,16 +1272,30 @@ class Runner(Platform):
             else:
                 binary = None
 
-            if plp_flash_stimuli.genFlashImage(
-                raw_stim=self.get_flash_preload_file(),
-                bootBinary=binary,
-                comps=comps,
-                raw_fs=raw_fs,
-                verbose=self.get_json().get('**/runner/verbose').get(),
-                archi=self.get_json().get('**/pulp_chip_family').get(),
-                flashType=self.get_json().get('**/runner/flash_type').get(),
-                encrypt=encrypted, aesKey=aes_key, aesIv=aes_iv):
-                return -1
+            pulp_chip_family = self.get_json().get('**/pulp_chip_family').get()
+
+            if pulp_chip_family == 'vivosoc3' or pulp_chip_family == 'vivosoc3_1' or pulp_chip_family == 'vivosoc4':
+                if plp_flash_stimuli_vivo3.genFlashImage(
+                    slmStim=self.get_json().get('**/runner/flash_nor_slm_file').get(),
+                    bootBinary=binary,
+                    comps=comps,
+                    verbose=self.get_json().get('**/runner/verbose').get(),
+                    archi=self.get_json().get('**/pulp_chip_family').get(),
+                    flashType='nor',
+                    encrypt=encrypted, aesKey=aes_key, aesIv=aes_iv):
+                    return -1
+
+            else:
+                if plp_flash_stimuli.genFlashImage(
+                    raw_stim=self.get_flash_preload_file(),
+                    bootBinary=binary,
+                    comps=comps,
+                    raw_fs=raw_fs,
+                    verbose=self.get_json().get('**/runner/verbose').get(),
+                    archi=self.get_json().get('**/pulp_chip_family').get(),
+                    flashType=self.get_json().get('**/runner/flash_type').get(),
+                    encrypt=encrypted, aesKey=aes_key, aesIv=aes_iv):
+                    return -1
 
         if self.get_json().get('**/efuse') is not None:
             efuse = runner.stim_utils.Efuse(self.get_json(), verbose=self.get_json().get('**/runner/verbose').get())
@@ -1336,7 +1351,11 @@ class Runner(Platform):
 
         if self.gen_flash_stimuli:
             if self.get_json().get('**/spiflash') is not None:
-                self.get_json().get('**/spiflash').set('stim_file', self.get_flash_preload_file())
+                pulp_chip_family = self.get_json().get('**/pulp_chip_family').get()
+                if pulp_chip_family == 'vivosoc3' or pulp_chip_family == 'vivosoc3_1' or pulp_chip_family == 'vivosoc4':
+                    self.get_json().get('**/spiflash').set('slm_stim_file', self.get_json().get('**/runner/flash_nor_slm_file').get())
+                else:
+                    self.get_json().get('**/spiflash').set('stim_file', self.get_flash_preload_file())
             if self.get_json().get('**/mram') is not None:
                 self.get_json().get('**/soc/mram').set('stim_file', self.get_flash_preload_file())
 
