@@ -27,11 +27,15 @@ extern "C" {
 
 void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe);
 
+void *gv_create(const char *config_path);
+
+void gv_start(void *instance, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe);
+
 int gv_run(void *_instance);
 
 void gv_stop(void *_instance);
 
-void *gv_chip_pad_bind(void *handle, char *name);
+void *gv_chip_pad_bind(void *handle, char *name, int ext_handle);
 
 #ifdef __cplusplus
 }
