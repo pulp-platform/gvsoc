@@ -146,8 +146,7 @@ $(INSTALL_DIR)/python/libpulpvp-sv.so: $(ENGINE_BUILD_DIR)/libpulpvp-sv.so
 
 headers: $(INSTALL_FILES)
 
-build: $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so $(INSTALL_DIR)/lib/libpulpvp-sv.so $(INSTALL_DIR)/python/libpulpvp.so $(INSTALL_DIR)/python/libpulpvp-debug.so $(INSTALL_DIR)/python/libpulpvp-sv.so
-# $(INSTALL_DIR)/bin/gvsoc_launcher $(INSTALL_DIR)/bin/gvsoc_launcher_debug
+build: $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so $(INSTALL_DIR)/lib/libpulpvp-sv.so $(INSTALL_DIR)/python/libpulpvp.so $(INSTALL_DIR)/python/libpulpvp-debug.so $(INSTALL_DIR)/python/libpulpvp-sv.so $(INSTALL_DIR)/bin/gvsoc_launcher $(INSTALL_DIR)/bin/gvsoc_launcher_debug
 
 clean: vp_clean
 	rm -rf $(ENGINE_BUILD_DIR)
