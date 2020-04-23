@@ -329,7 +329,8 @@ int Microphone::build()
 void Microphone::start_sample()
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "Starting sample\n");
-    this->pending_bits = 0;
+    this->pending_bits = this->width;
+    this->current_value = this->get_data();
 }
 
 
@@ -383,17 +384,21 @@ int Microphone::pop_data()
         // Classic mode, sample one full value and stream one bit per cycle
 
         // Sample new data if all bits have been shifted
-        if (this->pending_bits == 0)
+        if (this->pending_bits >= 0)
         {
-            this->pending_bits = this->width;
-            this->current_value = this->get_data();
-        }
+            if (this->pending_bits > 0)
+            {
+                // Shift bits from MSB
+                int bit = (this->current_value >> (this->pending_bits - 1)) & 1;
+                this->pending_bits--;
+                return bit;
+            }
 
-        // Shift bits from MSB
-        int bit = (this->current_value >> (this->pending_bits - 1)) & 1;
-        this->pending_bits--;
+            this->pending_bits--;
+            return -1;
+        }
     
-        return bit;
+        return -2;
     }
 
     return 0;    
@@ -436,12 +441,21 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
             }
 
             int data = _this->pop_data();
-            //fprintf(stderr, "Popped data %d\n", data);
 
-            // If there is no more delay, set the sample now as it wil be sampled by the receiver in 1 cycle
-            _this->trace.msg(vp::trace::LEVEL_TRACE, "Setting data (value: %d)\n", data);
+            if (data >= 0)
+            {
+                //fprintf(stderr, "Popped data %d\n", data);
 
-            _this->i2s_itf.sync(sck, ws, data);
+                // If there is no more delay, set the sample now as it wil be sampled by the receiver in 1 cycle
+                _this->trace.msg(vp::trace::LEVEL_TRACE, "Setting data (value: %d)\n", data);
+
+                _this->i2s_itf.sync(sck, ws, data);
+            }
+            else if (data == -1)
+            {
+                _this->i2s_itf.sync(sck, ws, 2);
+                _this->is_active = false;
+            }
         }
 
         _this->prev_ws = ws;
