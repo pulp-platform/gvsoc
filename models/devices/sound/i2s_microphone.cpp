@@ -67,6 +67,7 @@ protected:
     int frequency;          // Sampling frequency
     int pdm;                // Generate samples in PDM mode
     bool stim_incr;         // True if the stimuli should be an incrising number
+    int stim_incr_value;    // In case incr is active, give the increment value
     int current_stim;       // When using incrementing stim value, this gives the first value
     bool is_active;         // Set to true when the word-select of this microphone is detected. The microphone is sending samples when this is true;
     Stim_txt *stim;         // Pointer to the stim generator
@@ -318,6 +319,7 @@ int Microphone::build()
     {
         this->stim_incr = true;
         this->current_stim = this->get_js_config()->get_int("stim_incr_start");
+        this->stim_incr_value = this->get_js_config()->get_int("stim_incr_value");
     }
     this->current_ws_delay = 0;
     this->pending_bits = 0;
@@ -346,7 +348,7 @@ int Microphone::get_data()
         {
             this->trace.msg(vp::trace::LEVEL_TRACE, "Incrementing stim (value: 0x%x)\n", this->current_stim);
             //fprintf(stderr, "stim incr %x %d\n", this->current_stim, (short)this->current_stim);
-            return this->current_stim++;
+            return this->current_stim += this->stim_incr_value;
         }
     }
 
@@ -413,35 +415,38 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
 
     if (sck)
     {
-        if (!_this->is_active)
+        // The channel is the one of this microphone
+        if (_this->prev_ws != ws && ws == _this->channel_ws)
         {
-            // The channel is the one of this microphone
-            if (_this->prev_ws != ws && ws == _this->channel_ws)
+            if (!_this->is_active)
             {
                 _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
+            }
 
+            _this->is_active = true;
+
+            // If the WS just changed, apply the delay before starting sending
+            _this->current_ws_delay = _this->ws_delay;
+            if (_this->current_ws_delay == 0)
+            {
                 _this->is_active = true;
-
-                // If the WS just changed, apply the delay before starting sending
-                _this->current_ws_delay = _this->ws_delay;
             }
         }
 
-        if (_this->is_active)
+        // If there is a delay, decrease it
+        if (_this->current_ws_delay > 0)
         {
-            // If there is a delay, decrease it
-            if (_this->current_ws_delay > 0)
+            _this->current_ws_delay--;
+            if (_this->current_ws_delay == 0)
             {
-                _this->current_ws_delay--;
-                if (_this->current_ws_delay == 0)
-                {
-                    // And reset the sample
-                    _this->start_sample();
-                }
+                // And reset the sample
+                _this->start_sample();
             }
+        }
 
+        if (_this->is_active && _this->pending_bits > 0)
+        {
             int data = _this->pop_data();
-
             if (data >= 0)
             {
                 //fprintf(stderr, "Popped data %d\n", data);
