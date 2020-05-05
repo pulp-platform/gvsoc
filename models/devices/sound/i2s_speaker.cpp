@@ -101,7 +101,7 @@ Outfile_hex::Outfile_hex(Speaker *top, std::string file, int width)
 void Outfile_hex::write_data(int64_t timestamp, long long int data)
 {
     this->top->trace.msg(vp::trace::LEVEL_DEBUG, "Writing sample (value: 0x%x)\n", data);
-    fprintf(this->file, "%llx\n", data);
+    fprintf(this->file, "0x%llx\n", data);
 }
 
 
@@ -131,8 +131,6 @@ int Speaker::build()
     if (mode == "file")
     {
         std::string out_file = this->get_js_config()->get_child_str("outfile");
-
-        printf("OUT FILE %s\n", out_file.c_str());
 
         if (out_file != "") {
 
