@@ -490,6 +490,7 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
         else if (_this->pending_bits == 0)
         {
             _this->pending_bits = -1;
+            _this->trace.msg(vp::trace::LEVEL_TRACE, "Releasing output\n");
             _this->i2s_itf.sync(sck, ws, 2);
         }
 
