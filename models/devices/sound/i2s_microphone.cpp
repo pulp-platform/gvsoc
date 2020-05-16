@@ -75,6 +75,7 @@ protected:
     Stim_txt *stim;         // Pointer to the stim generator
     int ws_in;
     bool lower_ws_out;
+    bool enabled;
 
     vp::trace trace;
 
@@ -297,6 +298,7 @@ int Microphone::build()
     this->ws_delay = this->get_js_config()->get_int("ws-delay");
     this->width = this->get_js_config()->get_int("width");
     this->frequency = this->get_js_config()->get_int("frequency");
+    this->enabled = this->get_js_config()->get_child_bool("enabled");
     this->pdm = this->get_js_config()->get_int("pdm");
     this->stim_incr = false;
     this->stim = NULL;
@@ -431,6 +433,9 @@ int Microphone::pop_data()
 void Microphone::sync(void *__this, int sck, int ws, int sd)
 {
     Microphone *_this = (Microphone *)__this;
+
+    if (!_this->enabled)
+        return;
 
     if (_this->ws_in_itf.is_bound())
         ws = _this->ws_in;
