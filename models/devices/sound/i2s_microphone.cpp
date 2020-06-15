@@ -31,7 +31,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <iostream>
-#include <common/telnet_proxy.hpp>
 #ifdef USE_SNDFILE
 #include <sndfile.hh>
 #endif
