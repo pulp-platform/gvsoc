@@ -30,7 +30,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <iostream>
-#include <common/telnet_proxy.hpp>
+//#include <common/telnet_proxy.hpp>
 
 class Uart_checker : public vp::component
 {

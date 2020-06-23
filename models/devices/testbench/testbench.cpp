@@ -31,13 +31,11 @@
 #include <mutex>
 #include <condition_variable>
 #include <iostream>
-#include <common/telnet_proxy.hpp>
 #include <regex>
 
 
 class Testbench;
 class Uart;
-
 
 
 #define PI_TESTBENCH_CMD_GPIO_LOOPBACK 1
