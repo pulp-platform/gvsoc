@@ -116,12 +116,18 @@ public:
     Uart_group(dpi_chip_wrapper *top, std::string name) : Pad_group(top, name) {}
     void edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, int data);
     void rx_edge(int data);
+    void rx_edge_full(int data, int sck, int rtr);
     bool bind(std::string pad_name, Dpi_chip_wrapper_callback *callback);
     vp::trace trace;
     vp::uart_master master;
     vp::trace tx_trace;
     vp::trace rx_trace;
     Dpi_chip_wrapper_callback *rx_callback;
+    Dpi_chip_wrapper_callback *sck_callback;
+    Dpi_chip_wrapper_callback *cts_callback;
+    int tx;
+    int sck;
+    int rts;
 };
 
 
@@ -166,7 +172,8 @@ public:
 private:
     static void qspim_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
     static void uart_rx_edge(void *__this, int data, int id);
-    static void uart_sync(void *__this, int data, int id);
+    static void uart_rx_edge_full(void *__this, int data, int sck, int rtr, int id);
+    static void uart_sync(void *__this, int data, int sck, int rtr, int id);
     static void i2c_rx_edge(void *__this, int sda, int id);
     static void i2c_sync(void *__this, int scl, int sda, int id);
     static void hyper_sync_cycle(void *__this, int data, int id);
@@ -272,6 +279,7 @@ int dpi_chip_wrapper::build()
                 traces.new_trace(name, &group->trace, vp::WARNING);
 
                 group->master.set_sync_meth_muxed(&dpi_chip_wrapper::uart_rx_edge, nb_itf);
+                group->master.set_sync_full_meth_muxed(&dpi_chip_wrapper::uart_rx_edge_full, nb_itf);
                 this->groups.push_back(group);
                 traces.new_trace_event(name + "/tx", &group->tx_trace, 1);
                 traces.new_trace_event(name + "/rx", &group->rx_trace, 1);
@@ -342,6 +350,14 @@ void dpi_chip_wrapper::uart_rx_edge(void *__this, int data, int id)
     dpi_chip_wrapper *_this = (dpi_chip_wrapper *)__this;
     Uart_group *group = static_cast<Uart_group *>(_this->groups[id]);
     group->rx_edge(data);
+}
+
+
+void dpi_chip_wrapper::uart_rx_edge_full(void *__this, int data, int sck, int rtr, int id)
+{
+    dpi_chip_wrapper *_this = (dpi_chip_wrapper *)__this;
+    Uart_group *group = static_cast<Uart_group *>(_this->groups[id]);
+    group->rx_edge_full(data, sck, rtr);
 }
 
 
@@ -568,6 +584,23 @@ bool Uart_group::bind(std::string pad_name, Dpi_chip_wrapper_callback *callback)
     {
         this->rx_callback = callback;
     }
+    else if (pad_name == "clk")
+    {
+        this->sck_callback = callback;
+        callback->pad_value = &this->sck;
+    }
+    else if (pad_name == "cts")
+    {
+        this->cts_callback = callback;
+    }
+    else if (pad_name == "tx")
+    {
+        callback->pad_value = &this->tx;
+    }
+    else if (pad_name == "rts")
+    {
+        callback->pad_value = &this->rts;
+    }
     return false;
 }
 
@@ -575,9 +608,12 @@ void Uart_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, in
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "UART edge (timestamp: %ld, name: %s, value: %d)\n", timestamp, callback->name.c_str(), data);
 
+    if (callback->pad_value)
+        *(callback->pad_value) = data;
+
     if (this->master.is_bound())
     {
-        this->master.sync(data);
+        this->master.sync_full(this->tx, this->sck, this->rts);
     }
 }
 
@@ -586,6 +622,20 @@ void Uart_group::rx_edge(int data)
     this->rx_trace.event((uint8_t *)&data);
 
     dpi_external_edge(this->rx_callback->handle, data);
+}
+
+void Uart_group::rx_edge_full(int data, int sck, int rtr)
+{
+    this->rx_trace.event((uint8_t *)&data);
+
+    if (this->rx_callback)
+        dpi_external_edge(this->rx_callback->handle, data);
+
+    if (this->sck_callback)
+        dpi_external_edge(this->sck_callback->handle, sck);
+
+    if (this->cts_callback)
+        dpi_external_edge(this->cts_callback->handle, rtr);
 }
 
 
