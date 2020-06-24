@@ -177,7 +177,7 @@ namespace vp {
   inline void uart_master::bind_to(vp::port *_port, vp::config *config)
   {
     uart_slave *port = (uart_slave *)_port;
-    if (port->sync_full_mux_meth == NULL)
+    if (port->sync_mux_meth == NULL && port->sync_full_mux_meth == NULL)
     {
       sync_meth = port->sync_meth;
       sync_full_meth = port->sync_full_meth;
