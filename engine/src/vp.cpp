@@ -214,6 +214,13 @@ void vp::component::set_vp_config(js::config *config)
 
 
 
+void vp::component::set_gv_conf(struct gv_conf *gv_conf)
+{
+    memcpy(&this->gv_conf, gv_conf, sizeof(struct gv_conf));
+}
+
+
+
 js::config *vp::component::get_vp_config()
 {
     if (this->vp_config == NULL)
@@ -374,6 +381,18 @@ void vp::component_clock::pre_build(component *comp)
     comp->traces.new_trace("comp", comp->get_trace(), vp::DEBUG);
     comp->traces.new_trace("warning", &comp->warning, vp::WARNING);
 }
+
+
+int64_t vp::time_engine::get_next_event_time()
+{
+    if (this->first_client)
+    {
+        return this->first_client->next_event_time;
+    }
+
+    return this->time;
+}
+
 
 bool vp::time_engine::dequeue(time_engine_client *client)
 {
@@ -1684,9 +1703,10 @@ void Gv_proxy::stop()
 }
 
 
-
-extern "C" void *gv_create(const char *config_path)
+extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
 {
+    setenv("PULP_CONFIG_FILE", config_path, 1);
+
     js::config *js_config = js::import_config_from_file(config_path);
     if (js_config == NULL)
     {
@@ -1727,12 +1747,18 @@ extern "C" void *gv_create(const char *config_path)
     vp::component *instance = constructor(js_config);
 
     instance->set_vp_config(gv_config);
+    instance->set_gv_conf(gv_conf);
 
     return (void *)instance;
 }
 
 
-extern "C" void gv_start(void *arg, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe)
+extern "C" void gv_destroy(void *arg)
+{
+}
+
+
+extern "C" void gv_start(void *arg)
 {
     vp::component *instance = (vp::component *)arg;
 
@@ -1741,22 +1767,45 @@ extern "C" void gv_start(void *arg, bool open_proxy, int *proxy_socket, int req_
     instance->build();
     instance->build_new();
 
-    if (open_proxy)
+    if (instance->gv_conf.open_proxy)
     {
-        proxy = new Gv_proxy(instance, req_pipe, reply_pipe);
-        proxy->open(0, proxy_socket);
+        proxy = new Gv_proxy(instance, instance->gv_conf.req_pipe, instance->gv_conf.reply_pipe);
+        proxy->open(0, instance->gv_conf.proxy_socket);
     }
 
 }
 
 
+extern "C" void gv_step(void *arg, int64_t timestamp)
+{
+    vp::component *instance = (vp::component *)arg;
+
+    instance->step(timestamp);
+}
+
+
+extern "C" int64_t gv_time(void *arg)
+{
+    vp::component *instance = (vp::component *)arg;
+
+    return instance->get_time_engine()->get_next_event_time();
+}
+
+
 extern "C" void *gv_open(const char *config_path, bool open_proxy, int *proxy_socket, int req_pipe, int reply_pipe)
 {
-    void *instance = gv_create(config_path);
+    struct gv_conf gv_conf;
+
+    gv_conf.open_proxy = open_proxy;
+    gv_conf.proxy_socket = proxy_socket;
+    gv_conf.req_pipe = req_pipe;
+    gv_conf.reply_pipe = reply_pipe;
+
+    void *instance = gv_create(config_path, &gv_conf);
     if (instance == NULL)
         return NULL;
 
-    gv_start(instance, open_proxy, proxy_socket, req_pipe, reply_pipe);
+    gv_start(instance);
 
     return instance;
 }
@@ -1937,6 +1986,14 @@ extern "C" int gv_run(void *_instance)
     return instance->join();
 }
 
+
+extern "C" void gv_init(struct gv_conf *gv_conf)
+{
+    gv_conf->open_proxy = 0;
+    gv_conf->open_proxy = NULL;
+    gv_conf->req_pipe = 0;
+    gv_conf->reply_pipe = 0;
+}
 
 
 extern "C" void gv_stop(void *_instance)

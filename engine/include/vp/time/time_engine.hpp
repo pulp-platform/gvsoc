@@ -42,11 +42,15 @@ public:
 
     void run_loop();
 
+    void step(int64_t timestamp);
+
     void run();
 
     void quit();
 
     int join();
+
+    int64_t get_next_event_time();
 
     inline void lock_step();
 

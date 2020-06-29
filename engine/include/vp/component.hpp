@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include "gv/gvsoc.h"
 #include "vp/ports.hpp"
 #include "vp/config.hpp"
 #include "vp/clock/clock_event.hpp"
@@ -399,6 +400,7 @@ namespace vp {
     virtual void load() {}
     virtual void elab();
     virtual void run() {}
+    virtual void step(int64_t timestamp) {}
     virtual void pause() {}
     virtual int join() { return -1; }
 
@@ -407,6 +409,7 @@ namespace vp {
 
     js::config *get_vp_config();
     void set_vp_config(js::config *config);
+    void set_gv_conf(struct gv_conf *gv_conf);
 
     inline config *get_config(std::string name);
 
@@ -500,6 +503,8 @@ namespace vp {
     component_power power;
 
     trace warning;
+
+    struct gv_conf gv_conf;
 
   protected:
     void create_comps();

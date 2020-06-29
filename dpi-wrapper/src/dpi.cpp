@@ -28,13 +28,16 @@ using namespace std;
 
 extern "C" void *dpi_open(char *config_path)
 {
-  void *handle = gv_create(config_path);
+  struct gv_conf gv_conf;
+  gv_init(&gv_conf);
+  void *handle = gv_create(config_path, &gv_conf);
   return handle;
 }
 
 extern "C" void dpi_start(void *instance)
 {
-  gv_start(instance, 0, NULL, 0, 0);
+
+  gv_start(instance);
 }
 
 extern "C" void dpi_start_task(void *arg0, void *arg1)

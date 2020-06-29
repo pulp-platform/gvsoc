@@ -133,5 +133,6 @@ $dumpvars\n");
 
 void vp::Vcd_file::close()
 {
+  printf("CLOSE\n");
   fclose(file);
 }

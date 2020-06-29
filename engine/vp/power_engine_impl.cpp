@@ -38,6 +38,8 @@ public:
 
     void run();
 
+    void step(int64_t timestamp);
+
     void quit();
 
     void pause();
@@ -61,6 +63,13 @@ private:
 void power_manager::run()
 {
     this->time_engine->run();
+}
+
+
+
+void power_manager::step(int64_t timestamp)
+{
+    this->time_engine->step(timestamp);
 }
 
 

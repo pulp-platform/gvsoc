@@ -58,6 +58,8 @@ public:
     void pause();
     int join();
 
+    void step(int64_t timestamp);
+
     void check_traces();
 
     int get_max_path_len() { return max_path_len; }
@@ -113,6 +115,11 @@ trace_domain::trace_domain(js::config *config)
 void trace_domain::run()
 {
     this->power_engine->run();
+}
+
+void trace_domain::step(int64_t timestamp)
+{
+    this->power_engine->step(timestamp);
 }
 
 void trace_domain::quit()

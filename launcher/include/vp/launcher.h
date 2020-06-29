@@ -36,9 +36,9 @@ typedef struct {
 extern "C" {
 #endif
 
-void gv_init(gv_conf_t *gv_conf);
+//void gv_init(gv_conf_t *gv_conf);
 
-void *gv_create(gv_conf_t *gv_conf, char *config_file);
+//void *gv_create(gv_conf_t *gv_conf, char *config_file);
 
 int gv_launch(void *handle);
 
