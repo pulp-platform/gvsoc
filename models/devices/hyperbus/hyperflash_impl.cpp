@@ -18,7 +18,6 @@
 /* 
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
-/
 
 #include <vp/vp.hpp>
 #include <stdio.h>
