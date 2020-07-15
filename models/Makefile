@@ -29,7 +29,7 @@ VP_DIRS=memory pulp pulp/fll pulp/stdout pulp/chips/pulpissimo cpu/iss \
 -include $(INSTALL_DIR)/rules/vp_models.mk
 
 props:
-	plpinfo mkgen --makefile=$(ROOT_VP_BUILD_DIR)/props.mk $(properties)
+	$(INSTALL_DIR)/bin/plpinfo mkgen --makefile=$(ROOT_VP_BUILD_DIR)/props.mk $(properties)
 
 build: vp_build
 
