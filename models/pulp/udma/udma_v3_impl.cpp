@@ -243,8 +243,18 @@ vp::io_req_status_e Udma_channel::cfg_req(vp::io_req *req)
 
     if (channel_clear)
     {
-      trace.msg("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
-      return vp::IO_REQ_INVALID;
+      trace.warning("UNIMPLEMENTED AT %s %d\n", __FILE__, __LINE__);
+      // hardware does this:
+      // s_counters  =   '0;
+      // s_addresses =   '0;
+      // s_en        =  1'b0;
+      // s_ch_en     =  1'b0;
+      // s_event     =  1'b0;
+      // s_sot       =  1'b0;
+      // s_stream    =  1'b0;
+
+      // pretend we are ok
+      return vp::IO_REQ_OK;
     }
 
     if (channel_enabled)
