@@ -319,4 +319,19 @@ static inline iss_insn_t *p_mulu_d_exec(iss_t *iss, iss_insn_t *insn)
 }
 
 
+static inline iss_insn_t *p_mulsh_d_exec(iss_t *iss, iss_insn_t *insn)
+{
+  REG_SET(0, LIB_CALL2(lib_MULS_64, REG_GET(0), REG_GET(1)) >> 32);
+  return insn->next;
+}
+
+
+static inline iss_insn_t *p_muluh_d_exec(iss_t *iss, iss_insn_t *insn)
+{
+  REG_SET(0, LIB_CALL2(lib_MULU_64, REG_GET(0), REG_GET(1)) >> 32);
+
+  return insn->next;
+}
+
+
 #endif
