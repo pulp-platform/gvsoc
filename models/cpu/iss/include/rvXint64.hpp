@@ -100,21 +100,21 @@ static inline iss_insn_t *and_d_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *slli_d_exec(iss_t *iss, iss_insn_t *insn)
 {
-    REG64_SET(0, LIB_CALL2(lib_SLL_64, REG64_GET(0), UIM_GET(0)));
+    REG64_SET(0, LIB_CALL2(lib_SLL_64, REG64_GET(0), SIM_GET(0)));
     return insn->next;
 }
 
 
 static inline iss_insn_t *srli_d_exec(iss_t *iss, iss_insn_t *insn)
 {
-    REG64_SET(0, LIB_CALL2(lib_SRL_64, REG64_GET(0), UIM_GET(0)));
+    REG64_SET(0, LIB_CALL2(lib_SRL_64, REG64_GET(0), SIM_GET(0)));
     return insn->next;
 }
 
 
 static inline iss_insn_t *srai_d_exec(iss_t *iss, iss_insn_t *insn)
 {
-    REG64_SET(0, LIB_CALL2(lib_SRA_64, REG64_GET(0), UIM_GET(0)));
+    REG64_SET(0, LIB_CALL2(lib_SRA_64, REG64_GET(0), SIM_GET(0)));
     return insn->next;
 }
 
