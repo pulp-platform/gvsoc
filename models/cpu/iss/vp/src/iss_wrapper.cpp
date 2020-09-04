@@ -300,6 +300,14 @@ void iss_wrapper::fetchen_sync(void *__this, bool active)
   _this->check_state();
 }
 
+void iss_wrapper::flush_cache_sync(void *__this, bool active)
+{
+  iss_t *_this = (iss_t *)__this;
+  if (_this->iss_opened)
+  {
+    iss_cache_flush(_this);
+  }
+}
 
 
 void iss_wrapper::set_halt_mode(bool halted, int cause)
@@ -1069,6 +1077,9 @@ int iss_wrapper::build()
 
   fetchen_itf.set_sync_meth(&iss_wrapper::fetchen_sync);
   new_slave_port("fetchen", &fetchen_itf);
+
+  flush_cache_itf.set_sync_meth(&iss_wrapper::flush_cache_sync);
+  new_slave_port("flush_cache", &flush_cache_itf);
 
   halt_itf.set_sync_meth(&iss_wrapper::halt_sync);
   new_slave_port("halt", &halt_itf);

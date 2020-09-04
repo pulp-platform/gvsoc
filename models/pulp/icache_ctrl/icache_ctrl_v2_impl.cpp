@@ -69,6 +69,11 @@ vp::io_req_status_e icache_ctrl::req(void *__this, vp::io_req *req)
     if (_this->enable_itf.is_bound())
       _this->enable_itf.sync(*data != 0);
   }
+  else if (offset == 4)
+  {
+    _this->trace.msg("Flushing cache\n");
+    _this->flush_itf.sync(true);
+  }
 
   return vp::IO_REQ_OK;
 }

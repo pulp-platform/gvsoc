@@ -171,6 +171,7 @@ private:
   vp::wire_slave<uint32_t> bootaddr_itf;
   vp::wire_slave<bool>     clock_itf;
   vp::wire_slave<bool>     fetchen_itf;
+  vp::wire_slave<bool>     flush_cache_itf;
   vp::wire_slave<bool>     halt_itf;
   vp::wire_master<bool>     halt_status_itf;
 
@@ -179,6 +180,7 @@ private:
   static void clock_sync(void *_this, bool active);
   static void bootaddr_sync(void *_this, uint32_t value);
   static void fetchen_sync(void *_this, bool active);
+  static void flush_cache_sync(void *_this, bool active);
   static void halt_sync(void *_this, bool active);
   inline void enqueue_next_instr(int64_t cycles);
   void halt_core();
