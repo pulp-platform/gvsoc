@@ -1083,7 +1083,7 @@ vp::io_req_status_e Semaphore_unit::req(vp::io_req *req, uint64_t offset, bool i
 
   Semaphore *semaphore = &semaphores[id];
   Core_event_unit *evtUnit = &top->core_eu[core];
-  top->trace.msg("Received semaphore IO access (offset: 0x%x, mutex: %d, is_write: %d)\n", offset, id, is_write);
+  this->trace.msg("Received semaphore IO access (offset: 0x%x, mutex: %d, is_write: %d)\n", offset, id, is_write);
   
   if (!is_write)
   {
@@ -1092,11 +1092,11 @@ vp::io_req_status_e Semaphore_unit::req(vp::io_req *req, uint64_t offset, bool i
       if (semaphore->value > 0)
       {
         semaphore->value--;
-        top->trace.msg("Decrementing semaphore (semaphore: %d, coreId: %d, new_value: %d)\n", id, core);
+        this->trace.msg("Decrementing semaphore (semaphore: %d, coreId: %d, new_value: %d)\n", id, core);
       }
       else
       {
-        top->trace.msg("Blocking semaphore, waiting (semaphore: %d, coreId: %d)\n", id, core);
+        this->trace.msg("Blocking semaphore, waiting (semaphore: %d, coreId: %d)\n", id, core);
         return enqueue_sleep(semaphore, req, core);
       }
     }
@@ -1118,7 +1118,7 @@ vp::io_req_status_e Semaphore_unit::req(vp::io_req *req, uint64_t offset, bool i
           {
             // Clear the mask and wake-up the core.
 
-            top->trace.msg("Waking-up core waiting for semaphore (coreId: %d)\n", i);
+            this->trace.msg("Waking-up core waiting for semaphore (coreId: %d)\n", i);
             vp::io_req *waiting_req = semaphore->waiting_reqs[i];
 
             semaphore->waiting_mask &= ~(1<<i);
