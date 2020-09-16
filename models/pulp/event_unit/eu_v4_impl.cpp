@@ -99,6 +99,28 @@ private:
   int semaphore_event;
 };
 
+class Bitfield {
+public:
+  void reset();
+
+  uint32_t value;
+};
+
+class Bitfield_unit {
+public:
+  Bitfield_unit(Event_unit *top);
+
+  void reset();
+
+  Bitfield *bitfields;
+  vp::io_req_status_e req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core);
+
+private:
+  Event_unit *top;
+  vp::trace     trace;
+  int nb_bitfields;
+};
+
 
 class Mutex {
 public:
@@ -228,6 +250,7 @@ class Event_unit : public vp::component
   friend class Dispatch_unit;
   friend class Barrier_unit;
   friend class Semaphore_unit;
+  friend class Bitfield_unit;
   friend class Mutex_unit;
   friend class Soc_event_unit;
 
@@ -251,6 +274,7 @@ protected:
 
   Mutex_unit *mutex;
   Semaphore_unit *semaphore;
+  Bitfield_unit *bitfield;
   Core_event_unit *core_eu;
   Dispatch_unit *dispatch;
   Barrier_unit *barrier_unit;
@@ -642,6 +666,10 @@ vp::io_req_status_e Event_unit::demux_req(void *__this, vp::io_req *req, int cor
   {
     return _this->semaphore->req(req, offset - EU_SEM_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
   }
+  else if (offset >= EU_BITFIELD_DEMUX_OFFSET && offset < EU_BITFIELD_DEMUX_OFFSET + EU_BITFIELD_DEMUX_SIZE)
+  {
+    return _this->bitfield->req(req, offset - EU_BITFIELD_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
+  }
   else if (offset >= EU_DISPATCH_DEMUX_OFFSET && offset < EU_DISPATCH_DEMUX_OFFSET + EU_DISPATCH_DEMUX_SIZE)
   {
     return _this->dispatch->req(req, offset - EU_DISPATCH_DEMUX_OFFSET, is_write, (uint32_t *)data, core);
@@ -684,6 +712,7 @@ int Event_unit::build()
   core_eu = (Core_event_unit *)new Core_event_unit[nb_core];
   mutex = new Mutex_unit(this);
   semaphore = new Semaphore_unit(this);
+  bitfield = new Bitfield_unit(this);
   dispatch = new Dispatch_unit(this);
   barrier_unit = new Barrier_unit(this);
   soc_event_unit = new Soc_event_unit(this);
@@ -1140,6 +1169,90 @@ vp::io_req_status_e Semaphore_unit::req(vp::io_req *req, uint64_t offset, bool i
 
   return vp::IO_REQ_OK;
 }
+
+
+
+
+/****************
+ * BITFIELD UNIT
+ ****************/
+
+Bitfield_unit::Bitfield_unit(Event_unit *top)
+: top(top)
+{
+  top->traces.new_trace("bitfield/trace", &trace, vp::DEBUG);
+  nb_bitfields = top->get_config_int("**/properties/bitfields/nb_bitfields");
+  bitfields = new Bitfield[nb_bitfields];
+}
+
+
+void Bitfield_unit::reset()
+{
+  for (int i=0; i<nb_bitfields; i++)
+  {
+    bitfields[i].reset();
+  }
+}
+
+void Bitfield::reset()
+{
+  value = 0;
+}
+
+vp::io_req_status_e Bitfield_unit::req(vp::io_req *req, uint64_t offset, bool is_write, uint32_t *data, int core)
+{
+  unsigned int id = EU_SEM_AREA_SEMID_GET(offset);
+  offset = offset - (id << EU_SEM_SIZE_LOG2);
+
+  if (id >= nb_bitfields) return vp::IO_REQ_INVALID;
+
+  Bitfield *bitfield = &bitfields[id];
+
+  if (is_write)
+  {
+    if (offset == EU_HW_BITFIELD_VALUE)
+    {
+      bitfield->value = *data;
+      this->trace.msg("Setting value (bitfield: %d, value: 0x%x)\n", id, bitfield->value);
+    }
+    else if (offset == EU_HW_BITFIELD_SET)
+    {
+      bitfield->value |= *data;
+      this->trace.msg("Bitfield set (bitfield: %d, mask: 0x%x, value: 0x%x)\n", id, *data, bitfield->value);
+    }
+    else if (offset == EU_HW_BITFIELD_CLEAR)
+    {
+      bitfield->value &= ~(*data);
+      this->trace.msg("Bitfield clear (bitfield: %d, mask: 0x%x, value: 0x%x)\n", id, *data, bitfield->value);
+    }
+  }
+  else
+  {
+    if (offset == EU_HW_BITFIELD_VALUE)
+    {
+      *data = bitfield->value;
+    }
+    else if (offset == EU_HW_BITFIELD_ALLOC)
+    {
+      int bit = ffs(bitfield->value);
+      if (bit == 0)
+      {
+        *data = 32;
+        this->trace.msg("No more bit to allocate (bitfield: %d)\n", id);
+      }
+      else
+      {
+        bit = bit - 1;
+        bitfield->value &= ~(1<<bit);
+        *data = bit;
+        this->trace.msg("Bitfield alloc (bitfield: %d, bit: 0x%d, value: %x)\n", id, bit, bitfield->value);
+      }
+    }
+  }
+
+  return vp::IO_REQ_OK;
+}
+
 
 
 /****************
