@@ -12,7 +12,7 @@ PULP_PROPERTIES += udma/version timer/version stdout/version soc_eu/version \
 properties := $(foreach prop,$(PULP_PROPERTIES), --property=$(prop))
 
 
-VP_DIRS=memory cpu/iss \
+VP_DIRS=memory cpu/iss board \
   interco utils \
   devices/hyperbus devices/spiflash  \
   cache devices/uart devices/sound \
