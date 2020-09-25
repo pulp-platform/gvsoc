@@ -651,9 +651,10 @@ void Uart::sync(void *__this, int data)
 
     _this->top->trace.msg(vp::trace::LEVEL_TRACE, "UART control sync (value: %d, waiting_start: %d)\n", data, _this->uart_tx_wait_start);
 
+    int prev_data = _this->uart_current_tx;
     _this->uart_current_tx = data;
 
-    if (_this->uart_tx_wait_start && data == 0)
+    if (_this->uart_tx_wait_start && prev_data == 1 && data == 0)
     {
         _this->top->trace.msg(vp::trace::LEVEL_TRACE, "Received start bit\n");
 
