@@ -114,7 +114,7 @@ public:
 class Uart_group : public Pad_group
 {
 public:
-    Uart_group(dpi_chip_wrapper *top, std::string name) : Pad_group(top, name) {}
+    Uart_group(dpi_chip_wrapper *top, std::string name) : Pad_group(top, name), rx_callback(NULL), sck_callback(NULL), cts_callback(NULL) {}
     void edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, int data);
     void rx_edge(int data);
     void rx_edge_full(int data, int sck, int rtr);
