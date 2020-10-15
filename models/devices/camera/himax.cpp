@@ -213,19 +213,22 @@ bool Camera_stream::fetch_image()
     //dpi_print(top->handle, ("Opened image (path: " + string(path) + ")").c_str());
     frame_index++;
 
-#ifdef __MAGICK__
-    image.extent(Geometry(width, height));
-
-    if (color_mode == COLOR_MODE_GRAY)
+    if (!this->is_raw)
     {
-        image.quantizeColorSpace( GRAYColorspace );
-        image.quantizeColors( 256 );
-        image.quantize( );
-    }
+#ifdef __MAGICK__
+        image.extent(Geometry(width, height));
+
+        if (color_mode == COLOR_MODE_GRAY)
+        {
+            image.quantizeColorSpace( GRAYColorspace );
+            image.quantizeColors( 256 );
+            image.quantize( );
+        }
 
 
-    image_buffer = (PixelPacket*) image.getPixels(0, 0, width, height);
+        image_buffer = (PixelPacket*) image.getPixels(0, 0, width, height);
 #endif
+    }
 
     return true;
 }
@@ -233,7 +236,7 @@ bool Camera_stream::fetch_image()
 unsigned int Camera_stream::get_pixel()
 {
 #ifdef __MAGICK__
-    if (image_buffer == NULL) fetch_image();
+    if (image_buffer == NULL && raw_image == NULL) fetch_image();
 #else
     if (raw_image == NULL) fetch_image();
 #endif
@@ -303,7 +306,7 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
 
     _this->pclk_value ^= 1;
 
-    if (_this->pclk_value)
+    if (!_this->pclk_value)
     {
         switch (_this->state)
         {
