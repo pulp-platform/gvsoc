@@ -72,17 +72,22 @@ public:
 #endif
     int width;
     int height;
+    int pixel_size;
 #ifdef __MAGICK__
     PixelPacket *image_buffer;
 #endif
     int current_pixel;
     int nb_pixel;
     int color_mode;
+    bool is_raw;
+    uint8_t *raw_image;
 };
 
 
 class Himax : public vp::component
 {
+    friend class Camera_stream;
+
 public:
     Himax(js::config *config);
 
@@ -132,6 +137,19 @@ Camera_stream::Camera_stream(Himax *top, string path, int color_mode)
 #ifdef __MAGICK__
     image_buffer = NULL;
 #endif
+    raw_image = NULL;
+
+    switch (color_mode)
+    {
+        case COLOR_MODE_GRAY:
+        case COLOR_MODE_RAW:
+            this->pixel_size = 1;
+            break;
+
+        default:
+            this->pixel_size = 2;
+            break;
+    }
 }
 
 
@@ -149,18 +167,45 @@ bool Camera_stream::fetch_image()
     while(1)
     {
         sprintf(path, stream_path.c_str(), frame_index);
+        this->is_raw = strstr(path, ".raw") != NULL;
 
-#ifdef __MAGICK__
-        try {
-            image.read(path);
-            break;
-        }
-        catch( Exception &error_ ) {
-            if (frame_index == 0) {
-                throw;
+        if (this->is_raw)
+        {
+            FILE *file = fopen(path, "r");
+            if (file)
+            {
+                int size = this->width * this->height * this->pixel_size;
+                int read_size;
+                this->raw_image = new uint8_t[size];
+                if ((read_size = ::fread(this->raw_image, 1, size, file)) == size)
+                {
+                    fclose(file);
+                    break;
+                }
+                delete this->raw_image;
+                this->raw_image = NULL;
+                fclose(file);
+            }
+
+            if (frame_index == 0)
+            {
+              vp_warning_always(&this->top->trace, "Unable to open image file (%s)\n", path);
             }
         }
+        else
+        {
+#ifdef __MAGICK__
+          try {
+              image.read(path);
+              break;
+          }
+          catch( Exception &error_ ) {
+              if (frame_index == 0) {
+                  throw;
+              }
+          }
 #endif
+        }
 
         frame_index = 0;
     }
@@ -168,51 +213,80 @@ bool Camera_stream::fetch_image()
     //dpi_print(top->handle, ("Opened image (path: " + string(path) + ")").c_str());
     frame_index++;
 
-  #ifdef __MAGICK__
-      image.extent(Geometry(width, height));
+#ifdef __MAGICK__
+    image.extent(Geometry(width, height));
 
-      if (color_mode == COLOR_MODE_GRAY)
-      {
-          image.quantizeColorSpace( GRAYColorspace );
-          image.quantizeColors( 256 );
-          image.quantize( );
-      }
+    if (color_mode == COLOR_MODE_GRAY)
+    {
+        image.quantizeColorSpace( GRAYColorspace );
+        image.quantizeColors( 256 );
+        image.quantize( );
+    }
 
 
-      image_buffer = (PixelPacket*) image.getPixels(0, 0, width, height);
-  #endif
+    image_buffer = (PixelPacket*) image.getPixels(0, 0, width, height);
+#endif
 
-  return true;
+    return true;
 }
 
 unsigned int Camera_stream::get_pixel()
 {
 #ifdef __MAGICK__
     if (image_buffer == NULL) fetch_image();
+#else
+    if (raw_image == NULL) fetch_image();
+#endif
 
-    PixelPacket *pixel = &image_buffer[current_pixel];
-    current_pixel++;
-    if (current_pixel == nb_pixel)
+    if (this->is_raw)
     {
-        current_pixel = 0;
-        image_buffer = NULL;
-    }
+        unsigned int result;
 
-    unsigned int shift = (sizeof(pixel->red) - 1)*8;
-    if (color_mode == COLOR_MODE_GRAY)
-    {
-        return pixel->red >> shift;
+        if (color_mode == COLOR_MODE_GRAY || color_mode == COLOR_MODE_RAW)
+        {
+            result = this->raw_image[current_pixel];
+        }
+        else
+        {
+            result = (*(uint32_t *)&(this->raw_image[current_pixel*3])) & 0xFFFFFF;
+        }
+
+        current_pixel++;
+        if (current_pixel == nb_pixel)
+        {
+            current_pixel = 0;
+            delete this->raw_image;
+            this->raw_image = NULL;
+        }
+        return result;
     }
     else
     {
-        unsigned char red = pixel->red >> shift;
-        unsigned char green = pixel->green >> shift;
-        unsigned char blue = pixel->blue >> shift;
-        return (red << 16) | (green << 8) | blue;
-    }
-#else
-    return 0;
+#ifdef __MAGICK__
+        PixelPacket *pixel = &image_buffer[current_pixel];
+        current_pixel++;
+        if (current_pixel == nb_pixel)
+        {
+            current_pixel = 0;
+            image_buffer = NULL;
+        }
+
+        unsigned int shift = (sizeof(pixel->red) - 1)*8;
+        if (color_mode == COLOR_MODE_GRAY)
+        {
+            return pixel->red >> shift;
+        }
+        else
+        {
+            unsigned char red = pixel->red >> shift;
+            unsigned char green = pixel->green >> shift;
+            unsigned char blue = pixel->blue >> shift;
+            return (red << 16) | (green << 8) | blue;
+        }
 #endif
+    }
+    
+    return 0;
 }
 
 

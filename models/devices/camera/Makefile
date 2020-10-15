@@ -9,7 +9,6 @@ ifeq '$(MAGICK)' ''
 devices/camera/himax_CFLAGS += $(shell pkg-config GraphicsMagick --cflags)
 devices/camera/himax_CFLAGS += -D__MAGICK__
 devices/camera/himax_LDFLAGS += -lGraphicsMagick++ -lGraphicsMagick
-#LDFLAGS += $(shell Magick++-config --ldflags)
 endif
 
 endif
