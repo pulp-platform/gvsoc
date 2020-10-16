@@ -127,28 +127,33 @@ protected:
     int href;
     int data;
 
+    int pixel_size;
+
     Camera_stream *stream;
 };
 
 
 Camera_stream::Camera_stream(Himax *top, string path, int color_mode)
- : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode)
+ : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode), pixel_size(pixel_size)
 {
 #ifdef __MAGICK__
     image_buffer = NULL;
 #endif
     raw_image = NULL;
 
-    switch (color_mode)
+    if (this->pixel_size == 0)
     {
-        case COLOR_MODE_GRAY:
-        case COLOR_MODE_RAW:
-            this->pixel_size = 1;
-            break;
+      switch (color_mode)
+      {
+          case COLOR_MODE_GRAY:
+          case COLOR_MODE_RAW:
+              this->pixel_size = 1;
+              break;
 
-        default:
-            this->pixel_size = 2;
-            break;
+          default:
+              this->pixel_size = 2;
+              break;
+      }
     }
 }
 
@@ -185,11 +190,14 @@ bool Camera_stream::fetch_image()
                 delete this->raw_image;
                 this->raw_image = NULL;
                 fclose(file);
+                this->top->trace.fatal("Image file is too short(%s)\n", path);
+                return false;
             }
 
             if (frame_index == 0)
             {
-              vp_warning_always(&this->top->trace, "Unable to open image file (%s)\n", path);
+              this->top->trace.fatal("Unable to open image file (%s)\n", path);
+              return false;
             }
         }
         else
@@ -204,6 +212,8 @@ bool Camera_stream::fetch_image()
                   throw;
               }
           }
+#else
+          this->top->trace.fatal("Trying to open image file while ImageMagick has not been installed, use a raw image instead (with.raw extension) (%s)\n", path);
 #endif
         }
 
@@ -479,8 +489,9 @@ int Himax::build()
     else
       this->color_mode = COLOR_MODE_GRAY;
 
-    this->width = 324;
-    this->height = 244;
+    this->width = get_js_config()->get("width")->get_int();
+    this->height = get_js_config()->get("height")->get_int();
+    this->pixel_size = get_js_config()->get("pixel-size")->get_int();
 
     // Default color mode is 16bits RGB565
     //color_mode = COLOR_MODE_RGB565;
