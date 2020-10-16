@@ -18,6 +18,7 @@
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
+
 #include <vp/vp.hpp>
 #include <vp/itf/cpi.hpp>
 #include <vp/itf/i2c.hpp>
@@ -58,7 +59,7 @@ class Himax;
 class Camera_stream {
 
 public:
-    Camera_stream(Himax *top, string path, int color_mode);
+    Camera_stream(Himax *top, string path, int color_mode, int pixel_size);
     bool fetch_image();
     unsigned int get_pixel();
     void set_image_size(int width, int height);
@@ -133,7 +134,7 @@ protected:
 };
 
 
-Camera_stream::Camera_stream(Himax *top, string path, int color_mode)
+Camera_stream::Camera_stream(Himax *top, string path, int color_mode, int pixel_size)
  : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode), pixel_size(pixel_size)
 {
 #ifdef __MAGICK__
@@ -181,12 +182,14 @@ bool Camera_stream::fetch_image()
             {
                 int size = this->width * this->height * this->pixel_size;
                 int read_size;
+
                 this->raw_image = new uint8_t[size];
                 if ((read_size = ::fread(this->raw_image, 1, size, file)) == size)
                 {
                     fclose(file);
                     break;
                 }
+
                 delete this->raw_image;
                 this->raw_image = NULL;
                 fclose(file);
@@ -500,7 +503,7 @@ int Himax::build()
     if (stream_config)
     {
       string stream_path = stream_config->get_str();
-      this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode);
+      this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode, this->pixel_size);
       this->stream->set_image_size(this->width, this->height);
     }
 }
