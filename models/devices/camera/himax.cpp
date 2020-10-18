@@ -62,7 +62,7 @@ public:
     Camera_stream(Himax *top, string path, int color_mode, int pixel_size);
     bool fetch_image();
     unsigned int get_pixel();
-    void set_image_size(int width, int height);
+    void set_image_size(int width, int height, int pixel_size);
 
   private:
     Himax *top;
@@ -159,11 +159,12 @@ Camera_stream::Camera_stream(Himax *top, string path, int color_mode, int pixel_
 }
 
 
-void Camera_stream::set_image_size(int width, int height)
+void Camera_stream::set_image_size(int width, int height, int pixel_size)
 {
     this->width = width;
     this->height = height;
-    nb_pixel = width * height;
+    this->pixel_size = pixel_size;
+    nb_pixel = width * height * pixel_size;
 }
 
 
@@ -504,7 +505,7 @@ int Himax::build()
     {
       string stream_path = stream_config->get_str();
       this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode, this->pixel_size);
-      this->stream->set_image_size(this->width, this->height);
+      this->stream->set_image_size(this->width, this->height, this->pixel_size);
     }
 }
 
