@@ -360,9 +360,19 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                 break;
 
             case STATE_SEND_LINE: {
+                int last_byte = 1;
+
                 _this->href = 1;
 
-                if (_this->color_mode == COLOR_MODE_GRAY)
+                if (_this->pixel_size != 0)
+                {
+                    last_byte = _this->pixel_size;
+                    if (_this->stream)
+                    {
+                        _this->data = _this->stream->get_pixel();
+                    }
+                }
+                else if (_this->color_mode == COLOR_MODE_GRAY)
                 {
                     _this->bytesel = 1;
 
@@ -424,7 +434,7 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                     else         _this->data = (((pixel >> 19) & 0x1f) << 3) | (((pixel >> 13) & 0x7) << 0);
                 }
 
-                if (_this->bytesel == 1) {
+                if (_this->bytesel == last_byte) {
                     _this->bytesel = 0;
                     if(_this->colptr == (_this->width-1)) {
                         _this->colptr = 0;
@@ -441,7 +451,7 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                     }
 
                 } else {
-                    _this->bytesel = 1;
+                    _this->bytesel++;
                 }
                 _this->trace.msg(vp::trace::LEVEL_DEBUG, "State SEND_LINE (data: 0x%x)\n", _this->data);
                 break;
