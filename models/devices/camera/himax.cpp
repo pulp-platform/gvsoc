@@ -517,6 +517,8 @@ int Himax::build()
       this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode, this->pixel_size);
       this->stream->set_image_size(this->width, this->height, this->pixel_size);
     }
+
+    return 0;
 }
 
 void Himax::start()
