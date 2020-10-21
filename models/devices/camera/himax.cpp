@@ -44,6 +44,7 @@ STATE_WAIT_EOF
 };
 
 enum {
+  COLOR_MODE_CUSTOM,
   COLOR_MODE_GRAY,
   COLOR_MODE_RGB565,
   COLOR_MODE_RAW,
@@ -59,7 +60,7 @@ class Himax;
 class Camera_stream {
 
 public:
-    Camera_stream(Himax *top, string path, int color_mode, int pixel_size);
+    Camera_stream(Himax *top, string path, int color_mode);
     bool fetch_image();
     unsigned int get_pixel();
     void set_image_size(int width, int height, int pixel_size);
@@ -134,28 +135,15 @@ protected:
 };
 
 
-Camera_stream::Camera_stream(Himax *top, string path, int color_mode, int pixel_size)
- : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode), pixel_size(pixel_size)
+
+
+Camera_stream::Camera_stream(Himax *top, string path, int color_mode)
+ : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode)
 {
 #ifdef __MAGICK__
     image_buffer = NULL;
 #endif
     raw_image = NULL;
-
-    if (this->pixel_size == 0)
-    {
-      switch (color_mode)
-      {
-          case COLOR_MODE_GRAY:
-          case COLOR_MODE_RAW:
-              this->pixel_size = 1;
-              break;
-
-          default:
-              this->pixel_size = 2;
-              break;
-      }
-    }
 }
 
 
@@ -164,7 +152,7 @@ void Camera_stream::set_image_size(int width, int height, int pixel_size)
     this->width = width;
     this->height = height;
     this->pixel_size = pixel_size;
-    nb_pixel = width * height * pixel_size;
+    this->nb_pixel = width * height * pixel_size;
 }
 
 
@@ -364,7 +352,7 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
 
                 _this->href = 1;
 
-                if (_this->pixel_size != 0)
+                if (_this->color_mode == COLOR_MODE_CUSTOM)
                 {
                     last_byte = _this->pixel_size;
                     if (_this->stream)
@@ -513,9 +501,31 @@ int Himax::build()
 
     if (stream_config)
     {
-      string stream_path = stream_config->get_str();
-      this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode, this->pixel_size);
-      this->stream->set_image_size(this->width, this->height, this->pixel_size);
+        string stream_path = stream_config->get_str();
+
+        if (this->pixel_size != 0)
+        {
+            this->color_mode = COLOR_MODE_CUSTOM;
+        }
+
+        this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode);
+
+        if (this->pixel_size == 0)
+        {
+            switch (this->color_mode)
+            {
+                case COLOR_MODE_GRAY:
+                case COLOR_MODE_RAW:
+                    this->pixel_size = 1;
+                    break;
+
+                default:
+                    this->pixel_size = 2;
+                    break;
+            }
+        }
+
+        this->stream->set_image_size(this->width, this->height, this->pixel_size);
     }
 
     return 0;
