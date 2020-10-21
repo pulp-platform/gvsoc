@@ -247,7 +247,7 @@ unsigned int Camera_stream::get_pixel()
     {
         unsigned int result;
 
-        if (color_mode == COLOR_MODE_GRAY || color_mode == COLOR_MODE_RAW)
+        if (color_mode == COLOR_MODE_GRAY || color_mode == COLOR_MODE_RAW || color_mode == COLOR_MODE_CUSTOM)
         {
             result = this->raw_image[current_pixel];
         }
@@ -290,7 +290,7 @@ unsigned int Camera_stream::get_pixel()
         }
 #endif
     }
-    
+
     return 0;
 }
 
