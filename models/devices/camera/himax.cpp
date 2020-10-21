@@ -23,6 +23,7 @@
 #include <vp/itf/cpi.hpp>
 #include <vp/itf/i2c.hpp>
 #include <unistd.h>
+#include <byteswap.h>
 
 #include <stdint.h>
 #ifdef __MAGICK__
@@ -60,7 +61,7 @@ class Himax;
 class Camera_stream {
 
 public:
-    Camera_stream(Himax *top, string path, int color_mode);
+    Camera_stream(Himax *top, string path, int color_mode, int little);
     bool fetch_image();
     unsigned int get_pixel();
     void set_image_size(int width, int height, int pixel_size);
@@ -83,6 +84,7 @@ public:
     int color_mode;
     bool is_raw;
     uint8_t *raw_image;
+    int little;
 };
 
 
@@ -131,14 +133,21 @@ protected:
 
     int pixel_size;
 
+    int vsync_polarity;
+    int hsync_polarity;
+    bool little;
+
+    uint32_t pixel;
+    int pixel_bytes;
+
     Camera_stream *stream;
 };
 
 
 
 
-Camera_stream::Camera_stream(Himax *top, string path, int color_mode)
- : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode)
+Camera_stream::Camera_stream(Himax *top, string path, int color_mode, int little)
+ : top(top), stream_path(path), frame_index(0), current_pixel(0), nb_pixel(0), color_mode(color_mode), little(little)
 {
 #ifdef __MAGICK__
     image_buffer = NULL;
@@ -152,7 +161,7 @@ void Camera_stream::set_image_size(int width, int height, int pixel_size)
     this->width = width;
     this->height = height;
     this->pixel_size = pixel_size;
-    this->nb_pixel = width * height * pixel_size;
+    this->nb_pixel = width * height;
 }
 
 
@@ -247,13 +256,18 @@ unsigned int Camera_stream::get_pixel()
     {
         unsigned int result;
 
-        if (color_mode == COLOR_MODE_GRAY || color_mode == COLOR_MODE_RAW || color_mode == COLOR_MODE_CUSTOM)
+        result = (*(uint32_t *)&(this->raw_image[current_pixel*this->pixel_size])) & ((1<<(this->pixel_size*8)) - 1);
+
+        if (!this->little)
         {
-            result = this->raw_image[current_pixel];
-        }
-        else
-        {
-            result = (*(uint32_t *)&(this->raw_image[current_pixel*3])) & 0xFFFFFF;
+            if (this->pixel_size == 2)
+            {
+                result = ((result & 0xFF00) >> 8) || ((result & 0x00FF) << 8);
+            }
+            else if (this->pixel_size == 3)
+            {
+                result = ((result & 0xFF0000) >> 16) || ((result & 0x00FF00) >> 0) || ((result & 0x0000FF) << 16);
+            }
         }
 
         current_pixel++;
@@ -325,14 +339,14 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                 if (_this->cnt == 0)
                     _this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting frame\n");
                 _this->trace.msg(vp::trace::LEVEL_DEBUG, "State SOF (cnt: %d, targetcnt: %d)\n", _this->cnt, _this->targetcnt);
-                _this->vsync = 1;
+                _this->vsync = _this->vsync_polarity;
                 _this->cnt++;
                 if (_this->cnt == _this->targetcnt)
                 {
                     _this->cnt = 0;
                     _this->targetcnt = 17*TLINE(_this->width);
                     _this->state = STATE_WAIT_SOF;
-                    _this->vsync = 0;
+                    _this->vsync = !_this->vsync_polarity;
                 }
                 break;
 
@@ -348,17 +362,25 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                 break;
 
             case STATE_SEND_LINE: {
-                int last_byte = 1;
+                int last_byte = 0;
 
-                _this->href = 1;
+                _this->href = _this->hsync_polarity;
 
                 if (_this->color_mode == COLOR_MODE_CUSTOM)
                 {
-                    last_byte = _this->pixel_size;
+                    last_byte = _this->pixel_size - 1;
                     if (_this->stream)
                     {
-                        _this->data = _this->stream->get_pixel();
+                        if (_this->pixel_bytes == 0)
+                        {
+                            _this->pixel = _this->stream->get_pixel();
+                            _this->pixel_bytes = _this->pixel_size;
+                        }
+                        _this->pixel_bytes--;
                     }
+
+                    _this->data = _this->pixel & 0xFF;
+                    _this->pixel >>= 8;
                 }
                 else if (_this->color_mode == COLOR_MODE_GRAY)
                 {
@@ -366,7 +388,12 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
 
                     if (_this->stream)
                     {
-                        _this->data = _this->stream->get_pixel();
+                        if (_this->pixel_bytes == 0)
+                        {
+                            _this->data = _this->stream->get_pixel();
+                            _this->pixel_bytes = _this->pixel_size;
+                        }
+                        _this->pixel_bytes--;
                     }
 
                     //if (stimImg != NULL) {
@@ -381,11 +408,14 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                 {
                   _this->bytesel = 1;
 
-                  int pixel  = 0;
-
                   if (_this->stream)
-                  {
-                    pixel = _this->stream->get_pixel();
+                    {
+                        if (_this->pixel_bytes == 0)
+                        {
+                            _this->pixel = _this->stream->get_pixel();
+                            _this->pixel_bytes = _this->pixel_size;
+                        }
+                        _this->pixel_bytes--;
                   }
 
                   // Raw bayer mode. Line 0: BGBG, Line 1: GRGR
@@ -393,24 +423,28 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                   if (line & 1)
                   {
                       if (_this->colptr & 1)
-                          _this->data = (pixel >> 16) & 0xff;
+                          _this->data = (_this->pixel >> 16) & 0xff;
                       else
-                          _this->data = (pixel >> 8) & 0xff;
+                          _this->data = (_this->pixel >> 8) & 0xff;
                   }
                   else
                   {
                     if (_this->colptr & 1)
-                        _this->data = (pixel >> 8) & 0xff;
+                        _this->data = (_this->pixel >> 8) & 0xff;
                     else
-                        _this->data = (pixel >> 0) & 0xff;
+                        _this->data = (_this->pixel >> 0) & 0xff;
                   }
                 }
                 else
                 {
-                    int pixel  = 0;
                     if (_this->stream)
                     {
-                      pixel = _this->stream->get_pixel();
+                        if (_this->pixel_bytes == 0)
+                        {
+                            _this->pixel = _this->stream->get_pixel();
+                            _this->pixel_bytes = _this->pixel_size;
+                        }
+                        _this->pixel_bytes--;
                     }
 
                     //if (stimImg != NULL) {
@@ -418,8 +452,8 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                     //}
 
                     // Coded with RGB565
-                    if (_this->bytesel) _this->data = (((pixel >> 10) & 0x7) << 5) | (((pixel >> 3) & 0x1f) << 0);
-                    else         _this->data = (((pixel >> 19) & 0x1f) << 3) | (((pixel >> 13) & 0x7) << 0);
+                    if (_this->bytesel) _this->data = (((_this->pixel >> 10) & 0x7) << 5) | (((_this->pixel >> 3) & 0x1f) << 0);
+                    else         _this->data = (((_this->pixel >> 19) & 0x1f) << 3) | (((_this->pixel >> 13) & 0x7) << 0);
                 }
 
                 if (_this->bytesel == last_byte) {
@@ -447,7 +481,7 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
 
             case STATE_WAIT_EOF:
                 _this->trace.msg(vp::trace::LEVEL_DEBUG, "State WAIT_EOF (cnt: %d, targetcnt: %d)\n", _this->cnt, _this->targetcnt);
-                _this->href = 0;
+                _this->href = !_this->hsync_polarity;
                 _this->data = 0;
                 _this->cnt++;
                 if (_this->cnt == _this->targetcnt) {
@@ -494,6 +528,9 @@ int Himax::build()
     this->width = get_js_config()->get("width")->get_int();
     this->height = get_js_config()->get("height")->get_int();
     this->pixel_size = get_js_config()->get("pixel-size")->get_int();
+    this->vsync_polarity = get_js_config()->get("vsync-polarity")->get_int();
+    this->hsync_polarity = get_js_config()->get("hsync-polarity")->get_int();
+    this->little = get_js_config()->get("endianness")->get_str() == "little";
 
     // Default color mode is 16bits RGB565
     //color_mode = COLOR_MODE_RGB565;
@@ -508,7 +545,7 @@ int Himax::build()
             this->color_mode = COLOR_MODE_CUSTOM;
         }
 
-        this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode);
+        this->stream = new Camera_stream(this, stream_path.c_str(), this->color_mode, this->little);
 
         if (this->pixel_size == 0)
         {
@@ -538,9 +575,10 @@ void Himax::start()
     this->pclk_value = 0;
     this->state = STATE_INIT;
 
-    this->vsync = 0;
-    this->href = 0;
+    this->vsync = !this->vsync_polarity;
+    this->href = !this->hsync_polarity;
     this->data = 0;
+    this->pixel_bytes = 0;
 }
 
 
