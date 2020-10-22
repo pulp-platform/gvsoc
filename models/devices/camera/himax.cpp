@@ -262,11 +262,11 @@ unsigned int Camera_stream::get_pixel()
         {
             if (this->pixel_size == 2)
             {
-                result = ((result & 0xFF00) >> 8) || ((result & 0x00FF) << 8);
+                result = ((result & 0xFF00) >> 8) | ((result & 0x00FF) << 8);
             }
             else if (this->pixel_size == 3)
             {
-                result = ((result & 0xFF0000) >> 16) || ((result & 0x00FF00) >> 0) || ((result & 0x0000FF) << 16);
+                result = ((result & 0xFF0000) >> 16) | ((result & 0x00FF00) >> 0) | ((result & 0x0000FF) << 16);
             }
         }
 
