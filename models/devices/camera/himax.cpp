@@ -384,8 +384,6 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                 }
                 else if (_this->color_mode == COLOR_MODE_GRAY)
                 {
-                    _this->bytesel = 1;
-
                     if (_this->stream)
                     {
                         if (_this->pixel_bytes == 0)
@@ -406,8 +404,6 @@ void Himax::clock_handler(void *__this, vp::clock_event *event)
                 }
                 else if (_this->color_mode == COLOR_MODE_RAW)
                 {
-                  _this->bytesel = 1;
-
                   if (_this->stream)
                     {
                         if (_this->pixel_bytes == 0)
