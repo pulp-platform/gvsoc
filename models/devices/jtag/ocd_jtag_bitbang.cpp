@@ -66,7 +66,9 @@ Jtag::Jtag(js::config *config)
 void Jtag::set_jtag_pads(int tck, int tms, int tdi, int trst)
 {
     //fprintf(stderr, "PADS sync (tck: %d, tms: %d, tdi: %d, trst: %d)\n", tck, tms, tdi, trst);
+    this->get_time_engine()->lock();
     this->jtag_itf.sync(tck, tdi, tms, trst);
+    this->get_time_engine()->unlock();
 }
 
 
