@@ -386,6 +386,7 @@ typedef struct iss_cpu_state_s {
 
 typedef struct iss_config_s {
   iss_reg_t mhartid;
+  iss_reg_t misa;
   const char *isa;
   iss_addr_t debug_handler;
 } iss_config_t;
@@ -406,6 +407,7 @@ typedef struct iss_csr_s
   iss_reg_t status;
   iss_reg_t epc;
   iss_reg_t depc;
+  iss_reg_t dcsr;
   iss_reg_t mtvec;
   iss_reg_t mcause;
 #if defined(ISS_HAS_PERF_COUNTERS)
