@@ -249,9 +249,10 @@ int Jtag::build()
 
     this->port = this->get_config_int("port");
 
-    printf("BUILD\n");
-
-    this->open_proxy();
+    if (this->get_js_config()->get_child_bool("enabled"))
+    {
+        this->open_proxy();
+    }
 
     return 0;
 }
