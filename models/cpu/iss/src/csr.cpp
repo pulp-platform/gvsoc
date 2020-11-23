@@ -575,15 +575,14 @@ static bool mtvec_write(iss_t *iss, unsigned int value) {
 
 
 static bool mscratch_read(iss_t *iss, iss_reg_t *value) {
-  //*value = iss->scratch[GVSIM_MODE_MACHINE];
+  *value = iss->cpu.csr.mscratch;
   return false;
 }
 
 static bool mscratch_write(iss_t *iss, unsigned int value) {
-  //iss->scratch[GVSIM_MODE_MACHINE] = value;
+  iss->cpu.csr.mscratch = value;
   return false;
 }
-
 
 
 static bool mepc_read(iss_t *iss, iss_reg_t *value) {

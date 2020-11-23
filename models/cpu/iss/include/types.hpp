@@ -420,6 +420,7 @@ typedef struct iss_csr_s
   iss_reg_t stack_end;
   iss_reg_t scratch0;
   iss_reg_t scratch1;
+  iss_reg_t mscratch;
 } iss_csr_t;
 
 
