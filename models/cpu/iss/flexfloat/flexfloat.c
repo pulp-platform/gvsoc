@@ -67,10 +67,6 @@ uint_t flexfloat_pack(flexfloat_desc_t desc, bool sign, int_fast16_t exp, uint_t
     {
         exp = INF_EXP;
     }
-    else if (exp == 0)
-    {
-        exp = 0;
-    }
     else
     {
         exp = (exp - bias) + BIAS;
