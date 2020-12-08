@@ -76,6 +76,11 @@ ifneq (,$(findstring iss_riscy_v2_5_single_regfile_secure,$(1)))
 IMPLEMENTATIONS += cpu/iss/iss_riscy_v2_5_single_regfile_secure
 
 else
+ifneq (,$(findstring iss_riscy_v2_5_single_regfile,$(1)))
+
+IMPLEMENTATIONS += cpu/iss/iss_riscy_v2_5_single_regfile
+
+else
 ifneq (,$(findstring iss_riscy_v2_5,$(1)))
 
 IMPLEMENTATIONS += cpu/iss/iss_riscy_v2_5
@@ -84,11 +89,6 @@ else
 ifneq (,$(findstring iss_riscy,$(1)))
 
 IMPLEMENTATIONS += cpu/iss/iss_riscy
-
-else
-ifneq (,$(findstring iss_riscy_v2_5_single_regfile,$(1)))
-
-IMPLEMENTATIONS += cpu/iss/iss_riscy_v2_5_single_regfile
 
 endif
 endif
@@ -100,11 +100,17 @@ endif
 endef
 
 ifneq '$(fc/iss_class)' ''
+$(info FC $(fc/iss_class) )
+
 $(eval $(call declare_iss_check_class,$(fc/iss_class)))
 endif
 
 ifneq '$(pe/iss_class)' ''
 ifneq '$(pe/iss_class)' '$(fc/iss_class)'
+$(info PE $(pe/iss_class) )
 $(eval $(call declare_iss_check_class,$(pe/iss_class)))
 endif
 endif
+
+
+$(info IMP $(IMPLEMENTATIONS))
