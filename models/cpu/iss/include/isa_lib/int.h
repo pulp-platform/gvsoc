@@ -1194,20 +1194,21 @@ static inline unsigned int lib_MACUS_NR_R(iss_cpu_state_t *s, int a, unsigned in
 //Clipping
 static inline unsigned int lib_CLIP(iss_cpu_state_t *s, int a, int low, int high) {
   unsigned int result;
-  if (a > high) result = high;
-  else if (a < low) result = low;
+
+  if (a < low) result = low;
+  else if (a > high) result = high;
   else result = a;
 
   return result;
 }
 
-static inline unsigned int lib_CLIPU(iss_cpu_state_t *s, int a, unsigned int high) {
+static inline unsigned int lib_CLIPU(iss_cpu_state_t *s, int a, int high) {
   unsigned int result;
 
-  if (a <= 0)
-    result = 0;
-  else if (a > high)
+  if (a > high)
     result = high;
+  else if (a <= 0)
+    result = 0;
   else
     result = a;
 
