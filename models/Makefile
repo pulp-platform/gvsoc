@@ -4,7 +4,7 @@ ROOT_VP_BUILD_DIR ?= $(BUILD_DIR)
 PULP_PROPERTIES += udma/version timer/version stdout/version soc_eu/version \
 	fc_itc/version icache_ctrl/version xne/version fll/version event_unit/version \
 	cluster_ctrl/version pulp_chip cluster/version dma/version udma/spim/version \
-	udma/cpi/version padframe/version pulp_chip_family pmu/version \
+	udma/cpi/version udma/sfu/version padframe/version pulp_chip_family pmu/version \
 	udma/hyper/version efuse/version udma/i2c/version rtc/version gpio/version \
   fc/iss_class pe/iss_class udma/i2s/version udma/mram/version hwce/version \
    udma/tcdm/version hwacc/base udma/uart/version
