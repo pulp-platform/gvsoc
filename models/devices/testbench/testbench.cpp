@@ -44,6 +44,8 @@ class Uart;
 #define PI_TESTBENCH_CMD_GPIO_LOOPBACK 1
 #define PI_TESTBENCH_CMD_UART_CHECKER  2
 #define PI_TESTBENCH_CMD_SET_STATUS    3
+#define PI_TESTBENCH_CMD_GPIO_PULSE_GEN 4
+
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
 
@@ -58,6 +60,14 @@ typedef struct {
     uint8_t output;
     uint8_t enabled;
 } pi_testbench_req_gpio_checker_t;
+
+
+typedef struct {
+    int64_t duration_ps;
+    int64_t period_ps;
+    uint8_t gpio;
+    uint8_t enabled;
+} pi_testbench_req_gpio_pulse_gen_t;
 
 
 typedef struct {
@@ -82,6 +92,7 @@ typedef struct {
 typedef struct {
     union {
         pi_testbench_req_gpio_checker_t gpio;
+        pi_testbench_req_gpio_pulse_gen_t gpio_pulse_gen;
         pi_testbench_req_uart_checker_t uart;
         pi_testbench_req_set_status_t set_status;
     };
@@ -97,10 +108,22 @@ typedef enum {
 class Gpio
 {
 public:
+    Gpio(Testbench *top);
+    static void pulse_handler(void *__this, vp::clock_event *event);
+
+    Testbench *top;
+
     vp::wire_slave<int> itf;
 
     int loopback = -1;
     uint32_t value;
+
+
+    vp::clock_event *pulse_event;
+    int64_t pulse_duration_ps;
+    int64_t pulse_period_ps;
+    bool pulse_enabled = false;
+    bool pulse_gen_rising_edge = false;
 };
 
 
@@ -287,6 +310,8 @@ private:
 
     void handle_gpio_loopback();
 
+    void handle_gpio_pulse_gen();
+
     void handle_uart_checker();
 
     void handle_set_status();
@@ -301,7 +326,7 @@ private:
     int nb_i2c;
 
     std::vector<Uart *> uarts;
-    std::vector<Gpio> gpios;
+    std::vector<Gpio *> gpios;
     std::vector<I2C> i2cs;
     vp::uart_slave uart_in;
 
@@ -510,8 +535,9 @@ int Testbench::build()
     
     for (int i=0; i<this->nb_gpio; i++)
     {
-        this->gpios[i].itf.set_sync_meth_muxed(&Testbench::gpio_sync, i);
-        this->new_slave_port("gpio" + std::to_string(i), &this->gpios[i].itf);
+        this->gpios[i] = new Gpio(this);
+        this->gpios[i]->itf.set_sync_meth_muxed(&Testbench::gpio_sync, i);
+        this->new_slave_port("gpio" + std::to_string(i), &this->gpios[i]->itf);
     }
 
     this->i2cs.resize(this->nb_i2c);
@@ -803,6 +829,7 @@ void Testbench::handle_received_byte(uint8_t byte)
             case PI_TESTBENCH_CMD_GPIO_LOOPBACK:
             case PI_TESTBENCH_CMD_UART_CHECKER:
             case PI_TESTBENCH_CMD_SET_STATUS:
+            case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = sizeof(pi_testbench_req_t);
                 this->current_req_size = 0;
@@ -828,6 +855,10 @@ void Testbench::handle_received_byte(uint8_t byte)
                 case PI_TESTBENCH_CMD_SET_STATUS:
                     this->handle_set_status();
                     break;
+
+                case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
+                    this->handle_gpio_pulse_gen();
+                    break;
             }
         }
     }
@@ -837,7 +868,7 @@ void Testbench::handle_received_byte(uint8_t byte)
 void Testbench::gpio_sync(void *__this, int value, int id)
 {
     Testbench *_this = (Testbench *)__this;
-    Gpio *gpio = &_this->gpios[id];
+    Gpio *gpio = _this->gpios[id];
 
     _this->trace.msg(vp::trace::LEVEL_DEBUG, "Received GPIO sync (id: %d)\n", id);
 
@@ -846,7 +877,7 @@ void Testbench::gpio_sync(void *__this, int value, int id)
     if (gpio->loopback != -1)
     {
         _this->trace.msg(vp::trace::LEVEL_DEBUG, "Generating gpio on loopback (id: %d)\n", gpio->loopback);
-        _this->gpios[gpio->loopback].itf.sync(value);
+        _this->gpios[gpio->loopback]->itf.sync(value);
     }
 }
 
@@ -993,15 +1024,64 @@ void Testbench::handle_gpio_loopback()
 
     if (req->gpio.enabled)
     {
-        this->gpios[req->gpio.output].loopback = req->gpio.input;
-        this->gpios[req->gpio.input].itf.sync(this->gpios[req->gpio.output].value);
+        this->gpios[req->gpio.output]->loopback = req->gpio.input;
+        this->gpios[req->gpio.input]->itf.sync(this->gpios[req->gpio.output]->value);
     }
     else
     {
-        this->gpios[req->gpio.output].loopback = -1;
+        this->gpios[req->gpio.output]->loopback = -1;
     }
 }
 
+
+void Testbench::handle_gpio_pulse_gen()
+{
+    pi_testbench_req_t *req = (pi_testbench_req_t *)this->req;
+
+    bool enabled = req->gpio_pulse_gen.enabled;
+    int gpio_id = req->gpio_pulse_gen.gpio;
+    int64_t duration_ps = req->gpio_pulse_gen.duration_ps;
+    int64_t period_ps = req->gpio_pulse_gen.period_ps;
+    Gpio *gpio = this->gpios[gpio_id];
+    
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling GPIO pulse generator (gpio: %d, enabled: %d, duration_ps: %ld, period_ps: %ld)\n",
+        gpio_id, enabled, duration_ps, period_ps);
+
+    gpio->pulse_enabled = enabled;
+
+    if (enabled)
+    {
+        gpio->pulse_duration_ps = duration_ps;
+        gpio->pulse_period_ps = period_ps;
+        gpio->pulse_gen_rising_edge = true;
+        this->event_enqueue(gpio->pulse_event, period_ps);
+    }
+}
+
+
+void Gpio::pulse_handler(void *__this, vp::clock_event *event)
+{
+    Gpio *_this = (Gpio *)__this;
+
+    _this->itf.sync(_this->pulse_gen_rising_edge);
+
+    if (_this->pulse_gen_rising_edge)
+    {
+        _this->top->event_enqueue(_this->pulse_event, _this->pulse_duration_ps);
+    }
+    else
+    {
+        _this->top->event_enqueue(_this->pulse_event, _this->pulse_period_ps);
+    }
+    
+    _this->pulse_gen_rising_edge ^= 1;
+}
+
+
+Gpio::Gpio(Testbench *top) : top(top)
+{
+    this->pulse_event = top->event_new(this, Gpio::pulse_handler);
+}
 
 extern "C" vp::component *vp_constructor(js::config *config)
 {
