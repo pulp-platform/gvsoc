@@ -51,7 +51,7 @@ static inline iss_insn_t *sll_d_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *slt_d_exec(iss_t *iss, iss_insn_t *insn)
 {
-    REG_SET(0, (int32_t)REG64_GET(0) < (int32_t)REG64_GET(1));
+    REG_SET(0, (int64_t)REG64_GET(0) < (int64_t)REG64_GET(1));
     return insn->next;
 }
 
@@ -128,7 +128,7 @@ static inline iss_insn_t *addi_d_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *slti_d_exec(iss_t *iss, iss_insn_t *insn)
 {
-    REG_SET(0, (int32_t)REG64_GET(0) < insn->sim[0]);
+    REG_SET(0, (int64_t)REG64_GET(0) < insn->sim[0]);
     return insn->next;
 }
 
