@@ -45,6 +45,7 @@ class Uart;
 #define PI_TESTBENCH_CMD_UART_CHECKER  2
 #define PI_TESTBENCH_CMD_SET_STATUS    3
 #define PI_TESTBENCH_CMD_GPIO_PULSE_GEN 4
+#define PI_TESTBENCH_CMD_GET_TIME_PS    5
 
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
@@ -101,7 +102,8 @@ typedef struct {
 
 typedef enum {
     STATE_WAITING_CMD,
-    STATE_WAITING_REQUEST
+    STATE_WAITING_REQUEST,
+    STATE_SENDING_REPLY
 } testbench_state_e;
 
 
@@ -132,6 +134,17 @@ class Uart_dev
 public:
     virtual void handle_received_byte(uint8_t byte) {}
     virtual void send_byte_done() {}
+};
+
+
+class Uart_reply : public Uart_dev
+{
+public:
+    Uart_reply(Testbench *top, Uart *uart);
+
+    void send_byte_done();
+
+    Testbench *top;
 };
 
 
@@ -301,7 +314,10 @@ public:
     Testbench(js::config *config);
 
     int build();
+
     void handle_received_byte(uint8_t byte);
+
+    void send_byte_done();
 
     vp::trace trace;
 
@@ -336,6 +352,10 @@ private:
     int req_size;
     int current_req_size;
     uint8_t req[PI_TESTBENCH_MAX_REQ_SIZE];
+    Uart *uart_ctrl;
+    uint8_t *tx_buff;
+    int tx_buff_size;
+    int tx_buff_index;
 };
 
 
@@ -555,6 +575,8 @@ int Testbench::build()
         int uart_baudrate = get_js_config()->get("uart_baudrate")->get_int();
 
         this->uarts[uart_id]->set_control(true, uart_baudrate);
+        this->uarts[uart_id]->set_dev(new Uart_reply(this, this->uarts[uart_id]));
+        this->uart_ctrl = this->uarts[uart_id];
     }
 
     return 0;
@@ -819,6 +841,31 @@ void Uart::uart_stop_tx_sampling(void)
 }
 
 
+Uart_reply::Uart_reply(Testbench *top, Uart *uart) : top(top)
+{
+}
+
+
+void Uart_reply::send_byte_done()
+{
+    this->top->send_byte_done();
+}
+
+
+void Testbench::send_byte_done()
+{
+    this->tx_buff_index++;
+    if (this->tx_buff_index == this->tx_buff_size)
+    {
+        this->state = STATE_WAITING_CMD;
+    }
+    else
+    {
+        this->uart_ctrl->send_byte(this->tx_buff[this->tx_buff_index]);
+    }
+}
+
+
 void Testbench::handle_received_byte(uint8_t byte)
 {
     if (this->state == STATE_WAITING_CMD)
@@ -833,6 +880,16 @@ void Testbench::handle_received_byte(uint8_t byte)
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = sizeof(pi_testbench_req_t);
                 this->current_req_size = 0;
+                break;
+
+            case PI_TESTBENCH_CMD_GET_TIME_PS:
+                this->state = STATE_SENDING_REPLY;
+                this->tx_buff = new uint8_t[8];
+                *(uint64_t *)this->tx_buff = this->get_time();
+                this->tx_buff_size = 8;
+                this->tx_buff_index = 0;
+                this->uart_ctrl->itf.sync_full(1, 0, 0);
+                this->uart_ctrl->send_byte(this->tx_buff[0]);
                 break;
         }
     }
