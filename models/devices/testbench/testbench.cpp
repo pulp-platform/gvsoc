@@ -64,6 +64,7 @@ typedef struct {
 
 
 typedef struct {
+    int64_t first_delay_ps;
     int64_t duration_ps;
     int64_t period_ps;
     uint8_t gpio;
@@ -1106,12 +1107,14 @@ void Testbench::handle_gpio_pulse_gen()
 
     gpio->pulse_enabled = enabled;
 
+    gpio->itf.sync(0);
+
     if (enabled)
     {
         gpio->pulse_duration_ps = duration_ps;
         gpio->pulse_period_ps = period_ps;
         gpio->pulse_gen_rising_edge = true;
-        this->event_enqueue(gpio->pulse_event, period_ps);
+        this->event_enqueue(gpio->pulse_event, req->gpio_pulse_gen.first_delay_ps);
     }
 }
 
@@ -1126,9 +1129,9 @@ void Gpio::pulse_handler(void *__this, vp::clock_event *event)
     {
         _this->top->event_enqueue(_this->pulse_event, _this->pulse_duration_ps);
     }
-    else
+    else if (_this->pulse_period_ps > 0)
     {
-        _this->top->event_enqueue(_this->pulse_event, _this->pulse_period_ps);
+        _this->top->event_enqueue(_this->pulse_event, _this->pulse_period_ps - _this->pulse_duration_ps);
     }
     
     _this->pulse_gen_rising_edge ^= 1;
