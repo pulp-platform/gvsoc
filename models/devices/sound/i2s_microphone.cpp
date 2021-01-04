@@ -444,12 +444,12 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
     {
         if (_this->pending_bits == 1 && _this->ws_out_itf.is_bound())
         {
-            _this->ws_out_itf.sync(0, 1, 0);
+            _this->ws_out_itf.sync(2, 1, 0);
             _this->lower_ws_out = true;
         }
         else if ( _this->lower_ws_out)
         {
-            _this->ws_out_itf.sync(0, 0, 0);
+            _this->ws_out_itf.sync(2, 0, 0);
             _this->lower_ws_out = false;
         }
     }
@@ -494,20 +494,20 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
                 // If there is no more delay, set the sample now as it wil be sampled by the receiver in 1 cycle
                 _this->trace.msg(vp::trace::LEVEL_TRACE, "Setting data (value: %d)\n", data);
 
-                _this->i2s_itf.sync(sck, ws, data);
+                _this->i2s_itf.sync(2, ws, data);
             }
             else if (data == -1)
             {
                 _this->i2s_itf.sync(sck, ws, 2);
                 _this->is_active = false;
-                _this->ws_out_itf.sync(0, 0, 0);
+                _this->ws_out_itf.sync(2, 0, 0);
             }
         }
         else if (_this->pending_bits == 0)
         {
             _this->pending_bits = -1;
             _this->trace.msg(vp::trace::LEVEL_TRACE, "Releasing output\n");
-            _this->i2s_itf.sync(sck, ws, 2);
+            _this->i2s_itf.sync(2, ws, 2);
         }
 
         _this->prev_ws = ws;

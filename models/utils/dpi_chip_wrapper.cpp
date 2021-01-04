@@ -613,6 +613,10 @@ void I2s_group::rx_edge(int sck, int ws, int sd)
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "External EDGE\n");
     dpi_external_edge(this->sdi_callback->handle, sd);
+    if (sck != 2)
+    {
+        dpi_external_edge(this->sck_callback->handle, sck);
+    }
 }
 
 
