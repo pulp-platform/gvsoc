@@ -70,9 +70,9 @@ protected:
     int pdm;                // Generate samples in PDM mode
     long long pdm_error;
     bool stim_incr;         // True if the stimuli should be an incrising number
-    int stim_incr_value;    // In case incr is active, give the increment value
-    int stim_incr_start;    // In case incr is active, give the increment start value
-    int current_stim;       // When using incrementing stim value, this gives the first value
+    unsigned int stim_incr_value;    // In case incr is active, give the increment value
+    unsigned int stim_incr_start;    // In case incr is active, give the increment start value
+    unsigned int current_stim;       // When using incrementing stim value, this gives the first value
     bool is_active;         // Set to true when the word-select of this microphone is detected. The microphone is sending samples when this is true;
     Stim_txt *stim;         // Pointer to the stim generator
     int ws_in;
@@ -374,18 +374,18 @@ int Microphone::get_data()
         if (this->stim_incr)
         {
             this->trace.msg(vp::trace::LEVEL_TRACE, "Incrementing stim (value: 0x%x)\n", this->current_stim);
-            //fprintf(stderr, "stim incr %x %d\n", this->current_stim, (short)this->current_stim);
             int result = this->current_stim;
 
-            //fprintf(stderr, "%s: %x %x %x\n", this->get_path().c_str(), (1<<this->width) - 1,  this->current_stim, this->stim_incr_value);
+            uint64_t incr_val = (uint64_t)this->current_stim + this->stim_incr_value;
+            uint64_t incr_val_trunc = (incr_val & ((1ULL << this->width) - 1));
 
-            if ((1<<this->width) - 1 - this->current_stim <= this->stim_incr_value)
+            if (incr_val_trunc != incr_val)
             {
                 this->current_stim = this->stim_incr_start;
             }
             else
             {
-                this->current_stim += this->stim_incr_value;
+                this->current_stim = incr_val_trunc;
             }
 
             return result;
