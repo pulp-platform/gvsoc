@@ -45,6 +45,7 @@ protected:
     vp::clock_event *event;
 
     int sck;
+    bool is_ws;
 };
 
 
@@ -61,6 +62,7 @@ int I2s_clock::build()
 
     this->event = this->event_new(I2s_clock::handler);
     this->sck = 0;
+    this->is_ws = this->get_js_config()->get_child_bool("is_ws");
 
     return 0;
 }
@@ -69,6 +71,7 @@ int I2s_clock::build()
 void I2s_clock::start()
 {
     int frequency = this->get_js_config()->get_child_int("frequency");
+
     if (frequency != 0)
     {
         this->clock_cfg.set_frequency(frequency);
@@ -81,7 +84,14 @@ void I2s_clock::handler(void *__this, vp::clock_event *event)
 {
     I2s_clock *_this = (I2s_clock *)__this;
 
-    _this->i2s_itf.sync(_this->sck, 0, 0);
+    if (_this->is_ws)
+    {
+        _this->i2s_itf.sync(2, _this->sck, 2);
+    }
+    else
+    {
+        _this->i2s_itf.sync(_this->sck, 2, 2);
+    }
 
     _this->sck ^= 1;
 

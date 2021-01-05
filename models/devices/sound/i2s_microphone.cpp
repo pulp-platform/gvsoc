@@ -346,7 +346,7 @@ int Microphone::build()
     }
     this->current_ws_delay = 0;
     this->pending_bits = -1;
-    this->ws_in = 0;
+    this->ws_in = 2;
     this->lower_ws_out = false;
 
     return 0;
@@ -373,7 +373,9 @@ int Microphone::get_data()
         {
             this->trace.msg(vp::trace::LEVEL_TRACE, "Incrementing stim (value: 0x%x)\n", this->current_stim);
             //fprintf(stderr, "stim incr %x %d\n", this->current_stim, (short)this->current_stim);
-            return this->current_stim += this->stim_incr_value;
+            int result = this->current_stim;
+            this->current_stim += this->stim_incr_value;
+            return result;
         }
     }
 
@@ -494,11 +496,11 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
                 // If there is no more delay, set the sample now as it wil be sampled by the receiver in 1 cycle
                 _this->trace.msg(vp::trace::LEVEL_TRACE, "Setting data (value: %d)\n", data);
 
-                _this->i2s_itf.sync(2, ws, data);
+                _this->i2s_itf.sync(2, 2, data);
             }
             else if (data == -1)
             {
-                _this->i2s_itf.sync(sck, ws, 2);
+                _this->i2s_itf.sync(sck, 2, 2);
                 _this->is_active = false;
                 _this->ws_out_itf.sync(2, 0, 0);
             }
@@ -507,7 +509,7 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
         {
             _this->pending_bits = -1;
             _this->trace.msg(vp::trace::LEVEL_TRACE, "Releasing output\n");
-            _this->i2s_itf.sync(2, ws, 2);
+            _this->i2s_itf.sync(2, 2, 2);
         }
 
         _this->prev_ws = ws;
