@@ -71,6 +71,7 @@ protected:
     long long pdm_error;
     bool stim_incr;         // True if the stimuli should be an incrising number
     int stim_incr_value;    // In case incr is active, give the increment value
+    int stim_incr_start;    // In case incr is active, give the increment start value
     int current_stim;       // When using incrementing stim value, this gives the first value
     bool is_active;         // Set to true when the word-select of this microphone is detected. The microphone is sending samples when this is true;
     Stim_txt *stim;         // Pointer to the stim generator
@@ -341,7 +342,8 @@ int Microphone::build()
     else if (mode == "incr")
     {
         this->stim_incr = true;
-        this->current_stim = this->get_js_config()->get_int("stim_incr_start");
+        this->stim_incr_start = this->get_js_config()->get_int("stim_incr_start");
+        this->current_stim = this->stim_incr_start;
         this->stim_incr_value = this->get_js_config()->get_int("stim_incr_value");
     }
     this->current_ws_delay = 0;
@@ -374,7 +376,18 @@ int Microphone::get_data()
             this->trace.msg(vp::trace::LEVEL_TRACE, "Incrementing stim (value: 0x%x)\n", this->current_stim);
             //fprintf(stderr, "stim incr %x %d\n", this->current_stim, (short)this->current_stim);
             int result = this->current_stim;
-            this->current_stim += this->stim_incr_value;
+
+            //fprintf(stderr, "%s: %x %x %x\n", this->get_path().c_str(), (1<<this->width) - 1,  this->current_stim, this->stim_incr_value);
+
+            if ((1<<this->width) - 1 - this->current_stim <= this->stim_incr_value)
+            {
+                this->current_stim = this->stim_incr_start;
+            }
+            else
+            {
+                this->current_stim += this->stim_incr_value;
+            }
+
             return result;
         }
     }
