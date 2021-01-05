@@ -24,6 +24,7 @@
 #include <vp/itf/uart.hpp>
 #include <vp/itf/clock.hpp>
 #include <vp/itf/i2c.hpp>
+#include <vp/itf/qspim.hpp>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -33,6 +34,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <regex>
+#include "spim_verif.hpp"
 
 extern "C" void dpi_set_status(int status);
 
@@ -127,6 +129,23 @@ public:
     int64_t pulse_period_ps;
     bool pulse_enabled = false;
     bool pulse_gen_rising_edge = false;
+};
+
+
+class Spi
+{
+public:
+    Spi(Testbench *top);
+
+    void sync(int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+    void cs_sync(bool active, int id);
+
+    Testbench *top;
+
+    Spim_verif *spim_verif;
+
+    vp::qspim_slave itf;
+    vp::wire_slave<bool> cs_itf;
 };
 
 
@@ -333,17 +352,21 @@ private:
 
     void handle_set_status();
 
+    static void spi_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+    static void spi_cs_sync(void *__this, bool active, int id);
     static void gpio_sync(void *__this, int value, int id);
     static void i2c_sync(void *__this, int scl, int sda, int id);
 
     string ctrl_type;
     uint64_t period;
     int nb_gpio;
+    int nb_spi;
     int nb_uart;
     int nb_i2c;
 
     std::vector<Uart *> uarts;
     std::vector<Gpio *> gpios;
+    std::vector<Spi *> spis;
     std::vector<I2C> i2cs;
     vp::uart_slave uart_in;
 
@@ -544,6 +567,7 @@ int Testbench::build()
 
     this->ctrl_type = get_js_config()->get("ctrl_type")->get_str();
     this->nb_gpio = get_js_config()->get("nb_gpio")->get_int();
+    this->nb_spi = get_js_config()->get("nb_spi")->get_int();
     this->nb_i2c = get_js_config()->get("nb_i2c")->get_int();
     this->nb_uart = get_js_config()->get("nb_uart")->get_int();
 
@@ -559,6 +583,17 @@ int Testbench::build()
         this->gpios[i] = new Gpio(this);
         this->gpios[i]->itf.set_sync_meth_muxed(&Testbench::gpio_sync, i);
         this->new_slave_port("gpio" + std::to_string(i), &this->gpios[i]->itf);
+    }
+
+    this->spis.resize(this->nb_spi);
+    
+    for (int i=0; i<this->nb_spi; i++)
+    {
+        this->spis[i] = new Spi(this);
+        this->spis[i]->itf.set_sync_meth_muxed(&Testbench::spi_sync, i);
+        this->new_slave_port("spi" + std::to_string(i), &this->spis[i]->itf);
+        this->spis[i]->cs_itf.set_sync_meth_muxed(&Testbench::spi_cs_sync, i);
+        this->new_slave_port("spi" + std::to_string(i) + "_cs", &this->spis[i]->cs_itf);
     }
 
     this->i2cs.resize(this->nb_i2c);
@@ -923,6 +958,32 @@ void Testbench::handle_received_byte(uint8_t byte)
 }
 
 
+void Spi::sync(int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+{
+
+}
+
+
+void Spi::cs_sync(bool active, int id)
+{
+    //fprintf(stderr, "SPI CS SYNC (%d %d)\n", active, id);
+}
+
+
+void Testbench::spi_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+{
+    //fprintf(stderr, "SPI SYNC (%d %d %d %d %d %x %d)\n", sck, data_0, data_1, data_2, data_3, mask, id);
+}
+
+
+void Testbench::spi_cs_sync(void *__this, bool active, int id)
+{
+    Testbench *_this = (Testbench *)__this;
+
+    _this->spis[id]->cs_sync(active, id);
+}
+
+
 void Testbench::gpio_sync(void *__this, int value, int id)
 {
     Testbench *_this = (Testbench *)__this;
@@ -1141,6 +1202,12 @@ void Gpio::pulse_handler(void *__this, vp::clock_event *event)
 Gpio::Gpio(Testbench *top) : top(top)
 {
     this->pulse_event = top->event_new(this, Gpio::pulse_handler);
+}
+
+
+Spi::Spi(Testbench *top) : top(top)
+{
+    //this->spim_verif = new Spim_verif();
 }
 
 extern "C" vp::component *vp_constructor(js::config *config)

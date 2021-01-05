@@ -523,7 +523,7 @@ void Qspim_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, i
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "SPI CS (name: %s, value: %d)\n", callback->name.c_str(), data);
 
-        if (!this->cs_master[callback->cs_id]->is_bound())
+        if (this->cs_master.size() <= callback->cs_id || !this->cs_master[callback->cs_id]->is_bound())
         {
             //this->trace.force_warning("Trying to synchronize unconnected pads\n");
         }
