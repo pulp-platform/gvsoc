@@ -228,7 +228,8 @@ int Testbench::build()
     {
         for (int j=0; j<4; j++)
         {
-            this->spis.push_back(new Spi(this, i, j));
+            Spi *spi = new Spi(this, i, j);
+            this->spis.push_back(spi);
         }
     }
 
@@ -549,6 +550,7 @@ void Testbench::handle_received_byte(uint8_t byte)
             case PI_TESTBENCH_CMD_UART_CHECKER:
             case PI_TESTBENCH_CMD_SET_STATUS:
             case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
+            case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = sizeof(pi_testbench_req_t);
                 this->current_req_size = 0;
@@ -588,6 +590,10 @@ void Testbench::handle_received_byte(uint8_t byte)
                 case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
                     this->handle_gpio_pulse_gen();
                     break;
+
+                case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
+                    this->handle_spim_verif_setup();
+                    break;
             }
         }
     }
@@ -597,15 +603,20 @@ void Testbench::handle_received_byte(uint8_t byte)
 void Spi::sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask)
 {
     Spi *_this = (Spi *)__this;
-    _this->spim_verif->sync(sck, data_0, data_1, data_2, data_3, mask);
+    if (_this->spim_verif)
+    {
+        _this->spim_verif->sync(sck, data_0, data_1, data_2, data_3, mask);
+    }
 }
 
 
 void Spi::cs_sync(void *__this, bool active)
 {
     Spi *_this = (Spi *)__this;
-
-    _this->spim_verif->cs_sync(!active);
+    if (_this->spim_verif)
+    {
+        _this->spim_verif->cs_sync(!active);
+    }
 }
 
 
@@ -805,6 +816,21 @@ void Testbench::handle_gpio_pulse_gen()
     }
 }
 
+void Testbench::handle_spim_verif_setup()
+{
+    pi_testbench_req_t *req = (pi_testbench_req_t *)this->req;
+
+    bool enabled = req->spim_verif_setup.enabled;
+    int itf = req->spim_verif_setup.itf;
+    int cs = req->spim_verif_setup.cs;
+    int mem_size = 1 << req->spim_verif_setup.mem_size_log2;
+
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling Spim verif setup (itf: %d, cs: %d, mem_size: %d)\n",
+        itf, cs, mem_size);
+
+    this->spis[cs + itf*this->nb_spi]->spim_verif_setup(enabled, mem_size);
+}
+
 
 void Gpio::pulse_handler(void *__this, vp::clock_event *event)
 {
@@ -838,10 +864,24 @@ Spi::Spi(Testbench *top, int itf, int cs) : top(top)
     this->cs_itf.set_sync_meth(&Spi::cs_sync);
     this->top->new_slave_port(this, "spi" + std::to_string(itf) + "_cs" + std::to_string(cs), &this->cs_itf);
     
-    this->spim_verif = new Spim_verif(top, &this->itf, itf, cs, 1048576);
-
+    this->spim_verif = NULL;
     this->itf_id = itf;
     this->cs = cs;
+}
+
+
+void Spi::spim_verif_setup(bool enabled, int mem_size)
+{
+    if (this->spim_verif)
+    {
+        delete this->spim_verif;
+        this->spim_verif = NULL;
+    }
+
+    if (enabled)
+    {
+        this->spim_verif = new Spim_verif(this->top, &this->itf, this->itf_id, this->cs, mem_size);
+    }
 }
 
 extern "C" vp::component *vp_constructor(js::config *config)

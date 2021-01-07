@@ -50,6 +50,7 @@ class Uart;
 #define PI_TESTBENCH_CMD_SET_STATUS    3
 #define PI_TESTBENCH_CMD_GPIO_PULSE_GEN 4
 #define PI_TESTBENCH_CMD_GET_TIME_PS    5
+#define PI_TESTBENCH_CMD_SPIM_VERIF_SETUP 6
 
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
@@ -89,6 +90,13 @@ typedef struct {
     uint8_t enabled;
 } pi_testbench_req_uart_checker_t;
 
+typedef struct {
+    uint8_t enabled;
+    uint8_t itf;
+    uint8_t cs;
+    uint8_t mem_size_log2;
+} pi_testbench_req_spim_verif_setup_t;
+
 
 typedef struct {
     uint32_t status;
@@ -101,6 +109,7 @@ typedef struct {
         pi_testbench_req_gpio_pulse_gen_t gpio_pulse_gen;
         pi_testbench_req_uart_checker_t uart;
         pi_testbench_req_set_status_t set_status;
+        pi_testbench_req_spim_verif_setup_t spim_verif_setup;
     };
 } pi_testbench_req_t;
 
@@ -144,6 +153,8 @@ public:
 
     static void sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask);
     static void cs_sync(void *_this, bool active);
+
+    void spim_verif_setup(bool enabled, int mem_size);
 
     Testbench *top;
 
@@ -359,6 +370,8 @@ private:
     void handle_uart_checker();
 
     void handle_set_status();
+
+    void handle_spim_verif_setup();
 
     static void gpio_sync(void *__this, int value, int id);
     static void i2c_sync(void *__this, int scl, int sda, int id);

@@ -453,18 +453,18 @@ void Microphone::sync(void *__this, int sck, int ws, int sd)
     if (_this->ws_in_itf.is_bound())
         ws = _this->ws_in;
 
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d %d)\n", sck, ws, sd, _this->ws_in_itf.is_bound());
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
     if (sck)
     {
         if (_this->pending_bits == 1 && _this->ws_out_itf.is_bound())
         {
-            _this->ws_out_itf.sync(2, 1, 0);
+            _this->ws_out_itf.sync(2, 1, 2);
             _this->lower_ws_out = true;
         }
         else if ( _this->lower_ws_out)
         {
-            _this->ws_out_itf.sync(2, 0, 0);
+            _this->ws_out_itf.sync(2, 0, 2);
             _this->lower_ws_out = false;
         }
     }
