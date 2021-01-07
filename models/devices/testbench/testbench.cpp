@@ -19,369 +19,8 @@
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#include <vp/vp.hpp>
-#include <vp/itf/io.hpp>
-#include <vp/itf/uart.hpp>
-#include <vp/itf/clock.hpp>
-#include <vp/itf/i2c.hpp>
-#include <vp/itf/qspim.hpp>
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <iostream>
-#include <regex>
+#include "testbench.hpp"
 #include "spim_verif.hpp"
-
-extern "C" void dpi_set_status(int status);
-
-
-class Testbench;
-class Uart;
-
-
-#define PI_TESTBENCH_CMD_GPIO_LOOPBACK 1
-#define PI_TESTBENCH_CMD_UART_CHECKER  2
-#define PI_TESTBENCH_CMD_SET_STATUS    3
-#define PI_TESTBENCH_CMD_GPIO_PULSE_GEN 4
-#define PI_TESTBENCH_CMD_GET_TIME_PS    5
-
-#define PI_TESTBENCH_MAX_REQ_SIZE 256
-
-
-typedef enum {
-    PI_TESTBENCH_REQ_UART_CHECKER_MODE_LOOPBACK,
-    PI_TESTBENCH_REQ_UART_CHECKER_MODE_TRAFFIC_GEN
-} pi_testbench_req_uart_checker_mode_e;
-
-
-typedef struct {
-    uint8_t input;
-    uint8_t output;
-    uint8_t enabled;
-} pi_testbench_req_gpio_checker_t;
-
-
-typedef struct {
-    int64_t first_delay_ps;
-    int64_t duration_ps;
-    int64_t period_ps;
-    uint8_t gpio;
-    uint8_t enabled;
-} pi_testbench_req_gpio_pulse_gen_t;
-
-
-typedef struct {
-    uint32_t baudrate;
-    uint8_t id;
-    uint8_t mode;
-    uint8_t flow_control;
-    uint8_t stop_bits;
-    uint8_t parity;
-    uint8_t word_size;
-    uint8_t usart;
-    uint8_t usart_is_external;
-    uint8_t enabled;
-} pi_testbench_req_uart_checker_t;
-
-
-typedef struct {
-    uint32_t status;
-} pi_testbench_req_set_status_t;
-
-
-typedef struct {
-    union {
-        pi_testbench_req_gpio_checker_t gpio;
-        pi_testbench_req_gpio_pulse_gen_t gpio_pulse_gen;
-        pi_testbench_req_uart_checker_t uart;
-        pi_testbench_req_set_status_t set_status;
-    };
-} pi_testbench_req_t;
-
-
-typedef enum {
-    STATE_WAITING_CMD,
-    STATE_WAITING_REQUEST,
-    STATE_SENDING_REPLY
-} testbench_state_e;
-
-
-class Gpio
-{
-public:
-    Gpio(Testbench *top);
-    static void pulse_handler(void *__this, vp::clock_event *event);
-
-    Testbench *top;
-
-    vp::wire_slave<int> itf;
-
-    int loopback = -1;
-    uint32_t value;
-
-
-    vp::clock_event *pulse_event;
-    int64_t pulse_duration_ps;
-    int64_t pulse_period_ps;
-    bool pulse_enabled = false;
-    bool pulse_gen_rising_edge = false;
-};
-
-
-class Spi
-{
-public:
-    Spi(Testbench *top);
-
-    void sync(int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
-    void cs_sync(bool active, int id);
-
-    Testbench *top;
-
-    Spim_verif *spim_verif;
-
-    vp::qspim_slave itf;
-    vp::wire_slave<bool> cs_itf;
-};
-
-
-class Uart_dev
-{
-public:
-    virtual void handle_received_byte(uint8_t byte) {}
-    virtual void send_byte_done() {}
-};
-
-
-class Uart_reply : public Uart_dev
-{
-public:
-    Uart_reply(Testbench *top, Uart *uart);
-
-    void send_byte_done();
-
-    Testbench *top;
-};
-
-
-class Uart_flow_control_checker : public Uart_dev
-{
-public:
-    Uart_flow_control_checker(Testbench *top, Uart *uart, pi_testbench_req_t *req);
-
-    void handle_received_byte(uint8_t byte);
-    void send_byte_done();
-
-private:
-    static void bw_limiter_handler(void *__this, vp::clock_event *event);
-    void send_byte();
-    void check_end_of_command();
-
-    Testbench *top;
-    Uart *uart;
-
-    std::string current_string;
-    bool waiting_command;
-
-    int rx_start;
-    int rx_incr;
-    int rx_size;
-    int rx_bandwidth;
-    int rx_nb_iter;
-
-    int tx_start;
-    int tx_incr;
-    int tx_size;
-    int tx_iter_size;
-    int tx_iter_size_init;
-    int tx_value;
-    int tx_value_init;
-
-    int64_t rx_timestamp;
-    int received_bytes;
-
-    vp::clock_event *bw_limiter_event;
-
-    bool send_reply = false;
-    int reply_index;
-    std::string reply;
-    int status;
-};
-
-
-typedef enum
-{
-  UART_TX_STATE_START,
-  UART_TX_STATE_DATA,
-  UART_TX_STATE_PARITY,
-  UART_TX_STATE_STOP
-} uart_tx_state_e;
-
-
-class Uart
-{
-public:
-    Uart(Testbench *top, int id);
-
-    vp::uart_slave itf;
-
-    void set_control(bool active, int baudrate);
-    void set_dev(Uart_dev *dev) { this->dev = dev; }
-    void send_byte(uint8_t byte);
-    void set_cts(int cts);
-
-    uint64_t baudrate;
-    vp::clock_engine *clock;
-    vp::clock_engine *tx_clock;
-
-    int tx_parity_en = 0;
-    int tx_stop_bits = 1;
-    
-private:
-
-    static void sync(void *__this, int data);
-    static void sync_full(void *__this, int data, int clk, int rtr);
-
-    void uart_tx_sampling();
-
-    void check_send_byte();
-
-    void uart_start_tx_sampling(int baudrate);
-    void uart_stop_tx_sampling();
-    static void uart_sampling_handler(void *__this, vp::clock_event *event);
-    static void uart_tx_handler(void *__this, vp::clock_event *event);
-
-    void handle_received_byte(uint8_t byte);
-    void send_bit();
-
-    static void clk_reg(vp::component *__this, vp::component *clock);
-    static void tx_clk_reg(vp::component *__this, vp::component *clock);
-
-    Testbench *top;
-    int id;
-    Uart_dev *dev = NULL;
-
-    vp::clk_slave    periph_clock_itf;
-
-    bool uart_tx_wait_start = true;
-    bool uart_tx_wait_stop = false;
-    int uart_current_tx;
-    int uart_nb_bits;
-    bool uart_sampling_tx = false;
-    uint8_t uart_byte;
-
-    vp::clock_event *uart_sampling_event;
-    vp::clock_event *uart_tx_event;
-    vp::clock_master clock_cfg;
-    vp::clk_slave    clock_itf;
-    vp::clock_master tx_clock_cfg;
-    vp::clk_slave    tx_clock_itf;
-
-    bool is_control = false;
-
-    uint8_t tx_pending_byte;
-    int tx_pending_bits = 0;
-    int tx_parity;
-    int tx_current_stop_bits;
-
-    int tx_bit = 1;
-    int tx_cts = 0;
-    int rtr = 0;
-
-    uart_tx_state_e tx_state;
-
-};
-
-
-
-typedef enum
-{
-  I2C_STATE_WAIT_START,
-  I2C_STATE_WAIT_ADDRESS,
-  I2C_STATE_GET_DATA,
-  I2C_STATE_ACK
-} I2c_state_e;
-
-
-class I2C
-{
-public:
-    void conf(Testbench *top, int id);
-    void sync(int scl, int sda);
-    void handle_byte();
-
-    vp::i2c_slave itf;
-
-    Testbench *top;
-    int id;
-    I2c_state_e state;
-    int prev_sda;
-    int pending_send_ack;
-    uint32_t address;
-    uint32_t pending_data;
-    int pending_bits;
-    int is_read;
-};
-
-
-class Testbench : public vp::component
-{
-public:
-    Testbench(js::config *config);
-
-    int build();
-
-    void handle_received_byte(uint8_t byte);
-
-    void send_byte_done();
-
-    vp::trace trace;
-
-private:
-
-
-    void handle_gpio_loopback();
-
-    void handle_gpio_pulse_gen();
-
-    void handle_uart_checker();
-
-    void handle_set_status();
-
-    static void spi_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
-    static void spi_cs_sync(void *__this, bool active, int id);
-    static void gpio_sync(void *__this, int value, int id);
-    static void i2c_sync(void *__this, int scl, int sda, int id);
-
-    string ctrl_type;
-    uint64_t period;
-    int nb_gpio;
-    int nb_spi;
-    int nb_uart;
-    int nb_i2c;
-
-    std::vector<Uart *> uarts;
-    std::vector<Gpio *> gpios;
-    std::vector<Spi *> spis;
-    std::vector<I2C> i2cs;
-    vp::uart_slave uart_in;
-
-    testbench_state_e state;
-
-    uint8_t cmd;
-    int req_size;
-    int current_req_size;
-    uint8_t req[PI_TESTBENCH_MAX_REQ_SIZE];
-    Uart *uart_ctrl;
-    uint8_t *tx_buff;
-    int tx_buff_size;
-    int tx_buff_index;
-};
-
 
 Uart_flow_control_checker::Uart_flow_control_checker(Testbench *top, Uart *uart, pi_testbench_req_t *req)
 : top(top), uart(uart)
@@ -584,16 +223,13 @@ int Testbench::build()
         this->gpios[i]->itf.set_sync_meth_muxed(&Testbench::gpio_sync, i);
         this->new_slave_port("gpio" + std::to_string(i), &this->gpios[i]->itf);
     }
-
-    this->spis.resize(this->nb_spi);
     
     for (int i=0; i<this->nb_spi; i++)
     {
-        this->spis[i] = new Spi(this);
-        this->spis[i]->itf.set_sync_meth_muxed(&Testbench::spi_sync, i);
-        this->new_slave_port("spi" + std::to_string(i), &this->spis[i]->itf);
-        this->spis[i]->cs_itf.set_sync_meth_muxed(&Testbench::spi_cs_sync, i);
-        this->new_slave_port("spi" + std::to_string(i) + "_cs", &this->spis[i]->cs_itf);
+        for (int j=0; j<4; j++)
+        {
+            this->spis.push_back(new Spi(this, i, j));
+        }
     }
 
     this->i2cs.resize(this->nb_i2c);
@@ -958,30 +594,20 @@ void Testbench::handle_received_byte(uint8_t byte)
 }
 
 
-void Spi::sync(int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+void Spi::sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask)
 {
-
+    Spi *_this = (Spi *)__this;
+    _this->spim_verif->sync(sck, data_0, data_1, data_2, data_3, mask);
 }
 
 
-void Spi::cs_sync(bool active, int id)
+void Spi::cs_sync(void *__this, bool active)
 {
-    //fprintf(stderr, "SPI CS SYNC (%d %d)\n", active, id);
+    Spi *_this = (Spi *)__this;
+
+    _this->spim_verif->cs_sync(!active);
 }
 
-
-void Testbench::spi_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
-{
-    //fprintf(stderr, "SPI SYNC (%d %d %d %d %d %x %d)\n", sck, data_0, data_1, data_2, data_3, mask, id);
-}
-
-
-void Testbench::spi_cs_sync(void *__this, bool active, int id)
-{
-    Testbench *_this = (Testbench *)__this;
-
-    _this->spis[id]->cs_sync(active, id);
-}
 
 
 void Testbench::gpio_sync(void *__this, int value, int id)
@@ -1205,9 +831,17 @@ Gpio::Gpio(Testbench *top) : top(top)
 }
 
 
-Spi::Spi(Testbench *top) : top(top)
+Spi::Spi(Testbench *top, int itf, int cs) : top(top)
 {
-    //this->spim_verif = new Spim_verif();
+    this->itf.set_sync_meth(&Spi::sync);
+    this->top->new_slave_port(this, "spi" + std::to_string(itf) + "_cs" + std::to_string(cs) + "_data", &this->itf);
+    this->cs_itf.set_sync_meth(&Spi::cs_sync);
+    this->top->new_slave_port(this, "spi" + std::to_string(itf) + "_cs" + std::to_string(cs), &this->cs_itf);
+    
+    this->spim_verif = new Spim_verif(top, &this->itf, itf, cs, 1048576);
+
+    this->itf_id = itf;
+    this->cs = cs;
 }
 
 extern "C" vp::component *vp_constructor(js::config *config)
