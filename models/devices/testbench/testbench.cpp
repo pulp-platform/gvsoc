@@ -21,6 +21,7 @@
 
 #include "testbench.hpp"
 #include "spim_verif.hpp"
+#include "i2s_verif.hpp"
 
 Uart_flow_control_checker::Uart_flow_control_checker(Testbench *top, Uart *uart, pi_testbench_req_t *req)
 : top(top), uart(uart)
@@ -197,6 +198,7 @@ Testbench::Testbench(js::config *config)
     : vp::component(config)
 {
     this->state = STATE_WAITING_CMD;
+    this->current_req_size = 0;
 }
 
 
@@ -207,6 +209,7 @@ int Testbench::build()
     this->ctrl_type = get_js_config()->get("ctrl_type")->get_str();
     this->nb_gpio = get_js_config()->get("nb_gpio")->get_int();
     this->nb_spi = get_js_config()->get("nb_spi")->get_int();
+    this->nb_i2s = get_js_config()->get("nb_i2s")->get_int();
     this->nb_i2c = get_js_config()->get("nb_i2c")->get_int();
     this->nb_uart = get_js_config()->get("nb_uart")->get_int();
 
@@ -231,6 +234,12 @@ int Testbench::build()
             Spi *spi = new Spi(this, i, j);
             this->spis.push_back(spi);
         }
+    }
+
+    for (int i=0; i<this->nb_i2s; i++)
+    {
+        I2s *i2s = new I2s(this, i);
+        this->i2ss.push_back(i2s);
     }
 
     this->i2cs.resize(this->nb_i2c);
@@ -531,6 +540,7 @@ void Testbench::send_byte_done()
     if (this->tx_buff_index == this->tx_buff_size)
     {
         this->state = STATE_WAITING_CMD;
+        this->current_req_size = 0;
     }
     else
     {
@@ -543,16 +553,45 @@ void Testbench::handle_received_byte(uint8_t byte)
 {
     if (this->state == STATE_WAITING_CMD)
     {
-        this->cmd = byte;
+        if (this->current_req_size == 0)
+        {
+            this->cmd = byte;
+        }
+        else
+        {
+            this->cmd |= (byte << this->current_req_size);
+        }
 
-        switch (byte) {
+        this->current_req_size += 8;
+        if (this->current_req_size < 32)
+            return;
+
+        switch (this->cmd & 0xffff) {
             case PI_TESTBENCH_CMD_GPIO_LOOPBACK:
             case PI_TESTBENCH_CMD_UART_CHECKER:
             case PI_TESTBENCH_CMD_SET_STATUS:
             case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
             case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
                 this->state = STATE_WAITING_REQUEST;
-                this->req_size = sizeof(pi_testbench_req_t);
+                this->req_size = cmd >> 16;
+                this->current_req_size = 0;
+                break;
+
+            case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
+                this->state = STATE_WAITING_REQUEST;
+                this->req_size = cmd >> 16;
+                this->current_req_size = 0;
+                break;
+
+            case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP:
+                this->state = STATE_WAITING_REQUEST;
+                this->req_size = cmd >> 16;
+                this->current_req_size = 0;
+                break;
+
+            case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START:
+                this->state = STATE_WAITING_REQUEST;
+                this->req_size = cmd >> 16;
                 this->current_req_size = 0;
                 break;
 
@@ -573,8 +612,9 @@ void Testbench::handle_received_byte(uint8_t byte)
         if (this->current_req_size == this->req_size)
         {
             this->state = STATE_WAITING_CMD;
+            this->current_req_size = 0;
 
-            switch (this->cmd) {
+            switch (this->cmd & 0xffff) {
                 case PI_TESTBENCH_CMD_GPIO_LOOPBACK:
                     this->handle_gpio_loopback();
                     break;
@@ -593,6 +633,19 @@ void Testbench::handle_received_byte(uint8_t byte)
 
                 case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
                     this->handle_spim_verif_setup();
+                    break;
+
+                case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
+                    this->handle_i2s_verif_setup();
+                    break;
+
+                case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP:
+                    this->handle_i2s_verif_slot_setup();
+                    break;
+
+                case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START:
+                    pi_testbench_i2s_verif_slot_start_config_t *start_config = (pi_testbench_i2s_verif_slot_start_config_t *)this->req;
+                    this->handle_i2s_verif_slot_start();
                     break;
             }
         }
@@ -832,6 +885,51 @@ void Testbench::handle_spim_verif_setup()
 }
 
 
+void Testbench::handle_i2s_verif_setup()
+{
+    pi_testbench_i2s_verif_config_t *req = (pi_testbench_i2s_verif_config_t *)this->req;
+    int itf = req->itf;
+
+    if (itf >= this->nb_i2s)
+    {
+        this->trace.fatal("Invalid I2S interface (id: %d, nb_interfaces: %d)", itf, this->nb_i2s);
+        return;
+    }
+
+    this->i2ss[itf]->i2s_verif_setup(req);
+}
+
+
+void Testbench::handle_i2s_verif_slot_setup()
+{
+    pi_testbench_i2s_verif_slot_config_t *req = (pi_testbench_i2s_verif_slot_config_t *)this->req;
+    int itf = req->itf;
+
+    if (itf >= this->nb_i2s)
+    {
+        this->trace.fatal("Invalid I2S interface (id: %d, nb_interfaces: %d)", itf, this->nb_i2s);
+        return;
+    }
+
+    this->i2ss[itf]->i2s_verif_slot_setup(req);
+}
+
+
+void Testbench::handle_i2s_verif_slot_start()
+{
+    pi_testbench_i2s_verif_slot_start_config_t *req = (pi_testbench_i2s_verif_slot_start_config_t *)this->req;
+    int itf = req->itf;
+
+    if (itf >= this->nb_i2s)
+    {
+        this->trace.fatal("Invalid I2S interface (id: %d, nb_interfaces: %d)", itf, this->nb_i2s);
+        return;
+    }
+
+    this->i2ss[itf]->i2s_verif_slot_start(req);
+}
+
+
 void Gpio::pulse_handler(void *__this, vp::clock_event *event)
 {
     Gpio *_this = (Gpio *)__this;
@@ -883,6 +981,74 @@ void Spi::spim_verif_setup(bool enabled, int mem_size)
         this->spim_verif = new Spim_verif(this->top, &this->itf, this->itf_id, this->cs, mem_size);
     }
 }
+
+
+I2s::I2s(Testbench *top, int itf) : top(top)
+{
+    this->i2s_verif = NULL;
+    this->itf_id = itf;
+
+    this->itf.set_sync_meth(&I2s::sync);
+    top->new_master_port(this, "i2s" + std::to_string(itf), &this->itf);
+
+    top->traces.new_trace("i2s_itf" + std::to_string(itf), &trace, vp::DEBUG);
+}
+
+
+void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
+{
+    if (!this->i2s_verif)
+    {
+        this->trace.fatal("Trying to configure slot in inactive interface (itf: %d)", this->itf_id);
+        return;
+    }
+
+    this->i2s_verif->slot_start(config);
+}
+
+
+void I2s::sync(void *__this, int sck, int ws, int sd)
+{
+    I2s *_this = (I2s *)__this;
+    if (_this->i2s_verif)
+    {
+        _this->i2s_verif->sync(sck, ws, sd);
+    }
+}
+
+
+void I2s::i2s_verif_setup(pi_testbench_i2s_verif_config_t *config)
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif setup (enabled: %d, sampling_rate: %d, word_size: %d, nb_slots: %d)\n",
+        config->enabled, config->sampling_freq, config->word_size, config->nb_slots);
+
+    if (this->i2s_verif)
+    {
+        delete this->i2s_verif;
+        this->i2s_verif = NULL;
+    }
+
+    if (config->enabled)
+    {
+        this->i2s_verif = new I2s_verif(this->top, &this->itf, this->itf_id, config);
+    }
+}
+
+
+void I2s::i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config)
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif slot setup (slot: %d, is_rx: %d, enabled: %d, word_size: %d)\n",
+        config->slot, config->is_rx, config->enabled, config->word_size);
+
+    if (!this->i2s_verif)
+    {
+        this->trace.fatal("Trying to configure slot in inactive interface (itf: %d, slot: %d)", this->itf_id, config->slot);
+        return;
+    }
+
+    this->i2s_verif->slot_setup(config);
+}
+
 
 extern "C" vp::component *vp_constructor(js::config *config)
 {

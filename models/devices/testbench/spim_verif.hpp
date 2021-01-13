@@ -23,7 +23,6 @@
 #define __TESTBENCH_SPIM_VERIF_HPP__
 
 #include "testbench.hpp"
-#include "spim_verif.hpp"
 
 #define SPIM_VERIF_CMD_BIT 56
 #define SPIM_VERIF_CMD_WIDTH 8

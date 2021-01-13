@@ -27,6 +27,7 @@
 #include <vp/itf/uart.hpp>
 #include <vp/itf/clock.hpp>
 #include <vp/itf/i2c.hpp>
+#include <vp/itf/i2s.hpp>
 #include <vp/itf/qspim.hpp>
 #include <stdio.h>
 #include <string.h>
@@ -51,6 +52,9 @@ class Uart;
 #define PI_TESTBENCH_CMD_GPIO_PULSE_GEN 4
 #define PI_TESTBENCH_CMD_GET_TIME_PS    5
 #define PI_TESTBENCH_CMD_SPIM_VERIF_SETUP 6
+#define PI_TESTBENCH_CMD_I2S_VERIF_SETUP 7
+#define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP 8
+#define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START 9
 
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
@@ -99,8 +103,27 @@ typedef struct {
 
 
 typedef struct {
+    uint32_t sampling_rate;
+    uint8_t itf;
+    uint8_t enabled;
+    uint8_t word_size;
+    uint8_t nb_slots;
+} pi_testbench_req_i2s_verif_setup_t;
+
+
+typedef struct {
+    uint8_t itf;
+    uint8_t is_rx;
+    uint8_t slot;
+    uint8_t enabled;
+    uint8_t word_size;
+} pi_testbench_req_i2s_verif_slot_setup_t;
+
+
+typedef struct {
     uint32_t status;
 } pi_testbench_req_set_status_t;
+
 
 
 typedef struct {
@@ -110,8 +133,65 @@ typedef struct {
         pi_testbench_req_uart_checker_t uart;
         pi_testbench_req_set_status_t set_status;
         pi_testbench_req_spim_verif_setup_t spim_verif_setup;
+        pi_testbench_req_i2s_verif_setup_t i2s_verif_setup;
+        pi_testbench_req_i2s_verif_slot_setup_t i2s_verif_slot_setup;
     };
 } pi_testbench_req_t;
+
+// This structure can be used to describe what an I2S slot should do
+typedef struct
+{
+    uint8_t itf;
+    uint8_t enabled;
+    uint8_t sampling_freq;
+    uint8_t word_size;
+    uint8_t nb_slots;
+}
+__attribute__((packed)) pi_testbench_i2s_verif_config_t;
+
+// This structure can be used to describe what an I2S slot should do
+typedef struct
+{
+    uint32_t is_rx;
+    uint32_t enabled;
+    uint32_t word_size;
+    uint8_t itf;   // Reserved for runtime
+    uint8_t slot;  // Reserved for runtime
+}
+__attribute__((packed)) pi_testbench_i2s_verif_slot_config_t;
+
+
+typedef enum
+{
+    PI_TESTBENCH_I2S_VERIF_RX_ITER,
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER
+} pi_testbench_i2s_verif_start_config_type_e;
+
+// This structure can be used to describe what an I2S slot should do
+typedef struct
+{
+    uint32_t type;
+    union
+    {
+        struct
+        {
+            int32_t nb_samples;   // Number of samples that should be produced
+            uint32_t incr_start;   // When using incr mode, gives first value
+            uint32_t incr_end;     // When using incr mode, gives last value from which it should start again from incr_start
+            uint32_t incr_value;   // If different from 0, activate incr mode and give the increment after each sample
+        } rx_iter;
+        struct
+        {
+            int32_t nb_samples;
+            uint32_t filepath;
+            uint32_t filepath_len;
+        } tx_file_dumper;
+    };
+
+    uint8_t itf;   // Reserved for runtime
+    uint8_t slot;  // Reserved for runtime
+}
+__attribute__((packed)) pi_testbench_i2s_verif_slot_start_config_t;
 
 
 typedef enum {
@@ -165,6 +245,26 @@ public:
 
     int itf_id;
     int cs;
+};
+
+
+class I2s_verif;
+
+class I2s
+{
+public:
+    I2s(Testbench *top, int itf);
+
+    void i2s_verif_setup(pi_testbench_i2s_verif_config_t *config);
+    void i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
+    void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
+    static void sync(void *__this, int sck, int ws, int sd);
+
+    Testbench *top;
+    I2s_verif * i2s_verif;
+    vp::i2s_master itf;
+    vp::trace trace;
+    int itf_id;
 };
 
 
@@ -364,14 +464,13 @@ private:
 
 
     void handle_gpio_loopback();
-
     void handle_gpio_pulse_gen();
-
     void handle_uart_checker();
-
     void handle_set_status();
-
     void handle_spim_verif_setup();
+    void handle_i2s_verif_setup();
+    void handle_i2s_verif_slot_setup();
+    void handle_i2s_verif_slot_start();
 
     static void gpio_sync(void *__this, int value, int id);
     static void i2c_sync(void *__this, int scl, int sda, int id);
@@ -382,16 +481,18 @@ private:
     int nb_spi;
     int nb_uart;
     int nb_i2c;
+    int nb_i2s;
 
     std::vector<Uart *> uarts;
     std::vector<Gpio *> gpios;
     std::vector<Spi *> spis;
+    std::vector<I2s *> i2ss;
     std::vector<I2C> i2cs;
     vp::uart_slave uart_in;
 
     testbench_state_e state;
 
-    uint8_t cmd;
+    uint32_t cmd;
     int req_size;
     int current_req_size;
     uint8_t req[PI_TESTBENCH_MAX_REQ_SIZE];
