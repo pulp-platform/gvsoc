@@ -47,6 +47,8 @@ public:
     int  active_slot;
     int  pending_bits;
 
+    bool is_pdm;
+
     std::vector<Slot *> slots;
 };
 

@@ -31,6 +31,7 @@ public:
     void start_frame();
     int get_data();
     void send_data(int sdo);
+    int pdm_sync(int sck, int ws, int sd);
 
 private:
     Testbench *top;
@@ -49,7 +50,9 @@ private:
     int tx_pending_bits;
     uint32_t tx_pending_value;
     FILE *outfile;
+    FILE *infile;
 };
+
 
 I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testbench_i2s_verif_config_t *config)
 {
@@ -60,6 +63,11 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->frame_active = false;
     this->ws_delay = 1;
     this->current_ws_delay = 0;
+    this->is_pdm = config->is_pdm;
+    if (this->is_pdm)
+    {
+        this->config.nb_slots = 4;
+    }
 
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf_id), &trace, vp::DEBUG);
 
@@ -101,71 +109,87 @@ void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 }
 
 
-void I2s_verif::sync(int sck, int ws, int sd)
+void I2s_verif::sync(int sck, int ws, int sdio)
 {
+    int sd = sdio >> 2;
+
     this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
-    if (sck)
+    if (this->is_pdm)
     {
-        // The channel is the one of this microphone
-        if (this->prev_ws != ws && ws == 1)
+        if (!sck)
         {
-            this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
-
-            // If the WS just changed, apply the delay before starting sending
-            this->current_ws_delay = this->ws_delay;
-            if (this->current_ws_delay == 0)
-            {
-                this->frame_active = true;
-                this->pending_bits = this->config.word_size;
-                this->active_slot = 0;
-            }
+            int val0 = this->slots[0]->pdm_sync(sck, ws, sdio & 3);
+            int val1 = this->slots[2]->pdm_sync(sck, ws, sdio >> 2);
+            this->itf->sync(2, 2, val0 | (val1 << 2));
         }
-
-        // If there is a delay, decrease it
-        if (this->current_ws_delay > 0)
+        else
         {
-            this->current_ws_delay--;
-            if (this->current_ws_delay == 0)
-            {
-                this->frame_active = true;
-                this->pending_bits = this->config.word_size;
-                this->active_slot = 0;
-            }
+            int val0 = this->slots[1]->pdm_sync(sck, ws, sdio & 3);
+            int val1 = this->slots[3]->pdm_sync(sck, ws, sdio >> 2);
+            this->itf->sync(2, 2, val0 | (val1 << 2));
         }
-
-        if (this->frame_active)
-        {
-            this->slots[this->active_slot]->send_data(sd);
-        }
-
-        if (this->frame_active)
-        {
-            if (this->pending_bits == this->config.word_size)
-            {
-                this->slots[this->active_slot]->start_frame();
-            }
-            int data = this->slots[this->active_slot]->get_data();
-
-            this->itf->sync(2, 2, data);
-
-            this->pending_bits--;
-            if (this->pending_bits == 0)
-            {
-                this->pending_bits = this->config.word_size;
-                this->active_slot++;
-                if (this->active_slot == this->config.nb_slots)
-                {
-                    this->frame_active = false;
-                }
-            }
-        }
-
-        this->prev_ws = ws;
     }
     else
     {
+        if (sck)
+        {
+            // The channel is the one of this microphone
+            if (this->prev_ws != ws && ws == 1)
+            {
+                this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
 
+                // If the WS just changed, apply the delay before starting sending
+                this->current_ws_delay = this->ws_delay;
+                if (this->current_ws_delay == 0)
+                {
+                    this->frame_active = true;
+                    this->pending_bits = this->config.word_size;
+                    this->active_slot = 0;
+                }
+            }
+
+            // If there is a delay, decrease it
+            if (this->current_ws_delay > 0)
+            {
+                this->current_ws_delay--;
+                if (this->current_ws_delay == 0)
+                {
+                    this->frame_active = true;
+                    this->pending_bits = this->config.word_size;
+                    this->active_slot = 0;
+                }
+            }
+
+            if (this->frame_active)
+            {
+                this->slots[this->active_slot]->send_data(sd);
+            }
+
+            if (this->frame_active)
+            {
+                if (this->pending_bits == this->config.word_size)
+                {
+                    this->slots[this->active_slot]->start_frame();
+                }
+                int data = this->slots[this->active_slot]->get_data();
+
+                this->itf->sync(2, 2, data | (2 << 2));
+
+                this->pending_bits--;
+                if (this->pending_bits == 0)
+                {
+                    this->pending_bits = this->config.word_size;
+                    this->active_slot++;
+                    if (this->active_slot == this->config.nb_slots)
+                    {
+                        this->frame_active = false;
+                    }
+                }
+            }
+
+            this->prev_ws = ws;
+        }
     }
 }
 
@@ -177,6 +201,8 @@ Slot::Slot(Testbench *top, int itf, int id) : top(top), id(id)
     this->config_rx.enabled = false;
     this->rx_started = false;
     this->tx_started = false;
+    this->infile = NULL;
+    this->outfile = NULL;
 }
 
 
@@ -215,6 +241,19 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
         this->outfile = fopen(filepath, "w");
         if (this->outfile == NULL)
+        {
+            this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
+        }
+    }
+    else if (config->type == PI_TESTBENCH_I2S_VERIF_PDM_RX_FILE_READER)
+    {
+        ::memcpy(&this->start_config_tx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
+
+        this->rx_started = true;
+
+        char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
+        this->infile = fopen(filepath, "r");
+        if (this->infile == NULL)
         {
             this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
         }
@@ -299,4 +338,28 @@ int Slot::get_data()
     }
 
     return 3;
+}
+
+
+int Slot::pdm_sync(int sck, int ws, int sd)
+{
+    if (this->infile == NULL)
+        return 3;
+
+
+    char line [16];
+
+    if (fgets(line, 16, this->infile) == NULL)
+    {
+        fseek(this->infile, 0, SEEK_SET);
+        if (fgets(line, 16, this->infile))
+        {
+            this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
+            return 3;
+        }
+    }
+
+    int data = atoi(line);
+
+    return data;
 }

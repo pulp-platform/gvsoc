@@ -146,6 +146,7 @@ typedef struct
     uint8_t sampling_freq;
     uint8_t word_size;
     uint8_t nb_slots;
+    uint8_t is_pdm;
 }
 __attribute__((packed)) pi_testbench_i2s_verif_config_t;
 
@@ -164,7 +165,8 @@ __attribute__((packed)) pi_testbench_i2s_verif_slot_config_t;
 typedef enum
 {
     PI_TESTBENCH_I2S_VERIF_RX_ITER,
-    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER,
+    PI_TESTBENCH_I2S_VERIF_PDM_RX_FILE_READER
 } pi_testbench_i2s_verif_start_config_type_e;
 
 // This structure can be used to describe what an I2S slot should do

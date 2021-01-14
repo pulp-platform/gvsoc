@@ -94,10 +94,12 @@ public:
     Dpi_chip_wrapper_callback *sck_callback;
     Dpi_chip_wrapper_callback *ws_callback;
     Dpi_chip_wrapper_callback *sdi_callback;
+    Dpi_chip_wrapper_callback *sdo_callback;
 
     int sck;
     int ws;
     int sdo;
+    int sdi;
 };
 
 
@@ -603,12 +605,13 @@ bool I2s_group::bind(std::string pad_name, Dpi_chip_wrapper_callback *callback)
     }
     else if (pad_name == "sdi")
     {
+        callback->pad_value = &this->sdi;
         this->sdi_callback = callback;
-        return true;
     }
     else if (pad_name == "sdo")
     {
         callback->pad_value = &this->sdo;
+        this->sdo_callback = callback;
     }
     else
     {
@@ -631,7 +634,7 @@ void I2s_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, int
         if (this->slave.is_bound())
         {
             this->trace.msg(vp::trace::LEVEL_TRACE, "I2S clock  SYNC(name: %s, value: %d)\n", callback->name.c_str(), data);
-            this->slave.sync(this->sck, this->ws, this->sdo);
+            this->slave.sync(this->sck, this->ws, (this->sdo << 2) | this->sdi);
         }
     }
 }
@@ -639,7 +642,8 @@ void I2s_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, int
 void I2s_group::rx_edge(int sck, int ws, int sd)
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "External EDGE\n");
-    dpi_external_edge(this->sdi_callback->handle, sd);
+    dpi_external_edge(this->sdi_callback->handle, sd & 3);
+    dpi_external_edge(this->sdo_callback->handle, sd >> 2);
     if (sck != 2)
     {
         dpi_external_edge(this->sck_callback->handle, sck);
