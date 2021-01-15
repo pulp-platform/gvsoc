@@ -266,9 +266,11 @@ void Speaker::push_data(int data)
 }
 
 
-void Speaker::sync(void *__this, int sck, int ws, int sd)
+void Speaker::sync(void *__this, int sck, int ws, int sdio)
 {
     Speaker *_this = (Speaker *)__this;
+
+    int sd = sdio >> 2;
 
     _this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
