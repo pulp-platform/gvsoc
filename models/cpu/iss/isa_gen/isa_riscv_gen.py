@@ -1294,6 +1294,18 @@ rv32c = IsaSubset('c', [
 ])
 
 
+if os.environ.get('CONFIG_GVSOC_USE_UNCOMPRESSED_LABELS') is not None:
+    unconmpressed_names = [
+        'addi', 'lw', 'sw', 'nop', 'addi', 'jal', 'addi', 'addi', 'lui', 'srli', 'srai', 'andi', 'sub', 'xor', 'or', 'and', 'j', 'beqz', 'bnez', 'slli',
+        'lw', 'jr', 'mv', 'ebreak', 'jalr', 'add', 'sw', 'sbreak',
+    ]
+
+    for insn in rv32c.instrs:
+        label = unconmpressed_names.pop(0)
+        insn.traceLabel = label
+
+
+
 
 #
 # PULP extensions
