@@ -1781,10 +1781,9 @@ static inline unsigned int lib_flexfloat_le(iss_cpu_state_t *s, unsigned int a, 
 }
 
 static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
-  FF_INIT_1(a, e, m)
-  unsigned int frac = flexfloat_frac(&ff_a);
-  unsigned int exp = flexfloat_exp(&ff_a);
-  bool sign = flexfloat_sign(&ff_a);
+  bool sign = (a >> (e + m)) & 0x1;
+  int_fast16_t exp = (a >> m) & ((0x1<<e) - 1);
+  uint_t frac = a & ((UINT_C(1)<<m) - 1);
 
   if (exp == INF_EXP) {
     if (frac == 0) {
@@ -1806,18 +1805,17 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
   }
 }
 
-static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int a, unsigned int vlen, uint8_t e, uint8_t m) {
+static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int a, unsigned int vlen, int width, uint8_t e, uint8_t m) {
   unsigned int result = 0;
 
   for (int i = 0; i < vlen; i++) {
-    FF_INIT_1(a, e, m)
-    unsigned int frac = flexfloat_frac(&ff_a);
-    unsigned int exp = flexfloat_exp(&ff_a);
-    bool sign = flexfloat_sign(&ff_a);
+    bool sign = (a >> (e + m)) & 0x1;
+    int_fast16_t exp = (a >> m) & ((0x1<<e) - 1);
+    uint_t frac = a & ((UINT_C(1)<<m) - 1);
 
     unsigned char cblock = ((char) sign << 7) | ((char) !sign << 6);
 
-    if (exp == flexfloat_inf_exp(env)) {
+    if (exp == (1 << e) - 1) {
       if (frac == 0) {
         cblock |= 0x1; // infinity
       } else if (frac & (0x1 << m-1)) {
@@ -1834,6 +1832,7 @@ static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int
     }
 
     result |= cblock << 8*i;
+    a >>= width;
   }
   return result;
 }
