@@ -540,9 +540,14 @@ INLINE void ff_min(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b
     assert((dest->desc.exp_bits == a->desc.exp_bits) && (dest->desc.frac_bits == a->desc.frac_bits) &&
            (a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
     dest->value = fmin(a->value,b->value);
-    // fmin's zero sign handling is implementation defined! Check for 0 cases and ensure -0 is chosen
+    // fmin's zero sign handling is implementation defined! Check for 0 cases to ensure right result
     if ((a->value == 0) && (a->value == b->value))
-        CAST_TO_INT(dest->value) = (UINT_C(0x1) << NUM_BITS-1);
+    {
+        if (flexfloat_sign(a) || flexfloat_sign(b))
+            CAST_TO_INT(dest->value) = (UINT_C(0x1) << NUM_BITS-1);
+        else
+            CAST_TO_INT(dest->value) = 0;
+    }
     #ifdef FLEXFLOAT_TRACKING
     dest->exact_value = fmin(a->exact_value,b->exact_value);
     if ((a->exact_value == 0) && (a->exact_value == b->exact_value))
@@ -559,9 +564,14 @@ INLINE void ff_max(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b
     assert((dest->desc.exp_bits == a->desc.exp_bits) && (dest->desc.frac_bits == a->desc.frac_bits) &&
            (a->desc.exp_bits == b->desc.exp_bits) && (a->desc.frac_bits == b->desc.frac_bits));
     dest->value = fmax(a->value,b->value);
-    // fmax' zero sign handling is implementation defined! Check for 0 cases and ensure +0 is chosen
+    // fmin's zero sign handling is implementation defined! Check for 0 cases to ensure right result
     if ((a->value == 0) && (a->value == b->value))
-        CAST_TO_INT(dest->value) = 0;
+    {
+        if (flexfloat_sign(a) && flexfloat_sign(b))
+            CAST_TO_INT(dest->value) = (UINT_C(0x1) << NUM_BITS-1);
+        else
+            CAST_TO_INT(dest->value) = 0;
+    }
     #ifdef FLEXFLOAT_TRACKING
     dest->exact_value = fmax(a->exact_value,b->exact_value);
     if ((a->exact_value == 0) && (a->exact_value == b->exact_value))
