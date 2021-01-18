@@ -97,6 +97,7 @@ uint_t flexfloat_pack_bits(flexfloat_desc_t desc, uint_t bits)
             exp--;
         frac &= ((UINT_C(1) << desc.frac_bits) - 1); // remove implicit bit
         // printf("[ff_pack_bits] done normalizing 0x%016lx, exp %d\n", frac, exp);
+
         return flexfloat_pack(desc, sign, exp, frac);
     }
     else
@@ -110,6 +111,7 @@ void flexfloat_set_bits(flexfloat_t *a, uint_t bits)
     CAST_TO_INT(a->value) = flexfloat_pack_bits(a->desc, bits);
 }
 
+
 uint_t flexfloat_get_bits(flexfloat_t *a)
 {
     int_fast16_t exp = flexfloat_exp(a);
@@ -119,12 +121,19 @@ uint_t flexfloat_get_bits(flexfloat_t *a)
     else if(exp <= 0 && frac != 0) {
         frac = flexfloat_denorm_frac(a, exp);
         exp = 0;
+    } else  if (exp<0 && frac == 0) {
+            /* We have a subnormal here since we cannot represent exp (too small), set frac to 2^(frac_bits-exp+1) */
+            if ((a->desc.frac_bits-exp-1) >= 0)
+                frac = 1<<(a->desc.frac_bits+exp-1);
+            else frac = 0;
+            exp = 0;
     }
 
     return ((uint_t)flexfloat_sign(a) << (a->desc.exp_bits + a->desc.frac_bits))
            + ((uint_t)exp << a->desc.frac_bits)
            + frac;
 }
+
 
 #ifdef FLEXFLOAT_ROUNDING
 
@@ -548,6 +557,7 @@ INLINE void ff_min(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b
         else
             CAST_TO_INT(dest->value) = 0;
     }
+
     #ifdef FLEXFLOAT_TRACKING
     dest->exact_value = fmin(a->exact_value,b->exact_value);
     if ((a->exact_value == 0) && (a->exact_value == b->exact_value))
