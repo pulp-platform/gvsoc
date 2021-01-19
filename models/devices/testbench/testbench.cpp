@@ -572,6 +572,7 @@ void Testbench::handle_received_byte(uint8_t byte)
             case PI_TESTBENCH_CMD_SET_STATUS:
             case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
             case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
+            case PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER:
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = cmd >> 16;
                 this->current_req_size = 0;
@@ -633,6 +634,10 @@ void Testbench::handle_received_byte(uint8_t byte)
 
                 case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
                     this->handle_spim_verif_setup();
+                    break;
+
+                case PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER:
+                    this->handle_spim_verif_transfer();
                     break;
 
                 case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
@@ -871,17 +876,29 @@ void Testbench::handle_gpio_pulse_gen()
 
 void Testbench::handle_spim_verif_setup()
 {
-    pi_testbench_req_t *req = (pi_testbench_req_t *)this->req;
+    pi_testbench_req_spim_verif_setup_t *req = (pi_testbench_req_spim_verif_setup_t *)this->req;
 
-    bool enabled = req->spim_verif_setup.enabled;
-    int itf = req->spim_verif_setup.itf;
-    int cs = req->spim_verif_setup.cs;
-    int mem_size = 1 << req->spim_verif_setup.mem_size_log2;
+    int itf = req->itf;
+    int cs = req->cs;
 
     this->trace.msg(vp::trace::LEVEL_INFO, "Handling Spim verif setup (itf: %d, cs: %d, mem_size: %d)\n",
-        itf, cs, mem_size);
+        itf, cs, 1<<req->mem_size_log2);
 
-    this->spis[cs + itf*this->nb_spi]->spim_verif_setup(enabled, mem_size);
+    this->spis[cs + itf*this->nb_spi]->spim_verif_setup(req);
+}
+
+
+void Testbench::handle_spim_verif_transfer()
+{
+    pi_testbench_req_spim_verif_transfer_t *req = (pi_testbench_req_spim_verif_transfer_t *)this->req;
+
+    int itf = req->itf;
+    int cs = req->cs;
+
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling Spim verif transfer (itf: %d, cs: %d)\n",
+        itf, cs);
+
+    this->spis[cs + itf*this->nb_spi]->spim_verif_transfer((pi_testbench_req_spim_verif_transfer_t *)req);
 }
 
 
@@ -968,7 +985,7 @@ Spi::Spi(Testbench *top, int itf, int cs) : top(top)
 }
 
 
-void Spi::spim_verif_setup(bool enabled, int mem_size)
+void Spi::spim_verif_setup(pi_testbench_req_spim_verif_setup_t *config)
 {
     if (this->spim_verif)
     {
@@ -976,11 +993,22 @@ void Spi::spim_verif_setup(bool enabled, int mem_size)
         this->spim_verif = NULL;
     }
 
-    if (enabled)
+    if (config->enabled)
     {
-        this->spim_verif = new Spim_verif(this->top, &this->itf, this->itf_id, this->cs, mem_size);
+        this->spim_verif = new Spim_verif(this->top, this, &this->itf, config);
     }
 }
+
+
+void Spi::spim_verif_transfer(pi_testbench_req_spim_verif_transfer_t *config)
+{
+    if (this->spim_verif)
+    {
+        this->spim_verif->transfer(config);
+    }
+
+}
+
 
 
 I2s::I2s(Testbench *top, int itf) : top(top)

@@ -22,19 +22,41 @@
 #include <vp/vp.hpp>
 #include "spim_verif.hpp"
 
-Spim_verif::Spim_verif(Testbench *top, vp::qspim_slave *itf, int itf_id, int cs, int mem_size)
+Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbench_req_spim_verif_setup_t *config)
+  : vp::time_engine_client(NULL)
 {
+    int itf_id = config->itf;
+    int cs = config->cs;
+    int mem_size = 1<<config->mem_size_log2;
     this->itf = itf;
     this->mem_size = mem_size;
     verbose = true; //config->get("verbose")->get_bool();
     //print("Creating SPIM VERIF model (mem_size: 0x%x)", this->mem_size);
     data = new unsigned char[mem_size];
 
+    for (int i=0; i<mem_size; i++)
+    {
+        data[i] = i;
+    }
+
     wait_cs = false;
     this->current_cs = 1;
     this->tx_file = NULL;
+    this->top = top;
+    this->spi = spi;
+    this->is_master = config->is_master;
 
-    top->traces.new_trace("spim_verif_itf" + std::to_string(itf_id) + "_cs" + std::to_string(cs), &trace, vp::DEBUG);
+    this->engine = (vp::time_engine*)this->top->get_service("time");
+
+    std::string name = "spim_verif_itf" + std::to_string(itf_id) + "_cs" + std::to_string(cs);
+
+    top->traces.new_trace(name, &trace, vp::DEBUG);
+
+    if (config->is_master)
+    {
+        this->itf->sync(0, 2, 2, 2, 2, 0xf);
+        this->spi->cs_itf.sync(1);
+    }
 
 #if 0
   js::config *tx_file_config = config->get("tx_file");
@@ -48,7 +70,7 @@ Spim_verif::Spim_verif(Testbench *top, vp::qspim_slave *itf, int itf_id, int cs,
   }
 #endif
 
-    //this->trace = this->trace_new(config->get_child_str("name").c_str());
+    this->slave_state = SPIS_STATE_IDLE;
 }
 
 void Spim_verif::handle_read(uint64_t cmd, bool is_quad)
@@ -130,7 +152,7 @@ void Spim_verif::exec_read()
 
         byte <<= 4;
 
-        this->itf->sync(data_0, data_1, data_2, data_3, 0xf);
+        this->itf->sync(2, data_0, data_1, data_2, data_3, 0xf);
 
         nb_bits -= 4;
         current_size -= 4;
@@ -140,7 +162,7 @@ void Spim_verif::exec_read()
         int bit = (byte >> 7) & 1;
         byte <<= 1;
 
-        this->itf->sync(2, bit, 2, 2, 0x2);
+        this->itf->sync(2, 2, bit, 2, 2, 0x2);
 
         nb_bits--;
         current_size--;
@@ -229,7 +251,7 @@ void Spim_verif::handle_command(uint64_t cmd)
 
 void Spim_verif::cs_sync(int cs)
 {
-    if (this->current_cs == cs)
+    if (this->is_master || this->current_cs == cs)
         return;
 
     this->current_cs = cs;
@@ -242,7 +264,7 @@ void Spim_verif::cs_sync(int cs)
         current_addr = command_addr;
 
         this->wait_cs = false;
-        this->itf->sync(2, 2, 2, 2, 0x1);
+        this->itf->sync(2, 2, 2, 2, 2, 0x1);
     }
 
     if (cs == 0)
@@ -323,13 +345,211 @@ void Spim_verif::sync(int sck, int sdio0, int sdio1, int sdio2, int sdio3, int m
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "SCK edge (sck: %d, data_0: %d, data_1: %d, data_2: %d, data_3: %d, mask: 0x%x)\n", sck, sdio0, sdio1, sdio2, sdio3, mask);
 
-    if (prev_sck == 1 && !sck)
+    if (this->is_master)
     {
-        handle_clk_low(sdio0, sdio1, sdio2, sdio3, mask);
+        this->slave_pending_miso = sdio0;
     }
-    else if (prev_sck == 0 && sck)
+    else
     {
-        handle_clk_high(sdio0, sdio1, sdio2, sdio3, mask);
+        if (prev_sck == 1 && !sck)
+        {
+            handle_clk_low(sdio0, sdio1, sdio2, sdio3, mask);
+        }
+        else if (prev_sck == 0 && sck)
+        {
+            handle_clk_high(sdio0, sdio1, sdio2, sdio3, mask);
+        }
+        prev_sck = sck;
     }
-    prev_sck = sck;
+}
+
+
+int64_t Spim_verif::exec()
+{
+    bool clock_toggle = false;
+
+    if (this->slave_sck == 0)
+    {
+        switch (this->slave_state)
+        {
+            case SPIS_STATE_START_WAIT_CYCLES:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master start wait cycles (cycles: %d)\n", this->slave_wait_cycles);
+                clock_toggle = true;
+                this->slave_wait_cycles--;
+                if (this->slave_wait_cycles == 0)
+                {
+                    this->slave_state = SPIS_STATE_CS_START_PRE_START_CYCLES;
+                    this->slave_wait_cycles = 5;
+                }
+                break;
+
+            case SPIS_STATE_CS_START_PRE_START_CYCLES:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master cs start wait cycles (cycles: %d)\n", this->slave_wait_cycles);
+                this->slave_wait_cycles--;
+                if (this->slave_wait_cycles == 0)
+                {
+                    this->slave_state = SPIS_STATE_CS_START;
+                }
+                break;
+
+            case SPIS_STATE_CS_START:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master cs start\n");
+                this->spi->cs_itf.sync(0);
+                this->slave_state = SPIS_STATE_CS_START_POST_WAIT_CYCLES;
+                this->slave_wait_cycles = 5;
+                break;
+
+            case SPIS_STATE_CS_START_POST_WAIT_CYCLES:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master cs start wait cycles (cycles: %d)\n", this->slave_wait_cycles);
+                this->slave_wait_cycles--;
+                if (this->slave_wait_cycles == 0)
+                {
+                    this->slave_state = SPIS_STATE_TRANSFER;
+                }
+                break;
+
+            case SPIS_STATE_TRANSFER:
+                clock_toggle = true;
+                if (this->slave_pending_is_tx)
+                {
+                    if (this->slave_pending_tx_bits == 0)
+                    {
+                        this->slave_pending_tx_bits = 8;
+                        this->slave_pending_tx_byte = this->data[this->slave_pending_tx_addr];
+                        this->trace.msg(vp::trace::LEVEL_DEBUG, "Read from memory (address: 0x%lx, data: 0x%lx)\n", this->slave_pending_tx_addr, this->slave_pending_tx_byte);
+                        this->slave_pending_tx_addr++;
+                    }
+
+                    this->slave_pending_mosi = (this->slave_pending_tx_byte >> 7) & 1;
+                    this->slave_pending_tx_byte <<= 1;
+                    this->slave_pending_tx_bits--;
+                    if (this->slave_pending_tx_bits == 0)
+                    {
+                        this->slave_pending_tx_size--;
+                    }
+                    if (this->slave_pending_tx_size == 0 && !this->slave_pending_is_rx)
+                    {
+                        this->slave_state = SPIS_STATE_CS_END_WAIT_CYCLES;
+                        this->slave_wait_cycles = 5;
+                    }
+                }
+                break;
+
+            case SPIS_STATE_CS_END_WAIT_CYCLES:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master cs end wait cycles (cycles: %d)\n", this->slave_wait_cycles);
+                this->slave_wait_cycles--;
+                this->slave_pending_mosi = 2;
+                if (this->slave_wait_cycles == 0)
+                {
+                    this->slave_state = SPIS_STATE_CS_END;
+                }
+                break;
+
+            case SPIS_STATE_CS_END:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master cs end\n");
+                this->spi->cs_itf.sync(1);
+                this->slave_state = SPIS_STATE_END_WAIT_CYCLES;
+                this->slave_wait_cycles = 3;
+                break;
+
+            case SPIS_STATE_END_WAIT_CYCLES:
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master end wait cycles (cycles: %d)\n", this->slave_wait_cycles);
+                clock_toggle = true;
+                if (this->slave_wait_cycles == 0)
+                {
+                    this->slave_state = SPIS_STATE_IDLE;
+                }
+                else
+                {
+                    this->slave_wait_cycles--;
+                }
+                break;
+
+        }
+    }
+    else
+    {
+        clock_toggle = true;
+
+        switch (this->slave_state)
+        {
+            case SPIS_STATE_TRANSFER:
+            if (this->slave_pending_is_rx)
+            {
+                this->slave_pending_rx_byte = (this->slave_pending_rx_byte << 1) | this->slave_pending_miso;
+                this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master sampled bit (bit: %d, value: 0x%x)\n", this->slave_pending_miso, this->slave_pending_rx_byte);
+                this->slave_pending_rx_bits++;
+                if (this->slave_pending_rx_bits == 8)
+                {
+                    this->trace.msg(vp::trace::LEVEL_DEBUG, "Writing to memory (address: 0x%lx, data: 0x%lx)\n", this->slave_pending_rx_addr, this->slave_pending_rx_byte & 0xff);
+                    this->data[this->slave_pending_rx_addr] = this->slave_pending_rx_byte;
+                    this->slave_pending_rx_size--;
+                    this->slave_pending_rx_addr++;
+                    this->slave_pending_rx_bits = 0;
+                    if (this->slave_pending_rx_size == 0)
+                    {
+                        this->slave_state = SPIS_STATE_CS_END_WAIT_CYCLES;
+                        this->slave_wait_cycles = 5;
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    this->trace.msg(vp::trace::LEVEL_TRACE, "SPI master edge (sck: %d, mosi: %d, miso: %d)\n", this->slave_sck, this->slave_pending_mosi, this->slave_pending_miso);
+
+    this->itf->sync(this->slave_sck, 2, this->slave_pending_mosi, 2, 2, 0xf);
+
+
+    if (clock_toggle)
+    {
+        this->slave_sck ^= 1;
+    }
+
+    if (this->slave_state == SPIS_STATE_IDLE)
+    {
+        return -1;
+    }
+    else
+    {
+        return this->slave_period;
+    }
+}
+
+
+void Spim_verif::transfer(pi_testbench_req_spim_verif_transfer_t *config)
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling SPI transfer (frequency: %ld, address: 0x%lx, size: 0x%lx, is_master: %d, is_rx: %d, is_duplex: %d)\n",
+        config->frequency, config->address, config->size, config->is_master, config->is_rx, config->is_duplex
+    );
+
+    this->slave_pending_tx_size = 0;
+    this->slave_pending_rx_size = 0;
+    this->slave_pending_mosi = 2;
+    this->slave_pending_rx_addr = config->address;
+    this->slave_pending_tx_addr = config->address;
+    this->slave_wait_cycles = 3;
+    this->slave_pending_is_rx = config->is_rx || config->is_duplex;
+    this->slave_pending_is_tx = !config->is_rx || config->is_duplex;
+
+    if (this->slave_pending_is_rx)
+    {
+        this->slave_pending_rx_size = config->size;
+    }
+
+    if (this->slave_pending_is_tx)
+    {
+        this->slave_pending_tx_size = config->size;
+    }
+
+    this->slave_pending_rx_bits = 0;
+    this->slave_pending_tx_bits = 0;
+
+    this->slave_period = 1000000000000ULL / config->frequency / 2;
+    this->slave_sck = 0;
+
+    this->slave_state = SPIS_STATE_START_WAIT_CYCLES;
+
+    this->enqueue_to_engine(this->slave_period);
 }

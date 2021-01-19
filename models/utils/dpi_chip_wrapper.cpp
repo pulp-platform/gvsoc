@@ -58,7 +58,8 @@ public:
     Qspim_group(dpi_chip_wrapper *top, std::string name) : Pad_group(top, name) {}
     void edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, int data);
     bool bind(std::string pad_name, Dpi_chip_wrapper_callback *callback);
-    void rx_edge(int data_0, int data_1, int data_2, int data_3, int mask);
+    void rx_edge(int sck, int data_0, int data_1, int data_2, int data_3, int mask);
+    void rx_cs_edge(bool data);
     vp::trace trace;
     vp::trace data_0_trace;
     vp::trace data_1_trace;
@@ -71,6 +72,8 @@ public:
     int active_cs;
 
     Dpi_chip_wrapper_callback *data_callback[4];
+    Dpi_chip_wrapper_callback *sck_callback;
+    Dpi_chip_wrapper_callback *cs_callback;
 
     int sck;
     int data_0;
@@ -197,7 +200,8 @@ public:
     void start();
 
 private:
-    static void qspim_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+    static void qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id);
+    static void qspim_cs_sync(void *__this, bool data, int id);
     static void uart_rx_edge(void *__this, int data, int id);
     static void uart_rx_edge_full(void *__this, int data, int sck, int rtr, int id);
     static void uart_sync(void *__this, int data, int sck, int rtr, int id);
@@ -277,6 +281,7 @@ int dpi_chip_wrapper::build()
 
                     vp::wire_master<bool> *cs_itf = new vp::wire_master<bool>;
                     new_master_port(name + "_cs" + std::to_string(i), cs_itf);
+                    cs_itf->set_sync_meth_muxed(&dpi_chip_wrapper::qspim_cs_sync, nb_itf);
                     group->cs_master.push_back(cs_itf);
                 }
 
@@ -369,11 +374,18 @@ int dpi_chip_wrapper::build()
 }
 
 
-void dpi_chip_wrapper::qspim_sync(void *__this, int data_0, int data_1, int data_2, int data_3, int mask, int id)
+void dpi_chip_wrapper::qspim_sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask, int id)
 {
     dpi_chip_wrapper *_this = (dpi_chip_wrapper *)__this;
     Qspim_group *group = static_cast<Qspim_group *>(_this->groups[id]);
-    group->rx_edge(data_0, data_1, data_2, data_3, mask);
+    group->rx_edge(sck, data_0, data_1, data_2, data_3, mask);
+}
+
+void dpi_chip_wrapper::qspim_cs_sync(void *__this, bool data, int id)
+{
+    dpi_chip_wrapper *_this = (dpi_chip_wrapper *)__this;
+    Qspim_group *group = static_cast<Qspim_group *>(_this->groups[id]);
+    group->rx_cs_edge(data);
 }
 
 
@@ -488,6 +500,7 @@ bool Qspim_group::bind(std::string pad_name, Dpi_chip_wrapper_callback *callback
     {
         callback->pad_value = &this->sck;
         callback->is_sck = true;
+        this->sck_callback = callback;
     }
     else if (pad_name == "mosi")
     {
@@ -520,6 +533,10 @@ bool Qspim_group::bind(std::string pad_name, Dpi_chip_wrapper_callback *callback
         callback->pad_value = &this->cs[cs];
         callback->is_cs = true;
         callback->cs_id = cs;
+        if (cs == 0)
+        {
+            this->cs_callback = callback;
+        }
     }
     else
     {
@@ -553,7 +570,7 @@ void Qspim_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, i
             this->cs_master[callback->cs_id]->sync(!data);
         }
     }
-    else if (callback->is_sck)
+    else
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "SPI clock (name: %s, value: %d)\n", callback->name.c_str(), data);
 
@@ -571,8 +588,10 @@ void Qspim_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, i
     }
 }
 
-void Qspim_group::rx_edge(int data_0, int data_1, int data_2, int data_3, int mask)
+void Qspim_group::rx_edge(int sck, int data_0, int data_1, int data_2, int data_3, int mask)
 {
+    if (sck_callback)
+        dpi_external_edge(this->sck_callback->handle, sck);
     if (data_callback[0])
         dpi_external_edge(this->data_callback[0]->handle, data_0);
     if (data_callback[1])
@@ -581,6 +600,12 @@ void Qspim_group::rx_edge(int data_0, int data_1, int data_2, int data_3, int ma
         dpi_external_edge(this->data_callback[2]->handle, data_2);
     if (data_callback[3])
         dpi_external_edge(this->data_callback[3]->handle, data_3);
+}
+
+void Qspim_group::rx_cs_edge(bool data)
+{
+    if (this->cs_callback)
+        dpi_external_edge(this->cs_callback->handle, data);
 }
 
 

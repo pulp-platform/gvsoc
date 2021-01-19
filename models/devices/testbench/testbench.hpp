@@ -55,6 +55,7 @@ class Uart;
 #define PI_TESTBENCH_CMD_I2S_VERIF_SETUP 7
 #define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP 8
 #define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START 9
+#define PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER 10
 
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
@@ -98,8 +99,21 @@ typedef struct {
     uint8_t enabled;
     uint8_t itf;
     uint8_t cs;
-    uint8_t mem_size_log2;
+    uint8_t is_master;
+    uint16_t mem_size_log2;
 } pi_testbench_req_spim_verif_setup_t;
+
+
+typedef struct {
+    uint32_t frequency;
+    uint32_t address;
+    uint32_t size;
+    uint8_t is_master;
+    uint8_t is_rx;
+    uint8_t is_duplex;
+    uint8_t itf;
+    uint8_t cs;
+} pi_testbench_req_spim_verif_transfer_t;
 
 
 typedef struct {
@@ -132,7 +146,6 @@ typedef struct {
         pi_testbench_req_gpio_pulse_gen_t gpio_pulse_gen;
         pi_testbench_req_uart_checker_t uart;
         pi_testbench_req_set_status_t set_status;
-        pi_testbench_req_spim_verif_setup_t spim_verif_setup;
         pi_testbench_req_i2s_verif_setup_t i2s_verif_setup;
         pi_testbench_req_i2s_verif_slot_setup_t i2s_verif_slot_setup;
     };
@@ -236,7 +249,8 @@ public:
     static void sync(void *__this, int sck, int data_0, int data_1, int data_2, int data_3, int mask);
     static void cs_sync(void *_this, bool active);
 
-    void spim_verif_setup(bool enabled, int mem_size);
+    void spim_verif_setup(pi_testbench_req_spim_verif_setup_t *config);
+    void spim_verif_transfer(pi_testbench_req_spim_verif_transfer_t *transfer);
 
     Testbench *top;
 
@@ -470,6 +484,7 @@ private:
     void handle_uart_checker();
     void handle_set_status();
     void handle_spim_verif_setup();
+    void handle_spim_verif_transfer();
     void handle_i2s_verif_setup();
     void handle_i2s_verif_slot_setup();
     void handle_i2s_verif_slot_start();

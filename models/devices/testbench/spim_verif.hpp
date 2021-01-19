@@ -22,7 +22,9 @@
 #ifndef __TESTBENCH_SPIM_VERIF_HPP__
 #define __TESTBENCH_SPIM_VERIF_HPP__
 
+#include <vp/vp.hpp>
 #include "testbench.hpp"
+#include "vp/time/time_engine.hpp"
 
 #define SPIM_VERIF_CMD_BIT 56
 #define SPIM_VERIF_CMD_WIDTH 8
@@ -52,14 +54,32 @@ typedef enum
     SPIM_VERIF_CMD_READ_QUAD = 5,
 } spim_cmd_e;
 
-class Testbench;
+typedef enum
+{
+    SPIS_STATE_IDLE,
+    SPIS_STATE_START_WAIT_CYCLES,
+    SPIS_STATE_CS_START_PRE_START_CYCLES,
+    SPIS_STATE_CS_START,
+    SPIS_STATE_CS_START_POST_WAIT_CYCLES,
+    SPIS_STATE_TRANSFER,
+    SPIS_STATE_CS_END_WAIT_CYCLES,
+    SPIS_STATE_CS_END,
+    SPIS_STATE_END_WAIT_CYCLES
+}
+spis_state_e;
 
-class Spim_verif
+class Testbench;
+class Spi;
+
+class Spim_verif : public vp::time_engine_client
 {
 public:
-    Spim_verif(Testbench *top, vp::qspim_slave *itf, int itf_id, int cs, int mem_size);
+    Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbench_req_spim_verif_setup_t *config);
     void cs_sync(int cs);
     void sync(int sck, int sdio0, int sdio1, int sdio2, int sdio3, int mask);
+    void transfer(pi_testbench_req_spim_verif_transfer_t *transfer);
+    int64_t exec();
+
 
 protected:
     void handle_clk_high(int sdio0, int sdio1, int sdio2, int sdio3, int mask);
@@ -80,6 +100,7 @@ private:
     vp::trace trace;
     vp::qspim_slave *itf;
     Spim_verif_state_e state = STATE_GET_CMD;
+
     uint64_t current_cmd = 0;
     int prev_sck = 0;
     int cmd_count = 0;
@@ -103,6 +124,32 @@ private:
     int tx_dump_byte;
     int mem_size;
     bool is_quad;
+    bool is_master;
+
+    Testbench *top;
+    Spi *spi;
+
+    int64_t slave_period;
+    int slave_sck;
+    int slave_wait_cycles;
+
+    int          slave_pending_rx_bits;
+    uint32_t     slave_pending_rx_byte;
+    int          slave_pending_rx_addr;
+    int          slave_pending_rx_size;
+
+    int          slave_pending_tx_bits;
+    uint32_t     slave_pending_tx_byte;
+    int          slave_pending_tx_addr;
+    int          slave_pending_tx_size;
+
+    int          slave_pending_is_tx;
+    int          slave_pending_is_rx;
+    unsigned int slave_pending_miso;
+    unsigned int slave_pending_mosi;
+
+    spis_state_e slave_state;
+
 };
 
 #endif
