@@ -1541,9 +1541,8 @@ static inline unsigned int lib_flexfloat_nmsub(iss_cpu_state_t *s, unsigned int 
 static inline unsigned int lib_flexfloat_nmadd(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c, uint8_t e, uint8_t m) {
   FF_INIT_3(a, b, c, e, m)
   feclearexcept(FE_ALL_EXCEPT);
-  ff_fma(&ff_res, &ff_a, &ff_b, &ff_c);
+  ff_fnma(&ff_res, &ff_a, &ff_b, &ff_c);
   update_fflags_fenv(s);
-  ff_inverse(&ff_res, &ff_res);
   return flexfloat_get_bits(&ff_res);
 }
 
