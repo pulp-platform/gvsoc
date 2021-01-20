@@ -68,6 +68,22 @@ typedef enum
 }
 spis_state_e;
 
+
+typedef enum
+{
+    SPIS_BOOT_STATE_IDLE,
+    SPIS_BOOT_STATE_SEND_SOF,
+    SPIS_BOOT_STATE_GET_ACK_STEP_0,
+    SPIS_BOOT_STATE_GET_ACK_STEP_1,
+    SPIS_BOOT_STATE_GET_ACK_STEP_2,
+    SPIS_BOOT_STATE_RECEIVE_DATA,
+    SPIS_BOOT_STATE_RECEIVE_DATA_CRC,
+    SPIS_BOOT_STATE_SEND_DATA,
+    SPIS_BOOT_STATE_SEND_DATA_DONE,
+}
+spis_boot_state_e;
+
+
 class Testbench;
 class Spi;
 
@@ -96,6 +112,10 @@ private:
     void exec_dump_qpi(int sdio0, int sdio1, int sdio2, int sdio3);
 
     void handle_command(uint64_t cmd);
+
+    void enqueue_transfer(int address, int size, int is_rx, int is_duplex);
+    void start_boot_protocol_transfer(int address, int size, int is_rx);
+    void handle_boot_protocol_transfer();
 
     vp::trace trace;
     vp::qspim_slave *itf;
@@ -150,6 +170,12 @@ private:
 
     spis_state_e slave_state;
 
+    int slave_boot_address;
+    int slave_boot_verif_address;
+    int slave_boot_size;
+    int slave_boot_is_rx;
+    spis_boot_state_e slave_boot_state;
+    uint8_t slave_boot_crc;
 };
 
 #endif

@@ -22,17 +22,38 @@
 #include <vp/vp.hpp>
 #include "spim_verif.hpp"
 
+
+#define CMD_BUFFER_SIZE 256
+
+
+
+typedef struct
+{
+    uint8_t frame_start;
+    uint8_t cmd;
+
+    union {
+        struct {
+            uint32_t address;
+            uint8_t size_minus_1;
+            uint8_t crc;
+        } access;
+    };
+
+} __attribute__((packed)) spi_boot_req_t;
+
+
 Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbench_req_spim_verif_setup_t *config)
   : vp::time_engine_client(NULL)
 {
     int itf_id = config->itf;
     int cs = config->cs;
-    int mem_size = 1<<config->mem_size_log2;
+    int mem_size = 1<<config->mem_size_log2 + CMD_BUFFER_SIZE;
     this->itf = itf;
     this->mem_size = mem_size;
     verbose = true; //config->get("verbose")->get_bool();
     //print("Creating SPIM VERIF model (mem_size: 0x%x)", this->mem_size);
-    data = new unsigned char[mem_size];
+    data = new unsigned char[mem_size + CMD_BUFFER_SIZE];
 
     for (int i=0; i<mem_size; i++)
     {
@@ -71,6 +92,7 @@ Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbe
 #endif
 
     this->slave_state = SPIS_STATE_IDLE;
+    this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
 }
 
 void Spim_verif::handle_read(uint64_t cmd, bool is_quad)
@@ -509,7 +531,15 @@ int64_t Spim_verif::exec()
 
     if (this->slave_state == SPIS_STATE_IDLE)
     {
-        return -1;
+        if (this->slave_boot_state != SPIS_BOOT_STATE_IDLE)
+        {
+            this->handle_boot_protocol_transfer();
+            return this->slave_period * 500;
+        }
+        else
+        {
+            return -1;
+        }
     }
     else
     {
@@ -520,33 +550,170 @@ int64_t Spim_verif::exec()
 
 void Spim_verif::transfer(pi_testbench_req_spim_verif_transfer_t *config)
 {
-    this->trace.msg(vp::trace::LEVEL_INFO, "Handling SPI transfer (frequency: %ld, address: 0x%lx, size: 0x%lx, is_master: %d, is_rx: %d, is_duplex: %d)\n",
-        config->frequency, config->address, config->size, config->is_master, config->is_rx, config->is_duplex
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling SPI transfer (frequency: %ld, address: 0x%lx, size: 0x%lx, is_master: %d, is_rx: %d, is_duplex: %d, is_boot_protocol: %d)\n",
+        config->frequency, config->address, config->size, config->is_master, config->is_rx, config->is_duplex, config->is_boot_protocol
     );
 
+    this->slave_period = 1000000000000ULL / config->frequency / 2;
+
+    if (config->is_boot_protocol)
+    {
+        this->start_boot_protocol_transfer(config->address, config->size, config->is_rx);
+    }
+    else
+    {
+        this->enqueue_transfer(config->address, config->size, config->is_rx, config->is_duplex);
+    }
+}
+
+
+void Spim_verif::start_boot_protocol_transfer(int address, int size, int is_rx)
+{
+    this->slave_boot_verif_address = 0;
+    this->slave_boot_address = address;
+    this->slave_boot_size = size;
+    this->slave_boot_is_rx = is_rx;
+
+    this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+
+    this->handle_boot_protocol_transfer();
+}
+
+
+void Spim_verif::handle_boot_protocol_transfer()
+{
+    switch (this->slave_boot_state)
+    {
+        case SPIS_BOOT_STATE_SEND_SOF:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending start of frame (value: 0x5A)\n");
+
+            spi_boot_req_t *req = (spi_boot_req_t *)&this->data[this->mem_size];
+            req->frame_start = 0x5a;
+            req->cmd = this->slave_boot_is_rx ? 0x01 : 0x02;
+            req->access.address = this->slave_boot_address;
+            req->access.size_minus_1 = (this->slave_boot_size < CMD_BUFFER_SIZE ? this->slave_boot_size : CMD_BUFFER_SIZE) - 1;
+
+            this->enqueue_transfer(this->mem_size, sizeof(spi_boot_req_t), 0, 1);
+            this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_0;
+            break;
+        }
+
+        case SPIS_BOOT_STATE_GET_ACK_STEP_0:
+            this->trace.msg(vp::trace::LEVEL_INFO, "Read start of frame (value: 0x%x)\n", this->data[this->mem_size]);
+            if (this->data[this->mem_size] == 0xa5)
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_1;
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+            }
+            break;
+
+        case SPIS_BOOT_STATE_GET_ACK_STEP_1:
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending ack request (value: 0x00)\n");
+            this->data[this->mem_size] = 0x00;
+            this->enqueue_transfer(this->mem_size, 2, 0, 1);
+            this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_2;
+            break;
+
+        case SPIS_BOOT_STATE_GET_ACK_STEP_2:
+            this->trace.msg(vp::trace::LEVEL_INFO, "Read ack (value: 0x%x)\n", this->data[this->mem_size]);
+            if (this->data[this->mem_size] == 0x79)
+            {
+                this->trace.msg(vp::trace::LEVEL_INFO, "Received ACK\n");
+                this->slave_boot_crc = this->data[this->mem_size + 1];
+                if (this->slave_boot_is_rx)
+                {
+                    this->slave_boot_state = SPIS_BOOT_STATE_RECEIVE_DATA;
+                }
+                else
+                {
+                    this->slave_boot_state = SPIS_BOOT_STATE_SEND_DATA;
+                }
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_1;
+            }
+            break;
+
+        case SPIS_BOOT_STATE_RECEIVE_DATA:
+        {
+            int size = this->slave_boot_size < CMD_BUFFER_SIZE ? this->slave_boot_size : CMD_BUFFER_SIZE;
+            this->trace.msg(vp::trace::LEVEL_INFO, "Receiving data (size: 0x%x)\n", size);
+            this->enqueue_transfer(this->slave_boot_verif_address, size, 1, 0);
+            this->slave_boot_state = SPIS_BOOT_STATE_RECEIVE_DATA_CRC;
+            break;
+        }
+
+        case SPIS_BOOT_STATE_RECEIVE_DATA_CRC:
+            this->trace.msg(vp::trace::LEVEL_INFO, "Finished receiving data\n");
+            this->slave_boot_size -= CMD_BUFFER_SIZE;
+            if (this->slave_boot_size > 0)
+            {
+                this->slave_boot_verif_address += CMD_BUFFER_SIZE;
+                this->slave_boot_address += CMD_BUFFER_SIZE;
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
+            }
+            break;
+
+        case SPIS_BOOT_STATE_SEND_DATA_DONE:
+            this->trace.msg(vp::trace::LEVEL_INFO, "Finished sending data\n");
+            this->slave_boot_size -= CMD_BUFFER_SIZE;
+            if (this->slave_boot_size > 0)
+            {
+                this->slave_boot_verif_address += CMD_BUFFER_SIZE;
+                this->slave_boot_address += CMD_BUFFER_SIZE;
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
+            }
+            break;
+
+        case SPIS_BOOT_STATE_SEND_DATA:
+            int size = this->slave_boot_size < CMD_BUFFER_SIZE ? this->slave_boot_size : CMD_BUFFER_SIZE;
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending data (size: 0x%x)\n", size);
+            this->enqueue_transfer(this->slave_boot_verif_address, size, 0, 0);
+            this->slave_boot_state = SPIS_BOOT_STATE_SEND_DATA_DONE;
+            break;
+
+
+    }
+}
+
+
+void Spim_verif::enqueue_transfer(int address, int size, int is_rx, int is_duplex)
+{
     this->slave_pending_tx_size = 0;
     this->slave_pending_rx_size = 0;
     this->slave_pending_mosi = 2;
-    this->slave_pending_rx_addr = config->address;
-    this->slave_pending_tx_addr = config->address;
+    this->slave_pending_rx_addr = address;
+    this->slave_pending_tx_addr = address;
     this->slave_wait_cycles = 3;
-    this->slave_pending_is_rx = config->is_rx || config->is_duplex;
-    this->slave_pending_is_tx = !config->is_rx || config->is_duplex;
+    this->slave_pending_is_rx = is_rx || is_duplex;
+    this->slave_pending_is_tx = !is_rx || is_duplex;
 
     if (this->slave_pending_is_rx)
     {
-        this->slave_pending_rx_size = config->size;
+        this->slave_pending_rx_size = size;
     }
 
     if (this->slave_pending_is_tx)
     {
-        this->slave_pending_tx_size = config->size;
+        this->slave_pending_tx_size = size;
     }
 
     this->slave_pending_rx_bits = 0;
     this->slave_pending_tx_bits = 0;
 
-    this->slave_period = 1000000000000ULL / config->frequency / 2;
     this->slave_sck = 0;
 
     this->slave_state = SPIS_STATE_START_WAIT_CYCLES;

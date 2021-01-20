@@ -113,6 +113,7 @@ typedef struct {
     uint8_t is_duplex;
     uint8_t itf;
     uint8_t cs;
+    uint8_t is_boot_protocol;
 } pi_testbench_req_spim_verif_transfer_t;
 
 
