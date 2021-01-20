@@ -594,8 +594,24 @@ void Spim_verif::handle_boot_protocol_transfer()
             req->access.address = this->slave_boot_address;
             req->access.size_minus_1 = (this->slave_boot_size < CMD_BUFFER_SIZE ? this->slave_boot_size : CMD_BUFFER_SIZE) - 1;
 
-            this->enqueue_transfer(this->mem_size, sizeof(spi_boot_req_t), 0, 1);
-            this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_0;
+            this->enqueue_transfer(this->mem_size, 1, 0, 1);
+            this->slave_boot_state = SPIS_BOOT_STATE_CHECK_SOF;
+            break;
+        }
+
+        case SPIS_BOOT_STATE_CHECK_SOF:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Received start of frame (value: 0x%x)\n", this->data[mem_size]);
+
+            if (this->data[mem_size] == 0xA5)
+            {
+                this->enqueue_transfer(this->mem_size+1, sizeof(spi_boot_req_t)-1, 0, 1);
+                this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_0;
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+            }
             break;
         }
 
