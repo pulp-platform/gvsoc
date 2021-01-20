@@ -1854,17 +1854,6 @@ int64 = IsaSubset('int64',
 ])
 
 
-parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
-
-parser.add_argument("--version", dest="version", default=1, type=int, metavar="VALUE", help="Specify ISA version")
-parser.add_argument("--header-file", dest="header_file", default=None, metavar="PATH", help="Specify header output file")
-parser.add_argument("--source-file", dest="source_file", default=None, metavar="PATH", help="Specify source output file")
-parser.add_argument("--implem", dest="implem", default=None, help="Specify implementation name")
-
-args = parser.parse_args()
-
-commonOptions = ["--pulp-perf-counters", "--pulp-hw-loop", "--itc-internal", "--itc-external-req", "--itc-external-wire", "--is-secured"]
-
 #if args.version == 1:
 #    isa = Isa('riscv', [IsaSubset('rv32i', rv32i),
 #                        IsaSubset('rv32m', rv32m),
@@ -1905,70 +1894,84 @@ isa = Isa(
     ]
 )
 
-try:
-    os.makedirs(os.path.dirname(args.header_file))
-except Exception:
-    pass
-
-try:
-    os.makedirs(os.path.dirname(args.source_file))
-except Exception:
-    pass
-
-with open(args.header_file, 'w') as isaFileHeader:
-    with open(args.source_file, 'w') as isaFile:
-
-        for insn in isa.get_insns():
-
-            if args.implem is None:
-
-                if "load" in insn.tags:
-                    insn.get_out_reg(0).set_latency(2)
-                elif "fdiv" in insn.tags:
-                    insn.get_out_reg(0).set_latency(9)
-                elif "sfdiv" in insn.tags:
-                    insn.get_out_reg(0).set_latency(4)
-                elif "mul" in insn.tags:
-                    insn.get_out_reg(0).set_latency(2)
-                elif "mulh" in insn.tags:
-                    insn.set_latency(5)
-                elif "div" in insn.tags:
-                    insn.get_out_reg(0).set_latency(31)
 
 
-            elif args.implem == 'zeroriscy':
+if __name__ == "__main__":    
+    parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
 
-                if "load" in insn.tags:
-                    insn.get_out_reg(0).set_latency(2)
-                elif "fdiv" in insn.tags:
-                    insn.get_out_reg(0).set_latency(9)
-                elif "sfdiv" in insn.tags:
-                    insn.get_out_reg(0).set_latency(4)
-                elif "mul" in insn.tags:
-                    insn.get_out_reg(0).set_latency(3)
-                elif "mulh" in insn.tags:
-                    insn.set_latency(5)
-                elif "div" in insn.tags:
-                    insn.get_out_reg(0).set_latency(37)
+    parser.add_argument("--version", dest="version", default=1, type=int, metavar="VALUE", help="Specify ISA version")
+    parser.add_argument("--header-file", dest="header_file", default=None, metavar="PATH", help="Specify header output file")
+    parser.add_argument("--source-file", dest="source_file", default=None, metavar="PATH", help="Specify source output file")
+    parser.add_argument("--implem", dest="implem", default=None, help="Specify implementation name")
+
+    args = parser.parse_args()
+
+    commonOptions = ["--pulp-perf-counters", "--pulp-hw-loop", "--itc-internal", "--itc-external-req", "--itc-external-wire", "--is-secured"]
+
+    try:
+        os.makedirs(os.path.dirname(args.header_file))
+    except Exception:
+        pass
+
+    try:
+        os.makedirs(os.path.dirname(args.source_file))
+    except Exception:
+        pass
+
+    with open(args.header_file, 'w') as isaFileHeader:
+        with open(args.source_file, 'w') as isaFile:
+
+            for insn in isa.get_insns():
+
+                if args.implem is None:
+
+                    if "load" in insn.tags:
+                        insn.get_out_reg(0).set_latency(2)
+                    elif "fdiv" in insn.tags:
+                        insn.get_out_reg(0).set_latency(9)
+                    elif "sfdiv" in insn.tags:
+                        insn.get_out_reg(0).set_latency(4)
+                    elif "mul" in insn.tags:
+                        insn.get_out_reg(0).set_latency(2)
+                    elif "mulh" in insn.tags:
+                        insn.set_latency(5)
+                    elif "div" in insn.tags:
+                        insn.get_out_reg(0).set_latency(31)
 
 
-        # TODO these are the old timings, find a way to make that more configurable        
-        # for insn in isa.get_insns():
-        #     if "load" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(2)
-        #     elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(2)
-        #     elif "fmadd" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(3)
-        #     elif "fdiv" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(9)
-        #     elif "sfdiv" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(4)
-        #     elif "mul" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(2)
-        #     elif "mulh" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(3)
-        #     elif "div" in insn.tags:
-        #         insn.get_out_reg(0).set_latency(8)
+                elif args.implem == 'zeroriscy':
 
-        isa.gen(isaFile, isaFileHeader)
+                    if "load" in insn.tags:
+                        insn.get_out_reg(0).set_latency(2)
+                    elif "fdiv" in insn.tags:
+                        insn.get_out_reg(0).set_latency(9)
+                    elif "sfdiv" in insn.tags:
+                        insn.get_out_reg(0).set_latency(4)
+                    elif "mul" in insn.tags:
+                        insn.get_out_reg(0).set_latency(3)
+                    elif "mulh" in insn.tags:
+                        insn.set_latency(5)
+                    elif "div" in insn.tags:
+                        insn.get_out_reg(0).set_latency(37)
+
+
+            # TODO these are the old timings, find a way to make that more configurable        
+            # for insn in isa.get_insns():
+            #     if "load" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(2)
+            #     elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(2)
+            #     elif "fmadd" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(3)
+            #     elif "fdiv" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(9)
+            #     elif "sfdiv" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(4)
+            #     elif "mul" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(2)
+            #     elif "mulh" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(3)
+            #     elif "div" in insn.tags:
+            #         insn.get_out_reg(0).set_latency(8)
+
+            isa.gen(isaFile, isaFileHeader)
