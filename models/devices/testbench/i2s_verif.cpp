@@ -352,7 +352,7 @@ int Slot::pdm_sync(int sck, int ws, int sd)
     if (fgets(line, 16, this->infile) == NULL)
     {
         fseek(this->infile, 0, SEEK_SET);
-        if (fgets(line, 16, this->infile))
+        if (fgets(line, 16, this->infile) == NULL)
         {
             this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
             return 3;
