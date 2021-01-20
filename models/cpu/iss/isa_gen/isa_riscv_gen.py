@@ -961,8 +961,8 @@ Xfvec = IsaSubset('fvec', [
 
     R5('vfclass.h', 'R2VF2','1001100 00001 ----- 010 ----- 0110011', tags=['fother'], isa_tags=['f16vec']),
 
-    R5('vfsgnj.r.h', 'RVF', '1001101 ----- ----- 010 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
-    R5('vfsgnj.h',   'RVF', '1001101 ----- ----- 110 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
+    R5('vfsgnj.h',   'RVF', '1001101 ----- ----- 010 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
+    R5('vfsgnj.r.h', 'RVF', '1001101 ----- ----- 110 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
     R5('vfsgnjn.h',  'RVF', '1001110 ----- ----- 010 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
     R5('vfsgnjn.r.h','RVF', '1001110 ----- ----- 110 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
     R5('vfsgnjx.h',  'RVF', '1001111 ----- ----- 010 ----- 0110011', tags=['fconv'], isa_tags=['f16vec']),
