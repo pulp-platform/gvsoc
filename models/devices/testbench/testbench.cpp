@@ -22,6 +22,7 @@
 #include "testbench.hpp"
 #include "spim_verif.hpp"
 #include "i2s_verif.hpp"
+#include <stdio.h>
 
 Uart_flow_control_checker::Uart_flow_control_checker(Testbench *top, Uart *uart, pi_testbench_req_t *req)
 : top(top), uart(uart)
@@ -199,6 +200,7 @@ Testbench::Testbench(js::config *config)
 {
     this->state = STATE_WAITING_CMD;
     this->current_req_size = 0;
+
 }
 
 
@@ -264,6 +266,15 @@ int Testbench::build()
     return 0;
 }
 
+
+void Testbench::start()
+{
+    if (get_js_config()->get_child_bool("spislave_boot/enabled"))
+    {
+        int itf = get_js_config()->get_child_int("spislave_boot/itf");
+        this->spis[itf]->create_loader(get_js_config()->get("spislave_boot"));
+    }
+}
 
 void Uart::set_control(bool active, int baudrate)
 {
@@ -655,6 +666,26 @@ void Testbench::handle_received_byte(uint8_t byte)
             }
         }
     }
+}
+
+
+void Spi::create_loader(js::config *load_config)
+{
+    uint8_t enabled;
+    uint8_t itf;
+    uint8_t cs;
+    uint8_t is_master;
+    uint16_t mem_size_log2;
+    pi_testbench_req_spim_verif_setup_t config;
+    config.enabled = 1;
+    config.itf = this->itf_id;
+    config.cs = 0;
+    config.is_master = 1;
+    config.mem_size_log2 = 20;
+
+    this->spim_verif = new Spim_verif(this->top, this, &this->itf, &config);
+
+    this->spim_verif->enqueue_spi_load(load_config);
 }
 
 

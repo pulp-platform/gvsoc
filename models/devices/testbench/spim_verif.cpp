@@ -31,15 +31,9 @@ typedef struct
 {
     uint8_t frame_start;
     uint8_t cmd;
-
-    union {
-        struct {
-            uint32_t address;
-            uint8_t size_minus_1;
-            uint8_t crc;
-        } access;
-    };
-
+    uint32_t address;
+    uint8_t size_minus_1;
+    uint8_t crc;
 } __attribute__((packed)) spi_boot_req_t;
 
 
@@ -48,18 +42,12 @@ Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbe
 {
     int itf_id = config->itf;
     int cs = config->cs;
-    int mem_size = 1<<config->mem_size_log2 + CMD_BUFFER_SIZE;
+    int mem_size = (1<<config->mem_size_log2) + CMD_BUFFER_SIZE;
     this->itf = itf;
     this->mem_size = mem_size;
     verbose = true; //config->get("verbose")->get_bool();
     //print("Creating SPIM VERIF model (mem_size: 0x%x)", this->mem_size);
-    data = new unsigned char[mem_size + CMD_BUFFER_SIZE];
-
-    for (int i=0; i<mem_size; i++)
-    {
-        data[i] = i;
-    }
-
+    data = new unsigned char[mem_size];
     wait_cs = false;
     this->current_cs = 1;
     this->tx_file = NULL;
@@ -67,16 +55,19 @@ Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbe
     this->spi = spi;
     this->is_master = config->is_master;
 
+
     this->engine = (vp::time_engine*)this->top->get_service("time");
 
     std::string name = "spim_verif_itf" + std::to_string(itf_id) + "_cs" + std::to_string(cs);
 
     top->traces.new_trace(name, &trace, vp::DEBUG);
+        
+    this->init_pads = false;
 
     if (config->is_master)
     {
-        this->itf->sync(0, 2, 2, 2, 2, 0xf);
-        this->spi->cs_itf.sync(1);
+        this->enqueue_to_engine(1);
+        this->init_pads = true;
     }
 
 #if 0
@@ -93,6 +84,8 @@ Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbe
 
     this->slave_state = SPIS_STATE_IDLE;
     this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
+    this->spi_load_config = NULL;
+    this->is_enqueued = false;
 }
 
 void Spim_verif::handle_read(uint64_t cmd, bool is_quad)
@@ -390,6 +383,21 @@ int64_t Spim_verif::exec()
 {
     bool clock_toggle = false;
 
+    if (this->init_pads)
+    {
+        this->init_pads = false;
+        this->itf->sync(0, 2, 2, 2, 2, 0xf);
+        this->spi->cs_itf.sync(1);
+    }
+
+    if (this->spi_load_config)
+    {
+        this->spi_load(this->spi_load_config);
+        int64_t delay = this->spi_load_config->get_int("delay_ps");
+        this->spi_load_config = NULL;
+        return delay;
+    }
+
     if (this->slave_sck == 0)
     {
         switch (this->slave_state)
@@ -534,10 +542,17 @@ int64_t Spim_verif::exec()
         if (this->slave_boot_state != SPIS_BOOT_STATE_IDLE)
         {
             this->handle_boot_protocol_transfer();
-            return this->slave_period * 500;
+
+            return this->slave_period;
+        }
+        else if (this->sections.size())
+        {
+            this->start_spi_load();
+            return this->slave_period;
         }
         else
         {
+            this->is_enqueued = false;
             return -1;
         }
     }
@@ -567,6 +582,32 @@ void Spim_verif::transfer(pi_testbench_req_spim_verif_transfer_t *config)
 }
 
 
+void Spim_verif::enqueue_boot_protocol_jump(int address)
+{
+    this->slave_boot_address = address;
+    this->slave_boot_jump = true;
+
+    this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+
+    this->handle_boot_protocol_transfer();
+}
+
+
+
+void Spim_verif::enqueue_boot_protocol_transfer(uint8_t *buffer, int address, int size, int is_rx)
+{
+    if (size > this->mem_size)
+    {
+        this->trace.fatal("SPI binary loading requiring too much memory\n");
+        return;
+    }
+
+    memcpy(this->data, buffer, size);
+    this->start_boot_protocol_transfer(address, size, is_rx);
+}
+
+
+
 void Spim_verif::start_boot_protocol_transfer(int address, int size, int is_rx)
 {
     this->slave_boot_verif_address = 0;
@@ -590,9 +631,9 @@ void Spim_verif::handle_boot_protocol_transfer()
 
             spi_boot_req_t *req = (spi_boot_req_t *)&this->data[this->mem_size];
             req->frame_start = 0x5a;
-            req->cmd = this->slave_boot_is_rx ? 0x01 : 0x02;
-            req->access.address = this->slave_boot_address;
-            req->access.size_minus_1 = (this->slave_boot_size < CMD_BUFFER_SIZE ? this->slave_boot_size : CMD_BUFFER_SIZE) - 1;
+            req->cmd = this->slave_boot_jump ? 0x3 : this->slave_boot_is_rx ? 0x01 : 0x02;
+            req->address = this->slave_boot_address;
+            req->size_minus_1 = (this->slave_boot_size < CMD_BUFFER_SIZE ? this->slave_boot_size : CMD_BUFFER_SIZE) - 1;
 
             this->enqueue_transfer(this->mem_size, 1, 0, 1);
             this->slave_boot_state = SPIS_BOOT_STATE_CHECK_SOF;
@@ -606,7 +647,15 @@ void Spim_verif::handle_boot_protocol_transfer()
             if (this->data[mem_size] == 0xA5)
             {
                 this->enqueue_transfer(this->mem_size+1, sizeof(spi_boot_req_t)-1, 0, 1);
-                this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_0;
+                if (this->slave_boot_jump)
+                {
+                    this->slave_boot_jump = false;
+                    this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+                }
+                else
+                {
+                    this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_0;
+                }
             }
             else
             {
@@ -630,7 +679,7 @@ void Spim_verif::handle_boot_protocol_transfer()
         case SPIS_BOOT_STATE_GET_ACK_STEP_1:
             this->trace.msg(vp::trace::LEVEL_INFO, "Sending ack request (value: 0x00)\n");
             this->data[this->mem_size] = 0x00;
-            this->enqueue_transfer(this->mem_size, 2, 0, 1);
+            this->enqueue_transfer(this->mem_size, 1, 0, 1);
             this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_2;
             break;
 
@@ -639,14 +688,13 @@ void Spim_verif::handle_boot_protocol_transfer()
             if (this->data[this->mem_size] == 0x79)
             {
                 this->trace.msg(vp::trace::LEVEL_INFO, "Received ACK\n");
-                this->slave_boot_crc = this->data[this->mem_size + 1];
                 if (this->slave_boot_is_rx)
                 {
-                    this->slave_boot_state = SPIS_BOOT_STATE_RECEIVE_DATA;
+                    this->slave_boot_state = SPIS_BOOT_STATE_RECEIVE_CRC;
                 }
                 else
                 {
-                    this->slave_boot_state = SPIS_BOOT_STATE_SEND_DATA;
+                    this->slave_boot_state = SPIS_BOOT_STATE_SEND_DATA_CRC;
                 }
             }
             else
@@ -654,6 +702,14 @@ void Spim_verif::handle_boot_protocol_transfer()
                 this->slave_boot_state = SPIS_BOOT_STATE_GET_ACK_STEP_1;
             }
             break;
+
+        case SPIS_BOOT_STATE_RECEIVE_CRC:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Receiving CRC\n");
+            this->enqueue_transfer(this->mem_size, 1, 1, 0);
+            this->slave_boot_state = SPIS_BOOT_STATE_RECEIVE_DATA;
+            break;
+        }
 
         case SPIS_BOOT_STATE_RECEIVE_DATA:
         {
@@ -692,6 +748,12 @@ void Spim_verif::handle_boot_protocol_transfer()
             {
                 this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
             }
+            break;
+
+        case SPIS_BOOT_STATE_SEND_DATA_CRC:
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending CRC\n");
+            this->enqueue_transfer(this->mem_size, 1, 0, 0);
+            this->slave_boot_state = SPIS_BOOT_STATE_SEND_DATA;
             break;
 
         case SPIS_BOOT_STATE_SEND_DATA:
@@ -734,5 +796,98 @@ void Spim_verif::enqueue_transfer(int address, int size, int is_rx, int is_duple
 
     this->slave_state = SPIS_STATE_START_WAIT_CYCLES;
 
-    this->enqueue_to_engine(this->slave_period);
+    if (!this->is_enqueued)
+    {
+        this->is_enqueued = true;
+        this->enqueue_to_engine(this->slave_period);
+    }
+}
+
+
+void Spim_verif::start_spi_load()
+{
+    if (this->sections.size())
+    {
+        Spi_loader_section *section = this->sections.back();
+        this->sections.pop_back();
+
+        if (section->access)
+        {
+            this->enqueue_boot_protocol_transfer(section->buffer, section->addr, section->size, 0);
+        }
+        else
+        {
+            this->enqueue_boot_protocol_jump(section->addr);
+        }
+    }
+}
+
+
+void Spim_verif::enqueue_spi_load(js::config *config)
+{
+    this->spi_load_config = config;
+
+    this->slave_period = 1000000000000ULL / config->get_child_int("frequency") / 2;
+}
+
+
+void Spim_verif::spi_load(js::config *config)
+{
+    std::string path = config->get_child_str("stim_file");
+    FILE *file = fopen(path.c_str(), "r");
+    if (file == NULL)
+    {
+        this->get_trace()->fatal("Unable to open stim file (path: %s, error: %s)\n", path.c_str(), strerror(errno));
+        return;
+    }
+
+    int buffer_size = 64;
+    uint32_t *buffer;
+    unsigned int pending_addr;
+    unsigned int pending_start_addr = -1;
+    int pending_index = 0;
+
+    this->sections.push_back(new Spi_loader_section(false, NULL, config->get_child_int("entry"), 0));
+
+    while(1)
+    {
+        unsigned int addr, value;
+        int err;
+        if ((err = fscanf(file, "@%x %x\n", &addr, &value)) != 2)
+        {
+            if (err == EOF) break;
+            this->get_trace()->fatal("Incorrect stimuli file (path: %s)\n", path.c_str());
+            return;
+        }
+        
+        if (pending_index && (addr != pending_addr + 4 || pending_index == buffer_size))
+        {
+            this->sections.push_back(new Spi_loader_section(true, (uint8_t *)buffer, pending_start_addr, pending_index*4));
+            pending_index = 0;
+            pending_start_addr = addr;
+        }
+        else if (pending_index == 0)
+        {
+            pending_start_addr = addr;
+        }
+
+        if (pending_index == 0)
+        {
+            buffer = new uint32_t[buffer_size];
+        }
+
+        buffer[pending_index] = value;
+
+        pending_index++;
+        pending_addr = addr;
+    }
+
+    if (pending_index)
+    {
+        fprintf(stderr, "TRANSFER %x %x\n", pending_start_addr, pending_index);
+        this->sections.push_back(new Spi_loader_section(true, (uint8_t *)buffer, pending_start_addr, pending_index*4));
+    }
+
+
+    this->start_spi_load();
 }

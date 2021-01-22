@@ -74,15 +74,31 @@ typedef enum
     SPIS_BOOT_STATE_IDLE,
     SPIS_BOOT_STATE_SEND_SOF,
     SPIS_BOOT_STATE_CHECK_SOF,
+    SPIS_BOOT_STATE_CHECK_ACK,
     SPIS_BOOT_STATE_GET_ACK_STEP_0,
     SPIS_BOOT_STATE_GET_ACK_STEP_1,
     SPIS_BOOT_STATE_GET_ACK_STEP_2,
+    SPIS_BOOT_STATE_RECEIVE_CRC,
     SPIS_BOOT_STATE_RECEIVE_DATA,
     SPIS_BOOT_STATE_RECEIVE_DATA_CRC,
+    SPIS_BOOT_STATE_SEND_DATA_CRC,
     SPIS_BOOT_STATE_SEND_DATA,
     SPIS_BOOT_STATE_SEND_DATA_DONE,
 }
 spis_boot_state_e;
+
+
+class Spi_loader_section
+{
+public:
+    Spi_loader_section(int access, uint8_t *buffer, uint32_t addr, uint32_t size) : access(access), buffer(buffer), addr(addr), size(size) {}
+
+    int access;
+    uint8_t *buffer;
+    uint32_t addr;
+    uint32_t size;
+};
+
 
 
 class Testbench;
@@ -96,6 +112,7 @@ public:
     void sync(int sck, int sdio0, int sdio1, int sdio2, int sdio3, int mask);
     void transfer(pi_testbench_req_spim_verif_transfer_t *transfer);
     int64_t exec();
+    void enqueue_spi_load(js::config *config);
 
 
 protected:
@@ -115,8 +132,13 @@ private:
     void handle_command(uint64_t cmd);
 
     void enqueue_transfer(int address, int size, int is_rx, int is_duplex);
-    void start_boot_protocol_transfer(int address, int size, int is_rx);
     void handle_boot_protocol_transfer();
+    void start_boot_protocol_transfer(int address, int size, int is_rx);
+    void enqueue_boot_protocol_transfer(uint8_t *buffer, int address, int size, int is_rx);
+    void enqueue_boot_protocol_jump(int address);
+
+    void start_spi_load();
+    void spi_load(js::config *config);
 
     vp::trace trace;
     vp::qspim_slave *itf;
@@ -177,6 +199,14 @@ private:
     int slave_boot_is_rx;
     spis_boot_state_e slave_boot_state;
     uint8_t slave_boot_crc;
+
+    std::vector <Spi_loader_section *> sections;
+
+    bool init_pads;
+    js::config *spi_load_config;
+
+    bool is_enqueued;
+    bool slave_boot_jump;
 };
 
 #endif

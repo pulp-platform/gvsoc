@@ -253,6 +253,8 @@ public:
     void spim_verif_setup(pi_testbench_req_spim_verif_setup_t *config);
     void spim_verif_transfer(pi_testbench_req_spim_verif_transfer_t *transfer);
 
+    void create_loader(js::config *config);
+
     Testbench *top;
 
     Spim_verif * spim_verif;
@@ -470,6 +472,7 @@ public:
     Testbench(js::config *config);
 
     int build();
+    void start();
 
     void handle_received_byte(uint8_t byte);
 
@@ -518,6 +521,8 @@ private:
     uint8_t *tx_buff;
     int tx_buff_size;
     int tx_buff_index;
+
+    Spim_verif *spi_loader;
 };
 
 #endif
