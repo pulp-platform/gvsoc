@@ -55,7 +55,6 @@ Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbe
     this->spi = spi;
     this->is_master = config->is_master;
 
-
     this->engine = (vp::time_engine*)this->top->get_service("time");
 
     std::string name = "spim_verif_itf" + std::to_string(itf_id) + "_cs" + std::to_string(cs);
@@ -86,6 +85,8 @@ Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbe
     this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
     this->spi_load_config = NULL;
     this->is_enqueued = false;
+    this->handle_wakeup = false;
+    this->do_spi_load = false;
 }
 
 void Spim_verif::handle_read(uint64_t cmd, bool is_quad)
@@ -398,6 +399,13 @@ int64_t Spim_verif::exec()
         return delay;
     }
 
+    if (this->handle_wakeup)
+    {
+        this->handle_wakeup = false;
+        this->slave_boot_state = SPIS_BOOT_STATE_SEND_WAKEUP_CMD;
+        this->handle_boot_protocol_transfer();
+    }
+
     if (this->slave_sck == 0)
     {
         switch (this->slave_state)
@@ -545,7 +553,7 @@ int64_t Spim_verif::exec()
 
             return this->slave_period;
         }
-        else if (this->sections.size())
+        else if (this->do_spi_load)
         {
             this->start_spi_load();
             return this->slave_period;
@@ -579,6 +587,21 @@ void Spim_verif::transfer(pi_testbench_req_spim_verif_transfer_t *config)
     {
         this->enqueue_transfer(config->address, config->size, config->is_rx, config->is_duplex);
     }
+}
+
+
+void Spim_verif::spi_wakeup(pi_testbench_req_spim_verif_spi_wakeup_t *config)
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling SPI wakeup (delay: %lld, mode: %d)\n",
+        config->delay, config->mode
+    );
+
+    this->slave_period = 1000000000000ULL / config->frequency / 2;
+
+    this->is_enqueued = 1;
+    this->handle_wakeup = true;
+    this->reload_spi = config->spi_reload;
+    this->enqueue_to_engine(config->delay);
 }
 
 
@@ -625,6 +648,73 @@ void Spim_verif::handle_boot_protocol_transfer()
 {
     switch (this->slave_boot_state)
     {
+        case SPIS_BOOT_STATE_SEND_WAKEUP_CMD:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending wakeup command (value: 0x3F)\n");
+
+            this->data[this->mem_size] = 0x3F;
+            this->enqueue_transfer(this->mem_size, 1, 0, 1);
+            this->slave_boot_state = SPIS_BOOT_STATE_SEND_WAKEUP_STATUS;
+            break;
+        }
+
+
+        case SPIS_BOOT_STATE_SEND_WAKEUP_STATUS:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending wakeup status (value: 0x05)\n");
+
+            this->data[this->mem_size] = 0x05;
+            this->enqueue_transfer(this->mem_size, 2, 0, 1);
+            this->slave_boot_state = SPIS_BOOT_STATE_SEND_WAKEUP_STATUS_RESPONSE;
+            break;
+        }
+
+
+        case SPIS_BOOT_STATE_SEND_WAKEUP_STATUS_RESPONSE:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Checking wakeup response (value: 0x%x)\n", this->data[this->mem_size + 1]);
+
+            if (this->data[this->mem_size + 1] == 1)
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_WAKEUP_EXIT;
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_WAKEUP_STATUS;
+            }
+            break;
+        }
+
+
+        case SPIS_BOOT_STATE_SEND_WAKEUP_EXIT:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Sending wakeup exit (value: 0x71)\n");
+
+            this->data[this->mem_size] = 0x71;
+            this->enqueue_transfer(this->mem_size, 1, 0, 0);
+            if (this->reload_spi)
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_SEND_WAKEUP_DO_LOAD;
+            }
+            else
+            {
+                this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
+            }
+            break;
+        }
+
+
+        case SPIS_BOOT_STATE_SEND_WAKEUP_DO_LOAD:
+        {
+            this->trace.msg(vp::trace::LEVEL_INFO, "Redoing SPI load\n");
+
+            this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
+            this->do_spi_load = true;
+            this->start_spi_load();
+            break;
+        }
+
+
         case SPIS_BOOT_STATE_SEND_SOF:
         {
             this->trace.msg(vp::trace::LEVEL_INFO, "Sending start of frame (value: 0x5A)\n");
@@ -650,7 +740,7 @@ void Spim_verif::handle_boot_protocol_transfer()
                 if (this->slave_boot_jump)
                 {
                     this->slave_boot_jump = false;
-                    this->slave_boot_state = SPIS_BOOT_STATE_SEND_SOF;
+                    this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
                 }
                 else
                 {
@@ -764,6 +854,9 @@ void Spim_verif::handle_boot_protocol_transfer()
             break;
 
 
+
+
+
     }
 }
 
@@ -806,18 +899,29 @@ void Spim_verif::enqueue_transfer(int address, int size, int is_rx, int is_duple
 
 void Spim_verif::start_spi_load()
 {
-    if (this->sections.size())
+    if (this->do_spi_load)
     {
-        Spi_loader_section *section = this->sections.back();
-        this->sections.pop_back();
-
-        if (section->access)
+        if (this->current_section_load < this->sections.size())
         {
-            this->enqueue_boot_protocol_transfer(section->buffer, section->addr, section->size, 0);
+            Spi_loader_section *section = this->sections[this->current_section_load];
+
+            if (section->access)
+            {
+                this->enqueue_boot_protocol_transfer(section->buffer, section->addr, section->size, 0);
+            }
+            else
+            {
+                this->enqueue_boot_protocol_jump(section->addr);
+            }
+            this->current_section_load++;
         }
         else
         {
-            this->enqueue_boot_protocol_jump(section->addr);
+            this->trace.msg(vp::trace::LEVEL_INFO, "Finished SPI loading\n");
+
+            this->current_section_load = 0;
+            this->do_spi_load = false;
+            this->slave_boot_state = SPIS_BOOT_STATE_IDLE;
         }
     }
 }
@@ -846,8 +950,7 @@ void Spim_verif::spi_load(js::config *config)
     unsigned int pending_addr;
     unsigned int pending_start_addr = -1;
     int pending_index = 0;
-
-    this->sections.push_back(new Spi_loader_section(false, NULL, config->get_child_int("entry"), 0));
+    this->current_section_load = 0;
 
     while(1)
     {
@@ -884,10 +987,12 @@ void Spim_verif::spi_load(js::config *config)
 
     if (pending_index)
     {
-        fprintf(stderr, "TRANSFER %x %x\n", pending_start_addr, pending_index);
         this->sections.push_back(new Spi_loader_section(true, (uint8_t *)buffer, pending_start_addr, pending_index*4));
     }
 
+    this->sections.push_back(new Spi_loader_section(false, NULL, config->get_child_int("entry"), 0));
 
+    this->trace.msg(vp::trace::LEVEL_INFO, "Starting SPI loading\n");
+    this->do_spi_load = true;
     this->start_spi_load();
 }

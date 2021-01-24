@@ -56,6 +56,7 @@ class Uart;
 #define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP 8
 #define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START 9
 #define PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER 10
+#define PI_TESTBENCH_CMD_SPIM_VERIF_SPI_WAKEUP 11
 
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
@@ -115,6 +116,19 @@ typedef struct {
     uint8_t cs;
     uint8_t is_boot_protocol;
 } pi_testbench_req_spim_verif_transfer_t;
+
+
+typedef struct
+{
+    uint64_t delay;
+    uint32_t frequency;
+    uint8_t mode;
+    uint8_t spi_reload;
+    uint8_t itf;
+    uint8_t cs;
+}
+__attribute__((packed)) pi_testbench_req_spim_verif_spi_wakeup_t;
+
 
 
 typedef struct {
@@ -252,6 +266,7 @@ public:
 
     void spim_verif_setup(pi_testbench_req_spim_verif_setup_t *config);
     void spim_verif_transfer(pi_testbench_req_spim_verif_transfer_t *transfer);
+    void spim_verif_spi_wakeup(pi_testbench_req_spim_verif_spi_wakeup_t *config);
 
     void create_loader(js::config *config);
 
@@ -489,6 +504,7 @@ private:
     void handle_set_status();
     void handle_spim_verif_setup();
     void handle_spim_verif_transfer();
+    void handle_spim_verif_spi_wakeup();
     void handle_i2s_verif_setup();
     void handle_i2s_verif_slot_setup();
     void handle_i2s_verif_slot_start();

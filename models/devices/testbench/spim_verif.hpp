@@ -84,6 +84,11 @@ typedef enum
     SPIS_BOOT_STATE_SEND_DATA_CRC,
     SPIS_BOOT_STATE_SEND_DATA,
     SPIS_BOOT_STATE_SEND_DATA_DONE,
+    SPIS_BOOT_STATE_SEND_WAKEUP_CMD,
+    SPIS_BOOT_STATE_SEND_WAKEUP_STATUS,
+    SPIS_BOOT_STATE_SEND_WAKEUP_STATUS_RESPONSE,
+    SPIS_BOOT_STATE_SEND_WAKEUP_EXIT,
+    SPIS_BOOT_STATE_SEND_WAKEUP_DO_LOAD
 }
 spis_boot_state_e;
 
@@ -111,6 +116,7 @@ public:
     void cs_sync(int cs);
     void sync(int sck, int sdio0, int sdio1, int sdio2, int sdio3, int mask);
     void transfer(pi_testbench_req_spim_verif_transfer_t *transfer);
+    void spi_wakeup(pi_testbench_req_spim_verif_spi_wakeup_t *config);
     int64_t exec();
     void enqueue_spi_load(js::config *config);
 
@@ -201,12 +207,16 @@ private:
     uint8_t slave_boot_crc;
 
     std::vector <Spi_loader_section *> sections;
+    int current_section_load;
 
     bool init_pads;
     js::config *spi_load_config;
 
     bool is_enqueued;
     bool slave_boot_jump;
+    bool handle_wakeup;
+    bool do_spi_load;
+    bool reload_spi;
 };
 
 #endif

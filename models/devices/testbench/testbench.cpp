@@ -272,7 +272,7 @@ void Testbench::start()
     if (get_js_config()->get_child_bool("spislave_boot/enabled"))
     {
         int itf = get_js_config()->get_child_int("spislave_boot/itf");
-        this->spis[itf]->create_loader(get_js_config()->get("spislave_boot"));
+        this->spis[itf*4]->create_loader(get_js_config()->get("spislave_boot"));
     }
 }
 
@@ -584,6 +584,7 @@ void Testbench::handle_received_byte(uint8_t byte)
             case PI_TESTBENCH_CMD_GPIO_PULSE_GEN:
             case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
             case PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER:
+            case PI_TESTBENCH_CMD_SPIM_VERIF_SPI_WAKEUP:
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = cmd >> 16;
                 this->current_req_size = 0;
@@ -649,6 +650,10 @@ void Testbench::handle_received_byte(uint8_t byte)
 
                 case PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER:
                     this->handle_spim_verif_transfer();
+                    break;
+
+                case PI_TESTBENCH_CMD_SPIM_VERIF_SPI_WAKEUP:
+                    this->handle_spim_verif_spi_wakeup();
                     break;
 
                 case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
@@ -915,7 +920,7 @@ void Testbench::handle_spim_verif_setup()
     this->trace.msg(vp::trace::LEVEL_INFO, "Handling Spim verif setup (itf: %d, cs: %d, mem_size: %d)\n",
         itf, cs, 1<<req->mem_size_log2);
 
-    this->spis[cs + itf*this->nb_spi]->spim_verif_setup(req);
+    this->spis[cs + itf*4]->spim_verif_setup(req);
 }
 
 
@@ -929,7 +934,21 @@ void Testbench::handle_spim_verif_transfer()
     this->trace.msg(vp::trace::LEVEL_INFO, "Handling Spim verif transfer (itf: %d, cs: %d)\n",
         itf, cs);
 
-    this->spis[cs + itf*this->nb_spi]->spim_verif_transfer((pi_testbench_req_spim_verif_transfer_t *)req);
+    this->spis[cs + itf*4]->spim_verif_transfer((pi_testbench_req_spim_verif_transfer_t *)req);
+}
+
+
+void Testbench::handle_spim_verif_spi_wakeup()
+{
+    pi_testbench_req_spim_verif_spi_wakeup_t *req = (pi_testbench_req_spim_verif_spi_wakeup_t *)this->req;
+
+    int itf = req->itf;
+    int cs = req->cs;
+
+    this->trace.msg(vp::trace::LEVEL_INFO, "Handling Spim verif spi wakeup (itf: %d, cs: %d)\n",
+        itf, cs);
+
+    this->spis[cs + itf*4]->spim_verif_spi_wakeup((pi_testbench_req_spim_verif_spi_wakeup_t *)req);
 }
 
 
@@ -1038,6 +1057,15 @@ void Spi::spim_verif_transfer(pi_testbench_req_spim_verif_transfer_t *config)
         this->spim_verif->transfer(config);
     }
 
+}
+
+
+void Spi::spim_verif_spi_wakeup(pi_testbench_req_spim_verif_spi_wakeup_t *config)
+{
+    if (this->spim_verif)
+    {
+        this->spim_verif->spi_wakeup(config);
+    }
 }
 
 
