@@ -55,6 +55,7 @@ private:
 
 
 I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testbench_i2s_verif_config_t *config)
+  : vp::time_engine_client(NULL)
 {
     ::memcpy(&this->config, config, sizeof(pi_testbench_i2s_verif_config_t));
 
@@ -64,10 +65,27 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->ws_delay = 1;
     this->current_ws_delay = 0;
     this->is_pdm = config->is_pdm;
+    this->is_full_duplex = config->is_full_duplex;
+    this->prev_sck = 0;
+    this->is_ext_clk = config->is_ext_clk;
+
+    this->clk = 2;
+
     if (this->is_pdm)
     {
         this->config.nb_slots = 4;
     }
+    else
+    {
+        if (this->is_ext_clk)
+        {
+            this->clk_period = 1000000000000ULL / config->sampling_freq / config->nb_slots / config->word_size / 2;
+
+            this->clk = 0;
+        }
+    }
+
+    this->engine = (vp::time_engine*)top->get_service("time");
 
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf_id), &trace, vp::DEBUG);
 
@@ -111,7 +129,7 @@ void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
-    int sd = sdio >> 2;
+    int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
     this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
@@ -132,7 +150,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
     }
     else
     {
-        if (sck)
+        if (prev_sck == 0 && sck)
         {
             // The channel is the one of this microphone
             if (this->prev_ws != ws && ws == 1)
@@ -149,6 +167,25 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 }
             }
 
+            if (this->frame_active)
+            {
+                this->slots[this->active_slot]->send_data(sd);
+
+
+                this->pending_bits--;
+
+                if (this->pending_bits == 0)
+                {
+                    this->pending_bits = this->config.word_size;
+                    this->active_slot++;
+                    if (this->active_slot == this->config.nb_slots)
+                    {
+                        this->frame_active = false;
+                    }
+                }
+
+            }
+
             // If there is a delay, decrease it
             if (this->current_ws_delay > 0)
             {
@@ -161,37 +198,37 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 }
             }
 
+            this->prev_ws = ws;
+        }
+        else if (prev_sck == 1 && !sck)
+        {
             if (this->frame_active)
             {
-                this->slots[this->active_slot]->send_data(sd);
-            }
 
-            if (this->frame_active)
-            {
                 if (this->pending_bits == this->config.word_size)
                 {
                     this->slots[this->active_slot]->start_frame();
                 }
-                int data = this->slots[this->active_slot]->get_data();
+                this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
 
-                this->itf->sync(2, 2, data | (2 << 2));
 
-                this->pending_bits--;
-                if (this->pending_bits == 0)
-                {
-                    this->pending_bits = this->config.word_size;
-                    this->active_slot++;
-                    if (this->active_slot == this->config.nb_slots)
-                    {
-                        this->frame_active = false;
-                    }
-                }
+                this->itf->sync(this->clk, 2, this->data);
             }
-
-            this->prev_ws = ws;
         }
+        this->prev_sck = sck;
     }
 }
+
+
+
+void I2s_verif::start(pi_testbench_i2s_verif_start_config_t *config)
+{
+    if (this->is_ext_clk)
+    {
+        this->enqueue_to_engine(this->clk_period);
+    }
+}
+
 
 
 Slot::Slot(Testbench *top, int itf, int id) : top(top), id(id)
@@ -329,7 +366,7 @@ int Slot::get_data()
             {
                 this->rx_started = false;
             }
-            data = 3;   // Return X in case there is no more data
+            data = 2;   // Return Z in case there is no more data
         }
 
         this->trace.msg(vp::trace::LEVEL_TRACE, "Getting data (data: %d)\n", data);
@@ -337,7 +374,7 @@ int Slot::get_data()
         return data;
     }
 
-    return 3;
+    return 2;
 }
 
 
@@ -362,4 +399,13 @@ int Slot::pdm_sync(int sck, int ws, int sd)
     int data = atoi(line);
 
     return data;
+}
+
+
+int64_t I2s_verif::exec()
+{
+    this->clk ^= 1;
+    this->itf->sync(this->clk, 2, this->data);
+
+    return this->clk_period;
 }

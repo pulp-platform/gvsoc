@@ -585,12 +585,8 @@ void Testbench::handle_received_byte(uint8_t byte)
             case PI_TESTBENCH_CMD_SPIM_VERIF_SETUP:
             case PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER:
             case PI_TESTBENCH_CMD_SPIM_VERIF_SPI_WAKEUP:
-                this->state = STATE_WAITING_REQUEST;
-                this->req_size = cmd >> 16;
-                this->current_req_size = 0;
-                break;
-
             case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
+            case PI_TESTBENCH_CMD_I2S_VERIF_START:
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = cmd >> 16;
                 this->current_req_size = 0;
@@ -658,6 +654,10 @@ void Testbench::handle_received_byte(uint8_t byte)
 
                 case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
                     this->handle_i2s_verif_setup();
+                    break;
+
+                case PI_TESTBENCH_CMD_I2S_VERIF_START:
+                    this->handle_i2s_verif_start();
                     break;
 
                 case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP:
@@ -966,6 +966,20 @@ void Testbench::handle_i2s_verif_setup()
     this->i2ss[itf]->i2s_verif_setup(req);
 }
 
+void Testbench::handle_i2s_verif_start()
+{
+    pi_testbench_i2s_verif_start_config_t *req = (pi_testbench_i2s_verif_start_config_t *)this->req;
+    int itf = req->itf;
+
+    if (itf >= this->nb_i2s)
+    {
+        this->trace.fatal("Invalid I2S interface (id: %d, nb_interfaces: %d)", itf, this->nb_i2s);
+        return;
+    }
+
+    this->i2ss[itf]->i2s_verif_start(req);
+}
+
 
 void Testbench::handle_i2s_verif_slot_setup()
 {
@@ -1119,6 +1133,21 @@ void I2s::i2s_verif_setup(pi_testbench_i2s_verif_config_t *config)
     {
         this->i2s_verif = new I2s_verif(this->top, &this->itf, this->itf_id, config);
     }
+}
+
+
+void I2s::i2s_verif_start(pi_testbench_i2s_verif_start_config_t *config)
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif start (start: %d)\n",
+        config->start);
+
+    if (!this->i2s_verif)
+    {
+        this->trace.fatal("Trying to start inactive interface (itf: %d)", this->itf_id);
+        return;
+    }
+
+    this->i2s_verif->start(config);
 }
 
 

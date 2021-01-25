@@ -654,15 +654,12 @@ void I2s_group::edge(Dpi_chip_wrapper_callback *callback, int64_t timestamp, int
 
     *(callback->pad_value) = data;
 
-    if (callback->is_sck)
-    {
-        this->trace.msg(vp::trace::LEVEL_TRACE, "I2S clock (name: %s, value: %d)\n", callback->name.c_str(), data);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "I2S clock (name: %s, value: %d)\n", callback->name.c_str(), data);
 
-        if (this->slave.is_bound())
-        {
-            this->trace.msg(vp::trace::LEVEL_TRACE, "I2S clock  SYNC(name: %s, value: %d)\n", callback->name.c_str(), data);
-            this->slave.sync(this->sck, this->ws, ((this->sdo & 3) << 2) | (this->sdi & 3));
-        }
+    if (this->slave.is_bound())
+    {
+        this->trace.msg(vp::trace::LEVEL_TRACE, "I2S clock  SYNC(name: %s, value: %d)\n", callback->name.c_str(), data);
+        this->slave.sync(this->sck, this->ws, ((this->sdo & 3) << 2) | (this->sdi & 3));
     }
 }
 

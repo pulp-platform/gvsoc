@@ -27,14 +27,16 @@
 class Testbench;
 class Slot;
 
-class I2s_verif
+class I2s_verif : public vp::time_engine_client
 {
 public:
     I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testbench_i2s_verif_config_t *config);
 
+    void start(pi_testbench_i2s_verif_start_config_t *config);
     void slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
     void slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
     void sync(int sck, int ws, int sd);
+    int64_t exec();
 
     vp::trace trace;
     vp::i2s_master *itf;
@@ -42,12 +44,19 @@ public:
     int ws_delay;
     
     int  prev_ws;
+    int  prev_sck;
     bool frame_active;
     int  current_ws_delay;
     int  active_slot;
     int  pending_bits;
 
     bool is_pdm;
+    bool is_full_duplex;
+
+    int64_t clk_period;
+    bool is_ext_clk;
+    int clk;
+    int data;
 
     std::vector<Slot *> slots;
 };
