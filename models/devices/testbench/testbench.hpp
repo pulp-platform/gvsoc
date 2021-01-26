@@ -182,6 +182,8 @@ typedef struct
     uint8_t is_ext_ws;
     uint8_t is_sai0_clk;
     uint8_t is_sai0_ws;
+    uint8_t clk_polarity;
+    uint8_t ws_polarity;
 }
 __attribute__((packed)) pi_testbench_i2s_verif_config_t;
 

@@ -71,6 +71,7 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
 
     this->clk = 2;
     this->propagated_clk = -1;
+    this->ws_count = 0;
 
     if (this->is_pdm)
     {
@@ -153,6 +154,9 @@ void I2s_verif::sync_ws(int ws)
 
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
+    sck = sck ^ this->config.clk_polarity;
+    ws = ws ^ this->config.ws_polarity;
+
     this->sdio = sdio;
     this->ws = ws;
 
@@ -177,72 +181,91 @@ void I2s_verif::sync(int sck, int ws, int sdio)
     }
     else
     {
-        if (prev_sck == 0 && sck)
+        if (sck != this->prev_sck)
         {
-            // The channel is the one of this microphone
-            if (this->prev_ws != ws && ws == 1)
+            if (sck)
             {
-                this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
-
-                // If the WS just changed, apply the delay before starting sending
-                this->current_ws_delay = this->ws_delay;
-                if (this->current_ws_delay == 0)
+                // The channel is the one of this microphone
+                if (this->prev_ws != ws && ws == 1)
                 {
-                    this->frame_active = true;
-                    this->pending_bits = this->config.word_size;
-                    this->active_slot = 0;
-                }
-            }
+                    this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
 
-            if (this->frame_active)
-            {
-                this->slots[this->active_slot]->send_data(sd);
-
-
-                this->pending_bits--;
-
-                if (this->pending_bits == 0)
-                {
-                    this->pending_bits = this->config.word_size;
-                    this->active_slot++;
-                    if (this->active_slot == this->config.nb_slots)
+                    // If the WS just changed, apply the delay before starting sending
+                    this->current_ws_delay = this->ws_delay;
+                    if (this->current_ws_delay == 0)
                     {
-                        this->frame_active = false;
+                        this->frame_active = true;
+                        this->pending_bits = this->config.word_size;
+                        this->active_slot = 0;
                     }
                 }
 
-            }
-
-            // If there is a delay, decrease it
-            if (this->current_ws_delay > 0)
-            {
-                this->current_ws_delay--;
-                if (this->current_ws_delay == 0)
+                if (this->frame_active)
                 {
-                    this->frame_active = true;
-                    this->pending_bits = this->config.word_size;
-                    this->active_slot = 0;
+                    this->slots[this->active_slot]->send_data(sd);
+
+
+                    this->pending_bits--;
+
+                    if (this->pending_bits == 0)
+                    {
+                        this->pending_bits = this->config.word_size;
+                        this->active_slot++;
+                        if (this->active_slot == this->config.nb_slots)
+                        {
+                            this->frame_active = false;
+                        }
+                    }
+
+                }
+
+                // If there is a delay, decrease it
+                if (this->current_ws_delay > 0)
+                {
+                    this->current_ws_delay--;
+                    if (this->current_ws_delay == 0)
+                    {
+                        this->frame_active = true;
+                        this->pending_bits = this->config.word_size;
+                        this->active_slot = 0;
+                    }
+                }
+
+                this->prev_ws = ws;
+            }
+            else if (!sck)
+            {
+                if (this->frame_active)
+                {
+
+                    if (this->pending_bits == this->config.word_size)
+                    {
+                        this->slots[this->active_slot]->start_frame();
+                    }
+                    this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
+
+
+                    this->itf->sync(this->clk, 2, this->data);
                 }
             }
 
-            this->prev_ws = ws;
-        }
-        else if (prev_sck == 1 && !sck)
-        {
-            if (this->frame_active)
+            if (sck == 1)
             {
-
-                if (this->pending_bits == this->config.word_size)
+                if (this->config.is_ext_ws)
                 {
-                    this->slots[this->active_slot]->start_frame();
+                    int ws_value = 0;
+                    if (this->ws_count == 0)
+                    {
+                        ws_value = 1;
+                        this->ws_count = this->config.word_size * this->config.nb_slots;
+                    }
+                    this->itf->sync(this->clk, ws_value, this->data);
+                    this->ws_count--;
                 }
-                this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
-
-
-                this->itf->sync(this->clk, 2, this->data);
             }
+
+            this->prev_sck = sck;
         }
-        this->prev_sck = sck;
     }
 }
 
