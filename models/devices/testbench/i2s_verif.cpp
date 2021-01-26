@@ -238,7 +238,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
 
 
-                //this->itf->sync(this->clk, 2, this->data);
+                this->itf->sync(this->clk, 2, this->data);
             }
         }
         this->prev_sck = sck;
