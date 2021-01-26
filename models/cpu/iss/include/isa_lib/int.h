@@ -1648,31 +1648,91 @@ static inline unsigned int lib_flexfloat_sqrt_round(iss_cpu_state_t *s, unsigned
 }
 
 static inline unsigned int lib_flexfloat_sgnj(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+#ifdef OLD
   FF_INIT_2(a, b, e, m)
   CAST_TO_INT(ff_res.value) = flexfloat_pack(env, flexfloat_sign(&ff_b), flexfloat_exp(&ff_a), flexfloat_frac(&ff_a));
   return flexfloat_get_bits(&ff_res);
+#else
+        unsigned int S_b = (b>>(m+e)) & 0x1;
+        unsigned int R = (a & ((1<<(m+e))-1)) | ((S_b)<<(m+e));
+        return R;
+#endif
 }
 
 static inline unsigned int lib_flexfloat_sgnjn(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+#ifdef OLD
   FF_INIT_2(a, b, e, m)
   CAST_TO_INT(ff_res.value) = flexfloat_pack(env, !flexfloat_sign(&ff_b), flexfloat_exp(&ff_a), flexfloat_frac(&ff_a));
   return flexfloat_get_bits(&ff_res);
+#else
+        unsigned int S_b = (b>>(m+e)) & 0x1;
+        unsigned int R = (a & ((1<<(m+e))-1)) | ((!S_b)<<(m+e));
+        return R;
+#endif
 }
 
 static inline unsigned int lib_flexfloat_sgnjx(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+#ifdef OLD
   FF_INIT_2(a, b, e, m)
   CAST_TO_INT(ff_res.value) = flexfloat_pack(env, flexfloat_sign(&ff_a)^flexfloat_sign(&ff_b), flexfloat_exp(&ff_a), flexfloat_frac(&ff_a));
   return flexfloat_get_bits(&ff_res);
+#else
+        unsigned int S_a = (a>>(m+e)) & 0x1;
+        unsigned int S_b = (b>>(m+e)) & 0x1;
+        unsigned int R = (a & ((1<<(m+e))-1)) | ((S_a^S_b)<<(m+e));
+        return R;
+#endif
 }
+
+#ifndef OLD
+static int IsNan(unsigned int X, uint8_t e, uint8_t m)          // NEW FUNCTION
+
+{
+        unsigned int E = (X>>m)&((1<<e)-1);
+        unsigned int M = (X)&((1<<m)-1);
+
+        if ((E==((1<<e)-1)) && (M!=0)) {
+                if ((M>>(m-1))&0x1) return 1;   // Nan quiet
+                else return 2;                  // Nam signaling
+        } else return 0;
+        return ((E==((1<<e)-1)) && (M!=0));
+}
+#endif
 
 // TODO proper nan handling
 static inline unsigned int lib_flexfloat_min(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+#ifdef OLD
   FF_EXEC_2(s, ff_min, a, b, e, m)
+#else
+        int Nan_a = IsNan(a, e, m);
+        int Nan_b = IsNan(b, e, m);
+        unsigned int Nan_Q = (((1<<e)-1)<<m)|((unsigned int)1<<(m-1));
+        unsigned int Nan_S = (((1<<e)-1)<<m)|((unsigned int)1<<(m-2));
+
+        if (Nan_a && Nan_b) {
+                if (Nan_a==2 || Nan_b==2) return Nan_S; else return Nan_Q;
+        } else if (Nan_a) return b;
+        else if (Nan_b) return a;
+        FF_EXEC_2(s, ff_min, a, b, e, m);
+#endif
 }
 
 // TODO proper NaN handling
 static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+#ifdef OLD
   FF_EXEC_2(s, ff_max, a, b, e, m)
+#else
+        int Nan_a = IsNan(a, e, m);
+        int Nan_b = IsNan(b, e, m);
+        unsigned int Nan_Q = (((1<<e)-1)<<m)|((unsigned int)1<<(m-1));
+        unsigned int Nan_S = (((1<<e)-1)<<m)|((unsigned int)1<<(m-2));
+
+        if (Nan_a && Nan_b) {
+                if (Nan_a==2 || Nan_b==2) return Nan_S; else return Nan_Q;
+        } else if (Nan_a) return b;
+        else if (Nan_b) return a;
+        FF_EXEC_2(s, ff_max, a, b, e, m);
+#endif
 }
 
 static inline int64_t lib_flexfloat_cvt_w_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
@@ -1780,6 +1840,8 @@ static inline unsigned int lib_flexfloat_le(iss_cpu_state_t *s, unsigned int a, 
 }
 
 static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m) {
+
+#ifdef OLD
   bool sign = (a >> (e + m)) & 0x1;
   int_fast16_t exp = (a >> m) & ((0x1<<e) - 1);
   uint_t frac = a & ((UINT_C(1)<<m) - 1);
@@ -1802,9 +1864,37 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
     if (sign) return (0x1 << 1); // negative number
     else return (0x1 << 6); // positive number
   }
+#else
+        unsigned int S = ((unsigned int)a >> (e + m)) & 0x1;
+        unsigned int E = (a >> m) & ((0x1<<e) - 1);
+        unsigned int M = a & (((1)<<m) - 1);
+
+        if (S==1) {
+                if (E==((1<<e)-1) && M==0) return (1<<0);       // - infinity
+                if (E>=1 && E<=((1<<e)-2)) return (1<<1);       // Negative normal
+                if (E==0 && M!=0) return (1<<2);                // Negative sub normal
+                if (E==0 && M==0) return (1<<3);                // -0
+                if (E==((1<<e)-1) && M!=0) {
+                        int   Is_Quiet = ((unsigned int)M >> (m-1)) & 0x1;
+                        if (Is_Quiet) return (1<<9);            // Quiet nan
+                        else          return (1<<8);            // Signaling nan
+                }
+        } else {
+                if (E==0 && M==0) return (1<<4);                // +0
+                if (E==0 && M!=0) return (1<<5);                // Positive sub normal
+                if (E>=1 && E<=((1<<e)-2)) return (1<<6);       // Normal positive
+                if (E==((1<<e)-1) && M==0) return (1<<7);       // + infinity
+                if (E==((1<<e)-1) && M!=0) {
+                        int   Is_Quiet = ((unsigned int)M >> (m-1)) & 0x1;
+                        if (Is_Quiet) return (1<<9);            // Quiet nan
+                        else          return (1<<8);            // Signaling nan
+                }
+        }
+#endif
 }
 
 static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int a, unsigned int vlen, int width, uint8_t e, uint8_t m) {
+
   unsigned int result = 0;
 
   for (int i = 0; i < vlen; i++) {

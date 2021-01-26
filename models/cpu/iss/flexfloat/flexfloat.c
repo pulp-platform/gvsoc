@@ -142,11 +142,18 @@ bool flexfloat_round_bit(const flexfloat_t *a, int_fast16_t exp)
 {
     if(exp <= 0 && EXPONENT(CAST_TO_INT(a->value)) != 0)
     {
+#ifdef OLD
         int shift = (- exp + 1);
         uint_t denorm = 0;
         if(shift < NUM_BITS)
           denorm = ((CAST_TO_INT(a->value) & MASK_FRAC | MASK_FRAC_MSB)) >> shift;
         return denorm & (UINT_C(0x1) << (NUM_BITS_FRAC - a->desc.frac_bits - 1));
+#else
+        unsigned short shift = NUM_BITS_FRAC - a->desc.frac_bits - exp + 1;
+        uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC);
+        int RndB = ((Frac & (1<<(shift-1)))!=0);
+        return (RndB!=0);
+#endif
     }
     else
     {
@@ -159,12 +166,20 @@ bool flexfloat_sticky_bit(const flexfloat_t *a, int_fast16_t exp)
 {
     if(exp <= 0 && EXPONENT(CAST_TO_INT(a->value)) != 0)
     {
+#ifdef OLD
         int shift = (- exp + 1);
         uint_t denorm = 0;
         if(shift < NUM_BITS)
             denorm = ((CAST_TO_INT(a->value) & MASK_FRAC) | MASK_FRAC_MSB) >> shift;
         return (denorm & (MASK_FRAC >> (a->desc.frac_bits + 1))) ||
                ( ((denorm & MASK_FRAC) == 0)  && (CAST_TO_INT(a->value)!=0) );
+#else
+        unsigned short shift = NUM_BITS_FRAC - a->desc.frac_bits - exp + 1;
+        uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC);
+        int StiB = ((Frac & ((1<<(shift-1))-1)) != 0);
+        return (StiB!=0);
+
+#endif
     }
     else
     {
@@ -610,7 +625,9 @@ INLINE void ff_fma(flexfloat_t *dest, const flexfloat_t *a, const flexfloat_t *b
             (try >= 0) ? fesetround(FE_UPWARD) : fesetround(FE_DOWNWARD);
             fesetexceptflag(&flags, FE_ALL_EXCEPT); // restore flags here
         } else {
+#ifdef OLD
             fesetround(FE_TOWARDZERO); // just truncate
+#endif
         }
     }
     #endif
