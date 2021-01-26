@@ -61,6 +61,7 @@ public:
     int data;
     int sdio;
     int ws;
+    int propagated_clk;
 
     std::vector<Slot *> slots;
 };

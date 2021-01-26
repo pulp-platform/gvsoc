@@ -70,6 +70,7 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->is_ext_clk = config->is_ext_clk;
 
     this->clk = 2;
+    this->propagated_clk = -1;
 
     if (this->is_pdm)
     {
@@ -139,12 +140,13 @@ void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 
 void I2s_verif::sync_sck(int sck)
 {
+    this->propagated_clk = sck;
     this->sync(sck, this->ws, this->sdio);
 }
 
 void I2s_verif::sync_ws(int ws)
 {
-    this->sync(this->clk, ws, this->sdio);
+    this->sync(this->propagated_clk, ws, this->sdio);
 }
 
 
@@ -152,7 +154,6 @@ void I2s_verif::sync_ws(int ws)
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
     this->sdio = sdio;
-    this->clk = sck;
     this->ws = ws;
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;

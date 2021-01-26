@@ -1114,12 +1114,6 @@ void I2s::sync(void *__this, int sck, int ws, int sd)
 {
     I2s *_this = (I2s *)__this;
 
-
-    if (_this->itf_id)
-    {
-        sck = 2;
-    }
-
     if (_this->i2s_verif)
     {
         _this->i2s_verif->sync(sck, ws, sd);
