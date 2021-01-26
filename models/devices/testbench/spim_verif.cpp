@@ -193,6 +193,7 @@ void Spim_verif::exec_read()
     }
 }
 
+
 void Spim_verif::exec_write(int sdio0, int sdio1, int sdio2, int sdio3)
 {
     if (this->is_quad)

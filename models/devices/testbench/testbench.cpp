@@ -1088,6 +1088,8 @@ I2s::I2s(Testbench *top, int itf) : top(top)
 {
     this->i2s_verif = NULL;
     this->itf_id = itf;
+    this->clk_propagate = 0;
+    this->ws_propagate = 0;
 
     this->itf.set_sync_meth(&I2s::sync);
     top->new_master_port(this, "i2s" + std::to_string(itf), &this->itf);
@@ -1111,9 +1113,54 @@ void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *confi
 void I2s::sync(void *__this, int sck, int ws, int sd)
 {
     I2s *_this = (I2s *)__this;
+
+
+    if (_this->itf_id)
+    {
+        sck = 2;
+    }
+
     if (_this->i2s_verif)
     {
         _this->i2s_verif->sync(sck, ws, sd);
+    }
+
+    if (_this->clk_propagate)
+    {
+        for (int i=0; i<_this->top->nb_i2s; i++)
+        {
+            if ((_this->clk_propagate >> i) & 1)
+            {
+                _this->top->i2ss[i]->sync_sck(sck);
+            }
+        }
+    }
+
+    if (_this->ws_propagate)
+    {
+        for (int i=0; i<_this->top->nb_i2s; i++)
+        {
+            if ((_this->ws_propagate >> i) & 1)
+            {
+                _this->top->i2ss[_this->ws_propagate]->sync_ws(ws);
+            }
+        }
+    }
+}
+
+void I2s::sync_sck(int sck)
+{
+    if (this->i2s_verif)
+    {
+        this->i2s_verif->sync_sck(sck);
+    }
+}
+
+void I2s::sync_ws(int ws)
+{
+    if (this->i2s_verif)
+    {
+        this->i2s_verif->sync_ws(ws);
     }
 }
 

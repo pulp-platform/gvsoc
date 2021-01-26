@@ -85,6 +85,16 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
         }
     }
 
+    if (config->is_sai0_clk)
+    {
+        top->i2ss[0]->clk_propagate |= 1 << itf_id;
+    }
+
+    if (config->is_sai0_ws)
+    {
+        top->i2ss[0]->ws_propagate |= 1 << itf_id;
+    }
+
     this->engine = (vp::time_engine*)top->get_service("time");
 
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf_id), &trace, vp::DEBUG);
@@ -127,8 +137,24 @@ void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 }
 
 
+void I2s_verif::sync_sck(int sck)
+{
+    this->sync(sck, this->ws, this->sdio);
+}
+
+void I2s_verif::sync_ws(int ws)
+{
+    this->sync(this->clk, ws, this->sdio);
+}
+
+
+
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
+    this->sdio = sdio;
+    this->clk = sck;
+    this->ws = ws;
+
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
     this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
@@ -212,7 +238,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
 
 
-                this->itf->sync(this->clk, 2, this->data);
+                //this->itf->sync(this->clk, 2, this->data);
             }
         }
         this->prev_sck = sck;

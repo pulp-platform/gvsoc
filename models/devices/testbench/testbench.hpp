@@ -180,6 +180,8 @@ typedef struct
     uint8_t is_full_duplex;
     uint8_t is_ext_clk;
     uint8_t is_ext_ws;
+    uint8_t is_sai0_clk;
+    uint8_t is_sai0_ws;
 }
 __attribute__((packed)) pi_testbench_i2s_verif_config_t;
 
@@ -308,12 +310,16 @@ public:
     void i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
     void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
     static void sync(void *__this, int sck, int ws, int sd);
+    void sync_sck(int sck);
+    void sync_ws(int ws);
 
     Testbench *top;
     I2s_verif * i2s_verif;
     vp::i2s_master itf;
     vp::trace trace;
     int itf_id;
+    uint32_t clk_propagate;
+    uint32_t ws_propagate;
 };
 
 
@@ -510,6 +516,18 @@ public:
 
     vp::trace trace;
 
+    std::vector<Uart *> uarts;
+    std::vector<Gpio *> gpios;
+    std::vector<Spi *> spis;
+    std::vector<I2s *> i2ss;
+    std::vector<I2C> i2cs;
+
+    int nb_gpio;
+    int nb_spi;
+    int nb_uart;
+    int nb_i2c;
+    int nb_i2s;
+
 private:
 
 
@@ -530,17 +548,7 @@ private:
 
     string ctrl_type;
     uint64_t period;
-    int nb_gpio;
-    int nb_spi;
-    int nb_uart;
-    int nb_i2c;
-    int nb_i2s;
 
-    std::vector<Uart *> uarts;
-    std::vector<Gpio *> gpios;
-    std::vector<Spi *> spis;
-    std::vector<I2s *> i2ss;
-    std::vector<I2C> i2cs;
     vp::uart_slave uart_in;
 
     testbench_state_e state;

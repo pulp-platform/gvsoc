@@ -36,6 +36,8 @@ public:
     void slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
     void slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
     void sync(int sck, int ws, int sd);
+    void sync_sck(int sck);
+    void sync_ws(int ws);
     int64_t exec();
 
     vp::trace trace;
@@ -57,6 +59,8 @@ public:
     bool is_ext_clk;
     int clk;
     int data;
+    int sdio;
+    int ws;
 
     std::vector<Slot *> slots;
 };
