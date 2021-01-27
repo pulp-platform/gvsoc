@@ -113,10 +113,10 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     {
         this->ws_value = 0;
     }
-    //if (this->config.is_ext_clk)
-    //{
-    //    this->clk = 0;
-    //}
+    if (this->config.is_ext_clk)
+    {
+        this->clk = 0;
+    }
 
     this->itf->sync(this->clk, this->ws_value, this->data);
 
