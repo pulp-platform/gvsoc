@@ -1136,7 +1136,7 @@ void I2s::sync(void *__this, int sck, int ws, int sd)
         {
             if ((_this->ws_propagate >> i) & 1)
             {
-                _this->top->i2ss[_this->ws_propagate]->sync_ws(ws);
+                _this->top->i2ss[i]->sync_ws(ws);
             }
         }
     }
