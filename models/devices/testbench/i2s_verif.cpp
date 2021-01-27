@@ -73,6 +73,8 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->clk = 2;
     this->propagated_clk = -1;
     this->ws_count = 0;
+    this->ws_value = 2;
+    this->data = (2 << 2) | 2;
 
     if (this->is_pdm)
     {
@@ -106,6 +108,18 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     {
         this->slots.push_back(new Slot(top, this, itf_id, i));
     }
+
+    if (this->config.is_ext_ws)
+    {
+        this->ws_value = 0;
+    }
+    //if (this->config.is_ext_clk)
+    //{
+    //    this->clk = 0;
+    //}
+
+    this->itf->sync(this->clk, this->ws_value, this->data);
+
 }
 
 
@@ -254,13 +268,13 @@ void I2s_verif::sync(int sck, int ws, int sdio)
             {
                 if (this->config.is_ext_ws)
                 {
-                    int ws_value = 0;
+                    this->ws_value = 0;
                     if (this->ws_count == 0)
                     {
-                        ws_value = 1;
+                        this->ws_value = 1;
                         this->ws_count = this->config.word_size * this->config.nb_slots;
                     }
-                    this->itf->sync(this->clk, ws_value, this->data);
+                    this->itf->sync(this->clk, this->ws_value, this->data);
                     this->ws_count--;
                 }
             }
