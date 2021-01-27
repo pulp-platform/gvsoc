@@ -106,6 +106,7 @@ protected:
     int current_value;      // Value of the current sample being sent
     int sample_rate;
     Output *out = NULL;
+    int prev_sck;
     
     vp::trace trace;
 
@@ -219,6 +220,7 @@ int Speaker::build()
             }
         }
     }
+    this->prev_sck = 0;
     return 0;
 }
 
@@ -274,46 +276,51 @@ void Speaker::sync(void *__this, int sck, int ws, int sdio)
 
     _this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
-    if (sck)
+    if(_this->prev_sck != sck)
     {
-        if (_this->is_active)
+        if (sck)
         {
-            _this->push_data(sd);
+            if (_this->is_active)
+            {
+                _this->push_data(sd);
+            }
+        }
+        else
+        {
+
+            // The channel is the one of this microphone
+            if (_this->prev_ws != ws && ws == 1)
+            {
+                if (!_this->is_active)
+                {
+                    _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
+                }
+
+                // If the WS just changed, apply the delay before starting sending
+                _this->current_ws_delay = _this->ws_delay + 1;
+                if (_this->current_ws_delay == 0)
+                {
+                    _this->is_active = true;
+                }
+            }
+
+            // If there is a delay, decrease it
+            if (_this->current_ws_delay > 0)
+            {
+                _this->current_ws_delay--;
+                if (_this->current_ws_delay == 0)
+                {
+                    // And reset the sample
+                    _this->is_active = true;
+                    _this->start_sample();
+                }
+            }
+
+            _this->prev_ws = ws;
         }
     }
-    else
-    {
 
-        // The channel is the one of this microphone
-        if (_this->prev_ws != ws && ws == 1)
-        {
-            if (!_this->is_active)
-            {
-                _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
-            }
-
-            // If the WS just changed, apply the delay before starting sending
-            _this->current_ws_delay = _this->ws_delay + 1;
-            if (_this->current_ws_delay == 0)
-            {
-                _this->is_active = true;
-            }
-        }
-
-        // If there is a delay, decrease it
-        if (_this->current_ws_delay > 0)
-        {
-            _this->current_ws_delay--;
-            if (_this->current_ws_delay == 0)
-            {
-                // And reset the sample
-                _this->is_active = true;
-                _this->start_sample();
-            }
-        }
-
-        _this->prev_ws = ws;
-    }
+    _this->prev_sck = sck;
 }
 
 

@@ -202,6 +202,7 @@ typedef struct
     uint32_t is_rx;
     uint32_t enabled;
     uint32_t word_size;
+    uint8_t format;
     uint8_t itf;   // Reserved for runtime
     uint8_t slot;  // Reserved for runtime
 }

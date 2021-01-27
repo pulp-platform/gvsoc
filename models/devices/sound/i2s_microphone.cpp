@@ -78,6 +78,7 @@ protected:
     int ws_in;
     bool lower_ws_out;
     bool enabled;
+    int prev_sck;
 
     vp::trace trace;
 
@@ -350,6 +351,7 @@ int Microphone::build()
     this->pending_bits = -1;
     this->ws_in = 2;
     this->lower_ws_out = false;
+    this->prev_sck = 0;
 
     return 0;
 }
@@ -457,80 +459,85 @@ void Microphone::sync(void *__this, int sck, int ws, int sdio)
 
     _this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
-    if (sck)
+    if (_this->prev_sck != sck)
     {
-        if (_this->pending_bits == 1 && _this->ws_out_itf.is_bound())
+        if (sck)
         {
-            _this->ws_out_itf.sync(2, 1, 2 | (2 << 2));
-            _this->lower_ws_out = true;
-        }
-        else if ( _this->lower_ws_out)
-        {
-            _this->ws_out_itf.sync(2, 0, 2 | (2 << 2));
-            _this->lower_ws_out = false;
-        }
-    }
-    else
-    {
-        // The channel is the one of this microphone
-        if (_this->prev_ws != ws && ws == _this->channel_ws)
-        {
-            if (!_this->is_active)
+            if (_this->pending_bits == 1 && _this->ws_out_itf.is_bound())
             {
-                _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
+                _this->ws_out_itf.sync(2, 1, 2 | (2 << 2));
+                _this->lower_ws_out = true;
             }
-
-            _this->is_active = true;
-
-            // If the WS just changed, apply the delay before starting sending
-            _this->current_ws_delay = _this->ws_delay + 1;
-            if (_this->current_ws_delay == 0)
+            else if ( _this->lower_ws_out)
             {
-                _this->is_active = true;
-            }
-        }
-
-        // If there is a delay, decrease it
-        if (_this->current_ws_delay > 0)
-        {
-            _this->current_ws_delay--;
-            if (_this->current_ws_delay == 0)
-            {
-                // And reset the sample
-                _this->start_sample();
-            }
-        }
-
-        if (_this->is_active && _this->pending_bits > 0)
-        {
-            int data = _this->pop_data();
-            if (data >= 0)
-            {
-                //fprintf(stderr, "Popped data %d\n", data);
-
-                // If there is no more delay, set the sample now as it wil be sampled by the receiver in 1 cycle
-                _this->trace.msg(vp::trace::LEVEL_TRACE, "Setting data (value: %d)\n", data);
-
-                _this->i2s_itf.sync(2, 2, data | (2 << 2));
-            }
-            else if (data == -1)
-            {
-                _this->i2s_itf.sync(sck, 2, 2 | (2 << 2));
-                _this->is_active = false;
                 _this->ws_out_itf.sync(2, 0, 2 | (2 << 2));
+                _this->lower_ws_out = false;
             }
         }
-        else if (_this->pending_bits == 0)
+        else
         {
-            _this->pending_bits = -1;
-            _this->trace.msg(vp::trace::LEVEL_TRACE, "Releasing output\n");
-            _this->i2s_itf.sync(2, 2, 2 | (2 << 2));
+            // The channel is the one of this microphone
+            if (_this->prev_ws != ws && ws == _this->channel_ws)
+            {
+                if (!_this->is_active)
+                {
+                    _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
+                }
+
+                _this->is_active = true;
+
+                // If the WS just changed, apply the delay before starting sending
+                _this->current_ws_delay = _this->ws_delay + 1;
+                if (_this->current_ws_delay == 0)
+                {
+                    _this->is_active = true;
+                }
+            }
+
+            // If there is a delay, decrease it
+            if (_this->current_ws_delay > 0)
+            {
+                _this->current_ws_delay--;
+                if (_this->current_ws_delay == 0)
+                {
+                    // And reset the sample
+                    _this->start_sample();
+                }
+            }
+
+            if (_this->is_active && _this->pending_bits > 0)
+            {
+                int data = _this->pop_data();
+                if (data >= 0)
+                {
+                    //fprintf(stderr, "Popped data %d\n", data);
+
+                    // If there is no more delay, set the sample now as it wil be sampled by the receiver in 1 cycle
+                    _this->trace.msg(vp::trace::LEVEL_TRACE, "Setting data (value: %d)\n", data);
+
+                    _this->i2s_itf.sync(2, 2, data | (2 << 2));
+                }
+                else if (data == -1)
+                {
+                    _this->i2s_itf.sync(sck, 2, 2 | (2 << 2));
+                    _this->is_active = false;
+                    _this->ws_out_itf.sync(2, 0, 2 | (2 << 2));
+                }
+            }
+            else if (_this->pending_bits == 0)
+            {
+                _this->pending_bits = -1;
+                _this->trace.msg(vp::trace::LEVEL_TRACE, "Releasing output\n");
+                _this->i2s_itf.sync(2, 2, 2 | (2 << 2));
+            }
+
+            _this->prev_ws = ws;
+
+
         }
-
-        _this->prev_ws = ws;
-
-
     }
+
+    _this->prev_sck = sck;
 }
 
 

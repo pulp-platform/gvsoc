@@ -25,7 +25,7 @@
 class Slot
 {
 public:
-    Slot(Testbench *top, int itf, int id);
+    Slot(Testbench *top, I2s_verif *i2s, int itf, int id);
     void setup(pi_testbench_i2s_verif_slot_config_t *config);
     void start(pi_testbench_i2s_verif_slot_start_config_t *config);
     void start_frame();
@@ -35,6 +35,7 @@ public:
 
 private:
     Testbench *top;
+    I2s_verif *i2s;
     int id;
     vp::trace trace;
     pi_testbench_i2s_verif_slot_config_t config_rx;
@@ -103,7 +104,7 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
 
     for (int i=0; i<this->config.nb_slots; i++)
     {
-        this->slots.push_back(new Slot(top, itf_id, i));
+        this->slots.push_back(new Slot(top, this, itf_id, i));
     }
 }
 
@@ -281,7 +282,7 @@ void I2s_verif::start(pi_testbench_i2s_verif_start_config_t *config)
 
 
 
-Slot::Slot(Testbench *top, int itf, int id) : top(top), id(id)
+Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s), id(id)
 {
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf) + "_slot" + std::to_string(id), &trace, vp::DEBUG);
 
@@ -352,7 +353,7 @@ void Slot::start_frame()
 {
     if (this->rx_started && (this->start_config_rx.rx_iter.nb_samples > 0 || this->start_config_rx.rx_iter.nb_samples == -1))
     {
-        this->rx_pending_bits = this->config_rx.word_size;
+        this->rx_pending_bits = this->i2s->config.word_size;
         this->rx_pending_value = this->rx_current_value;
         this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting RX sample (sample: 0x%x)\n", this->rx_pending_value);
         if (this->start_config_rx.rx_iter.incr_end - this->rx_current_value <= this->start_config_rx.rx_iter.incr_value)
@@ -367,12 +368,53 @@ void Slot::start_frame()
         {
             this->start_config_rx.rx_iter.nb_samples--;
         }
+
+        int msb_first = (this->config_rx.format >> 0) & 1;
+        int left_align = (this->config_rx.format >> 1) & 1;
+        int sign_extend = (this->config_rx.format >> 2) & 1;
+        int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
+
+        if (!msb_first)
+        {
+            uint32_t value = 0;
+            for (int i=0; i<this->config_rx.word_size; i++)
+            {
+                value = (value << 1) | (this->rx_current_value & 1);
+                this->rx_current_value >>= 1;
+            }
+            this->rx_current_value = value;
+        }
+
+
+        if (dummy_cycles)
+        {
+            if (left_align)
+            {
+                unsigned int sign_value = 0;
+                if (!msb_first && sign_extend && (this->rx_current_value & 1))
+                {
+                    sign_value = (1 << dummy_cycles) - 1;
+                }
+                this->rx_current_value = (this->rx_current_value << dummy_cycles) | sign_value;
+            }
+            else
+            {
+                unsigned int sign_value = 0;
+                if (msb_first && sign_extend && ((this->rx_current_value >> (this->config_rx.word_size - 1)) & 1))
+                {
+                    sign_value = ~((1 << this->config_rx.word_size) - 1);
+                }
+                this->rx_current_value = (this->rx_current_value & (1 << this->config_rx.word_size) - 1) | sign_value;
+            }
+        }
+
+
     }
 
     if (this->tx_started && (this->start_config_tx.tx_file_dumper.nb_samples > 0 || this->start_config_tx.tx_file_dumper.nb_samples == -1))
     {
         this->tx_pending_value = 0;
-        this->tx_pending_bits = this->config_tx.word_size;
+        this->tx_pending_bits = this->i2s->config.word_size;
         this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting TX sample\n");
 
     }
@@ -389,9 +431,47 @@ void Slot::send_data(int sd)
 
             if (this->tx_pending_bits == 0)
             {
+                int msb_first = (this->config_tx.format >> 0) & 1;
+                int left_align = (this->config_tx.format >> 1) & 1;
+                int sign_extend = (this->config_tx.format >> 2) & 1;
+                int dummy_cycles = this->i2s->config.word_size - this->config_tx.word_size;
+
+                if (!msb_first)
+                {
+                    uint32_t value = 0;
+                    for (int i=0; i<this->config_tx.word_size; i++)
+                    {
+                        value = (value << 1) | (this->tx_pending_value & 1);
+                        this->tx_pending_value >>= 1;
+                    }
+                    this->tx_pending_value = value;
+                }
+
+                if (dummy_cycles)
+                {
+                    if (left_align)
+                    {
+                        unsigned int sign_value = 0;
+                        if (!msb_first && sign_extend && (this->tx_pending_value & 1))
+                        {
+                            sign_value = (1 << dummy_cycles) - 1;
+                        }
+                        this->tx_pending_value = (this->tx_pending_value << dummy_cycles) | sign_value;
+                    }
+                    else
+                    {
+                        unsigned int sign_value = 0;
+                        if (msb_first && sign_extend && ((this->tx_pending_value >> (this->config_tx.word_size - 1)) & 1))
+                        {
+                            sign_value = ~((1 << this->config_tx.word_size) - 1);
+                        }
+                        this->tx_pending_value = (this->tx_pending_value & (1 << this->config_tx.word_size) - 1) | sign_value;
+                    }
+                }
+
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Writing sample (value: 0x%lx)\n", this->tx_pending_value);
                 fprintf(this->outfile, "0x%x\n", this->tx_pending_value);
-                this->tx_pending_bits = this->config_tx.word_size;
+                this->tx_pending_bits = this->i2s->config.word_size;
             }
         }
     }
@@ -406,7 +486,7 @@ int Slot::get_data()
 
         if (this->rx_pending_bits > 0)
         {
-            data = (this->rx_pending_value >> (this->config_rx.word_size - 1)) & 1;
+            data = (this->rx_pending_value >> (this->i2s->config.word_size - 1)) & 1;
             this->rx_pending_bits--;
             this->rx_pending_value <<= 1;
         }
@@ -416,7 +496,7 @@ int Slot::get_data()
             {
                 this->rx_started = false;
             }
-            data = 2;   // Return Z in case there is no more data
+            data = 0;
         }
 
         this->trace.msg(vp::trace::LEVEL_TRACE, "Getting data (data: %d)\n", data);
