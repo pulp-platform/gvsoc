@@ -1891,6 +1891,7 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
                 }
         }
 #endif
+  return 0;
 }
 
 static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int a, unsigned int vlen, int width, uint8_t e, uint8_t m) {
