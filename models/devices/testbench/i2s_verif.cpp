@@ -31,7 +31,8 @@ public:
     void start_frame();
     int get_data();
     void send_data(int sdo);
-    int pdm_sync(int sck, int ws, int sd);
+    void pdm_sync(int sd);
+    int pdm_get();
 
 private:
     Testbench *top;
@@ -180,24 +181,27 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
     this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
-    if (this->is_pdm)
+    if (sck != this->prev_sck)
     {
-        if (!sck)
+        if (this->is_pdm)
         {
-            int val0 = this->slots[0]->pdm_sync(sck, ws, sdio & 3);
-            int val1 = this->slots[2]->pdm_sync(sck, ws, sdio >> 2);
-            this->itf->sync(2, 2, val0 | (val1 << 2));
+            if (!sck)
+            {
+                int val0 = this->slots[0]->pdm_get();
+                int val1 = this->slots[2]->pdm_get();
+                this->itf->sync(2, 2, val0 | (val1 << 2));
+            }
+            else
+            {
+                this->slots[0]->pdm_sync(sdio & 3);
+                this->slots[2]->pdm_sync(sdio >> 2);
+
+                int val0 = this->slots[1]->pdm_get();
+                int val1 = this->slots[3]->pdm_get();
+                this->itf->sync(2, 2, val0 | (val1 << 2));
+            }
         }
         else
-        {
-            int val0 = this->slots[1]->pdm_sync(sck, ws, sdio & 3);
-            int val1 = this->slots[3]->pdm_sync(sck, ws, sdio >> 2);
-            this->itf->sync(2, 2, val0 | (val1 << 2));
-        }
-    }
-    else
-    {
-        if (sck != this->prev_sck)
         {
             if (sck)
             {
@@ -280,9 +284,10 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 }
             }
 
-            this->prev_sck = sck;
         }
     }
+
+    this->prev_sck = sck;
 }
 
 
@@ -523,27 +528,39 @@ int Slot::get_data()
 }
 
 
-int Slot::pdm_sync(int sck, int ws, int sd)
+void Slot::pdm_sync(int sd)
 {
-    if (this->infile == NULL)
-        return 2;
-
-
-    char line [16];
-
-    if (fgets(line, 16, this->infile) == NULL)
+    if (this->outfile)
     {
-        fseek(this->infile, 0, SEEK_SET);
+        fprintf(this->outfile, "%d\n", sd);
+    }
+}
+
+
+int Slot::pdm_get()
+{
+    if (this->infile)
+    {
+        char line [16];
+
         if (fgets(line, 16, this->infile) == NULL)
         {
-            this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
-            return 3;
+            fseek(this->infile, 0, SEEK_SET);
+            if (fgets(line, 16, this->infile) == NULL)
+            {
+                this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
+                return 3;
+            }
         }
+
+        int data = atoi(line);
+
+        return data;
     }
-
-    int data = atoi(line);
-
-    return data;
+    else
+    {
+        return 2;
+    }
 }
 
 
