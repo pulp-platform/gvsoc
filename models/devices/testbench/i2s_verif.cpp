@@ -72,7 +72,8 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->is_ext_clk = config->is_ext_clk;
 
     this->clk = 2;
-    this->propagated_clk = -1;
+    this->propagated_clk = 0;
+    this->propagated_ws = 0;
     this->ws_count = 0;
     this->ws_value = 2;
     this->data = (2 << 2) | 2;
@@ -164,25 +165,38 @@ void I2s_verif::sync_sck(int sck)
 
 void I2s_verif::sync_ws(int ws)
 {
-    this->sync(this->propagated_clk, ws, this->sdio);
+    this->propagated_ws = ws;
+    this->sync(this->prev_sck, ws, this->sdio);
 }
 
 
 
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
+    this->sdio = sdio;
+
+    if (this->config.is_sai0_clk)
+    {
+        sck = this->propagated_clk;
+    }
+
+    if (this->config.is_sai0_ws)
+    {
+        ws = this->propagated_ws;
+    }
+
     sck = sck ^ this->config.clk_polarity;
     ws = ws ^ this->config.ws_polarity;
 
-    this->sdio = sdio;
     this->ws = ws;
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
-    this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
     if (sck != this->prev_sck)
     {
+        this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
+
         if (this->is_pdm)
         {
             if (!sck)
@@ -224,7 +238,6 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 {
                     this->slots[this->active_slot]->send_data(sd);
 
-
                     this->pending_bits--;
 
                     if (this->pending_bits == 0)
@@ -265,6 +278,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                     this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
 
 
+                    this->trace.msg(vp::trace::LEVEL_TRACE, "I2S output data (sdi: 0x%x)\n", this->data & 3);
                     this->itf->sync(this->clk, 2, this->data);
                 }
             }

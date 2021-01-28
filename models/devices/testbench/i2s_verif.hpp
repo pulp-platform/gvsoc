@@ -62,6 +62,7 @@ public:
     int sdio;
     int ws;
     int propagated_clk;
+    int propagated_ws;
     int ws_count;
     int ws_value;
 
