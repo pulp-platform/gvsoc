@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Paul Luperini, GreenWaves Technologies (paul.luperini@greenwaves-technologies.com)
  */
 
@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include <vp/itf/clock.hpp>
 #include <vp/itf/uart.hpp>
+
+#include <queue>
 
 
 typedef enum
@@ -94,7 +96,8 @@ private:
 
     uart_tx_state_e   tx_state;
     vp::clock_event *tx_sampling_event;
-    uint8_t tx_pending_byte;
+    std::queue<uint8_t> tx_pending_bytes;
+    uint8_t tx_current_pending_byte;
     int tx_pending_bits;
     int tx_baudrate;
     int tx_cts;
@@ -148,7 +151,7 @@ void Nina_b112::rx_start_sampling()
 void Nina_b112::rx_stop_sampling()
 {
     this->rx_sampling = 0;
-    
+
     if (this->rx_sampling_event->is_enqueued())
     {
         this->rx_clock->cancel(this->rx_sampling_event);
@@ -159,7 +162,21 @@ void Nina_b112::rx_stop_sampling()
 void Nina_b112::rx_handle_byte(uint8_t byte)
 {
     // For now just do a loopback, should be replaced by real stuff
-    this->tx_send_byte(byte);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Received byte 0x%x\n", byte);
+    //this->tx_send_byte(byte);
+
+    if (byte == 0xd)
+    {
+        // START RESPONSE
+        this->tx_send_byte('\r');
+        this->tx_send_byte('\n');
+        // SEND DATA
+        this->tx_send_byte('O');
+        this->tx_send_byte('K');
+        // END RESPONSE
+        this->tx_send_byte('\r');
+        this->tx_send_byte('\n');
+    }
 }
 
 
@@ -190,6 +207,7 @@ void Nina_b112::rx_handle_sampling()
                 this->rx_state = UART_RX_STATE_WAIT_START;
                 this->rx_stop_sampling();
             }
+            break;
     }
 }
 
@@ -210,6 +228,7 @@ void Nina_b112::rx_sampling_handler(void *__this, vp::clock_event *event)
 void Nina_b112::set_cts(int cts)
 {
     this->tx_cts = cts;
+    this->trace.msg(vp::trace::LEVEL_TRACE, "SET CTS");
     this->uart_itf.sync_full(this->tx_bit, 2, this->tx_cts);
 }
 
@@ -223,32 +242,54 @@ void Nina_b112::tx_sampling_handler(void *__this, vp::clock_event *event)
 
 void Nina_b112::tx_send_bit()
 {
-    int bit;
+    int bit = 1;
+    static int bits_sent;
 
     switch (this->tx_state)
     {
         case UART_TX_STATE_START:
         {
-            this->trace.msg(vp::trace::LEVEL_TRACE, "Sending start bit\n", this->rx_prev_data);
+            this->trace.msg(vp::trace::LEVEL_TRACE, "Sending start bit\n");
             this->tx_parity = 0;
             this->tx_state = UART_TX_STATE_DATA;
             this->tx_current_stop_bits = 1;
+
+            this->tx_pending_bits = -1;
+
             bit = 0;
+            bits_sent = 0;
             break;
         }
 
         case UART_TX_STATE_DATA:
         {
-            bit = this->tx_pending_byte & 1;
-            this->trace.msg(vp::trace::LEVEL_TRACE, "Sending data bit (value: %d)\n", bit);
-            this->tx_pending_byte >>= 1;
-            this->tx_pending_bits -= 1;
-            this->tx_parity ^= bit;
+            this->trace.msg(vp::trace::LEVEL_TRACE, "Sending Data\n");
+            if (this->tx_pending_bits <= 0)
+            {
+                if (!this->tx_pending_bytes.empty())
+                {
+                    this->tx_current_pending_byte = this->tx_pending_bytes.front();
+                    this->tx_pending_bytes.pop();
+                    this->tx_pending_bits = 8;
+                }
+            }
 
-            if (this->tx_pending_bits == 0)
+            if (this->tx_pending_bits > 0)
+            {
+                bits_sent++;
+                bit = this->tx_current_pending_byte & 1;
+                this->trace.msg(vp::trace::LEVEL_TRACE, "Sending data bit #%d (value: %d)\n", bits_sent, bit);
+                this->tx_current_pending_byte >>= 1;
+                this->tx_pending_bits -= 1;
+                this->tx_parity ^= bit;
+
+            }
+            else
             {
                 if (this->tx_parity_en)
+                {
                     this->tx_state = UART_TX_STATE_PARITY;
+                }
                 else
                 {
                     this->tx_state = UART_TX_STATE_STOP;
@@ -291,7 +332,7 @@ void Nina_b112::tx_send_bit()
 
 void Nina_b112::tx_check_byte()
 {
-    if (this->tx_pending_bits && !this->tx_sampling_event->is_enqueued())
+    if (!this->tx_pending_bytes.empty() && !this->tx_sampling_event->is_enqueued())
     {
         // TODO enable rtr
         //if (this->rx_rtr == 0)
@@ -305,8 +346,7 @@ void Nina_b112::tx_check_byte()
 void Nina_b112::tx_send_byte(uint8_t byte)
 {
     this->trace.msg(vp::trace::LEVEL_DEBUG, "Sending byte (value: 0x%x)\n", byte);
-    this->tx_pending_byte = byte;
-    this->tx_pending_bits = 8;
+    this->tx_pending_bytes.push(byte);
     this->tx_state = UART_TX_STATE_START;
     this->tx_clock_cfg.set_frequency(this->tx_baudrate*2);
 
@@ -355,13 +395,16 @@ int Nina_b112::build()
     this->tx_state = UART_TX_STATE_START;
     this->tx_baudrate = 115200;
     this->tx_parity_en = 0;
+    this->tx_bit = 1;
 
     return 0;
 }
 
 void Nina_b112::start()
 {
+    this->trace.msg(vp::trace::LEVEL_TRACE, " ============= starting nina =================\n");
     //this->set_cts(0);
+    this->uart_itf.sync_full(1, 2, 2);
 }
 
 
