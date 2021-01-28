@@ -103,6 +103,8 @@ typedef struct {
     uint8_t itf;
     uint8_t cs;
     uint8_t is_master;
+    uint8_t polarity;
+    uint8_t phase;
     uint16_t mem_size_log2;
 } pi_testbench_req_spim_verif_setup_t;
 

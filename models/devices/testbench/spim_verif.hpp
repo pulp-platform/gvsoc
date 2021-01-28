@@ -150,6 +150,7 @@ private:
     vp::qspim_slave *itf;
     Spim_verif_state_e state = STATE_GET_CMD;
 
+    pi_testbench_req_spim_verif_setup_t config;
     uint64_t current_cmd = 0;
     int prev_sck = 0;
     int cmd_count = 0;

@@ -40,6 +40,7 @@ typedef struct
 Spim_verif::Spim_verif(Testbench *top, Spi *spi, vp::qspim_slave *itf, pi_testbench_req_spim_verif_setup_t *config)
   : vp::time_engine_client(NULL)
 {
+    ::memcpy(&this->config, config, sizeof(pi_testbench_req_spim_verif_setup_t));
     int itf_id = config->itf;
     int cs = config->cs;
     int mem_size = (1<<config->mem_size_log2) + CMD_BUFFER_SIZE;
@@ -362,19 +363,27 @@ void Spim_verif::sync(int sck, int sdio0, int sdio1, int sdio2, int sdio3, int m
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "SCK edge (sck: %d, data_0: %d, data_1: %d, data_2: %d, data_3: %d, mask: 0x%x)\n", sck, sdio0, sdio1, sdio2, sdio3, mask);
 
+    sck ^= this->config.polarity;
+
     if (this->is_master)
     {
         this->slave_pending_miso = sdio0;
     }
     else
     {
-        if (prev_sck == 1 && !sck)
+        if (prev_sck != sck)
         {
-            handle_clk_low(sdio0, sdio1, sdio2, sdio3, mask);
-        }
-        else if (prev_sck == 0 && sck)
-        {
-            handle_clk_high(sdio0, sdio1, sdio2, sdio3, mask);
+            int high = sck ^ this->config.phase;
+
+
+            if (!high)
+            {
+                handle_clk_low(sdio0, sdio1, sdio2, sdio3, mask);
+            }
+            else
+            {
+                handle_clk_high(sdio0, sdio1, sdio2, sdio3, mask);
+            }
         }
         prev_sck = sck;
     }
