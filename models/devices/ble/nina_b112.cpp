@@ -70,6 +70,9 @@ private:
     void tx_send_byte(uint8_t byte);
     void tx_send_bit();
 
+
+    static void init_handler(void *__this, vp::clock_event *event);
+
     vp::trace trace;
 
     vp::clock_master rx_clock_cfg;
@@ -83,6 +86,8 @@ private:
     vp::clock_engine *tx_clock;
 
     vp::uart_slave    uart_itf;
+
+    vp::clock_event *init_event;
 
     uart_rx_state_e   rx_state;
     int rx_baudrate;
@@ -386,6 +391,8 @@ int Nina_b112::build()
     this->uart_itf.set_sync_full_meth(&Nina_b112::sync_full);
     this->new_slave_port(this, "uart", &this->uart_itf);
 
+    this->init_event = this->event_new(Nina_b112::init_handler);
+
     this->rx_sampling_event = this->event_new(Nina_b112::rx_sampling_handler);
     this->rx_state = UART_RX_STATE_WAIT_START;
     this->rx_baudrate = 115200;
@@ -405,6 +412,16 @@ void Nina_b112::start()
     this->trace.msg(vp::trace::LEVEL_TRACE, " ============= starting nina =================\n");
     //this->set_cts(0);
     this->uart_itf.sync_full(1, 2, 2);
+
+    this->rx_clock->enqueue(this->init_event, 1);
+}
+
+
+void Nina_b112::init_handler(void *__this, vp::clock_event *event)
+{
+    Nina_b112 *_this = (Nina_b112 *)__this;
+
+    _this->uart_itf.sync_full(1, 2, 2);
 }
 
 
