@@ -526,7 +526,7 @@ int Slot::get_data()
 int Slot::pdm_sync(int sck, int ws, int sd)
 {
     if (this->infile == NULL)
-        return 3;
+        return 2;
 
 
     char line [16];
