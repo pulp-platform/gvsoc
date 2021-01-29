@@ -280,30 +280,6 @@ void Speaker::sync(void *__this, int sck, int ws, int sdio)
     {
         if (sck)
         {
-            if (_this->is_active)
-            {
-                _this->push_data(sd);
-            }
-        }
-        else
-        {
-
-            // The channel is the one of this microphone
-            if (_this->prev_ws != ws && ws == 1)
-            {
-                if (!_this->is_active)
-                {
-                    _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
-                }
-
-                // If the WS just changed, apply the delay before starting sending
-                _this->current_ws_delay = _this->ws_delay + 1;
-                if (_this->current_ws_delay == 0)
-                {
-                    _this->is_active = true;
-                }
-            }
-
             // If there is a delay, decrease it
             if (_this->current_ws_delay > 0)
             {
@@ -316,7 +292,33 @@ void Speaker::sync(void *__this, int sck, int ws, int sdio)
                 }
             }
 
+            if (_this->is_active)
+            {
+                _this->push_data(sd);
+            }
+
+            // The channel is the one of this microphone
+            if (_this->prev_ws != ws && ws == 1)
+            {
+                if (!_this->is_active)
+                {
+                    _this->trace.msg(vp::trace::LEVEL_TRACE, "Activating channel\n");
+                }
+
+                // If the WS just changed, apply the delay before starting sending
+                _this->current_ws_delay = _this->ws_delay;
+                if (_this->current_ws_delay == 0)
+                {
+                    _this->is_active = true;
+                }
+            }
+
             _this->prev_ws = ws;
+
+        }
+        else
+        {
+
         }
     }
 

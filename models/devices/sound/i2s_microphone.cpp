@@ -349,7 +349,7 @@ int Microphone::build()
     }
     this->current_ws_delay = 0;
     this->pending_bits = -1;
-    this->ws_in = 2;
+    this->ws_in = 0;
     this->lower_ws_out = false;
     this->prev_sck = 0;
 
@@ -463,21 +463,8 @@ void Microphone::sync(void *__this, int sck, int ws, int sdio)
     {
         if (sck)
         {
-            if (_this->pending_bits == 1 && _this->ws_out_itf.is_bound())
-            {
-                _this->ws_out_itf.sync(2, 1, 2 | (2 << 2));
-                _this->lower_ws_out = true;
-            }
-            else if ( _this->lower_ws_out)
-            {
-                _this->ws_out_itf.sync(2, 0, 2 | (2 << 2));
-                _this->lower_ws_out = false;
-            }
-        }
-        else
-        {
             // The channel is the one of this microphone
-            if (_this->prev_ws != ws && ws == _this->channel_ws)
+            if (ws == _this->channel_ws)
             {
                 if (!_this->is_active)
                 {
@@ -487,7 +474,7 @@ void Microphone::sync(void *__this, int sck, int ws, int sdio)
                 _this->is_active = true;
 
                 // If the WS just changed, apply the delay before starting sending
-                _this->current_ws_delay = _this->ws_delay + 1;
+                _this->current_ws_delay = _this->ws_delay;
                 if (_this->current_ws_delay == 0)
                 {
                     _this->is_active = true;
@@ -505,6 +492,9 @@ void Microphone::sync(void *__this, int sck, int ws, int sdio)
                 }
             }
 
+        }
+        else
+        {
             if (_this->is_active && _this->pending_bits > 0)
             {
                 int data = _this->pop_data();
@@ -531,9 +521,16 @@ void Microphone::sync(void *__this, int sck, int ws, int sdio)
                 _this->i2s_itf.sync(2, 2, 2 | (2 << 2));
             }
 
-            _this->prev_ws = ws;
-
-
+            if (_this->pending_bits == 0 && _this->ws_out_itf.is_bound())
+            {
+                _this->ws_out_itf.sync(2, 1, 2 | (2 << 2));
+                _this->lower_ws_out = true;
+            }
+            else if ( _this->lower_ws_out)
+            {
+                _this->ws_out_itf.sync(2, 0, 2 | (2 << 2));
+                _this->lower_ws_out = false;
+            }
         }
     }
 
