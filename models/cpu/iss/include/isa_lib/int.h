@@ -27,6 +27,21 @@
 #define MAX(a,b) ((a)>=(b)?(a):(b))
 #define MIN(a,b) ((a)<=(b)?(a):(b))
 
+static inline unsigned int DoExtend(unsigned int R, unsigned int e, unsigned int m)
+
+{
+#ifdef OLD
+	return R;
+#else
+	if ((m+e)==31) return R;
+	else {
+		unsigned int S = (R>>(e+m)) & 0x1;
+		unsigned int Mask = S?(((unsigned int)-1)<<(e+m)):0;
+		return (R|Mask);
+	}
+#endif
+}
+
 static inline unsigned int getField(unsigned int val, int shift, int bits)
 {
   return (val >> shift) & ((1<<bits) - 1);
@@ -1655,7 +1670,7 @@ static inline unsigned int lib_flexfloat_sgnj(iss_cpu_state_t *s, unsigned int a
 #else
         unsigned int S_b = (b>>(m+e)) & 0x1;
         unsigned int R = (a & ((1<<(m+e))-1)) | ((S_b)<<(m+e));
-        return R;
+        return DoExtend(R, e, m);
 #endif
 }
 
@@ -1667,7 +1682,7 @@ static inline unsigned int lib_flexfloat_sgnjn(iss_cpu_state_t *s, unsigned int 
 #else
         unsigned int S_b = (b>>(m+e)) & 0x1;
         unsigned int R = (a & ((1<<(m+e))-1)) | ((!S_b)<<(m+e));
-        return R;
+        return DoExtend(R, e, m);
 #endif
 }
 
@@ -1680,7 +1695,7 @@ static inline unsigned int lib_flexfloat_sgnjx(iss_cpu_state_t *s, unsigned int 
         unsigned int S_a = (a>>(m+e)) & 0x1;
         unsigned int S_b = (b>>(m+e)) & 0x1;
         unsigned int R = (a & ((1<<(m+e))-1)) | ((S_a^S_b)<<(m+e));
-        return R;
+        return DoExtend(R, e, m);
 #endif
 }
 
@@ -1890,8 +1905,8 @@ static inline unsigned int lib_flexfloat_class(iss_cpu_state_t *s, unsigned int 
                         else          return (1<<8);            // Signaling nan
                 }
         }
+	return 0;
 #endif
-  return 0;
 }
 
 static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int a, unsigned int vlen, int width, uint8_t e, uint8_t m) {

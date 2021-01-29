@@ -129,9 +129,16 @@ uint_t flexfloat_get_bits(flexfloat_t *a)
             exp = 0;
     }
 
+#ifdef OLD
     return ((uint_t)flexfloat_sign(a) << (a->desc.exp_bits + a->desc.frac_bits))
            + ((uint_t)exp << a->desc.frac_bits)
            + frac;
+#else
+    uint_t Mask = ((uint_t)flexfloat_sign(a))?((uint_t)(-1)<<(a->desc.exp_bits + a->desc.frac_bits)):0;
+    return ((((uint_t)flexfloat_sign(a) << (a->desc.exp_bits + a->desc.frac_bits))
+           + ((uint_t)exp << a->desc.frac_bits)
+           + frac) | Mask);
+#endif
 }
 
 
