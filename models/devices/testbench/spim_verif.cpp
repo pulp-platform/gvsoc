@@ -287,7 +287,7 @@ void Spim_verif::cs_sync(int cs)
 
     if (cs == 0)
     {
-        if (state == STATE_READ_CMD || state == STATE_FULL_DUPLEX_CMD)
+        if ((state == STATE_READ_CMD || state == STATE_FULL_DUPLEX_CMD) && this->config.phase == 0)
         {
             exec_read();
         }
