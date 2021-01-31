@@ -1102,7 +1102,7 @@ void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *confi
 {
     if (!this->i2s_verif)
     {
-        this->trace.fatal("Trying to configure slot in inactive interface (itf: %d)", this->itf_id);
+        this->trace.fatal("Trying to start slot in inactive interface (itf: %d)", this->itf_id);
         return;
     }
 
