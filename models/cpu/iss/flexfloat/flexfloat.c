@@ -118,15 +118,15 @@ uint_t flexfloat_get_bits(flexfloat_t *a)
     uint_t frac = flexfloat_frac(a);
 
     if(exp == INF_EXP) exp = flexfloat_inf_exp(a->desc);
-    else if(exp <= 0 && frac != 0) {
-        frac = flexfloat_denorm_frac(a, exp);
-        exp = 0;
-    } else  if (exp<0 && frac == 0) {
+    else  if (exp<0 && frac == 0) {
             /* We have a subnormal here since we cannot represent exp (too small), set frac to 2^(frac_bits-exp+1) */
             if ((a->desc.frac_bits-exp-1) >= 0)
                 frac = 1<<(a->desc.frac_bits+exp-1);
             else frac = 0;
             exp = 0;
+    } else if(exp <= 0) {
+        frac = flexfloat_denorm_frac(a, exp);
+        exp = 0;
     }
 
 #ifdef OLD
@@ -157,8 +157,8 @@ bool flexfloat_round_bit(const flexfloat_t *a, int_fast16_t exp)
         return denorm & (UINT_C(0x1) << (NUM_BITS_FRAC - a->desc.frac_bits - 1));
 #else
         unsigned short shift = NUM_BITS_FRAC - a->desc.frac_bits - exp + 1;
-        uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC);
-        int RndB = ((Frac & (1<<(shift-1)))!=0);
+	uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC) | MASK_FRAC_MSB;
+        int RndB = ((Frac & ((uint_t)1<<(shift-1)))!=0);
         return (RndB!=0);
 #endif
     }
@@ -182,8 +182,8 @@ bool flexfloat_sticky_bit(const flexfloat_t *a, int_fast16_t exp)
                ( ((denorm & MASK_FRAC) == 0)  && (CAST_TO_INT(a->value)!=0) );
 #else
         unsigned short shift = NUM_BITS_FRAC - a->desc.frac_bits - exp + 1;
-        uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC);
-        int StiB = ((Frac & ((1<<(shift-1))-1)) != 0);
+	uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC) | MASK_FRAC_MSB;
+        int StiB = ((Frac & (((uint_t)1<<(shift-1))-1)) != 0);
         return (StiB!=0);
 
 #endif

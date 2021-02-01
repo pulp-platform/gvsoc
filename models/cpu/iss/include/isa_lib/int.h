@@ -72,7 +72,7 @@ static inline unsigned int lib_AND(iss_cpu_state_t *s, unsigned int a, unsigned 
 
 static inline uint64_t lib_SLL_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a << b; }
 static inline uint64_t lib_SRL_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a >> b; }
-static inline uint64_t lib_SRA_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return ((int32_t)a) >> b; }
+static inline int64_t lib_SRA_64(iss_cpu_state_t *s, int64_t a, uint64_t b) { return a >> b; }
 static inline uint64_t lib_ROR_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return (a >> b) | (a << (32 - b)); }
 static inline uint64_t lib_XOR_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a ^ b; }
 static inline uint64_t lib_OR_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a | b; }
@@ -137,10 +137,10 @@ static inline unsigned int lib_MSU(iss_cpu_state_t *s, unsigned int a, unsigned 
 static inline unsigned int lib_MMUL(iss_cpu_state_t *s, unsigned int a, unsigned int b, unsigned int c) { return - b * c; }
 
 
-static inline uint64_t lib_MACS_64(iss_cpu_state_t *s, int64_t a, int64_t b, int64_t c) { return a + b * c; }
-static inline uint64_t lib_MSUS_64(iss_cpu_state_t *s, int64_t a, int64_t b, int64_t c) { return a - b * c; }
-static inline uint64_t lib_MACU_64(iss_cpu_state_t *s, uint64_t a, uint64_t b, uint64_t c) { return a + b * c; }
-static inline uint64_t lib_MSUU_64(iss_cpu_state_t *s, uint64_t a, uint64_t b, uint64_t c) { return a - b * c; }
+static inline int64_t lib_MACS_64(iss_cpu_state_t *s, int64_t a, int32_t b, int32_t c) { return a + (int64_t)b * (int64_t)c; }
+static inline int64_t lib_MSUS_64(iss_cpu_state_t *s, int64_t a, int32_t b, int32_t c) { return a - (int64_t)b * (int64_t)c; }
+static inline uint64_t lib_MACU_64(iss_cpu_state_t *s, uint64_t a, uint32_t b, uint32_t c) { return a + (int64_t)b * (int64_t)c; }
+static inline uint64_t lib_MSUU_64(iss_cpu_state_t *s, uint64_t a, uint32_t b, uint32_t c) { return a - (int64_t)b * (int64_t)c; }
 
 #define SL(val) ((int16_t)((val) & 0xffff))
 #define SH(val) ((int16_t)(((val)>>16) & 0xffff))
@@ -312,7 +312,7 @@ static inline unsigned int lib_MMUL_ZH_SH(iss_cpu_state_t *s, unsigned int b, un
 
 static inline unsigned int lib_MULS(iss_cpu_state_t *s, int a, int b) { return a * b; }
 static inline unsigned int lib_MULU(iss_cpu_state_t *s, unsigned int a, unsigned int b) { return a * b; }
-static inline uint64_t lib_MULS_64(iss_cpu_state_t *s, int64_t a, int64_t b) { return a * b; }
+static inline int64_t lib_MULS_64(iss_cpu_state_t *s, int32_t a, int32_t b) { return (int64_t)a * (int64_t)b; }
 static inline uint64_t lib_MULU_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a * b; }
 static inline unsigned int lib_DIVS(iss_cpu_state_t *s, int a, int b) { if (b == 0) return 0; else return a / b; }
 static inline unsigned int lib_DIVU(iss_cpu_state_t *s, unsigned int a, unsigned int b) { if (b == 0) return 0; else return a / b; }
@@ -325,10 +325,10 @@ static inline unsigned int lib_AVGU(iss_cpu_state_t *s, unsigned int a, unsigned
 static inline int lib_AVGS(iss_cpu_state_t *s, int a, int b) { return (a + b) >> 1; }
 
 static inline uint64_t lib_MINU_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a < b ? a : b; }
-static inline int64_t lib_MINS_64(iss_cpu_state_t *s, int a, int64_t b) { return a < b ? a : b; }
+static inline int64_t lib_MINS_64(iss_cpu_state_t *s, int64_t a, int64_t b) { return a < b ? a : b; }
 static inline uint64_t lib_MAXU_64(iss_cpu_state_t *s, uint64_t a, uint64_t b) { return a > b ? a : b; }
-static inline int64_t lib_MAXS_64(iss_cpu_state_t *s, int a, int64_t b) { return a > b ? a : b; }
-static inline int64_t lib_ABS_64(iss_cpu_state_t *s, int64_t a) { return a >= 0 ? a : -a; }
+static inline int64_t lib_MAXS_64(iss_cpu_state_t *s, int64_t a, int64_t b) { return a > b ? a : b; }
+static inline int64_t lib_ABS_64(iss_cpu_state_t *s, int64_t a) { return a < 0 ? -a : a; }
 
 
 
@@ -394,7 +394,7 @@ static inline unsigned int lib_CNT(iss_cpu_state_t *s, unsigned int t) {
 
 static inline unsigned int lib_CNT_64(iss_cpu_state_t *s, uint64_t t) {
 #if 1
-  return __builtin_popcount(t);
+  return __builtin_popcount((t >> 32) & ((1l<<32)-1)) + __builtin_popcount(t & ((1l<<32)-1));
 #else
   uint64_t v = cpu->regs[pc->inReg[0]];
   v = v - ((v >> 1) & 0x55555555);
@@ -1401,7 +1401,7 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
   feclearexcept(FE_ALL_EXCEPT); \
   name(&ff_res, &ff_a, &ff_b); \
   update_fflags_fenv(s); \
-  return flexfloat_get_bits(&ff_res);
+  return DoExtend(flexfloat_get_bits(&ff_res), e, m);
 
 #define FF_EXEC_3(s, name, a, b, c, e, m) \
   FF_INIT_3(a, b, c, e, m) \
@@ -1490,7 +1490,7 @@ static inline unsigned int lib_flexfloat_add(iss_cpu_state_t *s, unsigned int a,
 }
 
 static inline unsigned int lib_flexfloat_sub(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_EXEC_2(s, ff_sub, a, b, e, m)
+  FF_EXEC_2(s, ff_sub, a, b, e, m);
 }
 
 static inline unsigned int lib_flexfloat_mul(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
