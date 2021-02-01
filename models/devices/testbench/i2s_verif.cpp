@@ -56,6 +56,14 @@ private:
 };
 
 
+I2s_verif::~I2s_verif()
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "Closing I2S verif\n");
+    this->engine->dequeue(this);
+    this->itf->sync(2, 2, (2 << 2) | 2);
+}
+
+
 I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testbench_i2s_verif_config_t *config)
   : vp::time_engine_client(NULL)
 {

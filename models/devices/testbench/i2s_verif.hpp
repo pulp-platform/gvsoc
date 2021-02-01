@@ -31,6 +31,7 @@ class I2s_verif : public vp::time_engine_client
 {
 public:
     I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testbench_i2s_verif_config_t *config);
+    ~I2s_verif();
 
     void start(pi_testbench_i2s_verif_start_config_t *config);
     void slot_setup(pi_testbench_i2s_verif_slot_config_t *config);

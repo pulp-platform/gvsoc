@@ -669,14 +669,8 @@ void I2s_group::rx_edge(int sck, int ws, int sd)
 
     dpi_external_edge(this->sdi_callback->handle, sd & 3);
     dpi_external_edge(this->sdo_callback->handle, (sd >> 2) & 3);
-    if (sck != 2)
-    {
-        dpi_external_edge(this->sck_callback->handle, sck);
-    }
-    if (ws != 2)
-    {
-        dpi_external_edge(this->ws_callback->handle, ws);
-    }
+    dpi_external_edge(this->sck_callback->handle, sck);
+    dpi_external_edge(this->ws_callback->handle, ws);
 }
 
 
