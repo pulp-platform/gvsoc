@@ -416,38 +416,46 @@ void Slot::start_frame()
         int sign_extend = (this->config_rx.format >> 2) & 1;
         int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
 
+        bool changed = false;
+
         if (!msb_first)
         {
+            changed = true;
             uint32_t value = 0;
             for (int i=0; i<this->config_rx.word_size; i++)
             {
-                value = (value << 1) | (this->rx_current_value & 1);
-                this->rx_current_value >>= 1;
+                value = (value << 1) | (this->rx_pending_value & 1);
+                this->rx_pending_value >>= 1;
             }
-            this->rx_current_value = value;
+            this->rx_pending_value = value;
         }
-
 
         if (dummy_cycles)
         {
+            changed = true;
             if (left_align)
             {
                 unsigned int sign_value = 0;
-                if (!msb_first && sign_extend && (this->rx_current_value & 1))
+                if (!msb_first && sign_extend && (this->rx_pending_value & 1))
                 {
                     sign_value = (1 << dummy_cycles) - 1;
                 }
-                this->rx_current_value = (this->rx_current_value << dummy_cycles) | sign_value;
+                this->rx_pending_value = (this->rx_pending_value << dummy_cycles) | sign_value;
             }
             else
             {
                 unsigned int sign_value = 0;
-                if (msb_first && sign_extend && ((this->rx_current_value >> (this->config_rx.word_size - 1)) & 1))
+                if (msb_first && sign_extend && ((this->rx_pending_value >> (this->config_rx.word_size - 1)) & 1))
                 {
                     sign_value = ~((1 << this->config_rx.word_size) - 1);
                 }
-                this->rx_current_value = (this->rx_current_value & (1 << this->config_rx.word_size) - 1) | sign_value;
+                this->rx_pending_value = (this->rx_pending_value & (1 << this->config_rx.word_size) - 1) | sign_value;
             }
+        }
+
+        if (changed)
+        {
+            this->trace.msg(vp::trace::LEVEL_DEBUG, "Adapted sample to format (sample: 0x%x)\n", this->rx_pending_value);
         }
 
 
