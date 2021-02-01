@@ -287,7 +287,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
 
                     this->trace.msg(vp::trace::LEVEL_TRACE, "I2S output data (sdi: 0x%x)\n", this->data & 3);
-                    this->itf->sync(this->clk, 2, this->data);
+                    this->itf->sync(this->clk, this->ws_value, this->data);
                 }
             }
 
@@ -589,7 +589,7 @@ int Slot::pdm_get()
 int64_t I2s_verif::exec()
 {
     this->clk ^= 1;
-    this->itf->sync(this->clk, 2, this->data);
+    this->itf->sync(this->clk, this->ws_value, this->data);
 
     return this->clk_period;
 }
