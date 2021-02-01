@@ -1401,7 +1401,7 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
   feclearexcept(FE_ALL_EXCEPT); \
   name(&ff_res, &ff_a, &ff_b); \
   update_fflags_fenv(s); \
-  return flexfloat_get_bits(&ff_res);
+  return DoExtend(flexfloat_get_bits(&ff_res), e, m);
 
 #define FF_EXEC_3(s, name, a, b, c, e, m) \
   FF_INIT_3(a, b, c, e, m) \
@@ -1490,7 +1490,7 @@ static inline unsigned int lib_flexfloat_add(iss_cpu_state_t *s, unsigned int a,
 }
 
 static inline unsigned int lib_flexfloat_sub(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_EXEC_2(s, ff_sub, a, b, e, m)
+  FF_EXEC_2(s, ff_sub, a, b, e, m);
 }
 
 static inline unsigned int lib_flexfloat_mul(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
