@@ -358,6 +358,11 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
     {
         ::memcpy(&this->start_config_rx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
 
+        this->start_config_rx.rx_iter.incr_end &= (1 << this->config_rx.word_size) - 1;
+
+        if (this->start_config_rx.rx_iter.incr_value >= this->start_config_rx.rx_iter.incr_end)
+            this->start_config_rx.rx_iter.incr_value = 0;
+
         this->rx_started = true;
         this->rx_current_value = this->start_config_rx.rx_iter.incr_start;
         this->rx_pending_bits = 0;
@@ -398,6 +403,14 @@ void Slot::start_frame()
         this->rx_pending_bits = this->i2s->config.word_size;
         this->rx_pending_value = this->rx_current_value;
         this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting RX sample (sample: 0x%x)\n", this->rx_pending_value);
+
+
+        int msb_first = (this->config_rx.format >> 0) & 1;
+        int left_align = (this->config_rx.format >> 1) & 1;
+        int sign_extend = (this->config_rx.format >> 2) & 1;
+        int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
+
+
         if (this->start_config_rx.rx_iter.incr_end - this->rx_current_value <= this->start_config_rx.rx_iter.incr_value)
         {
             this->rx_current_value = this->start_config_rx.rx_iter.incr_start;
@@ -411,13 +424,8 @@ void Slot::start_frame()
             this->start_config_rx.rx_iter.nb_samples--;
         }
 
-        int msb_first = (this->config_rx.format >> 0) & 1;
-        int left_align = (this->config_rx.format >> 1) & 1;
-        int sign_extend = (this->config_rx.format >> 2) & 1;
-        int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
 
         bool changed = false;
-
         if (!msb_first)
         {
             changed = true;
@@ -430,6 +438,21 @@ void Slot::start_frame()
             this->rx_pending_value = value;
         }
 
+        if (dummy_cycles)
+        {
+            changed = true;
+
+            if (left_align)
+            {
+                this->rx_pending_value = this->rx_pending_value << dummy_cycles;
+            }
+            else
+            {
+                this->rx_pending_value = this->rx_pending_value & (1 << this->config_rx.word_size) - 1;
+            }
+        }
+
+#if 0
         if (dummy_cycles)
         {
             changed = true;
@@ -452,12 +475,15 @@ void Slot::start_frame()
                 this->rx_pending_value = (this->rx_pending_value & (1 << this->config_rx.word_size) - 1) | sign_value;
             }
         }
+#endif
 
         if (changed)
         {
             this->trace.msg(vp::trace::LEVEL_DEBUG, "Adapted sample to format (sample: 0x%x)\n", this->rx_pending_value);
+
         }
 
+        
 
     }
 
@@ -486,38 +512,59 @@ void Slot::send_data(int sd)
                 int sign_extend = (this->config_tx.format >> 2) & 1;
                 int dummy_cycles = this->i2s->config.word_size - this->config_tx.word_size;
 
-                if (!msb_first)
-                {
-                    uint32_t value = 0;
-                    for (int i=0; i<this->config_tx.word_size; i++)
-                    {
-                        value = (value << 1) | (this->tx_pending_value & 1);
-                        this->tx_pending_value >>= 1;
-                    }
-                    this->tx_pending_value = value;
-                }
+                //fprintf(stderr, "Captured sample %x\n", this->tx_pending_value);
 
                 if (dummy_cycles)
                 {
-                    if (left_align)
+                    if (msb_first)
                     {
-                        unsigned int sign_value = 0;
-                        if (!msb_first && sign_extend && (this->tx_pending_value & 1))
+                        if (left_align)
                         {
-                            sign_value = (1 << dummy_cycles) - 1;
+                            this->tx_pending_value >>= dummy_cycles;
                         }
-                        this->tx_pending_value = (this->tx_pending_value << dummy_cycles) | sign_value;
+                        else
+                        {
+                        }
                     }
                     else
                     {
-                        unsigned int sign_value = 0;
-                        if (msb_first && sign_extend && ((this->tx_pending_value >> (this->config_tx.word_size - 1)) & 1))
+                        if (left_align)
                         {
-                            sign_value = ~((1 << this->config_tx.word_size) - 1);
+                            uint32_t value = 0;
+                            for (int i=0; i<this->i2s->config.word_size; i++)
+                            {
+                                value = (value << 1) | (this->tx_pending_value & 1);
+                                this->tx_pending_value >>= 1;
+                            }
+                            this->tx_pending_value = value;
                         }
-                        this->tx_pending_value = (this->tx_pending_value & (1 << this->config_tx.word_size) - 1) | sign_value;
+                        else
+                        {
+                            uint32_t value = 0;
+                            for (int i=0; i<this->config_tx.word_size; i++)
+                            {
+                                value = (value << 1) | (this->tx_pending_value & 1);
+                                this->tx_pending_value >>= 1;
+                            }
+                            this->tx_pending_value = value;
+                        }
                     }
                 }
+                else
+                {
+                    if (!msb_first)
+                    {
+                        uint32_t value = 0;
+                        for (int i=0; i<this->config_tx.word_size; i++)
+                        {
+                            value = (value << 1) | (this->tx_pending_value & 1);
+                            this->tx_pending_value >>= 1;
+                        }
+                        this->tx_pending_value = value;
+                    }
+                }
+
+                //fprintf(stderr, "Reordered sample %x\n", this->tx_pending_value);
 
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Writing sample (value: 0x%lx)\n", this->tx_pending_value);
                 fprintf(this->outfile, "0x%x\n", this->tx_pending_value);
