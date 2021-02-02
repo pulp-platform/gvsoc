@@ -323,7 +323,7 @@ void Nina_b112::tx_send_buffer(std::string buffer)
     }
 }
 
-void Nina_b112::tx_check_byte()
+void Nina_b112::tx_check_pending_byte()
 {
     if (!this->tx_pending_bytes.empty() && !this->tx_sampling_event->is_enqueued())
     {
@@ -342,7 +342,7 @@ void Nina_b112::tx_send_byte(uint8_t byte)
     this->tx_pending_bytes.push(byte);
     //this->tx_state = UART_TX_STATE_START;
     this->tx_clock_cfg.set_frequency(this->tx_baudrate*2);
-    this->tx_check_byte();
+    this->tx_check_pending_byte();
 }
 
 
