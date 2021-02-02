@@ -1725,7 +1725,7 @@ static inline unsigned int lib_flexfloat_min(iss_cpu_state_t *s, unsigned int a,
         unsigned int Nan_S = (((1<<e)-1)<<m)|((unsigned int)1<<(m-2));
 
         if (Nan_a && Nan_b) {
-                if (Nan_a==2 || Nan_b==2) return Nan_S; else return Nan_Q;
+                if (Nan_a==2 || Nan_b==2) return Nan_Q; else return Nan_Q;
         } else if (Nan_a) return b;
         else if (Nan_b) return a;
         FF_EXEC_2(s, ff_min, a, b, e, m);
@@ -1743,7 +1743,7 @@ static inline unsigned int lib_flexfloat_max(iss_cpu_state_t *s, unsigned int a,
         unsigned int Nan_S = (((1<<e)-1)<<m)|((unsigned int)1<<(m-2));
 
         if (Nan_a && Nan_b) {
-                if (Nan_a==2 || Nan_b==2) return Nan_S; else return Nan_Q;
+                if (Nan_a==2 || Nan_b==2) return Nan_Q; else return Nan_Q;
         } else if (Nan_a) return b;
         else if (Nan_b) return a;
         FF_EXEC_2(s, ff_max, a, b, e, m);

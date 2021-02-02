@@ -157,6 +157,7 @@ bool flexfloat_round_bit(const flexfloat_t *a, int_fast16_t exp)
         return denorm & (UINT_C(0x1) << (NUM_BITS_FRAC - a->desc.frac_bits - 1));
 #else
         unsigned short shift = NUM_BITS_FRAC - a->desc.frac_bits - exp + 1;
+	if (shift>=NUM_BITS) return 0;
 	uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC) | MASK_FRAC_MSB;
         int RndB = ((Frac & ((uint_t)1<<(shift-1)))!=0);
         return (RndB!=0);
@@ -182,6 +183,7 @@ bool flexfloat_sticky_bit(const flexfloat_t *a, int_fast16_t exp)
                ( ((denorm & MASK_FRAC) == 0)  && (CAST_TO_INT(a->value)!=0) );
 #else
         unsigned short shift = NUM_BITS_FRAC - a->desc.frac_bits - exp + 1;
+	if (shift>=NUM_BITS) return 0;
 	uint_t Frac = (CAST_TO_INT(a->value) & MASK_FRAC) | MASK_FRAC_MSB;
         int StiB = ((Frac & (((uint_t)1<<(shift-1))-1)) != 0);
         return (StiB!=0);
