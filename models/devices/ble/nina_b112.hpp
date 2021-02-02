@@ -47,6 +47,15 @@ typedef enum
      //NINA_B112_OPERATING_MODE_EXTENDED_DATA,
 } nina_b112_operating_mode_e;
 
+typedef struct
+{
+    int baudrate;
+    int data_bits;
+    int stop_bits;
+    bool parity;
+    bool flow_control;
+} nina_b112_uart_params_t;
+
 /**
  * \brief ublox nina-b112 basic model
  *
@@ -101,11 +110,11 @@ private:
     static void sync_full(void *__this, int data, int clk, int rtr);
 
     /**
-     * \brief Update the CTS pin value
+     * \brief Update the RTR pin value
      *
-     * \param CTS new CTS value
+     * \param RTR new RTR value
      */
-    void set_cts(int cts);
+    void set_rtr(int rtr);
 
     /**
      * \brief start sampling on UART RX
@@ -222,15 +231,15 @@ private:
     static void init_handler(void *__this, vp::clock_event *event);
 
     /**
-     * \brief CTS end handler
+     * \brief RTR end handler
      *
      * This handler is called when we are done delaying incoming data
-     * and need to put CTS back to 0.
+     * and need to put RTR back to 0.
      *
      * \param ___this pointer to the model
      * \param event event triggering this handler
      */
-    static void cts_end_handler(void *__this, vp::clock_event *event);
+    static void rtr_end_handler(void *__this, vp::clock_event *event);
 
     /* ====== */
     /* Fields */
@@ -252,7 +261,7 @@ private:
     vp::uart_slave    uart_itf;
 
     vp::clock_event *init_event;
-    vp::clock_event *cts_event;
+    vp::clock_event *rtr_event;
 
     /* UART RX */
     uart_rx_state_e   rx_state;
@@ -268,6 +277,7 @@ private:
     /* UART TX */
     uart_tx_state_e     tx_state;
     vp::clock_event*    tx_sampling_event;
+    //TODO implement of queue of buffer (UART params changes occurs between transfers)
     std::queue<uint8_t> tx_pending_bytes;
     uint8_t             tx_current_pending_byte;
     int                 tx_pending_bits;
@@ -278,11 +288,11 @@ private:
     int                 tx_parity;
     int                 tx_parity_en;
 
-    /* cts fields */
-    bool cts_enabled;
-    bool cts_trigger;
-    int  cts_duration;
-    int  cts_bit;
+    /* rtr fields */
+    bool rtr_enabled;
+    bool rtr_trigger;
+    int  rtr_duration;
+    int  rtr_bit;
 
     /* behavior fields */
     nina_b112_operating_mode_e operating_mode;

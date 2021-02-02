@@ -31,7 +31,7 @@ void Nina_b112::sync_full(void *__this, int data, int clk, int rtr)
 {
     Nina_b112 *_this = (Nina_b112 *)__this;
 
-    _this->rx_rtr = rtr;
+    _this->tx_cts = rtr;
 
     if (_this->rx_state == UART_RX_STATE_WAIT_START && _this->rx_prev_data == 1 && data == 0)
     {
@@ -155,11 +155,11 @@ void Nina_b112::rx_handle_sampling()
                 this->rx_handle_byte(this->rx_byte);
             }
 
-            if (this->cts_trigger && (this->cts_bit == this->rx_nb_bits))
+            if (this->rtr_trigger && (this->rtr_bit == this->rx_nb_bits))
             {
                 this->trace.msg(vp::trace::LEVEL_TRACE, "triggering cts\n", this->rx_prev_data);
-                this->rx_clock->enqueue(this->cts_event, this->cts_duration);
-                this->set_cts(1);
+                this->rx_clock->enqueue(this->rtr_event, this->rtr_duration);
+                this->set_rtr(1);
             }
 
             break;
@@ -174,13 +174,13 @@ void Nina_b112::rx_handle_sampling()
                 this->rx_stop_sampling();
 
                 /* decide if next byte will trigger cts */
-                if (this->cts_enabled && (bytes_counter > 10))
+                if (this->rtr_enabled && (bytes_counter > 10))
                 {
                     this->trace.msg(vp::trace::LEVEL_INFO, "triggering cts on next byte\n");
                     bytes_counter = 0;
-                    this->cts_trigger = true;
-                    this->cts_bit = ((this->cts_bit + 1) % 8) + 1;
-                    this->cts_duration = 100;
+                    this->rtr_trigger = true;
+                    this->rtr_bit = ((this->rtr_bit + 1) % 8) + 1;
+                    this->rtr_duration = 100;
                 }
 
             }
@@ -202,11 +202,11 @@ void Nina_b112::rx_sampling_handler(void *__this, vp::clock_event *event)
 }
 
 
-void Nina_b112::set_cts(int cts)
+void Nina_b112::set_rtr(int rtr)
 {
-    this->tx_cts = cts;
+    this->rx_rtr = rtr;
     //this->trace.msg(vp::trace::LEVEL_TRACE, "SET CTS\n");
-    this->uart_itf.sync_full(this->tx_bit, 2, this->tx_cts);
+    this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rtr);
 }
 
 
@@ -221,6 +221,8 @@ void Nina_b112::tx_send_bit()
 {
     int bit = 1;
     static int bits_sent;
+
+    //TODO need to implement CTS support
 
     switch (this->tx_state)
     {
@@ -304,9 +306,10 @@ void Nina_b112::tx_send_bit()
 
     /* send data bit */
     this->tx_bit = bit;
-    this->uart_itf.sync_full(this->tx_bit, 2, this->tx_cts);
+    this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rtr);
 
     /* always reenqueue */
+    //TODO remove this infinite reenqueue
     this->tx_clock->reenqueue(this->tx_sampling_event, 2);
 }
 
@@ -379,7 +382,7 @@ int Nina_b112::build()
     this->new_slave_port(this, "uart", &this->uart_itf);
 
     this->init_event = this->event_new(Nina_b112::init_handler);
-    this->cts_event = this->event_new(Nina_b112::cts_end_handler);
+    this->rtr_event = this->event_new(Nina_b112::rtr_end_handler);
 
     this->rx_sampling_event = this->event_new(Nina_b112::rx_sampling_handler);
     this->rx_state = UART_RX_STATE_WAIT_START;
@@ -392,11 +395,11 @@ int Nina_b112::build()
     this->tx_parity_en = 0;
     this->tx_bit = 1;
 
-    this->tx_cts = 0; /* we are ready to receive */
-    this->cts_enabled = true;
-    this->cts_trigger =false;
-    this->cts_duration = 0;
-    this->cts_bit = 0;
+    this->rx_rtr = 0; /* we are ready to receive */
+    this->rtr_enabled = true;
+    this->rtr_trigger =false;
+    this->rtr_duration = 0;
+    this->rtr_bit = 0;
 
     this->operating_mode = NINA_B112_OPERATING_MODE_COMMAND;
 
@@ -406,7 +409,6 @@ int Nina_b112::build()
 void Nina_b112::start()
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "starting nina b112 model\n");
-    //this->set_cts(0);
 
     /* Initialize tx with 1 */
     this->uart_itf.sync_full(1, 2, 2);
@@ -421,13 +423,13 @@ void Nina_b112::init_handler(void *__this, vp::clock_event *event)
     _this->uart_itf.sync_full(1, 2, 0);
 }
 
-void Nina_b112::cts_end_handler(void *__this, vp::clock_event *event)
+void Nina_b112::rtr_end_handler(void *__this, vp::clock_event *event)
 {
     Nina_b112 *_this = (Nina_b112 *)__this;
 
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "cts_end_handler\n");
-    _this->cts_trigger = false;
-    _this->set_cts(0);
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "rtr_end_handler\n");
+    _this->rtr_trigger = false;
+    _this->set_rtr(0);
 }
 
 
