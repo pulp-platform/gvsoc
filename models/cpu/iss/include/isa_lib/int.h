@@ -1401,7 +1401,7 @@ static inline unsigned int lib_VEC_PACK_SC_HL_16(iss_cpu_state_t *s, unsigned in
   feclearexcept(FE_ALL_EXCEPT); \
   name(&ff_res, &ff_a, &ff_b); \
   update_fflags_fenv(s); \
-  return DoExtend(flexfloat_get_bits(&ff_res), e, m);
+  return flexfloat_get_bits(&ff_res);
 
 #define FF_EXEC_3(s, name, a, b, c, e, m) \
   FF_INIT_3(a, b, c, e, m) \
@@ -1490,7 +1490,7 @@ static inline unsigned int lib_flexfloat_add(iss_cpu_state_t *s, unsigned int a,
 }
 
 static inline unsigned int lib_flexfloat_sub(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  FF_EXEC_2(s, ff_sub, a, b, e, m);
+  FF_EXEC_2(s, ff_sub, a, b, e, m)
 }
 
 static inline unsigned int lib_flexfloat_mul(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
@@ -1831,6 +1831,7 @@ static inline unsigned int lib_flexfloat_fmv_ff_x(iss_cpu_state_t *s, unsigned i
 }
 
 static inline unsigned int lib_flexfloat_eq(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  if (IsNan(a, e, m)) return 0;
   FF_INIT_2(a, b, e, m)
   feclearexcept(FE_ALL_EXCEPT);
   int32_t res = ff_eq(&ff_a, &ff_b);
@@ -1838,7 +1839,17 @@ static inline unsigned int lib_flexfloat_eq(iss_cpu_state_t *s, unsigned int a, 
   return res;
 }
 
+static inline unsigned int lib_flexfloat_ne(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  if (IsNan(a, e, m)) return 0;
+  FF_INIT_2(a, b, e, m)
+  feclearexcept(FE_ALL_EXCEPT);
+  int32_t res = (ff_eq(&ff_a, &ff_b)==0);
+  update_fflags_fenv(s);
+  return res;
+}
+
 static inline unsigned int lib_flexfloat_lt(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  if (IsNan(a, e, m) || IsNan(b, e, m)) return 0;
   FF_INIT_2(a, b, e, m)
   feclearexcept(FE_ALL_EXCEPT);
   int32_t res = ff_lt(&ff_a, &ff_b);
@@ -1846,10 +1857,29 @@ static inline unsigned int lib_flexfloat_lt(iss_cpu_state_t *s, unsigned int a, 
   return res;
 }
 
+static inline unsigned int lib_flexfloat_ge(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  if (IsNan(a, e, m) || IsNan(b, e, m)) return 0;
+  FF_INIT_2(a, b, e, m)
+  feclearexcept(FE_ALL_EXCEPT);
+  int32_t res = (ff_lt(&ff_a, &ff_b)==0);
+  update_fflags_fenv(s);
+  return res;
+}
+
 static inline unsigned int lib_flexfloat_le(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  if (IsNan(a, e, m) || IsNan(b, e, m)) return 0;
   FF_INIT_2(a, b, e, m)
   feclearexcept(FE_ALL_EXCEPT);
   int32_t res = ff_le(&ff_a, &ff_b);
+  update_fflags_fenv(s);
+  return res;
+}
+
+static inline unsigned int lib_flexfloat_gt(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
+  if (IsNan(a, e, m) || IsNan(b, e, m)) return 0;
+  FF_INIT_2(a, b, e, m)
+  feclearexcept(FE_ALL_EXCEPT);
+  int32_t res = (ff_le(&ff_a, &ff_b)==0);
   update_fflags_fenv(s);
   return res;
 }
