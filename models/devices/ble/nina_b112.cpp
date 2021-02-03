@@ -17,8 +17,6 @@
 
 #include "nina_b112.hpp"
 
-#include <stdio.h>
-
 #include <regex>
 
 Nina_b112::Nina_b112(js::config *config)
@@ -48,11 +46,11 @@ void Nina_b112::sync_full(void *__this, int data, int clk, int rtr)
 
 void Nina_b112::rx_start_sampling()
 {
-    this->trace.msg(vp::trace::LEVEL_TRACE, "Start RX sampling (baudrate: %d)\n", this->rx_baudrate);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Start RX sampling (baudrate: %d)\n", this->uart_cfg.baudrate);
 
     // We set the frequency to twice the baudrate to be able sampling in the
     // middle of the cycle
-    this->rx_clock_cfg.set_frequency(this->rx_baudrate*2);
+    this->rx_clock_cfg.set_frequency(this->uart_cfg.baudrate * 2);
 
     this->rx_sampling = 1;
 
@@ -81,7 +79,7 @@ void Nina_b112::rx_handle_byte(uint8_t byte)
     input_buffer.push_back((char)byte);
     //this->trace.msg(vp::trace::LEVEL_TRACE, "Input_buffer (size: %d): %s\n", input_buffer.size(), input_buffer.c_str());
 
-    switch(this->operating_mode)
+    switch(this->behavior.operating_mode)
     {
         case NINA_B112_OPERATING_MODE_COMMAND:
             {
@@ -144,14 +142,23 @@ void Nina_b112::rx_handle_sampling()
     switch (this->rx_state)
     {
         case UART_RX_STATE_GET_DATA:
+        {
             this->trace.msg(vp::trace::LEVEL_TRACE, "Received data bit (data: %d)\n", this->rx_prev_data);
             this->rx_byte = (this->rx_byte >> 1) | (this->rx_prev_data << 7);
             this->rx_nb_bits++;
-            if (this->rx_nb_bits == 8)
+            if (this->rx_nb_bits == this->uart_cfg.data_bits)
             {
+                /* a whole word has been received */
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Sampled RX byte (value: 0x%x)\n", this->rx_byte);
                 this->trace.msg(vp::trace::LEVEL_TRACE, "Waiting for stop bit\n");
-                this->rx_state = UART_RX_STATE_WAIT_STOP;
+                if (this->uart_cfg.parity != NINA_B112_UART_PARITY_NONE)
+                {
+                    this->rx_state = UART_RX_STATE_PARITY;
+                }
+                else
+                {
+                    this->rx_state = UART_RX_STATE_WAIT_STOP;
+                }
                 this->rx_handle_byte(this->rx_byte);
             }
 
@@ -163,9 +170,18 @@ void Nina_b112::rx_handle_sampling()
             }
 
             break;
+        }
+
+        case UART_RX_STATE_PARITY:
+        {
+            this->trace.msg(vp::trace::LEVEL_TRACE, "Received parity bit (data: %d)\n", this->rx_prev_data);
+            this->rx_state = UART_RX_STATE_WAIT_STOP;
+
+            break;
+        }
 
         case UART_RX_STATE_WAIT_STOP:
-
+        {
             if (this->rx_prev_data == 1)
             {
                 bytes_counter++;
@@ -185,6 +201,7 @@ void Nina_b112::rx_handle_sampling()
 
             }
             break;
+        }
     }
 }
 
@@ -219,8 +236,16 @@ void Nina_b112::tx_sampling_handler(void *__this, vp::clock_event *event)
 
 void Nina_b112::tx_send_bit()
 {
-    int bit = 1;
+    // TODO move static variables to an object or struct
+    static nina_b112_uart_cfg_t tx_uart_cfg;
     static int bits_sent;
+
+    static int tx_parity;
+    static int tx_current_stop_bits;
+    static int tx_pending_bits;
+    static int tx_current_pending_byte;
+
+    int bit = 1;
 
     //TODO need to implement CTS support
 
@@ -228,6 +253,11 @@ void Nina_b112::tx_send_bit()
     {
         case UART_TX_STATE_IDLE:
         {
+            /* update local baudrate parameters */
+            /* parameters should only be updated after sending a response */
+            tx_uart_cfg = this->uart_cfg;
+            this->tx_clock_cfg.set_frequency(tx_uart_cfg.baudrate * 2);
+
             if(!this->tx_pending_bytes.empty())
             {
                 this->trace.msg(vp::trace::LEVEL_TRACE, "Initiating new byte transfer\n");
@@ -241,13 +271,13 @@ void Nina_b112::tx_send_bit()
             if(!this->tx_pending_bytes.empty())
             {
                 this->trace.msg(vp::trace::LEVEL_TRACE, "Sending start bit\n");
-                this->tx_parity = 0;
+                tx_parity = 0;
                 this->tx_state = UART_TX_STATE_DATA;
-                this->tx_current_stop_bits = 1;
+                tx_current_stop_bits = 1;
 
-                this->tx_current_pending_byte = this->tx_pending_bytes.front();
+                tx_current_pending_byte = this->tx_pending_bytes.front();
                 this->tx_pending_bytes.pop();
-                this->tx_pending_bits = 8;
+                tx_pending_bits = tx_uart_cfg.data_bits;
 
                 bit = 0;
                 bits_sent = 0;
@@ -257,19 +287,19 @@ void Nina_b112::tx_send_bit()
 
         case UART_TX_STATE_DATA:
         {
-            if (this->tx_pending_bits > 0)
+            if (tx_pending_bits > 0)
             {
                 bits_sent++;
-                bit = this->tx_current_pending_byte & 1;
+                bit = tx_current_pending_byte & 1;
                 this->trace.msg(vp::trace::LEVEL_TRACE, "Sending data bit #%d (value: %d)\n", bits_sent, bit);
-                this->tx_current_pending_byte >>= 1;
-                this->tx_pending_bits -= 1;
-                this->tx_parity ^= bit;
+                tx_current_pending_byte >>= 1;
+                tx_pending_bits -= 1;
+                tx_parity ^= bit;
 
             }
             else
             {
-                if (this->tx_parity_en)
+                if (tx_uart_cfg.parity != NINA_B112_UART_PARITY_NONE)
                 {
                     this->tx_state = UART_TX_STATE_PARITY;
                 }
@@ -283,7 +313,7 @@ void Nina_b112::tx_send_bit()
 
         case UART_TX_STATE_PARITY:
         {
-            bit = this->tx_parity;
+            bit = tx_parity;
             this->trace.msg(vp::trace::LEVEL_TRACE, "Sending parity bit (value: %d)\n", bit);
             this->tx_state = UART_TX_STATE_STOP;
             break;
@@ -293,9 +323,9 @@ void Nina_b112::tx_send_bit()
         {
             this->trace.msg(vp::trace::LEVEL_TRACE, "Sending stop bit\n", this->rx_prev_data);
             bit = 1;
-            this->tx_current_stop_bits--;
+            tx_current_stop_bits--;
 
-            if (this->tx_current_stop_bits == 0)
+            if (tx_current_stop_bits == 0)
             {
                 this->tx_state = UART_TX_STATE_IDLE;
             }
@@ -309,8 +339,10 @@ void Nina_b112::tx_send_bit()
     this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rtr);
 
     /* always reenqueue */
-    //TODO remove this infinite reenqueue
-    this->tx_clock->reenqueue(this->tx_sampling_event, 2);
+    if(!(this->tx_pending_bytes.empty() && this->tx_state == UART_TX_STATE_IDLE))
+    {
+        this->tx_clock->reenqueue(this->tx_sampling_event, 2);
+    }
 }
 
 /**
@@ -343,8 +375,6 @@ void Nina_b112::tx_send_byte(uint8_t byte)
 {
     this->trace.msg(vp::trace::LEVEL_DEBUG, "Sending byte (value: 0x%x)\n", byte);
     this->tx_pending_bytes.push(byte);
-    //this->tx_state = UART_TX_STATE_START;
-    this->tx_clock_cfg.set_frequency(this->tx_baudrate*2);
     this->tx_check_pending_byte();
 }
 
@@ -368,6 +398,7 @@ int Nina_b112::build()
 {
     traces.new_trace("trace", &trace, vp::DEBUG);
 
+    /* Initialize clocks and ports */
     this->rx_clock_itf.set_reg_meth(&Nina_b112::rx_clk_reg);
     this->new_slave_port(this, "rx_clock", &this->rx_clock_itf);
 
@@ -381,18 +412,16 @@ int Nina_b112::build()
     this->uart_itf.set_sync_full_meth(&Nina_b112::sync_full);
     this->new_slave_port(this, "uart", &this->uart_itf);
 
+    /* Initialize events */
     this->init_event = this->event_new(Nina_b112::init_handler);
     this->rtr_event = this->event_new(Nina_b112::rtr_end_handler);
-
     this->rx_sampling_event = this->event_new(Nina_b112::rx_sampling_handler);
+    this->tx_sampling_event = this->event_new(Nina_b112::tx_sampling_handler);
+
     this->rx_state = UART_RX_STATE_WAIT_START;
-    this->rx_baudrate = 115200;
     this->rx_prev_data = 1;
 
-    this->tx_sampling_event = this->event_new(Nina_b112::tx_sampling_handler);
     this->tx_state = UART_TX_STATE_IDLE;
-    this->tx_baudrate = 115200;
-    this->tx_parity_en = 0;
     this->tx_bit = 1;
 
     this->rx_rtr = 0; /* we are ready to receive */
@@ -401,7 +430,16 @@ int Nina_b112::build()
     this->rtr_duration = 0;
     this->rtr_bit = 0;
 
-    this->operating_mode = NINA_B112_OPERATING_MODE_COMMAND;
+    /* Initialize UART configuration */
+    this->uart_cfg.baudrate = 115200;
+    this->uart_cfg.data_bits = 8;
+    this->uart_cfg.stop_bits = 1;
+    this->uart_cfg.parity = NINA_B112_UART_PARITY_NONE;
+    this->uart_cfg.flow_control = true;
+
+    /* Initialize behavior */
+    this->behavior.operating_mode = NINA_B112_OPERATING_MODE_COMMAND;
+    this->behavior.local_name = std::string("Bluetooth Device");
 
     return 0;
 }

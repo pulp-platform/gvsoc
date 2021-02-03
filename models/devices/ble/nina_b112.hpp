@@ -37,6 +37,7 @@ typedef enum
 {
   UART_RX_STATE_WAIT_START,
   UART_RX_STATE_GET_DATA,
+  UART_RX_STATE_PARITY,
   UART_RX_STATE_WAIT_STOP
 } uart_rx_state_e;
 
@@ -47,14 +48,80 @@ typedef enum
      //NINA_B112_OPERATING_MODE_EXTENDED_DATA,
 } nina_b112_operating_mode_e;
 
+typedef enum
+{
+    NINA_B112_UART_PARITY_NONE,
+    NINA_B112_UART_PARITY_EVEN,
+    //NINA_B112_UART_PARITY_ODD,
+} nina_b112_uart_parity_e;
+
+/**
+ * \brief structure containing NINA B112 UART parameters
+ */
 typedef struct
 {
+    /**
+     * \brief UART baudrate
+     *
+     * supported baudrate for nina b112 are:
+     * 19200, 38400, 57600, 115200, 230400, 460800, 1000000
+     *
+     * default value: 115200
+     */
     int baudrate;
+
+    /**
+     * \brief number of data bits
+     *
+     * Factory programmed value: 8
+     */
     int data_bits;
+
+    /**
+     * \brief number of stop bits
+     *
+     * Default value: 1
+     * Supported values: 1, 2
+     */
     int stop_bits;
-    bool parity;
+
+    /**
+     * \brief type of parity
+     */
+    nina_b112_uart_parity_e parity;
+
+    /**
+     * \brief whether flow control is enabled or not
+     */
     bool flow_control;
-} nina_b112_uart_params_t;
+} nina_b112_uart_cfg_t;
+
+typedef struct
+{
+    /**
+     * \brief module operating mode
+     *
+     * \warning extended mode is not supported.
+     */
+    nina_b112_operating_mode_e operating_mode;
+
+    /**
+     * \brief name of the local bluetooth device
+     *
+     * Maximum length is 31 characters.
+     */
+    std::string local_name;
+
+    /**
+     * \brief command line termination character
+     */
+    char s3_char;
+
+    /**
+     * \brief linefeed character
+     */
+    char s4_char;
+} nina_b112_behavior_params_t;
 
 /**
  * \brief ublox nina-b112 basic model
@@ -260,33 +327,29 @@ private:
 
     vp::uart_slave    uart_itf;
 
-    vp::clock_event *init_event;
-    vp::clock_event *rtr_event;
+    /* events */
+    vp::clock_event* init_event;
+    vp::clock_event* rtr_event;
+    vp::clock_event* rx_sampling_event;
+    vp::clock_event* tx_sampling_event;
+
+    /* UART parameters */
+    nina_b112_uart_cfg_t uart_cfg;
 
     /* UART RX */
     uart_rx_state_e   rx_state;
-    int               rx_baudrate;
     int               rx_nb_bits;
     int               rx_prev_data;
     bool              rx_sampling;
     uint8_t           rx_byte;
     int               rx_rtr;
-    vp::clock_event*  rx_sampling_event;
 
 
     /* UART TX */
     uart_tx_state_e     tx_state;
-    vp::clock_event*    tx_sampling_event;
-    //TODO implement of queue of buffer (UART params changes occurs between transfers)
     std::queue<uint8_t> tx_pending_bytes;
-    uint8_t             tx_current_pending_byte;
-    int                 tx_pending_bits;
-    int                 tx_baudrate;
     int                 tx_cts;
     int                 tx_bit;
-    int                 tx_current_stop_bits;
-    int                 tx_parity;
-    int                 tx_parity_en;
 
     /* rtr fields */
     bool rtr_enabled;
@@ -295,5 +358,5 @@ private:
     int  rtr_bit;
 
     /* behavior fields */
-    nina_b112_operating_mode_e operating_mode;
+    nina_b112_behavior_params_t behavior;
 };
