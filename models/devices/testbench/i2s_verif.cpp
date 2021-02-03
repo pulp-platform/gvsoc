@@ -379,6 +379,11 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         {
             this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
         }
+
+        if (this->i2s->is_pdm)
+        {
+            this->i2s->pdm_lanes_is_out[this->id / 2] = false;
+        }
     }
     else if (config->type == PI_TESTBENCH_I2S_VERIF_PDM_RX_FILE_READER)
     {
@@ -392,6 +397,11 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         {
             this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
         }
+
+        this->i2s->pdm_lanes_is_out[this->id / 2] = true;
+
+        this->i2s->data = this->id < 2 ? this->i2s->data & 0xC : this->i2s->data & 0x3;
+        this->i2s->itf->sync(2, 2, this->i2s->data);
     }
 }
 
@@ -636,7 +646,10 @@ int Slot::pdm_get()
     }
     else
     {
-        return 2;
+        if (this->i2s->pdm_lanes_is_out[this->id / 2])
+            return 0;
+        else
+            return 2;
     }
 }
 

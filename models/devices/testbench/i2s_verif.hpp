@@ -66,6 +66,7 @@ public:
     int propagated_ws;
     int ws_count;
     int ws_value;
+    bool pdm_lanes_is_out[2];
 
     std::vector<Slot *> slots;
 };
