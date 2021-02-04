@@ -338,6 +338,12 @@ Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s)
 
 void Slot::setup(pi_testbench_i2s_verif_slot_config_t *config)
 {
+
+    if (config->word_size == 0)
+    {
+        config->word_size = this->i2s->config.word_size;
+    }
+
     if (config->is_rx)
     {
         ::memcpy(&this->config_rx, config, sizeof(pi_testbench_i2s_verif_slot_config_t));
@@ -358,7 +364,7 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
     {
         ::memcpy(&this->start_config_rx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
 
-        this->start_config_rx.rx_iter.incr_end &= (1 << this->config_rx.word_size) - 1;
+        this->start_config_rx.rx_iter.incr_end &= (1ULL << this->config_rx.word_size) - 1;
 
         if (this->start_config_rx.rx_iter.incr_value >= this->start_config_rx.rx_iter.incr_end)
             this->start_config_rx.rx_iter.incr_value = 0;
@@ -419,7 +425,6 @@ void Slot::start_frame()
         int left_align = (this->config_rx.format >> 1) & 1;
         int sign_extend = (this->config_rx.format >> 2) & 1;
         int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
-
 
         if (this->start_config_rx.rx_iter.incr_end - this->rx_current_value <= this->start_config_rx.rx_iter.incr_value)
         {
