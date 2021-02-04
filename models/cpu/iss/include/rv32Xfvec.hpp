@@ -359,9 +359,8 @@ static inline iss_insn_t *vfgt_r_h_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *vfcpka_h_s_exec(iss_t *iss, iss_insn_t *insn)
 {
-  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 10, 0) & 0xffff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 10, 0) & 0xffff) << 16) |\
-            (REG_GET(2) & ~0xffffffff));
+  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 10, 0) & 0xffff) |
+	    ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 10, 0) & 0xffff) << 16));
   return insn->next;
 }
 
@@ -750,9 +749,8 @@ static inline iss_insn_t *vfgt_r_ah_exec(iss_t *iss, iss_insn_t *insn)
 
 static inline iss_insn_t *vfcpka_ah_s_exec(iss_t *iss, iss_insn_t *insn)
 {
-  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 8, 7, 0) & 0xffff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 8, 7, 0) & 0xffff) << 16) |\
-            (REG_GET(2) & ~0xffffffff));
+  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 8, 7, 0) & 0xffff) |
+	    ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 8, 7, 0) & 0xffff) << 16));
   return insn->next;
 }
 
@@ -1293,9 +1291,8 @@ static inline iss_insn_t *vfcvt_b_xu_exec(iss_t *iss, iss_insn_t *insn)
 // If F extension also supported
 static inline iss_insn_t *vfcpka_b_s_exec(iss_t *iss, iss_insn_t *insn)
 {
-  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 2, 0) & 0xff) |\
-            ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 2, 0) & 0xff) << 8) |\
-              (REG_GET(2) & ~0xffff));
+  REG_SET(0, (LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(0), 8, 23, 5, 2, 0) & 0xff) |
+	    ((LIB_FF_CALL4(lib_flexfloat_cvt_ff_ff_round, REG_GET(1), 8, 23, 5, 2, 0) & 0xff) << 8));
   return insn->next;
 }
 
