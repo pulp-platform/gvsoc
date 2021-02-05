@@ -1974,20 +1974,60 @@ static inline unsigned int lib_flexfloat_vclass(iss_cpu_state_t *s, unsigned int
 
 // TODO proper flags
 static inline int lib_flexfloat_cvt_x_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+#ifdef OLD
   int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
-  long int result_long = (long int) ff_a.value;
+  long int result_long = (long int) ff_a.value;;
   restoreFFRoundingMode(old);
   return result_long < -(0x1 << e+m) ? -(0x1 << e+m) : result_long > (0x1 << e+m)-1 ? (0x1 << e+m)-1 : (int) result_long ;
+#else
+        // On gap9 this is called only on 16b float vectors
+        if (IsNan(a, e, m)) return 0X07FFF;
+        unsigned int S = ((unsigned int)a >> (e + m)) & 0x1;
+        unsigned int E = (a >> m) & ((0x1<<e) - 1);
+        unsigned int M = a & (((1)<<m) - 1);
+        if ((S==1) && (E==((1<<e)-1) && M==0)) return 0x08000;       	// - infinity
+        else if ((S==0)&&(E==((1<<e)-1) && M==0)) return 0X07FFF;       // + infinity
+
+        int old = setFFRoundingMode(s, round);
+        FF_INIT_1(a, e, m)
+        int result;
+        if (ff_a.value < (float) (int) 0x80000000)  result = 0x80000000;
+        else if (ff_a.value > (float) (int) 0x7FFFFFFF) result = 0x7FFFFFFF;
+        else result = (int) ff_a.value;
+        restoreFFRoundingMode(old);
+        if (result <-32768) result = 0x08000; else if (result>32767) result = 0x07fff;
+        return result;
+#endif
 }
 
 // TODO proper flags
 static inline unsigned int lib_flexfloat_cvt_xu_ff_round(iss_cpu_state_t *s, unsigned int a, uint8_t e, uint8_t m, unsigned int round) {
+#ifdef OLD
   int old = setFFRoundingMode(s, round);
   FF_INIT_1(a, e, m)
   long int result_long = (long int) ff_a.value;
   restoreFFRoundingMode(old);
   return result_long < 0 ? 0 : result_long > (0x1 << e+m+1)-1 ? (0x1 << e+m+1)-1 : (unsigned int) result_long ;
+#else
+        // On gap9 this is called only on 16b float vectors
+        if (IsNan(a, e, m)) return 0X0FFFF;
+        unsigned int S = ((unsigned int)a >> (e + m)) & 0x1;
+        unsigned int E = (a >> m) & ((0x1<<e) - 1);
+        unsigned int M = a & (((1)<<m) - 1);
+        if ((S==1) && (E==((1<<e)-1) && M==0)) return 0;       		// - infinity
+        else if ((S==0)&&(E==((1<<e)-1) && M==0)) return 0X0FFFF;       // + infinity
+
+        int old = setFFRoundingMode(s, round);
+        FF_INIT_1(a, e, m)
+        unsigned int result;
+        if (ff_a.value < (float) (int) 0)  result = 0;
+        else if (ff_a.value > (float) (long int) 0x0FFFFFFFF) result = 0xFFFFFFFF;
+        else result = (unsigned int) ff_a.value;
+        restoreFFRoundingMode(old);
+        if (result>65535) result = 0x0ffff;
+        return result;
+#endif
 }
 
 // TODO proper flags
