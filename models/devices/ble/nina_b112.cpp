@@ -345,11 +345,6 @@ void Nina_b112::tx_send_bit()
     }
 }
 
-/**
- * \brief Send a buffer of bytes on TX
- *
- * \param buffer buffer of bytes to send
- */
 void Nina_b112::tx_send_buffer(std::string buffer)
 {
     for (size_t i = 0; i < buffer.size(); i++)

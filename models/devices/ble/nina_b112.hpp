@@ -81,7 +81,7 @@ typedef struct
      * \brief number of stop bits
      *
      * Default value: 1
-     * Supported values: 1, 2
+     * Supported values: 1
      */
     int stop_bits;
 
