@@ -247,8 +247,6 @@ void Nina_b112::tx_send_bit()
 
     int bit = 1;
 
-    //TODO need to implement CTS support
-
     switch (this->tx_state)
     {
         case UART_TX_STATE_IDLE:
@@ -268,19 +266,26 @@ void Nina_b112::tx_send_bit()
 
         case UART_TX_STATE_START:
         {
-            if(!this->tx_pending_bytes.empty())
+            if ((tx_uart_cfg.flow_control == false) || 0 == this->tx_cts)
             {
-                this->trace.msg(vp::trace::LEVEL_TRACE, "Sending start bit\n");
-                tx_parity = 0;
-                this->tx_state = UART_TX_STATE_DATA;
-                tx_current_stop_bits = 1;
+                if(!this->tx_pending_bytes.empty())
+                {
+                    this->trace.msg(vp::trace::LEVEL_TRACE, "Sending start bit\n");
+                    tx_parity = 0;
+                    this->tx_state = UART_TX_STATE_DATA;
+                    tx_current_stop_bits = 1;
 
-                tx_current_pending_byte = this->tx_pending_bytes.front();
-                this->tx_pending_bytes.pop();
-                tx_pending_bits = tx_uart_cfg.data_bits;
+                    tx_current_pending_byte = this->tx_pending_bytes.front();
+                    this->tx_pending_bytes.pop();
+                    tx_pending_bits = tx_uart_cfg.data_bits;
 
-                bit = 0;
-                bits_sent = 0;
+                    bit = 0;
+                    bits_sent = 0;
+                }
+            }
+            else
+            {
+                this->trace.msg(vp::trace::LEVEL_TRACE, "Waiting for CTS to clear\n");
             }
             break;
         }
