@@ -20,8 +20,10 @@
 #include <vp/vp.hpp>
 #include <vp/itf/clock.hpp>
 #include <vp/itf/uart.hpp>
-#include <string>
+
 #include <queue>
+#include <random>
+#include <string>
 
 typedef enum
 {
@@ -54,6 +56,57 @@ typedef enum
     NINA_B112_UART_PARITY_EVEN,
     //NINA_B112_UART_PARITY_ODD,
 } nina_b112_uart_parity_e;
+
+/**
+ * \brief structure containing information about RTS generation
+ *
+ * When control flow is enabled, the model can be used to trigger RTS.
+ * There are two types of trigger:
+ * - a regular trigger that is based on the number of word received
+ * - a random trigger
+ */
+typedef struct
+{
+    /**
+     * \brief controls whether the rts generation is enabled
+     */
+    bool enabled;
+
+    /**
+     * \brief tells whether next word should trigger the rts
+     */
+    bool trigger;
+
+    /**
+     * \brief bit number when the RTS will be triggered
+     */
+    int bit_trigger;
+
+    /**
+     * \brief buffer limit
+     */
+    int buffer_limit;
+
+    /**
+     * \brief duration of the RTS in uart cycles
+     */
+    int duration;
+
+    /**
+     * \brief threshold under which the random RTS generation will trigger
+     */
+    int random_threshold;
+
+    /**
+     * \brief random number generator
+     */
+    std::mt19937 random_generator;
+
+    /**
+     * \brief uniform distribution for random numbers
+     */
+    std::uniform_int_distribution<> random_dist;
+} nina_b112_rts_gen_t;
 
 /**
  * \brief structure containing NINA B112 UART parameters
@@ -174,14 +227,14 @@ private:
      *
      * Starting point of incoming data sampling/processing.
      */
-    static void sync_full(void *__this, int data, int clk, int rtr);
+    static void sync_full(void *__this, int data, int clk, int rts);
 
     /**
      * \brief Update the RTR pin value
      *
      * \param RTR new RTR value
      */
-    void set_rtr(int rtr);
+    void set_rts(int rts);
 
     /**
      * \brief start sampling on UART RX
@@ -306,7 +359,7 @@ private:
      * \param ___this pointer to the model
      * \param event event triggering this handler
      */
-    static void rtr_end_handler(void *__this, vp::clock_event *event);
+    static void rts_end_handler(void *__this, vp::clock_event *event);
 
     /* ====== */
     /* Fields */
@@ -329,7 +382,7 @@ private:
 
     /* events */
     vp::clock_event* init_event;
-    vp::clock_event* rtr_event;
+    vp::clock_event* rts_event;
     vp::clock_event* rx_sampling_event;
     vp::clock_event* tx_sampling_event;
 
@@ -342,7 +395,7 @@ private:
     int               rx_prev_data;
     bool              rx_sampling;
     uint8_t           rx_byte;
-    int               rx_rtr;
+    int               rx_rts;
 
 
     /* UART TX */
@@ -351,11 +404,8 @@ private:
     int                 tx_cts;
     int                 tx_bit;
 
-    /* rtr fields */
-    bool rtr_enabled;
-    bool rtr_trigger;
-    int  rtr_duration;
-    int  rtr_bit;
+    /* rts fields */
+    nina_b112_rts_gen_t rts_gen;
 
     /* behavior fields */
     nina_b112_behavior_params_t behavior;

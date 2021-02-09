@@ -17,19 +17,100 @@
 
 #include "nina_b112.hpp"
 
+#include <random>
 #include <regex>
 
 Nina_b112::Nina_b112(js::config *config)
     : vp::component(config)
 {
+    js::config* rts = config->get("rts");
+    if (NULL != rts)
+    {
+        /* configure how many words the model can receive before triggering a rts event */
+        js::config* enabled_elt = rts->get("enabled");
+        bool enabled = false;
+        if (NULL != enabled_elt)
+        {
+            enabled = enabled_elt->get_bool();
+        }
+
+        /* configure how many words the model can receive before triggering a rts event */
+        js::config* buffer_limit_elt = rts->get("buffer_limit");
+        int buffer_limit = 0;
+        if (NULL != buffer_limit_elt)
+        {
+            buffer_limit = buffer_limit_elt->get_int();
+            if (buffer_limit <= 0)
+            {
+                buffer_limit = 1;
+            }
+        }
+
+        /* configure how long the rts will last (in uart cycles) */
+        js::config* duration_elt = rts->get("duration");
+        int duration = 0;
+        if (NULL != duration_elt)
+        {
+            duration = duration_elt->get_int();
+            if (duration <= 0)
+            {
+                duration = 1;
+            }
+        }
+
+        /* configure random seed */
+        js::config* random_seed_elt = rts->get("random_seed");
+        int random_seed = 1234;
+        if (NULL != random_seed_elt)
+        {
+            random_seed = random_seed_elt->get_int();
+        }
+
+        /* configure random high limit */
+        js::config* random_high_elt = rts->get("random_high");
+        int random_high = 0;
+        if (NULL != random_high_elt)
+        {
+            random_high = random_high_elt->get_int();
+            if (random_high <= 0)
+            {
+                random_high = 10000;
+            }
+        }
+
+        /* configure random threshold */
+        /* Below this threshold, RTS will trigger */
+        js::config* random_threshold_elt = rts->get("random_threshold");
+        int random_threshold = 0;
+        if (NULL != random_threshold_elt)
+        {
+            random_threshold = random_threshold_elt->get_int();
+            if (!(random_threshold >= 0 && random_threshold < random_high))
+            {
+                random_threshold = 0;
+            }
+        }
+
+        std::mt19937 rd_gen(random_seed);
+        std::uniform_int_distribution<> rd_distrib(0, random_high);
+
+        this->rts_gen.enabled = enabled;
+        this->rts_gen.trigger =false;
+        this->rts_gen.bit_trigger = 0;
+        this->rts_gen.buffer_limit = buffer_limit;
+        this->rts_gen.duration = duration;
+        this->rts_gen.random_threshold = random_threshold;
+        this->rts_gen.random_generator = rd_gen;
+        this->rts_gen.random_dist = rd_distrib;
+    }
 }
 
 
-void Nina_b112::sync_full(void *__this, int data, int clk, int rtr)
+void Nina_b112::sync_full(void *__this, int data, int clk, int rts)
 {
     Nina_b112 *_this = (Nina_b112 *)__this;
 
-    _this->tx_cts = rtr;
+    _this->tx_cts = rts;
 
     if (_this->rx_state == UART_RX_STATE_WAIT_START && _this->rx_prev_data == 1 && data == 0)
     {
@@ -162,11 +243,11 @@ void Nina_b112::rx_handle_sampling()
                 this->rx_handle_byte(this->rx_byte);
             }
 
-            if (this->rtr_trigger && (this->rtr_bit == this->rx_nb_bits))
+            if (this->rts_gen.trigger && (this->rts_gen.bit_trigger == this->rx_nb_bits))
             {
                 this->trace.msg(vp::trace::LEVEL_TRACE, "triggering cts\n", this->rx_prev_data);
-                this->rx_clock->enqueue(this->rtr_event, this->rtr_duration);
-                this->set_rtr(1);
+                this->rx_clock->enqueue(this->rts_event, this->rts_gen.duration);
+                this->set_rts(1);
             }
 
             break;
@@ -190,13 +271,16 @@ void Nina_b112::rx_handle_sampling()
                 this->rx_stop_sampling();
 
                 /* decide if next byte will trigger cts */
-                if (this->rtr_enabled && (bytes_counter > 10))
+                if (this->rts_gen.enabled &&
+                        ((bytes_counter > this->rts_gen.buffer_limit) ||
+                         this->rts_gen.random_dist(this->rts_gen.random_generator) < this->rts_gen.random_threshold
+                        )
+                   )
                 {
                     this->trace.msg(vp::trace::LEVEL_INFO, "triggering cts on next byte\n");
                     bytes_counter = 0;
-                    this->rtr_trigger = true;
-                    this->rtr_bit = ((this->rtr_bit + 1) % 8) + 1;
-                    this->rtr_duration = 100;
+                    this->rts_gen.trigger = true;
+                    this->rts_gen.bit_trigger = ((this->rts_gen.bit_trigger + 1) % this->uart_cfg.data_bits) + 1;
                 }
 
             }
@@ -219,11 +303,11 @@ void Nina_b112::rx_sampling_handler(void *__this, vp::clock_event *event)
 }
 
 
-void Nina_b112::set_rtr(int rtr)
+void Nina_b112::set_rts(int rts)
 {
-    this->rx_rtr = rtr;
+    this->rx_rts = rts;
     //this->trace.msg(vp::trace::LEVEL_TRACE, "SET CTS\n");
-    this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rtr);
+    this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rts);
 }
 
 
@@ -341,7 +425,7 @@ void Nina_b112::tx_send_bit()
 
     /* send data bit */
     this->tx_bit = bit;
-    this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rtr);
+    this->uart_itf.sync_full(this->tx_bit, 2, this->rx_rts);
 
     /* always reenqueue */
     if(!(this->tx_pending_bytes.empty() && this->tx_state == UART_TX_STATE_IDLE))
@@ -362,11 +446,7 @@ void Nina_b112::tx_check_pending_byte()
 {
     if (!this->tx_pending_bytes.empty() && !this->tx_sampling_event->is_enqueued())
     {
-        // TODO enable rtr
-        //if (this->rx_rtr == 0)
-        {
-            this->tx_clock->reenqueue(this->tx_sampling_event, 2);
-        }
+        this->tx_clock->reenqueue(this->tx_sampling_event, 2);
     }
 }
 
@@ -414,7 +494,7 @@ int Nina_b112::build()
 
     /* Initialize events */
     this->init_event = this->event_new(Nina_b112::init_handler);
-    this->rtr_event = this->event_new(Nina_b112::rtr_end_handler);
+    this->rts_event = this->event_new(Nina_b112::rts_end_handler);
     this->rx_sampling_event = this->event_new(Nina_b112::rx_sampling_handler);
     this->tx_sampling_event = this->event_new(Nina_b112::tx_sampling_handler);
 
@@ -424,11 +504,7 @@ int Nina_b112::build()
     this->tx_state = UART_TX_STATE_IDLE;
     this->tx_bit = 1;
 
-    this->rx_rtr = 0; /* we are ready to receive */
-    this->rtr_enabled = true;
-    this->rtr_trigger =false;
-    this->rtr_duration = 0;
-    this->rtr_bit = 0;
+    this->rx_rts = 0; /* we are ready to receive */
 
     /* Initialize UART configuration */
     this->uart_cfg.baudrate = 115200;
@@ -461,13 +537,13 @@ void Nina_b112::init_handler(void *__this, vp::clock_event *event)
     _this->uart_itf.sync_full(1, 2, 0);
 }
 
-void Nina_b112::rtr_end_handler(void *__this, vp::clock_event *event)
+void Nina_b112::rts_end_handler(void *__this, vp::clock_event *event)
 {
     Nina_b112 *_this = (Nina_b112 *)__this;
 
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "rtr_end_handler\n");
-    _this->rtr_trigger = false;
-    _this->set_rtr(0);
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "rts_end_handler\n");
+    _this->rts_gen.trigger = false;
+    _this->set_rts(0);
 }
 
 
