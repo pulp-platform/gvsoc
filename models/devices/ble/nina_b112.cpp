@@ -23,12 +23,31 @@
 Nina_b112::Nina_b112(js::config *config)
     : vp::component(config)
 {
+    /* Behavior configuration */
+    this->behavior.loopback_size = 200;
+    js::config* behavior = config->get("behavior");
+    if (NULL != behavior)
+    {
+        /* configure loopback size */
+        js::config* loopback_size_elt = behavior->get("loopback_size");
+        int loopback_size = 200;
+        if (NULL != loopback_size_elt)
+        {
+            loopback_size = loopback_size_elt->get_int();
+            if (loopback_size <= 0)
+            {
+                loopback_size = 200;
+            }
+        }
+
+        this->behavior.loopback_size = loopback_size;
+    }
     /* RTS generation configuration */
     this->rts_gen.enabled = false;
     js::config* rts = config->get("rts");
     if (NULL != rts)
     {
-        /* configure how many words the model can receive before triggering a rts event */
+        /* configure whether rts generation is enabled */
         js::config* enabled_elt = rts->get("enabled");
         bool enabled = false;
         if (NULL != enabled_elt)
@@ -198,7 +217,7 @@ void Nina_b112::rx_handle_byte(uint8_t byte)
             {
                 /* store a buffer, and then send it back */
                 //this->trace.msg(vp::trace::LEVEL_TRACE, "Data operating mode\n");
-                if (input_buffer.size() >= 200)
+                if (input_buffer.size() >= this->behavior.loopback_size)
                 {
                     this->trace.msg(vp::trace::LEVEL_INFO, "Sending back data received\n");
                     this->tx_send_buffer(input_buffer);

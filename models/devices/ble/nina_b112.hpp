@@ -174,6 +174,14 @@ typedef struct
      * \brief linefeed character
      */
     char s4_char;
+
+    /**
+     * \brief size of the loopback buffer
+     *
+     * When in loopback mode, the model will send back data received
+     * once size of received exceeds this value.
+     */
+    int loopback_size;
 } nina_b112_behavior_params_t;
 
 /**
