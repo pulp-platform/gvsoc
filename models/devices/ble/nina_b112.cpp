@@ -23,6 +23,8 @@
 Nina_b112::Nina_b112(js::config *config)
     : vp::component(config)
 {
+    /* RTS generation configuration */
+    this->rts_gen.enabled = false;
     js::config* rts = config->get("rts");
     if (NULL != rts)
     {
