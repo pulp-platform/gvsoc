@@ -16,13 +16,38 @@ It supports RTS generation. When enabled, the model generates RTS for a
 specific duration on two conditions:
 
 - once a number of words have been received,
-- randomly using a uniform random number generator, a high limit, and a
-  threshold under which the random generated number will trigger the RTS.
+- randomly using a uniform random number generator. It generates a number
+  between 0 and a high limit. If the generated number is below a threshold it
+  triggers a RTS.
+
+Serial parameters
+=================
+
++--------------+---------------------+
+| Parameter    | Supported values    |
++==============+=====================+
+| Baudrate     | - 19200             |
+|              | - 38400             |
+|              | - 57600             |
+|              | - 115200 (default)  |
+|              | - 230400            |
+|              | - 460800            |
+|              | - 1000000           |
++--------------+---------------------+
+| Data bits    | - 8 (default)       |
++--------------+---------------------+
+| Stop bits    | - 1 (default)       |
++--------------+---------------------+
+| Parity       | - none (default)    |
+|              | - even              |
++--------------+---------------------+
+| Flow control | - enabled (default) |
+|              | - disabled          |
++--------------+---------------------+
 
 
-
-Supported AT commands
-=====================
+AT commands
+===========
 
 By default, if a command is not supported, model will respond :code:`ERROR`.
 If command arguments are invalid, it will also respond with an error.
