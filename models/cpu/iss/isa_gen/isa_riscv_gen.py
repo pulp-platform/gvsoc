@@ -565,7 +565,6 @@ class R5(Instr):
                         ]
         elif format == 'CI5':
             self.args = [   OutReg(0, Range(7, 5)),
-                            InReg(0, Range(7, 5)),
                             UnsignedImm(0, Ranges([[2, 5, 12], [12, 1, 17]]), isSigned=True),
                         ]
         elif format == 'CI6':
