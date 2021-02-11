@@ -332,7 +332,7 @@ private:
      *
      * This handler is called when UART RX needs to sample data.
      *
-     * \param ___this pointer to the model
+     * \param __this pointer to the model
      * \param event event triggering this handler
      */
     static void rx_sampling_handler(void *__this, vp::clock_event *event);
@@ -342,7 +342,7 @@ private:
      *
      * This handler is called when UART TX needs to sample data.
      *
-     * \param ___this pointer to the model
+     * \param __this pointer to the model
      * \param event event triggering this handler
      */
     static void tx_sampling_handler(void *__this, vp::clock_event *event);
@@ -353,7 +353,7 @@ private:
      * This handler is called when the model needs to initialize
      * its ports (RX, CTS, SCK).
      *
-     * \param ___this pointer to the model
+     * \param __this pointer to the model
      * \param event event triggering this handler
      */
     static void init_handler(void *__this, vp::clock_event *event);
@@ -364,7 +364,7 @@ private:
      * This handler is called when we are done delaying incoming data
      * and need to put RTR back to 0.
      *
-     * \param ___this pointer to the model
+     * \param __this pointer to the model
      * \param event event triggering this handler
      */
     static void rts_end_handler(void *__this, vp::clock_event *event);
