@@ -23,23 +23,25 @@
 
 namespace {
 
-    std::string wrap_response(std::string response)
+    std::string wrap_response(std::string response, std::string code)
     {
         if (!response.empty())
         {
-            return std::string("\r\n") + response + std::string("\r\n");
+            return std::string("\r\n") + response +
+                   std::string("\r\n") + code +
+                   std::string("\r\n");
         }
-        return response;
+        return std::string("\r\n") + code + std::string("\r\n");
     }
 
     std::string ok_response(std::string response)
     {
-        return ::wrap_response(response) + ::wrap_response(std::string("OK"));
+        return ::wrap_response(response, std::string("OK"));
     }
 
     std::string error_response(std::string response)
     {
-        return ::wrap_response(response) + ::wrap_response(std::string("ERROR"));
+        return ::wrap_response(response, std::string("ERROR"));
     }
 
     std::vector<std::string> split(const std::string str, const std::string delimiter)
