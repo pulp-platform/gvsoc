@@ -389,6 +389,9 @@ private:
     int reply_index;
     std::string reply;
     int status;
+
+    vp::trace trace;
+
 };
 
 
@@ -420,6 +423,9 @@ public:
     int tx_parity_en = 0;
     int tx_stop_bits = 1;
     
+    bool is_usart;
+    int id;
+
 private:
 
     static void sync(void *__this, int data);
@@ -441,10 +447,14 @@ private:
     static void tx_clk_reg(vp::component *__this, vp::component *clock);
 
     Testbench *top;
-    int id;
     Uart_dev *dev = NULL;
 
+    vp::trace trace;
+
     vp::clk_slave    periph_clock_itf;
+
+    int clk;
+    int prev_clk;
 
     bool uart_tx_wait_start = true;
     bool uart_tx_wait_stop = false;

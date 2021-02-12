@@ -27,6 +27,9 @@
 Uart_flow_control_checker::Uart_flow_control_checker(Testbench *top, Uart *uart, pi_testbench_req_t *req)
 : top(top), uart(uart)
 {
+
+    top->traces.new_trace("uart_" + std::to_string(uart->id) + "/flow_control", &this->trace, vp::DEBUG);
+
     this->uart->set_cts(0);
 
     uart->baudrate = req->uart.baudrate;
@@ -92,7 +95,7 @@ void Uart_flow_control_checker::handle_received_byte(uint8_t byte)
         }
         else
         {
-            this->top->trace.msg(vp::trace::LEVEL_DEBUG, "UART flow control received command (command: %s)\n", this->current_string.c_str());
+            this->trace.msg(vp::trace::LEVEL_DEBUG, "UART flow control received command (command: %s)\n", this->current_string.c_str());
 
             std::regex regex{R"([\s]+)"};
             std::sregex_token_iterator it{this->current_string.begin(), this->current_string.end(), regex, -1};
@@ -100,7 +103,7 @@ void Uart_flow_control_checker::handle_received_byte(uint8_t byte)
 
             if (words[0] == "START")
             {
-                this->top->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received start command\n");
+                this->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received start command\n");
                 this->waiting_command = false;
                 this->status = 0;
                 if (this->rx_size > 0)
@@ -114,7 +117,7 @@ void Uart_flow_control_checker::handle_received_byte(uint8_t byte)
                 this->rx_size = std::stoi(words[3]);
                 this->rx_bandwidth = std::stoi(words[4]);
                 this->rx_nb_iter = std::stoi(words[5]);
-                this->top->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received traffic rx command (start: %d, incr: %d, size: %d, bandwidth: %d, nb_iter: %d)\n", this->rx_start, this->rx_incr, this->rx_size, this->rx_bandwidth, this->rx_nb_iter);
+                this->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received traffic rx command (start: %d, incr: %d, size: %d, bandwidth: %d, nb_iter: %d)\n", this->rx_start, this->rx_incr, this->rx_size, this->rx_bandwidth, this->rx_nb_iter);
             }
             else if (words[0] == "TRAFFIC_TX")
             {
@@ -125,11 +128,11 @@ void Uart_flow_control_checker::handle_received_byte(uint8_t byte)
                 this->tx_size = std::stoi(words[3]);
                 this->tx_iter_size = std::stoi(words[4]);
                 this->tx_iter_size_init = this->tx_iter_size;
-                this->top->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received traffic tx command (start: %d, incr: %d, size: %d, iter_size: %d)\n", this->tx_start, this->tx_incr, this->tx_size, this->tx_iter_size);
+                this->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received traffic tx command (start: %d, incr: %d, size: %d, iter_size: %d)\n", this->tx_start, this->tx_incr, this->tx_size, this->tx_iter_size);
             }
             else if (words[0] == "STATUS")
             {
-                this->top->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received status command\n");
+                this->trace.msg(vp::trace::LEVEL_INFO, "UART flow control received status command\n");
                 this->send_reply = true;
                 this->reply_index = 0;
                 if (this->status == 0)
@@ -174,6 +177,9 @@ void Uart_flow_control_checker::handle_received_byte(uint8_t byte)
                     int64_t next_time = (float)this->received_bytes * 1000000000000ULL / this->rx_bandwidth + this->rx_timestamp;
                     int64_t period = this->uart->clock->get_period();
                     int64_t cycles = (next_time - current_time + period - 1) / period;
+
+                    // Randomize a bit
+                    cycles = cycles * (rand() % 100) / 100;
 
                     this->uart->clock->enqueue(this->bw_limiter_event, cycles);
                 }
@@ -298,13 +304,13 @@ void Uart::handle_received_byte(uint8_t byte)
 
 void Uart::uart_tx_sampling()
 {
-    this->top->trace.msg(vp::trace::LEVEL_TRACE, "Sampling bit (value: %d)\n", uart_current_tx);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Sampling bit (value: %d)\n", uart_current_tx);
 
     if (uart_tx_wait_stop)
     {
         if (uart_current_tx == 1)
         {
-            this->top->trace.msg(vp::trace::LEVEL_TRACE, "Received stop bit\n", uart_current_tx);
+            this->trace.msg(vp::trace::LEVEL_TRACE, "Received stop bit\n", uart_current_tx);
             uart_tx_wait_start = true;
             uart_tx_wait_stop = false;
             this->uart_stop_tx_sampling();
@@ -312,14 +318,22 @@ void Uart::uart_tx_sampling()
     }
     else
     {
-        this->top->trace.msg(vp::trace::LEVEL_TRACE, "Received data bit (data: %d)\n", uart_current_tx);
+        this->trace.msg(vp::trace::LEVEL_TRACE, "Received data bit (data: %d)\n", uart_current_tx);
         uart_byte = (uart_byte >> 1) | (uart_current_tx << 7);
         uart_nb_bits++;
         if (uart_nb_bits == 8)
         {
-            this->top->trace.msg(vp::trace::LEVEL_DEBUG, "Sampled TX byte (value: 0x%x)\n", uart_byte);
-            this->top->trace.msg(vp::trace::LEVEL_TRACE, "Waiting for stop bit\n");
-            uart_tx_wait_stop = true;
+            this->trace.msg(vp::trace::LEVEL_DEBUG, "Sampled TX byte (value: 0x%x)\n", uart_byte);
+
+            if (!this->is_usart)
+            {
+                this->trace.msg(vp::trace::LEVEL_TRACE, "Waiting for stop bit\n");
+                uart_tx_wait_stop = true;
+            }
+            else
+            {
+                uart_tx_wait_start = true;
+            }
             this->handle_received_byte(uart_byte);
         }
     }
@@ -328,7 +342,7 @@ void Uart::uart_tx_sampling()
 
 void Uart::check_send_byte()
 {
-    if (this->tx_pending_bits && !this->uart_tx_event->is_enqueued())
+    if (!this->is_usart && this->tx_pending_bits && !this->uart_tx_event->is_enqueued())
     {
         if (this->rtr == 0)
         {
@@ -340,12 +354,23 @@ void Uart::check_send_byte()
 
 void Uart::send_byte(uint8_t byte)
 {
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Send byte (value: 0x%x)\n", byte);
+
     this->tx_pending_byte = byte;
     this->tx_pending_bits = 8;
-    this->tx_state = UART_TX_STATE_START;
-    this->tx_clock_cfg.set_frequency(this->baudrate*2);
 
-    this->check_send_byte();
+    if (this->is_usart)
+    {
+        this->tx_state = UART_TX_STATE_DATA;
+        //this->send_bit();
+    }
+    else
+    {
+        this->tx_state = UART_TX_STATE_START;
+        this->tx_clock_cfg.set_frequency(this->baudrate*2);
+    
+        this->check_send_byte();
+    }
 }
 
 
@@ -365,6 +390,11 @@ Uart::Uart(Testbench *top, int id)
 
     this->tx_clock_itf.set_reg_meth(&Uart::tx_clk_reg);
     this->top->new_slave_port(this, "uart" + std::to_string(this->id) + "_tx_clock", &this->tx_clock_itf);
+
+    top->traces.new_trace("uart_" + std::to_string(id), &trace, vp::DEBUG);
+
+    this->uart_current_tx = 0;
+    this->is_usart = 0;
 }
 
 
@@ -399,8 +429,9 @@ void Uart::sync_full(void *__this, int data, int clk, int rtr)
 {
     Uart *_this = (Uart *)__this;
 
-    _this->top->trace.msg(vp::trace::LEVEL_TRACE, "UART sync (data: %d, clk: %d, rtr: %d)\n", data, clk, rtr);
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "UART sync (data: %d, clk: %d, rtr: %d)\n", data, clk, rtr);
     _this->rtr = rtr;
+    _this->clk = clk;
 
     _this->check_send_byte();
 
@@ -415,26 +446,42 @@ void Uart::sync(void *__this, int data)
     if (!_this->is_control && !_this->dev)
         return;
 
-    _this->top->trace.msg(vp::trace::LEVEL_TRACE, "UART control sync (value: %d, waiting_start: %d)\n", data, _this->uart_tx_wait_start);
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "UART control sync (value: %d, waiting_start: %d)\n", data, _this->uart_tx_wait_start);
 
     int prev_data = _this->uart_current_tx;
     _this->uart_current_tx = data;
 
     if (_this->uart_tx_wait_start && prev_data == 1 && data == 0)
     {
-        _this->top->trace.msg(vp::trace::LEVEL_TRACE, "Received start bit\n");
+        _this->trace.msg(vp::trace::LEVEL_TRACE, "Received start bit\n");
 
-        _this->uart_start_tx_sampling(_this->baudrate);
+        if (!_this->is_usart)
+        {
+            _this->uart_start_tx_sampling(_this->baudrate);
+        }
         _this->uart_tx_wait_start = false;
         _this->uart_nb_bits = 0;
     }
+    else if (_this->is_usart)
+    {
+        if (!_this->prev_clk && _this->clk)
+        {
+            _this->uart_tx_sampling();
+        }
+        else if (_this->prev_clk && !_this->clk)
+        {
+            _this->send_bit();
+        }
+    }
+
+    _this->prev_clk = _this->clk;
 }
 
 
 void Uart::set_cts(int cts)
 {
     this->tx_cts = cts;
-    this->itf.sync_full(this->tx_bit, 0, this->tx_cts);
+    this->itf.sync_full(this->tx_bit, 2, this->tx_cts);
 }
 
 
@@ -461,18 +508,28 @@ void Uart::send_bit()
         }
         case UART_TX_STATE_DATA:
         {
-            bit = this->tx_pending_byte & 1;
-            this->tx_pending_byte >>= 1;
-            this->tx_pending_bits -= 1;
-            this->tx_parity ^= bit;
-
-            if (this->tx_pending_bits == 0)
+            if (this->tx_pending_bits > 0)
             {
-                if (this->tx_parity_en)
-                    this->tx_state = UART_TX_STATE_PARITY;
-                else
+                bit = this->tx_pending_byte & 1;
+                this->tx_pending_byte >>= 1;
+                this->tx_pending_bits -= 1;
+                this->tx_parity ^= bit;
+
+                if (this->tx_pending_bits == 0)
                 {
-                    this->tx_state = UART_TX_STATE_STOP;
+                    if (this->is_usart)
+                    {
+                        this->dev->send_byte_done();
+                    }
+                    else
+                    {
+                        if (this->tx_parity_en)
+                            this->tx_state = UART_TX_STATE_PARITY;
+                        else
+                        {
+                            this->tx_state = UART_TX_STATE_STOP;
+                        }
+                    }
                 }
             }
             break;
@@ -500,9 +557,10 @@ void Uart::send_bit()
     }
 
     this->tx_bit = bit;
-    this->itf.sync_full(this->tx_bit, 0, this->tx_cts);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Sending bit (bit: %d)\n", bit);
+    this->itf.sync_full(this->tx_bit, 2, this->tx_cts);
 
-    if (this->tx_state != UART_TX_STATE_START)
+    if (!this->is_usart && this->tx_state != UART_TX_STATE_START)
     {
         this->tx_clock->reenqueue(this->uart_tx_event, 2);
     }
@@ -511,7 +569,7 @@ void Uart::send_bit()
 
 void Uart::uart_start_tx_sampling(int baudrate)
 {
-    this->top->trace.msg(vp::trace::LEVEL_TRACE, "Start TX sampling (baudrate: %d)\n", this->baudrate);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Start TX sampling (baudrate: %d)\n", this->baudrate);
 
     // We set the frequency to twice the baudrate to be able sampling in the
     // middle of the cycle
@@ -610,7 +668,7 @@ void Testbench::handle_received_byte(uint8_t byte)
                 *(uint64_t *)this->tx_buff = this->get_time();
                 this->tx_buff_size = 8;
                 this->tx_buff_index = 0;
-                this->uart_ctrl->itf.sync_full(1, 0, 0);
+                this->uart_ctrl->itf.sync_full(1, 2, 0);
                 this->uart_ctrl->send_byte(this->tx_buff[0]);
                 break;
         }
@@ -852,8 +910,9 @@ void Testbench::handle_uart_checker()
     if (req->uart.enabled)
     {
         Uart *uart = this->uarts[req->uart.id];
-        Uart_dev *dev = new Uart_flow_control_checker(this, uart, req); 
+        Uart_dev *dev = new Uart_flow_control_checker(this, uart, req);
         uart->set_dev(dev);
+        uart->is_usart = req->uart.usart;
     }
 }
 
