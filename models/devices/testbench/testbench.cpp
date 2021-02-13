@@ -431,7 +431,7 @@ void Uart::sync_full(void *__this, int data, int clk, int rtr)
 
     _this->trace.msg(vp::trace::LEVEL_TRACE, "UART sync (data: %d, clk: %d, rtr: %d)\n", data, clk, rtr);
     _this->rtr = rtr;
-    _this->clk = clk;
+    _this->clk = clk ^ _this->polarity;
 
     _this->check_send_byte();
 
@@ -464,13 +464,18 @@ void Uart::sync(void *__this, int data)
     }
     else if (_this->is_usart)
     {
-        if (!_this->prev_clk && _this->clk)
+        if (_this->prev_clk != _this->clk)
         {
-            _this->uart_tx_sampling();
-        }
-        else if (_this->prev_clk && !_this->clk)
-        {
-            _this->send_bit();
+            int high = _this->clk ^ _this->phase;
+
+            if (high)
+            {
+                _this->uart_tx_sampling();
+            }
+            else
+            {
+                _this->send_bit();
+            }
         }
     }
 
@@ -913,6 +918,8 @@ void Testbench::handle_uart_checker()
         Uart_dev *dev = new Uart_flow_control_checker(this, uart, req);
         uart->set_dev(dev);
         uart->is_usart = req->uart.usart;
+        uart->polarity = req->uart.polarity;
+        uart->phase = req->uart.phase;
     }
 }
 

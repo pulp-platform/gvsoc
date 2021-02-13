@@ -95,6 +95,8 @@ typedef struct {
     uint8_t word_size;
     uint8_t usart;
     uint8_t usart_is_external;
+    uint8_t polarity;
+    uint8_t phase;
     uint8_t enabled;
 } pi_testbench_req_uart_checker_t;
 
@@ -424,6 +426,8 @@ public:
     int tx_stop_bits = 1;
     
     bool is_usart;
+    int polarity;
+    int phase;
     int id;
 
 private:
