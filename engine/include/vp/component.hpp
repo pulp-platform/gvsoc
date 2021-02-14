@@ -320,6 +320,7 @@ namespace vp {
     std::vector<reg *> get_registers() { return this->registers; }
     void build(vp::component *comp, vp::trace *trace, std::string name="");
     bool access(uint64_t offset, int size, uint8_t *value, bool is_write);
+    void reset(bool active);
 
     vp::trace *trace;
 
