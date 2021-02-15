@@ -131,7 +131,8 @@ std::string Nina_b112::parse_cmd(std::string input_cmd)
     {
         this->trace.msg(vp::trace::LEVEL_INFO, "Received local_name command\n");
         //TODO
-        //TODO parse string (surrounded by double quotes ?), verify length (max 31 characters)
+        //TODO parse string (surrounded by double quotes ? not mandatory according to real module),
+        //verify length (max 31 characters)
         return ok_response("");
     }
 

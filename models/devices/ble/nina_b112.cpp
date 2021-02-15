@@ -343,7 +343,7 @@ void Nina_b112::tx_sampling_handler(void *__this, vp::clock_event *event)
 void Nina_b112::tx_send_bit()
 {
     // TODO move static variables to an object or struct
-    static nina_b112_uart_cfg_t tx_uart_cfg;
+    static nina_b112_uart_cfg_t tx_uart_cfg = this->uart_cfg;
     static int bits_sent;
 
     static int tx_parity;
@@ -359,7 +359,6 @@ void Nina_b112::tx_send_bit()
         {
             /* update local baudrate parameters */
             /* parameters should only be updated after sending a response */
-            tx_uart_cfg = this->uart_cfg;
             this->tx_clock_cfg.set_frequency(tx_uart_cfg.baudrate * 2);
 
             if(!this->tx_pending_bytes.empty())
@@ -453,6 +452,10 @@ void Nina_b112::tx_send_bit()
     if(!(this->tx_pending_bytes.empty() && this->tx_state == UART_TX_STATE_IDLE))
     {
         this->tx_clock->reenqueue(this->tx_sampling_event, 2);
+    }
+    else
+    {
+        tx_uart_cfg = this->uart_cfg;
     }
 }
 
