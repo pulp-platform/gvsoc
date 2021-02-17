@@ -413,6 +413,8 @@ public:
 
     vp::uart_slave itf;
 
+    void start();
+
     void set_control(bool active, int baudrate);
     void set_dev(Uart_dev *dev) { this->dev = dev; }
     void send_byte(uint8_t byte);
@@ -443,6 +445,7 @@ private:
     void uart_stop_tx_sampling();
     static void uart_sampling_handler(void *__this, vp::clock_event *event);
     static void uart_tx_handler(void *__this, vp::clock_event *event);
+    static void init_handler(void *__this, vp::clock_event *event);
 
     void handle_received_byte(uint8_t byte);
     void send_bit();
@@ -469,6 +472,7 @@ private:
 
     vp::clock_event *uart_sampling_event;
     vp::clock_event *uart_tx_event;
+    vp::clock_event *init_event;
     vp::clock_master clock_cfg;
     vp::clk_slave    clock_itf;
     vp::clock_master tx_clock_cfg;

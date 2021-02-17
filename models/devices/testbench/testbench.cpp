@@ -280,6 +280,11 @@ void Testbench::start()
         int itf = get_js_config()->get_child_int("spislave_boot/itf");
         this->spis[itf*4]->create_loader(get_js_config()->get("spislave_boot"));
     }
+
+    for (int i=0; i<this->nb_uart; i++)
+    {
+        this->uarts[i]->start();
+    }
 }
 
 void Uart::set_control(bool active, int baudrate)
@@ -379,6 +384,7 @@ Uart::Uart(Testbench *top, int id)
 {
     this->uart_sampling_event = top->event_new(this, Uart::uart_sampling_handler);
     this->uart_tx_event = top->event_new(this, Uart::uart_tx_handler);
+    this->init_event = top->event_new(this, Uart::init_handler);
     this->itf.set_sync_meth(&Uart::sync);
     this->itf.set_sync_full_meth(&Uart::sync_full);
     this->top->new_slave_port(this, "uart" + std::to_string(this->id), &this->itf);
@@ -398,6 +404,12 @@ Uart::Uart(Testbench *top, int id)
 }
 
 
+void Uart::start()
+{
+    this->clock->enqueue(this->init_event, 1);
+}
+
+
 void Uart::tx_clk_reg(vp::component *__this, vp::component *clock)
 {
     Uart *_this = (Uart *)__this;
@@ -409,6 +421,13 @@ void Uart::clk_reg(vp::component *__this, vp::component *clock)
 {
     Uart *_this = (Uart *)__this;
     _this->clock = (vp::clock_engine *)clock;
+}
+
+
+void Uart::init_handler(void *__this, vp::clock_event *event)
+{
+    Uart *_this = (Uart *)__this;
+    _this->itf.sync_full(1, 2, 2);
 }
 
 
