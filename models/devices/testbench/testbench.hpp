@@ -431,6 +431,7 @@ public:
     int polarity;
     int phase;
     int id;
+    bool is_control_active;
 
 private:
 

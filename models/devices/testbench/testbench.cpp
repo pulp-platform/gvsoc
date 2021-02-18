@@ -289,6 +289,7 @@ void Testbench::start()
 
 void Uart::set_control(bool active, int baudrate)
 {
+    this->is_control_active = active;
     this->baudrate = baudrate;
     this->is_control = active;
 }
@@ -401,12 +402,17 @@ Uart::Uart(Testbench *top, int id)
 
     this->uart_current_tx = 0;
     this->is_usart = 0;
+
+    this->is_control_active = false;
 }
 
 
 void Uart::start()
 {
-    this->clock->enqueue(this->init_event, 1);
+    if (this->is_control_active)
+    {
+        this->clock->enqueue(this->init_event, 1);
+    }
 }
 
 
