@@ -391,7 +391,7 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
             this->i2s->pdm_lanes_is_out[this->id / 2] = false;
         }
     }
-    else if (config->type == PI_TESTBENCH_I2S_VERIF_PDM_RX_FILE_READER)
+    else if (config->type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER)
     {
         ::memcpy(&this->start_config_tx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
 
@@ -404,7 +404,10 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
             this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
         }
 
-        this->i2s->pdm_lanes_is_out[this->id / 2] = true;
+        if (this->i2s->is_pdm)
+        {
+            this->i2s->pdm_lanes_is_out[this->id / 2] = true;
+        }
 
         this->i2s->data = this->id < 2 ? this->i2s->data & 0xC : this->i2s->data & 0x3;
         this->i2s->itf->sync(2, 2, this->i2s->data);
@@ -414,92 +417,91 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
 
 void Slot::start_frame()
 {
-    if (this->rx_started && (this->start_config_rx.rx_iter.nb_samples > 0 || this->start_config_rx.rx_iter.nb_samples == -1))
+    if (this->rx_started)
     {
-        this->rx_pending_bits = this->i2s->config.word_size;
-        this->rx_pending_value = this->rx_current_value;
-        this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting RX sample (sample: 0x%x)\n", this->rx_pending_value);
-
-
-        int msb_first = (this->config_rx.format >> 0) & 1;
-        int left_align = (this->config_rx.format >> 1) & 1;
-        int sign_extend = (this->config_rx.format >> 2) & 1;
-        int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
-
-        if (this->start_config_rx.rx_iter.incr_end - this->rx_current_value <= this->start_config_rx.rx_iter.incr_value)
+        if (this->infile)
         {
-            this->rx_current_value = this->start_config_rx.rx_iter.incr_start;
+            char line [64];
+
+            if (fgets(line, 64, this->infile) == NULL)
+            {
+                fseek(this->infile, 0, SEEK_SET);
+                if (fgets(line, 16, this->infile) == NULL)
+                {
+                    this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
+                    return;
+                }
+            }
+
+            this->rx_pending_bits = this->i2s->config.word_size;
+            this->rx_pending_value = strtol(line, NULL, 0);
         }
         else
         {
-            this->rx_current_value += this->start_config_rx.rx_iter.incr_value;
-        }
-        if (this->start_config_rx.rx_iter.nb_samples > 0)
-        {
-            this->start_config_rx.rx_iter.nb_samples--;
-        }
-
-
-        bool changed = false;
-        if (!msb_first)
-        {
-            changed = true;
-            uint32_t value = 0;
-            for (int i=0; i<this->config_rx.word_size; i++)
+            if (this->start_config_rx.rx_iter.nb_samples > 0 || this->start_config_rx.rx_iter.nb_samples == -1)
             {
-                value = (value << 1) | (this->rx_pending_value & 1);
-                this->rx_pending_value >>= 1;
+                this->rx_pending_bits = this->i2s->config.word_size;
+                this->rx_pending_value = this->rx_current_value;
             }
-            this->rx_pending_value = value;
         }
 
-        if (dummy_cycles)
+        if (this->rx_pending_bits > 0)
         {
-            changed = true;
+            this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting RX sample (sample: 0x%x)\n", this->rx_pending_value);
 
-            if (left_align)
+
+            int msb_first = (this->config_rx.format >> 0) & 1;
+            int left_align = (this->config_rx.format >> 1) & 1;
+            int sign_extend = (this->config_rx.format >> 2) & 1;
+            int dummy_cycles = this->i2s->config.word_size - this->config_rx.word_size;
+
+            if (this->start_config_rx.rx_iter.incr_end - this->rx_current_value <= this->start_config_rx.rx_iter.incr_value)
             {
-                this->rx_pending_value = this->rx_pending_value << dummy_cycles;
+                this->rx_current_value = this->start_config_rx.rx_iter.incr_start;
             }
             else
             {
-                this->rx_pending_value = this->rx_pending_value & (1 << this->config_rx.word_size) - 1;
+                this->rx_current_value += this->start_config_rx.rx_iter.incr_value;
             }
-        }
-
-#if 0
-        if (dummy_cycles)
-        {
-            changed = true;
-            if (left_align)
+            if (this->start_config_rx.rx_iter.nb_samples > 0)
             {
-                unsigned int sign_value = 0;
-                if (!msb_first && sign_extend && (this->rx_pending_value & 1))
-                {
-                    sign_value = (1 << dummy_cycles) - 1;
-                }
-                this->rx_pending_value = (this->rx_pending_value << dummy_cycles) | sign_value;
+                this->start_config_rx.rx_iter.nb_samples--;
             }
-            else
+
+
+            bool changed = false;
+            if (!msb_first)
             {
-                unsigned int sign_value = 0;
-                if (msb_first && sign_extend && ((this->rx_pending_value >> (this->config_rx.word_size - 1)) & 1))
+                changed = true;
+                uint32_t value = 0;
+                for (int i=0; i<this->config_rx.word_size; i++)
                 {
-                    sign_value = ~((1 << this->config_rx.word_size) - 1);
+                    value = (value << 1) | (this->rx_pending_value & 1);
+                    this->rx_pending_value >>= 1;
                 }
-                this->rx_pending_value = (this->rx_pending_value & (1 << this->config_rx.word_size) - 1) | sign_value;
+                this->rx_pending_value = value;
+            }
+
+            if (dummy_cycles)
+            {
+                changed = true;
+
+                if (left_align)
+                {
+                    this->rx_pending_value = this->rx_pending_value << dummy_cycles;
+                }
+                else
+                {
+                    this->rx_pending_value = this->rx_pending_value & (1 << this->config_rx.word_size) - 1;
+                }
+            }
+
+            if (changed)
+            {
+                this->trace.msg(vp::trace::LEVEL_DEBUG, "Adapted sample to format (sample: 0x%x)\n", this->rx_pending_value);
+
             }
         }
-#endif
-
-        if (changed)
-        {
-            this->trace.msg(vp::trace::LEVEL_DEBUG, "Adapted sample to format (sample: 0x%x)\n", this->rx_pending_value);
-
-        }
-
-        
-
     }
 
     if (this->tx_started && (this->start_config_tx.tx_file_dumper.nb_samples > 0 || this->start_config_tx.tx_file_dumper.nb_samples == -1))

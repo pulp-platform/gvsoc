@@ -217,7 +217,7 @@ typedef enum
 {
     PI_TESTBENCH_I2S_VERIF_RX_ITER,
     PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER,
-    PI_TESTBENCH_I2S_VERIF_PDM_RX_FILE_READER
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER
 } pi_testbench_i2s_verif_start_config_type_e;
 
 // This structure can be used to describe what an I2S slot should do
@@ -239,6 +239,12 @@ typedef struct
             uint32_t filepath;
             uint32_t filepath_len;
         } tx_file_dumper;
+        struct
+        {
+            int32_t nb_samples;
+            uint32_t filepath;
+            uint32_t filepath_len;
+        } rx_file_reader;
     };
 
     uint8_t itf;   // Reserved for runtime
