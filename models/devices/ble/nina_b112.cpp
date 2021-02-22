@@ -264,7 +264,8 @@ void Nina_b112::rx_handle_sampling()
                 this->rx_handle_byte(this->rx_byte);
             }
 
-            if (this->rts_gen.trigger && (this->rts_gen.bit_trigger == this->rx_nb_bits) &&
+            if (this->uart_cfg.flow_control && this->rts_gen.trigger &&
+                (this->rts_gen.bit_trigger == this->rx_nb_bits) &&
                 !this->rts_event->is_enqueued())
             {
                 this->trace.msg(vp::trace::LEVEL_TRACE, "triggering cts\n", this->rx_prev_data);
