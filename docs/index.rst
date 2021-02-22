@@ -14,7 +14,7 @@ GVSOC documentation
    profiling
    timing_models
    power_models
-   devices
+   devices/index.rst
    commands
 
 
