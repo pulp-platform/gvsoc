@@ -45,6 +45,8 @@ int Gdb_server::register_core(vp::Gdbserver_core *core)
 
     this->cores[id] = core;
     this->cores_list.push_back(core);
+
+    return 0;
 }
 
 

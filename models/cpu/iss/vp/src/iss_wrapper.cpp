@@ -1331,6 +1331,8 @@ int iss_wrapper::gdbserver_regs_get(int *nb_regs, int *reg_size, uint8_t *value)
             regs[32] = 0;
         }
     }
+
+    return 0;
 }
 
 
