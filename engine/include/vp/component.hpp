@@ -426,6 +426,7 @@ namespace vp {
     virtual vp::time_engine *get_time_engine() ;
 
     string get_path() { return path; }
+    string get_name() { return name; }
 
 
     void conf(string name, string path, vp::component *parent);
@@ -526,6 +527,7 @@ namespace vp {
     std::map<std::string, slave_port *> slave_ports;
 
     string path;
+    string name;
 
     component *parent = NULL;
 

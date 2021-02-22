@@ -1111,6 +1111,7 @@ vp::config *vp::component::import_config(const char *config_string)
 
 void vp::component::conf(string name, string path, vp::component *parent)
 {
+    this->name = name;
     this->parent = parent;
     this->path = path;
     if (parent != NULL)
