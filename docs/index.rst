@@ -1,8 +1,10 @@
-GVSOC documentation
-===================
+.. _gvsoc:
+
+GVSOC
+=====
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    usage
@@ -17,10 +19,3 @@ GVSOC documentation
    devices/index.rst
    commands
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
