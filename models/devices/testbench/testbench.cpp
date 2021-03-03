@@ -675,22 +675,14 @@ void Testbench::handle_received_byte(uint8_t byte)
             case PI_TESTBENCH_CMD_SPIM_VERIF_SPI_WAKEUP:
             case PI_TESTBENCH_CMD_I2S_VERIF_SETUP:
             case PI_TESTBENCH_CMD_I2S_VERIF_START:
-                this->state = STATE_WAITING_REQUEST;
-                this->req_size = cmd >> 16;
-                this->current_req_size = 0;
-                break;
-
+            case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START:
+            case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_STOP:
             case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_SETUP:
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = cmd >> 16;
                 this->current_req_size = 0;
                 break;
 
-            case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START:
-                this->state = STATE_WAITING_REQUEST;
-                this->req_size = cmd >> 16;
-                this->current_req_size = 0;
-                break;
 
             case PI_TESTBENCH_CMD_GET_TIME_PS:
                 this->state = STATE_SENDING_REPLY;
@@ -753,9 +745,16 @@ void Testbench::handle_received_byte(uint8_t byte)
                     break;
 
                 case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START:
-                    pi_testbench_i2s_verif_slot_start_config_t *start_config = (pi_testbench_i2s_verif_slot_start_config_t *)this->req;
+                {
                     this->handle_i2s_verif_slot_start();
                     break;
+                }
+
+                case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_STOP:
+                {
+                    this->handle_i2s_verif_slot_stop();
+                    break;
+                }
             }
         }
     }
@@ -1102,6 +1101,21 @@ void Testbench::handle_i2s_verif_slot_start()
 }
 
 
+void Testbench::handle_i2s_verif_slot_stop()
+{
+    pi_testbench_i2s_verif_slot_stop_config_t *req = (pi_testbench_i2s_verif_slot_stop_config_t *)this->req;
+    int itf = req->itf;
+
+    if (itf >= this->nb_i2s)
+    {
+        this->trace.fatal("Invalid I2S interface (id: %d, nb_interfaces: %d)", itf, this->nb_i2s);
+        return;
+    }
+
+    this->i2ss[itf]->i2s_verif_slot_stop(req);
+}
+
+
 void Gpio::pulse_handler(void *__this, vp::clock_event *event)
 {
     Gpio *_this = (Gpio *)__this;
@@ -1198,6 +1212,18 @@ void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *confi
     }
 
     this->i2s_verif->slot_start(config);
+}
+
+
+void I2s::i2s_verif_slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
+{
+    if (!this->i2s_verif)
+    {
+        this->trace.fatal("Trying to start slot in inactive interface (itf: %d)", this->itf_id);
+        return;
+    }
+
+    this->i2s_verif->slot_stop(config);
 }
 
 

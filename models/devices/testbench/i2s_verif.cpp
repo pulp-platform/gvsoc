@@ -28,6 +28,7 @@ public:
     Slot(Testbench *top, I2s_verif *i2s, int itf, int id);
     void setup(pi_testbench_i2s_verif_slot_config_t *config);
     void start(pi_testbench_i2s_verif_slot_start_config_t *config);
+    void stop();
     void start_frame();
     int get_data();
     void send_data(int sdo);
@@ -149,8 +150,8 @@ void I2s_verif::slot_setup(pi_testbench_i2s_verif_slot_config_t *config)
 
 void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 {
-    this->trace.msg(vp::trace::LEVEL_INFO, "Starting (nb_samples: %d, incr_start: 0x%x, incr_end: 0x%x, incr_value: 0x%x)\n",
-        config->rx_iter.nb_samples, config->rx_iter.incr_start, config->rx_iter.incr_end, config->rx_iter.incr_value);
+    this->trace.msg(vp::trace::LEVEL_INFO, "Starting (slot: %d, nb_samples: %d, incr_start: 0x%x, incr_end: 0x%x, incr_value: 0x%x)\n",
+        config->slot, config->rx_iter.nb_samples, config->rx_iter.incr_start, config->rx_iter.incr_end, config->rx_iter.incr_value);
 
     int slot = config->slot;
 
@@ -162,6 +163,23 @@ void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 
     this->slots[slot]->start(config);
 
+}
+
+
+
+void I2s_verif::slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
+{
+    this->trace.msg(vp::trace::LEVEL_INFO, "Stopping\n");
+
+    int slot = config->slot;
+
+    if (slot >= this->config.nb_slots)
+    {
+        this->trace.fatal("Trying to configure invalid slot (slot: %d, nb_slot: %d)", slot, this->config.nb_slots);
+        return;
+    }
+
+    this->slots[slot]->stop();
 }
 
 
@@ -324,6 +342,7 @@ void I2s_verif::start(pi_testbench_i2s_verif_start_config_t *config)
 
 
 
+
 Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s), id(id)
 {
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf) + "_slot" + std::to_string(id), &trace, vp::DEBUG);
@@ -365,6 +384,7 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         ::memcpy(&this->start_config_rx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
 
         this->start_config_rx.rx_iter.incr_end &= (1ULL << this->config_rx.word_size) - 1;
+        this->start_config_rx.rx_iter.incr_start &= (1ULL << this->config_rx.word_size) - 1;
 
         if (this->start_config_rx.rx_iter.incr_value >= this->start_config_rx.rx_iter.incr_end)
             this->start_config_rx.rx_iter.incr_value = 0;
@@ -412,6 +432,12 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         this->i2s->data = this->id < 2 ? this->i2s->data & 0xC : this->i2s->data & 0x3;
         this->i2s->itf->sync(2, 2, this->i2s->data);
     }
+}
+
+
+void Slot::stop()
+{
+    this->rx_started = false;
 }
 
 
@@ -468,7 +494,6 @@ void Slot::start_frame()
                 this->start_config_rx.rx_iter.nb_samples--;
             }
 
-
             bool changed = false;
             if (!msb_first)
             {
@@ -492,14 +517,13 @@ void Slot::start_frame()
                 }
                 else
                 {
-                    this->rx_pending_value = this->rx_pending_value & (1 << this->config_rx.word_size) - 1;
+                    this->rx_pending_value = this->rx_pending_value & (1ULL << this->config_rx.word_size) - 1;
                 }
             }
 
             if (changed)
             {
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Adapted sample to format (sample: 0x%x)\n", this->rx_pending_value);
-
             }
         }
     }

@@ -59,6 +59,7 @@ class Uart;
 #define PI_TESTBENCH_CMD_SPIM_VERIF_TRANSFER 10
 #define PI_TESTBENCH_CMD_SPIM_VERIF_SPI_WAKEUP 11
 #define PI_TESTBENCH_CMD_I2S_VERIF_START 12
+#define PI_TESTBENCH_CMD_I2S_VERIF_SLOT_STOP 13
 
 #define PI_TESTBENCH_MAX_REQ_SIZE 256
 
@@ -252,6 +253,14 @@ typedef struct
 }
 __attribute__((packed)) pi_testbench_i2s_verif_slot_start_config_t;
 
+// This structure can be used to describe what an I2S slot should do
+typedef struct
+{
+    uint8_t itf;   // Reserved for runtime
+    uint8_t slot;  // Reserved for runtime
+}
+__attribute__((packed)) pi_testbench_i2s_verif_slot_stop_config_t;
+
 
 typedef enum {
     STATE_WAITING_CMD,
@@ -322,6 +331,7 @@ public:
     void i2s_verif_start(pi_testbench_i2s_verif_start_config_t *config);
     void i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
     void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
+    void i2s_verif_slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config);
     static void sync(void *__this, int sck, int ws, int sd);
     void sync_sck(int sck);
     void sync_ws(int ws);
@@ -572,6 +582,7 @@ private:
     void handle_i2s_verif_start();
     void handle_i2s_verif_slot_setup();
     void handle_i2s_verif_slot_start();
+    void handle_i2s_verif_slot_stop();
 
     static void gpio_sync(void *__this, int value, int id);
     static void i2c_sync(void *__this, int scl, int sda, int id);
