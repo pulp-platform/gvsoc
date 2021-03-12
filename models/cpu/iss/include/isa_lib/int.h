@@ -1831,7 +1831,8 @@ static inline unsigned int lib_flexfloat_fmv_ff_x(iss_cpu_state_t *s, unsigned i
 }
 
 static inline unsigned int lib_flexfloat_eq(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  if (IsNan(a, e, m)) return 0;
+  // if (IsNan(a, e, m)) return 0;  WAS BEFORE, NOT ENOUGH
+  if (IsNan(a, e, m) || IsNan(b, e, m)) return 0;
   FF_INIT_2(a, b, e, m)
   feclearexcept(FE_ALL_EXCEPT);
   int32_t res = ff_eq(&ff_a, &ff_b);
@@ -1840,7 +1841,8 @@ static inline unsigned int lib_flexfloat_eq(iss_cpu_state_t *s, unsigned int a, 
 }
 
 static inline unsigned int lib_flexfloat_ne(iss_cpu_state_t *s, unsigned int a, unsigned int b, uint8_t e, uint8_t m) {
-  if (IsNan(a, e, m)) return 0;
+  // if (IsNan(a, e, m)) return 0; WAS BEFORE, NOT ENOUGH
+  if (IsNan(a, e, m) || IsNan(b, e, m)) return 0;
   FF_INIT_2(a, b, e, m)
   feclearexcept(FE_ALL_EXCEPT);
   int32_t res = (ff_eq(&ff_a, &ff_b)==0);
