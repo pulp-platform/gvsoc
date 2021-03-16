@@ -95,13 +95,26 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     {
         if (this->is_ext_clk)
         {
+            if (config->sampling_freq <= 0)
+            {
+                this->trace.fatal("Invalid sampling frequency with external clock (sampling_freq: %d)\n", config->sampling_freq);
+                return;
+            }
+
             this->clk_period = 1000000000000ULL / config->sampling_freq / config->nb_slots / config->word_size / 2;
 
             this->clk = 0;
         }
     }
 
-    this->sampling_period = 1000000000000ULL / config->sampling_freq;
+    if (config->sampling_freq > 0)
+    {
+        this->sampling_period = 1000000000000ULL / config->sampling_freq;
+    }
+    else
+    {
+        this->sampling_period = 0;
+    }
 
     if (config->is_sai0_clk)
     {
@@ -135,7 +148,6 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->prev_frame_start_time = -1;
 
     this->itf->sync(this->clk, this->ws_value, this->data);
-
 }
 
 
@@ -254,7 +266,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 {
                     this->trace.msg(vp::trace::LEVEL_TRACE, "Detected frame start\n");
 
-                    if (this->prev_frame_start_time != -1)
+                    if (this->sampling_period != 0 && this->prev_frame_start_time != -1)
                     {
                         int64_t measured_period = this->get_time() - this->prev_frame_start_time;
                         float error = (measured_period - this->sampling_period) / this->sampling_period * 100;
