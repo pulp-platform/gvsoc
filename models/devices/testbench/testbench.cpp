@@ -681,6 +681,10 @@ void Testbench::handle_received_byte(uint8_t byte)
                 this->state = STATE_WAITING_REQUEST;
                 this->req_size = cmd >> 16;
                 this->current_req_size = 0;
+                if (this->req_size == 0)
+                {
+                    this->trace.fatal("Received zero size\n");
+                }
                 break;
 
 
@@ -1278,8 +1282,8 @@ void I2s::sync_ws(int ws)
 
 void I2s::i2s_verif_setup(pi_testbench_i2s_verif_config_t *config)
 {
-    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif setup (enabled: %d, sampling_rate: %d, word_size: %d, nb_slots: %d)\n",
-        config->enabled, config->sampling_freq, config->word_size, config->nb_slots);
+    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif setup (enabled: %d, sampling_rate: %d, word_size: %d, nb_slots: %d, ext_clk: %d, ext_ws: %d)\n",
+        config->enabled, config->sampling_freq, config->word_size, config->nb_slots, config->is_ext_clk, config->is_ext_ws);
 
     if (this->i2s_verif)
     {
@@ -1311,8 +1315,8 @@ void I2s::i2s_verif_start(pi_testbench_i2s_verif_start_config_t *config)
 
 void I2s::i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config)
 {
-    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif slot setup (slot: %d, is_rx: %d, enabled: %d, word_size: %d)\n",
-        config->slot, config->is_rx, config->enabled, config->word_size);
+    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif slot setup (slot: %d, is_rx: %d, enabled: %d, word_size: %d, format: %x)\n",
+        config->slot, config->is_rx, config->enabled, config->word_size, config->format);
 
     if (!this->i2s_verif)
     {

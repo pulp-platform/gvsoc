@@ -68,6 +68,8 @@ public:
     int ws_count;
     int ws_value;
     bool pdm_lanes_is_out[2];
+    int64_t prev_frame_start_time;
+    int64_t sampling_period;
 
     std::vector<Slot *> slots;
 };

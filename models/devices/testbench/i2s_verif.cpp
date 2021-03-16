@@ -101,6 +101,8 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
         }
     }
 
+    this->sampling_period = 1000000000000ULL / config->sampling_freq;
+
     if (config->is_sai0_clk)
     {
         top->i2ss[0]->clk_propagate |= 1 << itf_id;
@@ -129,6 +131,8 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     {
         this->clk = 0;
     }
+
+    this->prev_frame_start_time = -1;
 
     this->itf->sync(this->clk, this->ws_value, this->data);
 
@@ -169,7 +173,7 @@ void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
 
 void I2s_verif::slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
 {
-    this->trace.msg(vp::trace::LEVEL_INFO, "Stopping\n");
+    this->trace.msg(vp::trace::LEVEL_INFO, "Stopping (slot: %d)\n", config->slot);
 
     int slot = config->slot;
 
@@ -248,7 +252,20 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 // The channel is the one of this microphone
                 if (this->prev_ws != ws && ws == 1)
                 {
-                    this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
+                    this->trace.msg(vp::trace::LEVEL_TRACE, "Detected frame start\n");
+
+                    if (this->prev_frame_start_time != -1)
+                    {
+                        int64_t measured_period = this->get_time() - this->prev_frame_start_time;
+                        float error = (measured_period - this->sampling_period) / this->sampling_period * 100;
+                        if (error >= 10)
+                        {
+                            this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected wrong period\n");
+                            return;
+                        }
+                    }
+
+                    this->prev_frame_start_time = this->get_time();
 
                     // If the WS just changed, apply the delay before starting sending
                     this->current_ws_delay = this->ws_delay;
@@ -372,8 +389,8 @@ void Slot::setup(pi_testbench_i2s_verif_slot_config_t *config)
         ::memcpy(&this->config_tx, config, sizeof(pi_testbench_i2s_verif_slot_config_t));
     }
 
-    this->trace.msg(vp::trace::LEVEL_INFO, "Slot setup (is_rx: %d, enabled: %d, word_size: %d)\n",
-        config->is_rx, config->enabled, config->word_size);
+    this->trace.msg(vp::trace::LEVEL_INFO, "Slot setup (is_rx: %d, enabled: %d, word_size: %d, format: 0x%x)\n",
+        config->is_rx, config->enabled, config->word_size, config->format);
 }
 
 
