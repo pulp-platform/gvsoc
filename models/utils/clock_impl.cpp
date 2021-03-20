@@ -60,7 +60,7 @@ void Clock::raise_edge()
 {
     if (this->clock_sync_itf.is_bound())
     {
-        this->get_trace()->msg("Changing clock level (level: %d)\n", value);
+        this->get_trace()->msg(vp::trace::LEVEL_TRACE, "Changing clock level (level: %d)\n", value);
 
         if (this->target_frequency && this->clock_ctrl_itf.is_bound())
         {
@@ -87,6 +87,9 @@ void Clock::raise_edge()
 void Clock::power_sync(void *__this, bool active)
 {
     Clock *_this = (Clock *)__this;
+
+    _this->get_trace()->msg(vp::trace::LEVEL_DEBUG, "Changing clock power (is_on: %d)\n", active);
+
     if (active != _this->powered_on)
     {
         if (active)

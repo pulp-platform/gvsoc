@@ -193,7 +193,7 @@ void vp::time_engine::quit()
 
 int vp::time_engine::join()
 {
-    int result = 0;
+    int result = -1;
 
     pthread_mutex_lock(&mutex);
 
