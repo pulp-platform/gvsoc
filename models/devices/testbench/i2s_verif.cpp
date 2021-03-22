@@ -447,6 +447,7 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         this->rx_started = true;
 
         char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
+
         this->infile = fopen(filepath, "r");
         if (this->infile == NULL)
         {
@@ -700,7 +701,7 @@ int Slot::pdm_get()
             }
         }
 
-        int data = atoi(line);
+        int data = strtol(line, NULL, 0);
 
         return data;
     }
