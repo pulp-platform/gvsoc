@@ -224,7 +224,7 @@ void iss_wrapper::fetch_grant(void *_this, vp::io_req *req)
 
 void iss_wrapper::fetch_response(void *_this, vp::io_req *req)
 {
-
+    printf("FETCH RESPONSE\n");
 }
 
 void iss_wrapper::bootaddr_sync(void *__this, uint32_t value)
