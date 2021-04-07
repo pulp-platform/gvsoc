@@ -272,7 +272,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                         float error = (measured_period - this->sampling_period) / this->sampling_period * 100;
                         if (error >= 10)
                         {
-                            this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected wrong period\n");
+                            this->trace.force_warning("Detected wrong period\n");
                             return;
                         }
                     }
@@ -583,8 +583,6 @@ void Slot::send_data(int sd)
                 int sign_extend = (this->config_tx.format >> 2) & 1;
                 int dummy_cycles = this->i2s->config.word_size - this->config_tx.word_size;
 
-                //fprintf(stderr, "Captured sample %x\n", this->tx_pending_value);
-
                 if (dummy_cycles)
                 {
                     if (msb_first)
@@ -634,8 +632,6 @@ void Slot::send_data(int sd)
                         this->tx_pending_value = value;
                     }
                 }
-
-                //fprintf(stderr, "Reordered sample %x\n", this->tx_pending_value);
 
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Writing sample (value: 0x%lx)\n", this->tx_pending_value);
                 fprintf(this->outfile, "0x%x\n", this->tx_pending_value);
