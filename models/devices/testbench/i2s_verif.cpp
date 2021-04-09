@@ -234,10 +234,13 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
-
     if (sck != this->prev_sck)
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
+
+
+    this->prev_sck = sck;
+
 
         if (this->is_pdm)
         {
@@ -272,7 +275,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                         float error = (measured_period - this->sampling_period) / this->sampling_period * 100;
                         if (error >= 10)
                         {
-                            this->trace.force_warning("Detected wrong period\n");
+                            this->trace.fatal("Detected wrong period\n");
                             return;
                         }
                     }
@@ -355,8 +358,6 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
         }
     }
-
-    this->prev_sck = sck;
 }
 
 
