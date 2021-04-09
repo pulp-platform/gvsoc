@@ -161,6 +161,7 @@ void MapEntry::insert(router *router)
 vp::io_req_status_e router::req(void *__this, vp::io_req *req)
 {
   router *_this = (router *)__this;
+  vp::io_req_status_e result;
   
   if (!_this->init)
   {
@@ -168,117 +169,148 @@ vp::io_req_status_e router::req(void *__this, vp::io_req *req)
     _this->init_entries();
   }
 
-  MapEntry *entry = _this->topMapEntry;
   uint64_t offset = req->get_addr();
-  bool isRead = !req->get_is_write();
-  uint64_t size = req->get_size();  
+  uint64_t size = req->get_size();
+  uint8_t *data = req->get_data();
+  uint64_t req_size = size;
+  uint64_t req_offset = offset;
+  uint8_t *req_data = data;
 
-  _this->trace.msg(vp::trace::LEVEL_TRACE, "Received IO req (offset: 0x%llx, size: 0x%llx, isRead: %d)\n", offset, size, isRead);
-
-  if (entry)
+  int count = 0;
+  while (size)
   {
-    while(1) {
-    // The entry does not have any child, this means we are at a final entry
-      if (entry->left == NULL) break;
+    MapEntry *entry = _this->topMapEntry;
+    bool isRead = !req->get_is_write();
 
-      if (offset >= entry->base) entry = entry->right;
-      else entry = entry->left;
-    }
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "Received IO req (offset: 0x%llx, size: 0x%llx, isRead: %d)\n", offset, size, isRead);
 
-    if (entry && (offset < entry->base || offset > entry->base + entry->size - 1)) {
-      entry = NULL;
-    }
-  }
-
-  if (!entry) {
-    if (_this->errorMapEntry && offset >= _this->errorMapEntry->base && offset + size - 1 <= _this->errorMapEntry->base + _this->errorMapEntry->size - 1) {
-    } else {
-      entry = _this->defaultMapEntry;
-    }
-  }
-
-  if (!entry) {
-    //_this->trace.msg(&warning, "Invalid access (offset: 0x%llx, size: 0x%llx, isRead: %d)\n", offset, size, isRead);
-    return vp::IO_REQ_INVALID;
-  }
-
-  if (entry == _this->defaultMapEntry) {
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "Routing to default entry (target: %s)\n", entry->target_name.c_str());
-  } else {
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "Routing to entry (target: %s)\n", entry->target_name.c_str());
-  }
-  
-  if (0) { //_this->bandwidth != 0 and !req->is_debug()) {
-    
-#if 0
-  // Compute the duration from the specified bandwidth
-  // Don't forget to compare to the already computed duration, as there might be a slower router
-  // on the path
-    req->set_duration((float)size / _this->bandwidth);
-
-    // This is the time when the router is available
-    int64_t routerTime = max(getCycles(), entry->nextPacketTime);
-
-    // This is the time when the packet is available for the next module
-    // It is either delayed by the router in case of bandwidth overflow, and in this case
-    // we only apply the router latency, or it is delayed by the latency of the components 
-    // on the path plus the router latency.
-    // Just select the maximum
-    int64_t packetTime = max(routerTime + entry->latency, getCycles() + req->getLatency() + entry->latency);
-
-    // Compute the latency to be reported from the estimated packet time at the output
-    req->setLatency(packetTime - getCycles());
-
-    // Update the bandwidth information
-    entry->nextPacketTime = routerTime + req->getLength();
-
-#endif
-  } else {
-    req->inc_latency(entry->latency + _this->latency);
-  }
-
-  // Forward the request to the target port
-  if (entry->remove_offset) req->set_addr(offset - entry->remove_offset);
-  if (entry->add_offset) req->set_addr(offset + entry->add_offset);
-  vp::io_req_status_e result = vp::IO_REQ_OK;
-  if (entry->port)
-  {
-    req->arg_push(NULL);
-    result = _this->out.req(req, entry->port);
-    if (result == vp::IO_REQ_OK)
-      req->arg_pop();
-  }
-  else if (entry->itf)
-  {
-    if (!entry->itf->is_bound())
+    if (entry)
     {
-      _this->warning.msg(vp::trace::LEVEL_WARNING, "Invalid access, trying to route to non-connected interface (offset: 0x%llx, size: 0x%llx, is_write: %d)\n", offset, size, !isRead);
+      while(1) {
+      // The entry does not have any child, this means we are at a final entry
+        if (entry->left == NULL) break;
+
+        if (offset >= entry->base) entry = entry->right;
+        else entry = entry->left;
+      }
+
+      if (entry && (offset < entry->base || offset > entry->base + entry->size - 1)) {
+        entry = NULL;
+      }
+    }
+
+    if (!entry) {
+      if (_this->errorMapEntry && offset >= _this->errorMapEntry->base && offset + size - 1 <= _this->errorMapEntry->base + _this->errorMapEntry->size - 1) {
+      } else {
+        entry = _this->defaultMapEntry;
+      }
+    }
+
+    if (!entry) {
+      //_this->trace.msg(&warning, "Invalid access (offset: 0x%llx, size: 0x%llx, isRead: %d)\n", offset, size, isRead);
       return vp::IO_REQ_INVALID;
     }
-    req->arg_push(req->resp_port);
-    result = entry->itf->req(req);
-    if (result == vp::IO_REQ_OK)
-      req->arg_pop();
+
+    if (entry == _this->defaultMapEntry) {
+      _this->trace.msg(vp::trace::LEVEL_TRACE, "Routing to default entry (target: %s)\n", entry->target_name.c_str());
+    } else {
+      _this->trace.msg(vp::trace::LEVEL_TRACE, "Routing to entry (target: %s)\n", entry->target_name.c_str());
+    }
+    
+    if (0) { //_this->bandwidth != 0 and !req->is_debug()) {
+      
+  #if 0
+    // Compute the duration from the specified bandwidth
+    // Don't forget to compare to the already computed duration, as there might be a slower router
+    // on the path
+      req->set_duration((float)size / _this->bandwidth);
+
+      // This is the time when the router is available
+      int64_t routerTime = max(getCycles(), entry->nextPacketTime);
+
+      // This is the time when the packet is available for the next module
+      // It is either delayed by the router in case of bandwidth overflow, and in this case
+      // we only apply the router latency, or it is delayed by the latency of the components 
+      // on the path plus the router latency.
+      // Just select the maximum
+      int64_t packetTime = max(routerTime + entry->latency, getCycles() + req->getLatency() + entry->latency);
+
+      // Compute the latency to be reported from the estimated packet time at the output
+      req->setLatency(packetTime - getCycles());
+
+      // Update the bandwidth information
+      entry->nextPacketTime = routerTime + req->getLength();
+
+  #endif
+    } else {
+      req->inc_latency(entry->latency + _this->latency);
+    }
+
+    int iter_size = entry == _this->defaultMapEntry ? size : entry->size - (offset - entry->base);
+
+    if (iter_size > size)
+    {
+      iter_size = size;
+    }
+
+    // Forward the request to the target port
+    req->set_addr(offset);
+    req->set_size(iter_size);
+    req->set_data(data);
+    if (entry->remove_offset) req->set_addr(offset - entry->remove_offset);
+    if (entry->add_offset) req->set_addr(offset + entry->add_offset);
+
+    result = vp::IO_REQ_OK;
+    if (entry->port)
+    {
+      req->arg_push(NULL);
+      result = _this->out.req(req, entry->port);
+      if (result == vp::IO_REQ_OK)
+        req->arg_pop();
+    }
+    else if (entry->itf)
+    {
+      if (!entry->itf->is_bound())
+      {
+        _this->warning.msg(vp::trace::LEVEL_WARNING, "Invalid access, trying to route to non-connected interface (offset: 0x%llx, size: 0x%llx, is_write: %d)\n", offset, size, !isRead);
+        return vp::IO_REQ_INVALID;
+      }
+      req->arg_push(req->resp_port);
+      result = entry->itf->req(req);
+      if (result == vp::IO_REQ_OK)
+        req->arg_pop();
+    }
+
+    if (entry->id != -1) 
+    {
+      int64_t latency = req->get_latency();
+      int64_t duration = req->get_duration();
+      if (duration > 1) latency += duration - 1;
+
+      Perf_counter *counter = _this->counters[entry->id];
+
+      if (isRead)
+        counter->read_stalls += latency;
+      else
+        counter->write_stalls += latency;
+    
+      if (isRead)
+        counter->nb_read++;
+      else
+        counter->nb_write++;
+
+    }
+
+    size -= iter_size;
+    offset += iter_size;
+    data += iter_size;
   }
 
-  if (entry->id != -1) 
+  if (result == vp::IO_REQ_OK)
   {
-    int64_t latency = req->get_latency();
-    int64_t duration = req->get_duration();
-    if (duration > 1) latency += duration - 1;
-
-    Perf_counter *counter = _this->counters[entry->id];
-
-    if (isRead)
-      counter->read_stalls += latency;
-    else
-      counter->write_stalls += latency;
-  
-    if (isRead)
-      counter->nb_read++;
-    else
-      counter->nb_write++;
-
+    req->set_addr(req_offset);
+    req->set_size(req_size);
+    req->set_data(req_data);
   }
 
   return result;
