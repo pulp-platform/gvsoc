@@ -272,10 +272,12 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                     if (this->sampling_period != 0 && this->prev_frame_start_time != -1)
                     {
                         int64_t measured_period = this->get_time() - this->prev_frame_start_time;
-                        float error = (measured_period - this->sampling_period) / this->sampling_period * 100;
+
+                        float error = ((float)measured_period - this->sampling_period) / this->sampling_period * 100;
+
                         if (error >= 10)
                         {
-                            this->trace.fatal("Detected wrong period\n");
+                            this->trace.fatal("Detected wrong period (expected: %ld ps, measured: %ld ps)\n", this->sampling_period, measured_period);
                             return;
                         }
                     }
