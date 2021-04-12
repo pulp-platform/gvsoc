@@ -1222,10 +1222,14 @@ void vp::reg::reset(bool active)
 {
     if (active)
     {
+        this->trace.msg("Resetting register\n");
         if (this->reset_value_bytes)
         {
-            this->trace.msg("Resetting register\n");
             memcpy((void *)this->value_bytes, (void *)this->reset_value_bytes, this->nb_bytes);
+        }
+        else
+        {
+            memset((void *)this->value_bytes, 0, this->nb_bytes);
         }
     }
 }

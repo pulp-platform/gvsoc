@@ -239,7 +239,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
         this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
 
-    this->prev_sck = sck;
+        this->prev_sck = sck;
 
 
         if (this->is_pdm)
@@ -267,7 +267,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 // The channel is the one of this microphone
                 if (this->prev_ws != ws && ws == 1)
                 {
-                    this->trace.msg(vp::trace::LEVEL_TRACE, "Detected frame start\n");
+                    this->trace.msg(vp::trace::LEVEL_INFO, "Detected frame start\n");
 
                     if (this->sampling_period != 0 && this->prev_frame_start_time != -1)
                     {
@@ -278,7 +278,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                         if (error >= 10)
                         {
                             this->trace.fatal("Detected wrong period (expected: %ld ps, measured: %ld ps)\n", this->sampling_period, measured_period);
-                            return;
+                            return;                            
                         }
                     }
 

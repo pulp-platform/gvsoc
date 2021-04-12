@@ -262,12 +262,12 @@ void iss_reset(iss_t *iss, int active)
       iss->cpu.regfile.regs[i] = i == 0 ? 0 : 0x57575757;
     }
 
+    iss_irq_init(iss);
+
     iss_cache_flush(iss);
     
     iss->cpu.prev_insn = NULL;
     iss->cpu.state.elw_insn = NULL;
-
-    iss_irq_init(iss);
   }
 
   iss_csr_init(iss, active);
