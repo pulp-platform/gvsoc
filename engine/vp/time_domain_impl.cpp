@@ -289,11 +289,13 @@ void vp::time_engine::wait_ready()
 }
 
 
-void vp::time_engine::step(int64_t timestamp)
+void vp::time_engine::step(int64_t duration)
 {
     time_engine_client *current = first_client;
 
     time_engine_client *client = first_client;
+
+    int64_t timestamp = this->time + duration;
 
     while (current && this->time <= timestamp)
     {

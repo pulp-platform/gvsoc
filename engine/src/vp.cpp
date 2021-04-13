@@ -1590,6 +1590,19 @@ void Gv_proxy::proxy_loop(int socket_fd)
                 this->top->run();
                 dprintf(this->reply_pipe, "running %ld\n", timestamp);
             }
+            else if (words[0] == "step")
+            {
+                if (words.size() != 2)
+                {
+                    fprintf(stderr, "This command requires 1 argument: step timestamp");
+                }
+                else
+                {
+                    int64_t timestamp = top->get_time();
+                    this->top->step(strtol(words[1].c_str(), NULL, 0));
+                    dprintf(this->reply_pipe, "running %ld\n", timestamp);
+                }
+            }
             else if (words[0] == "stop")
             {
                 this->top->pause();
@@ -1797,10 +1810,17 @@ extern "C" void gv_start(void *arg)
     instance->build();
     instance->build_new();
 
-    if (instance->gv_conf.open_proxy)
+    if (instance->gv_conf.open_proxy || instance->get_vp_config()->get_child_bool("proxy/enabled"))
     {
+        int in_port = instance->gv_conf.open_proxy ? 0 : instance->get_vp_config()->get_child_int("proxy/port");
+        int out_port;
         proxy = new Gv_proxy(instance, instance->gv_conf.req_pipe, instance->gv_conf.reply_pipe);
-        proxy->open(0, instance->gv_conf.proxy_socket);
+        proxy->open(in_port, &out_port);
+
+        if (instance->gv_conf.proxy_socket)
+        {
+            *instance->gv_conf.proxy_socket = out_port;
+        }
     }
 
 }
@@ -2020,7 +2040,7 @@ extern "C" int gv_run(void *_instance)
 extern "C" void gv_init(struct gv_conf *gv_conf)
 {
     gv_conf->open_proxy = 0;
-    gv_conf->open_proxy = NULL;
+    *gv_conf->proxy_socket = -1;
     gv_conf->req_pipe = 0;
     gv_conf->reply_pipe = 0;
 }

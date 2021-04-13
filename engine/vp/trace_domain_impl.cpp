@@ -143,6 +143,7 @@ void trace_domain::check_trace_active(vp::trace *trace, int event)
     std::string full_path = trace->get_full_path();
 
     trace->set_event_active(false);
+    trace->set_active(false);
 
     if (event)
     {
