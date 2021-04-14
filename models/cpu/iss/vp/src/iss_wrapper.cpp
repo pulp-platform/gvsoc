@@ -755,6 +755,33 @@ void iss_wrapper::handle_riscv_ebreak()
     fstat(this->cpu.regfile.regs[11], &buf);
     this->cpu.regfile.regs[10] = buf.st_size;
   }
+  else if (id == 0x100)
+  {
+    iss_reg_t args[2];
+    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+    {
+      this->cpu.regfile.regs[10] = -1;
+      return;
+    }
+    int result = -1;
+    std::string path = this->read_user_string(args[0]);
+    if (path == "")
+    {
+      this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[0]);
+    }
+    else
+    {
+      if (args[1])
+      {
+        this->traces.get_trace_manager()->add_trace_path(0, path);
+      }
+      else
+      {
+        this->traces.get_trace_manager()->add_exclude_trace_path(0, path);
+      }
+      this->traces.get_trace_manager()->check_traces();
+    }
+  }    
   else
   {
     this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
