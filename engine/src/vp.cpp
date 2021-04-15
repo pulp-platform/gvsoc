@@ -2040,7 +2040,10 @@ extern "C" int gv_run(void *_instance)
 extern "C" void gv_init(struct gv_conf *gv_conf)
 {
     gv_conf->open_proxy = 0;
-    *gv_conf->proxy_socket = -1;
+    if (gv_conf->proxy_socket)
+    {
+        *gv_conf->proxy_socket = -1;
+    }
     gv_conf->req_pipe = 0;
     gv_conf->reply_pipe = 0;
 }
