@@ -490,6 +490,7 @@ namespace vp {
 
     std::vector<vp::component *> get_childs() { return childs; }
     std::map<std::string, vp::component *> get_childs_dict() { return childs_dict; }
+    vp::component *get_component(std::string path);
 
     virtual vp::port *get_slave_port(std::string name) { return this->slave_ports[name]; }
     virtual vp::port *get_master_port(std::string name) { return this->master_ports[name]; }
@@ -498,6 +499,8 @@ namespace vp {
     virtual void add_master_port(std::string name, vp::master_port *port);
 
     void throw_error(std::string error);
+
+    virtual std::string handle_command(std::vector<std::string> args) { return ""; }
 
     component_trace traces;
     component_power power;

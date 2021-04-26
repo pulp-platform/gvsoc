@@ -73,7 +73,7 @@ class Gv_proxy
  
 
     void listener(void);
-    void proxy_loop(int);
+    void proxy_loop(int, int);
     
     int telnet_socket;
     int socket_port;
@@ -181,7 +181,6 @@ void vp::regmap::build(vp::component *comp, vp::trace *trace, std::string name)
         x->build(comp, reg_name);
     }
 }
-
 
 
 void vp::component::reg_step_pre_start(std::function<void()> callback)
@@ -1126,6 +1125,34 @@ void vp::component::add_child(std::string name, vp::component *child)
     this->childs_dict[name] = child;
 }
 
+vp::component *vp::component::get_component(std::string path)
+{
+    if (this->get_path() == path)
+    {
+        return this;
+    }
+
+    if (this->get_path() != "")
+    {
+        if (path.find(this->get_path()) != 0)
+        {
+            return NULL;
+        }
+    }
+
+
+    for (auto x:this->childs)
+    {
+        vp::component *comp = x->get_component(path);
+        if (comp)
+        {
+            return comp;
+        }
+    }
+
+    return NULL;
+}
+
 void vp::component::elab()
 {
     for (auto &x : this->childs)
@@ -1566,7 +1593,7 @@ void vp::component::create_comps()
 
 
 
-void Gv_proxy::proxy_loop(int socket_fd)
+void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
 {
     FILE *sock = fdopen(socket_fd, "r");
 
@@ -1584,7 +1611,18 @@ void Gv_proxy::proxy_loop(int socket_fd)
 
         if (words.size() > 0)
         {
-            if (words[0] == "run")
+            if (words[0] == "get_component")
+            {
+                vp::component *comp = this->top->get_component(words[1]);
+                dprintf(reply_fd, "%p\n", comp);
+            }
+            else if (words[0] == "component")
+            {
+                vp::component *comp = (vp::component *)strtoll(words[1].c_str(), NULL, 0);
+                std::string retval = comp->handle_command({words.begin() + 2, words.end()});
+                dprintf(reply_fd, "%s\n", retval.c_str());
+            }
+            else if (words[0] == "run")
             {
                 int64_t timestamp = top->get_time();
                 this->top->run();
@@ -1598,9 +1636,9 @@ void Gv_proxy::proxy_loop(int socket_fd)
                 }
                 else
                 {
-                    int64_t timestamp = top->get_time();
                     this->top->step(strtol(words[1].c_str(), NULL, 0));
-                    dprintf(this->reply_pipe, "running %ld\n", timestamp);
+                    int64_t timestamp = top->get_time();
+                    dprintf(reply_fd, "running %ld\n", timestamp);
                 }
             }
             else if (words[0] == "stop")
@@ -1676,7 +1714,7 @@ void Gv_proxy::listener(void)
         }
 
         this->sockets.push_back(client_fd);
-        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, client_fd);
+        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, client_fd, client_fd);
     }
 }
 
@@ -1729,7 +1767,7 @@ int Gv_proxy::open(int port, int *out_port)
     }
     else
     {
-        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, this->req_pipe);
+        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, this->req_pipe, this->reply_pipe);
     }
 
     return 0;

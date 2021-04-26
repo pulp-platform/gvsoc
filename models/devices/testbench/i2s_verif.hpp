@@ -57,6 +57,7 @@ public:
     bool is_pdm;
     bool is_full_duplex;
 
+    bool clk_active;
     int64_t clk_period;
     bool is_ext_clk;
     int clk;

@@ -221,6 +221,22 @@ typedef enum
     PI_TESTBENCH_I2S_VERIF_RX_FILE_READER
 } pi_testbench_i2s_verif_start_config_type_e;
 
+
+typedef enum
+{
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_RAW,
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_WAV,
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_AU,
+} pi_testbench_i2s_verif_start_config_rx_file_reader_type_e;
+
+typedef enum
+{
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_RAW,
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_WAV,
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_AU,
+} pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e;
+
+
 // This structure can be used to describe what an I2S slot should do
 typedef struct
 {
@@ -239,12 +255,14 @@ typedef struct
             int32_t nb_samples;
             uint32_t filepath;
             uint32_t filepath_len;
+            uint32_t type;
         } tx_file_dumper;
         struct
         {
             int32_t nb_samples;
             uint32_t filepath;
             uint32_t filepath_len;
+            uint32_t type;
         } rx_file_reader;
     };
 
@@ -258,6 +276,8 @@ typedef struct
 {
     uint8_t itf;   // Reserved for runtime
     uint8_t slot;  // Reserved for runtime
+    uint8_t stop_rx;
+    uint8_t stop_tx;
 }
 __attribute__((packed)) pi_testbench_i2s_verif_slot_stop_config_t;
 
@@ -549,6 +569,7 @@ public:
 
     int build();
     void start();
+    std::string handle_command(std::vector<std::string> args);
 
     void handle_received_byte(uint8_t byte);
 

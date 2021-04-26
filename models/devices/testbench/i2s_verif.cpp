@@ -21,26 +21,128 @@
 
 #include <vp/vp.hpp>
 #include "i2s_verif.hpp"
+#ifdef USE_SNDFILE
+#include <sndfile.hh>
+#endif
+
+class Slot;
+
+
+class Rx_stream
+{
+public:
+    virtual ~Rx_stream() {};
+    virtual uint32_t get_sample() = 0;
+};
+
+
+class Tx_stream
+{
+public:
+    virtual ~Tx_stream() {};
+    virtual void push_sample(uint32_t sample) = 0;
+};
+
+
+class Rx_stream_libsnd_file : public Rx_stream
+{
+public:
+    Rx_stream_libsnd_file(Slot *slot, pi_testbench_i2s_verif_start_config_rx_file_reader_type_e type, string filepath);
+    uint32_t get_sample();
+    Slot *slot;
+
+private:
+#ifdef USE_SNDFILE
+    SNDFILE *sndfile;
+    SF_INFO sfinfo;
+#endif
+    int period;
+    int width;
+
+    int64_t last_data_time;
+    long long last_data;
+    int64_t next_data_time;
+    long long next_data;
+};
+
+
+class Rx_stream_raw_file : public Rx_stream
+{
+public:
+    Rx_stream_raw_file(Slot *slot, string filepath);
+    uint32_t get_sample();
+    Slot *slot;
+
+private:
+    FILE *infile;
+};
+
+
+class Tx_stream_raw_file : public Tx_stream
+{
+public:
+    Tx_stream_raw_file(Slot *slot, string filepath);
+    void push_sample(uint32_t sample);
+    Slot *slot;
+
+private:
+    FILE *outfile;
+};
+
+
+class Tx_stream_libsnd_file : public Tx_stream
+{
+public:
+    Tx_stream_libsnd_file(Slot *slot, pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e type, string filepath);
+    ~Tx_stream_libsnd_file();
+    void push_sample(uint32_t sample);
+    Slot *slot;
+
+private:
+#ifdef USE_SNDFILE
+    SNDFILE *sndfile;
+    SF_INFO sfinfo;
+#endif
+    int period;
+    int width;
+};
+
+
+class Rx_stream_iter : public Rx_stream
+{
+public:
+    Rx_stream_iter();
+    uint32_t get_sample();
+
+private:
+};
+
 
 class Slot
 {
+    friend class Rx_stream_libsnd_file;
+    friend class Rx_stream_raw_file;
+    friend class Tx_stream_libsnd_file;
+    friend class Tx_stream_raw_file;
 public:
     Slot(Testbench *top, I2s_verif *i2s, int itf, int id);
     void setup(pi_testbench_i2s_verif_slot_config_t *config);
     void start(pi_testbench_i2s_verif_slot_start_config_t *config);
-    void stop();
+    void stop(pi_testbench_i2s_verif_slot_stop_config_t *config);
     void start_frame();
     int get_data();
     void send_data(int sdo);
     void pdm_sync(int sd);
     int pdm_get();
 
-private:
+protected:
     Testbench *top;
+    pi_testbench_i2s_verif_slot_config_t config_rx;
+
+private:
     I2s_verif *i2s;
     int id;
     vp::trace trace;
-    pi_testbench_i2s_verif_slot_config_t config_rx;
     pi_testbench_i2s_verif_slot_config_t config_tx;
     pi_testbench_i2s_verif_slot_start_config_t start_config_rx;
     pi_testbench_i2s_verif_slot_start_config_t start_config_tx;
@@ -54,6 +156,8 @@ private:
     uint32_t tx_pending_value;
     FILE *outfile;
     FILE *infile;
+    Tx_stream *outstream;
+    Rx_stream *instream;
 };
 
 
@@ -79,6 +183,7 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->is_full_duplex = config->is_full_duplex;
     this->prev_sck = 0;
     this->is_ext_clk = config->is_ext_clk;
+    this->clk_active = false;
 
     this->clk = 2;
     this->propagated_clk = 0;
@@ -195,7 +300,7 @@ void I2s_verif::slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
         return;
     }
 
-    this->slots[slot]->stop();
+    this->slots[slot]->stop(config);
 }
 
 
@@ -267,7 +372,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 // The channel is the one of this microphone
                 if (this->prev_ws != ws && ws == 1)
                 {
-                    this->trace.msg(vp::trace::LEVEL_INFO, "Detected frame start\n");
+                    this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
 
                     if (this->sampling_period != 0 && this->prev_frame_start_time != -1)
                     {
@@ -330,7 +435,6 @@ void I2s_verif::sync(int sck, int ws, int sdio)
             {
                 if (this->frame_active)
                 {
-
                     if (this->pending_bits == this->config.word_size)
                     {
                         this->slots[this->active_slot]->start_frame();
@@ -343,7 +447,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                 }
             }
 
-            if (sck == 1)
+            if (sck == 0)
             {
                 if (this->config.is_ext_ws)
                 {
@@ -366,13 +470,206 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
 void I2s_verif::start(pi_testbench_i2s_verif_start_config_t *config)
 {
-    if (this->is_ext_clk)
+    this->clk_active = config->start;
+    this->prev_frame_start_time = -1;
+
+    if (this->clk_active && this->is_ext_clk)
     {
         this->enqueue_to_engine(this->clk_period);
     }
 }
 
 
+Tx_stream_raw_file::Tx_stream_raw_file(Slot *slot, std::string filepath)
+{
+    this->slot = slot;
+    this->outfile = fopen(filepath.c_str(), "w");
+    if (this->outfile == NULL)
+    {
+        this->slot->top->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
+    }
+}
+
+
+void Tx_stream_raw_file::push_sample(uint32_t sample)
+{
+    fprintf(this->outfile, "0x%x\n", sample);
+}
+
+
+Tx_stream_libsnd_file::Tx_stream_libsnd_file(Slot *slot, pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e type, std::string filepath)
+{
+    this->slot = slot;
+#ifdef USE_SNDFILE
+
+    unsigned int pcm_width;
+    
+    this->width = this->slot->config_tx.word_size;
+
+    switch (this->width)
+    {
+        case 8: pcm_width = SF_FORMAT_PCM_S8; break;
+        case 16: pcm_width = SF_FORMAT_PCM_16; break;
+        case 24: pcm_width = SF_FORMAT_PCM_24; break;
+        case 32:
+        default:
+            pcm_width = SF_FORMAT_PCM_32; break;
+    }
+    
+    this->sfinfo.format = pcm_width | (type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_AU ? SF_FORMAT_AU : SF_FORMAT_WAV);
+    this->sfinfo.samplerate = this->slot->i2s->config.sampling_freq;
+    this->sfinfo.channels = 1;
+    this->sndfile = sf_open(filepath.c_str(), SFM_WRITE, &this->sfinfo);
+    if (this->sndfile == NULL)
+    {
+        throw std::invalid_argument(("Failed to open file " + filepath + ": " + strerror(errno)).c_str());
+    }
+    this->period = 1000000000000UL / this->sfinfo.samplerate;
+#else
+
+    this->slot->top->get_trace()->fatal("Unable to open file (%s), libsndfile support is not active\n", filepath.c_str());
+    return;
+
+#endif
+}
+
+
+Tx_stream_libsnd_file::~Tx_stream_libsnd_file()
+{
+    sf_close(this->sndfile);
+}
+
+
+void Tx_stream_libsnd_file::push_sample(uint32_t data)
+{
+#ifdef USE_SNDFILE
+    data <<= (32 - this->width);
+    sf_write_int(this->sndfile, (const int *)&data, 1);
+#endif
+}
+
+
+Rx_stream_raw_file::Rx_stream_raw_file(Slot *slot, std::string filepath)
+{
+    this->slot = slot;
+    this->infile = fopen(filepath.c_str(), "r");
+    if (this->infile == NULL)
+    {
+         this->slot->top->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
+    }
+}
+
+
+uint32_t Rx_stream_raw_file::get_sample()
+{
+    char line [64];
+
+    if (fgets(line, 64, this->infile) == NULL)
+    {
+        fseek(this->infile, 0, SEEK_SET);
+        if (fgets(line, 16, this->infile) == NULL)
+        {
+            this->slot->top->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
+            return 0;
+        }
+    }
+
+    return strtol(line, NULL, 0);
+}
+
+
+Rx_stream_libsnd_file::Rx_stream_libsnd_file(Slot *slot, pi_testbench_i2s_verif_start_config_rx_file_reader_type_e type, std::string filepath)
+{
+    this->slot = slot;
+#ifdef USE_SNDFILE
+
+    unsigned int pcm_width;
+    
+    this->width = this->slot->config_rx.word_size;
+
+    switch (this->width)
+    {
+        case 8: pcm_width = SF_FORMAT_PCM_S8; break;
+        case 16: pcm_width = SF_FORMAT_PCM_16; break;
+        case 24: pcm_width = SF_FORMAT_PCM_24; break;
+        case 32:
+        default:
+            pcm_width = SF_FORMAT_PCM_32; break;
+    }
+    
+    int format = type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_AU ? SF_FORMAT_AU : SF_FORMAT_WAV;
+
+    this->sfinfo.format = 0;
+    this->sndfile = sf_open(filepath.c_str(), SFM_READ, &this->sfinfo);
+    if (this->sndfile == NULL)
+    {
+        throw std::invalid_argument(("Failed to open file " + filepath + ": " + strerror(errno)).c_str());
+    }
+    this->period = 1000000000000UL / this->sfinfo.samplerate;
+
+    this->last_data_time = -1;
+    this->next_data_time = -1;
+#else
+
+    this->slot->top->get_trace()->fatal("Unable to open file (%s), libsndfile support is not active\n", filepath.c_str());
+    return;
+
+#endif
+}
+
+uint32_t Rx_stream_libsnd_file::get_sample()
+{
+#ifdef USE_SNDFILE
+
+    int32_t items[this->sfinfo.channels];
+
+    int count = sf_read_int(this->sndfile, items, this->sfinfo.channels);
+
+    int32_t result;
+    if (count == this->sfinfo.channels)
+    {
+        result = items[0] >> (32 - this->width);
+    }
+    else
+    {
+        result = 0;
+    }
+
+    if (this->period == 0)
+        return result;
+
+    if (this->last_data_time == -1)
+    {
+        this->last_data = result;
+        this->last_data_time = this->slot->top->get_time();
+    }
+
+    if (this->next_data_time == -1)
+    {
+        this->next_data = result;
+        this->next_data_time = this->last_data_time + this->period;
+    }
+
+    // Get samples from the file until the current timestamp fits the window
+    while (this->slot->top->get_time() >= this->next_data_time)
+    {
+        this->last_data_time = this->next_data_time;
+        this->last_data = this->next_data;
+        this->next_data_time = this->last_data_time + this->period;
+        this->next_data = result;
+    }
+
+    // Now do the interpolation between the 2 known samples
+    float coeff = (float)(this->slot->top->get_time() - this->last_data_time) / (this->next_data_time - this->last_data_time);
+    float value = (float)this->last_data + (float)(this->next_data - this->last_data) * coeff;
+
+    this->slot->top->trace.msg(vp::trace::LEVEL_TRACE, "Interpolated new sample (value: %d, timestamp: %ld, prev_timestamp: %ld, next_timestamp: %ld, prev_value: %d, next_value: %d)", value, this->slot->top->get_time(), last_data_time, next_data_time, last_data, next_data);
+    
+    return result;
+#else
+    return 0;
+#endif
+}
 
 
 Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s), id(id)
@@ -383,7 +680,9 @@ Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s)
     this->rx_started = false;
     this->tx_started = false;
     this->infile = NULL;
+    this->instream = NULL;
     this->outfile = NULL;
+    this->outstream = NULL;
 }
 
 
@@ -432,10 +731,13 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         this->tx_started = true;
 
         char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
-        this->outfile = fopen(filepath, "w");
-        if (this->outfile == NULL)
+        if (config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_RAW)
         {
-            this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
+            this->outstream = new Tx_stream_raw_file(this, filepath);
+        }
+        else
+        {
+            this->outstream = new Tx_stream_libsnd_file(this, (pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e)config->rx_file_reader.type, filepath);
         }
 
         if (this->i2s->is_pdm)
@@ -451,10 +753,13 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
 
         char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
 
-        this->infile = fopen(filepath, "r");
-        if (this->infile == NULL)
+        if (config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_RAW)
         {
-            this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
+            this->instream = new Rx_stream_raw_file(this, filepath);
+        }
+        else
+        {
+            this->instream = new Rx_stream_libsnd_file(this, (pi_testbench_i2s_verif_start_config_rx_file_reader_type_e)config->rx_file_reader.type, filepath);
         }
 
         if (this->i2s->is_pdm)
@@ -468,9 +773,40 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
 }
 
 
-void Slot::stop()
+void Slot::stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
 {
-    this->rx_started = false;
+    if (config->stop_rx)
+    {
+        this->rx_started = false;
+
+        if (this->infile)
+        {
+            fclose(this->infile);
+            this->infile = NULL;
+        }
+
+        if (this->instream)
+        {
+            delete this->instream;
+            this->instream = NULL;
+        }
+    }
+
+    if (config->stop_tx)
+    {
+
+        if (this->outfile)
+        {
+            fclose(this->outfile);
+            this->outfile = NULL;
+        }
+
+        if (this->outstream)
+        {
+            delete this->outstream;
+            this->outstream = NULL;
+        }
+    }
 }
 
 
@@ -478,22 +814,10 @@ void Slot::start_frame()
 {
     if (this->rx_started)
     {
-        if (this->infile)
+        if (this->instream)
         {
-            char line [64];
-
-            if (fgets(line, 64, this->infile) == NULL)
-            {
-                fseek(this->infile, 0, SEEK_SET);
-                if (fgets(line, 16, this->infile) == NULL)
-                {
-                    this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
-                    return;
-                }
-            }
-
             this->rx_pending_bits = this->i2s->config.word_size;
-            this->rx_pending_value = strtol(line, NULL, 0);
+            this->rx_pending_value = this->instream->get_sample();
         }
         else
         {
@@ -507,7 +831,6 @@ void Slot::start_frame()
         if (this->rx_pending_bits > 0)
         {
             this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting RX sample (sample: 0x%x)\n", this->rx_pending_value);
-
 
             int msb_first = (this->config_rx.format >> 0) & 1;
             int left_align = (this->config_rx.format >> 1) & 1;
@@ -637,7 +960,10 @@ void Slot::send_data(int sd)
                 }
 
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Writing sample (value: 0x%lx)\n", this->tx_pending_value);
-                fprintf(this->outfile, "0x%x\n", this->tx_pending_value);
+                if (this->outstream)
+                {
+                    this->outstream->push_sample(this->tx_pending_value);
+                }
                 this->tx_pending_bits = this->i2s->config.word_size;
             }
         }
@@ -716,8 +1042,16 @@ int Slot::pdm_get()
 
 int64_t I2s_verif::exec()
 {
-    this->clk ^= 1;
-    this->itf->sync(this->clk, this->ws_value, this->data);
-
-    return this->clk_period;
+    if (this->clk_active)
+    {
+        this->clk ^= 1;
+        this->sync(this->clk, this->ws_value, this->data);
+        this->itf->sync(this->clk, this->ws_value, this->data);
+    
+        return this->clk_period;
+    }
+    else
+    {
+        return -1;
+    }
 }

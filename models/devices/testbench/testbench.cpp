@@ -19,6 +19,7 @@
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
+
 #include "testbench.hpp"
 #include "spim_verif.hpp"
 #include "i2s_verif.hpp"
@@ -1122,6 +1123,299 @@ void Testbench::handle_i2s_verif_slot_stop()
     }
 
     this->i2ss[itf]->i2s_verif_slot_stop(req);
+}
+
+
+std::string Testbench::handle_command(std::vector<std::string> args)
+{
+    bool error = false;
+    string error_str = "";
+
+    try
+    {
+        if (args[0] == "i2s")
+        {
+            if (args[1] == "setup")
+            {
+                pi_testbench_i2s_verif_config_t *config = (pi_testbench_i2s_verif_config_t *)this->req;
+
+                *config = {};
+
+                std::vector<std::string> params = {args.begin() + 3, args.end()};
+
+                for (std::string x: params)
+                {
+                    int pos = x.find_first_of("=");
+                    std::string name = x.substr(0, pos);
+                    std::string value_str = x.substr(pos + 1);
+                    int value = strtol(value_str.c_str(), NULL, 0);
+
+                    if (name == "itf")
+                    {
+                        config->itf = value;
+                    }
+                    else if (name == "enabled")
+                    {
+                        config->enabled = value;
+                    }
+                    else if (name == "sampling_freq")
+                    {
+                        config->sampling_freq = value;   
+                    }
+                    else if (name == "word_size")
+                    {
+                        config->word_size = value;
+                    }
+                    else if (name == "nb_slots")
+                    {
+                        config->nb_slots = value;
+                    }
+                    else if (name == "is_pdm")
+                    {
+                        config->is_pdm = value;
+                    }
+                    else if (name == "is_full_duplex")
+                    {
+                        config->is_full_duplex = value;
+                    }
+                    else if (name == "is_ext_clk")
+                    {
+                        config->is_ext_clk = value;
+                    }
+                    else if (name == "is_ext_ws")
+                    {
+                        config->is_ext_ws = value;
+                    }
+                    else if (name == "is_sai0_clk")
+                    {
+                        config->is_sai0_clk = value;
+                    }
+                    else if (name == "is_sai0_ws")
+                    {
+                        config->is_sai0_ws = value;
+                    }
+                    else if (name == "clk_polarity")
+                    {
+                        config->clk_polarity = value;
+                    }
+                    else if (name == "ws_polarity")
+                    {
+                        config->ws_polarity = value;
+                    }
+                }
+
+                this->handle_i2s_verif_setup();
+            }
+            else if (args[1] == "clk_start" || args[1] == "clk_stop")
+            {
+                pi_testbench_i2s_verif_start_config_t *config = (pi_testbench_i2s_verif_start_config_t *)this->req;
+
+                *config = {};
+
+                int id = strtol(args[1].c_str(), NULL, 0);
+
+                config->itf = id;
+                config->start = args[1] == "clk_start";
+
+                this->handle_i2s_verif_start();
+            }
+            else if (args[1] == "slot_setup")
+            {
+                pi_testbench_i2s_verif_slot_config_t *config = (pi_testbench_i2s_verif_slot_config_t *)this->req;
+
+                *config = {};
+
+                std::vector<std::string> params = {args.begin() + 3, args.end()};
+
+                for (std::string x: params)
+                {
+                    int pos = x.find_first_of("=");
+                    std::string name = x.substr(0, pos);
+                    std::string value_str = x.substr(pos + 1);
+                    int value = strtol(value_str.c_str(), NULL, 0);
+
+                    if (name == "itf")
+                    {
+                        config->itf = value;
+                    }
+                    else if (name == "slot")
+                    {
+                        config->slot = value;
+                    }
+                    else if (name == "is_rx")
+                    {
+                        config->is_rx = value;   
+                    }
+                    else if (name == "enabled")
+                    {
+                        config->enabled = value;
+                    }
+                    else if (name == "word_size")
+                    {
+                        config->word_size = value;
+                    }
+                    else if (name == "format")
+                    {
+                        config->format = value;
+                    }
+                }
+
+                this->handle_i2s_verif_slot_setup();
+            }
+            else if (args[1] == "slot_rx_file_reader")
+            {
+                pi_testbench_i2s_verif_slot_start_config_t *config = (pi_testbench_i2s_verif_slot_start_config_t *)this->req;
+                char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
+
+                *config = {};
+
+                std::vector<std::string> params = {args.begin() + 3, args.end()};
+
+                for (std::string x: params)
+                {
+                    int pos = x.find_first_of("=");
+                    std::string name = x.substr(0, pos);
+                    std::string value_str = x.substr(pos + 1);
+                    int value = strtol(value_str.c_str(), NULL, 0);
+
+                    if (name == "itf")
+                    {
+                        config->itf = value;
+                    }
+                    else if (name == "slot")
+                    {
+                        config->slot = value;
+                    }
+                    else if (name == "filepath")
+                    {
+                        strcpy(filepath, value_str.c_str());
+                    }
+                    else if (name == "filetype")
+                    {
+                        if (value_str == "wav")
+                        {
+                            config->rx_file_reader.type = PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_WAV;
+                        }
+                        else if (value_str == "au")
+                        {
+                            config->rx_file_reader.type = PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_AU;
+                        }
+                        else
+                        {
+                            config->rx_file_reader.type = 0;
+                        }
+                    }
+                }
+
+                config->type = PI_TESTBENCH_I2S_VERIF_RX_FILE_READER;
+                config->rx_file_reader.nb_samples = -1;
+                config->rx_file_reader.filepath_len = strlen(filepath) + 1;
+
+                this->handle_i2s_verif_slot_start();
+            }
+            else if (args[1] == "slot_tx_file_dumper")
+            {
+                pi_testbench_i2s_verif_slot_start_config_t *config = (pi_testbench_i2s_verif_slot_start_config_t *)this->req;
+                char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
+
+                *config = {};
+
+                std::vector<std::string> params = {args.begin() + 3, args.end()};
+
+                for (std::string x: params)
+                {
+                    int pos = x.find_first_of("=");
+                    std::string name = x.substr(0, pos);
+                    std::string value_str = x.substr(pos + 1);
+                    int value = strtol(value_str.c_str(), NULL, 0);
+
+                    if (name == "itf")
+                    {
+                        config->itf = value;
+                    }
+                    else if (name == "slot")
+                    {
+                        config->slot = value;
+                    }
+                    else if (name == "filepath")
+                    {
+                        strcpy(filepath, value_str.c_str());
+                    }
+                    else if (name == "filetype")
+                    {
+                        if (value_str == "wav")
+                        {
+                            config->tx_file_dumper.type = PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_WAV;
+                        }
+                        else if (value_str == "au")
+                        {
+                            config->tx_file_dumper.type = PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_AU;
+                        }
+                        else
+                        {
+                            config->tx_file_dumper.type = 0;
+                        }
+                    }
+                }
+
+                config->type = PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER;
+                config->tx_file_dumper.nb_samples = -1;
+                config->tx_file_dumper.filepath_len = strlen(filepath) + 1;
+
+                this->handle_i2s_verif_slot_start();
+            }
+            else if (args[1] == "slot_stop")
+            {
+                pi_testbench_i2s_verif_slot_stop_config_t *config = (pi_testbench_i2s_verif_slot_stop_config_t *)this->req;
+                char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_stop_config_t);
+
+                *config = {};
+
+                std::vector<std::string> params = {args.begin() + 3, args.end()};
+
+                for (std::string x: params)
+                {
+                    int pos = x.find_first_of("=");
+                    std::string name = x.substr(0, pos);
+                    std::string value_str = x.substr(pos + 1);
+                    int value = strtol(value_str.c_str(), NULL, 0);
+
+                    if (name == "itf")
+                    {
+                        config->itf = value;
+                    }
+                    else if (name == "slot")
+                    {
+                        config->slot = value;
+                    }
+                    else if (name == "stop_rx")
+                    {
+                        config->stop_rx = value;
+                    }
+                    else if (name == "stop_tx")
+                    {
+                        config->stop_tx = value;
+                    }
+                }
+
+                this->handle_i2s_verif_slot_stop();
+            }
+        
+        }
+    }
+    catch (std::invalid_argument& e)
+    {
+        return "err=1;msg=" + std::string(e.what());
+    }
+
+    if (error)
+    {
+        return "err=1";
+    }
+    else
+    {
+        return "err=0";
+    }
 }
 
 
