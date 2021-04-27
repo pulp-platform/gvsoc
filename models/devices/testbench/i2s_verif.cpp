@@ -1045,7 +1045,6 @@ int64_t I2s_verif::exec()
     if (this->clk_active)
     {
         this->clk ^= 1;
-        this->sync(this->clk, this->ws_value, this->data);
         this->itf->sync(this->clk, this->ws_value, this->data);
     
         return this->clk_period;

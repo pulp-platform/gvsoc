@@ -1534,9 +1534,15 @@ void I2s::sync(void *__this, int sck, int ws, int sd)
 {
     I2s *_this = (I2s *)__this;
 
-    if (_this->i2s_verif)
+    if (_this->ws_propagate)
     {
-        _this->i2s_verif->sync(sck, ws, sd);
+        for (int i=0; i<_this->top->nb_i2s; i++)
+        {
+            if ((_this->ws_propagate >> i) & 1)
+            {
+                _this->top->i2ss[i]->sync_ws(ws);
+            }
+        }
     }
 
     if (_this->clk_propagate)
@@ -1550,15 +1556,9 @@ void I2s::sync(void *__this, int sck, int ws, int sd)
         }
     }
 
-    if (_this->ws_propagate)
+    if (_this->i2s_verif)
     {
-        for (int i=0; i<_this->top->nb_i2s; i++)
-        {
-            if ((_this->ws_propagate >> i) & 1)
-            {
-                _this->top->i2ss[i]->sync_ws(ws);
-            }
-        }
+        _this->i2s_verif->sync(sck, ws, sd);
     }
 }
 
