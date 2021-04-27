@@ -1003,9 +1003,9 @@ int Slot::get_data()
 
 void Slot::pdm_sync(int sd)
 {
-    if (this->outfile)
+    if (this->outstream)
     {
-        fprintf(this->outfile, "%d\n", sd);
+        this->outstream->push_sample(sd);
     }
 }
 
