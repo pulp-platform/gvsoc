@@ -177,7 +177,11 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->itf = itf;
     this->prev_ws = 0;
     this->frame_active = false;
-    this->ws_delay = 1;
+    this->ws_delay = config->ws_delay;
+    if (this->ws_delay == 0)
+    {
+        this->zero_delay_start = true;
+    }
     this->current_ws_delay = 0;
     this->is_pdm = config->is_pdm;
     this->is_full_duplex = config->is_full_duplex;
@@ -339,13 +343,23 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
+    if (this->zero_delay_start && this->prev_ws != ws && ws == 1)
+    {
+        this->zero_delay_start = false;
+        this->frame_active = true;
+        this->active_slot = 0;
+        this->pending_bits = this->config.word_size;
+        this->slots[0]->start_frame();
+        this->data = this->slots[0]->get_data() | (2 << 2);
+        this->itf->sync(this->clk, this->ws_value, this->data);
+    }
+
     if (sck != this->prev_sck)
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
 
 
         this->prev_sck = sck;
-
 
         if (this->is_pdm)
         {
@@ -380,6 +394,9 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
                         float error = ((float)measured_period - this->sampling_period) / this->sampling_period * 100;
 
+                        this->trace.msg(vp::trace::LEVEL_INFO, "%ld %ld\n", 1000000000/this->sampling_period, 1000000000/measured_period);
+
+
                         if (error >= 10)
                         {
                             this->trace.fatal("Detected wrong period (expected: %ld ps, measured: %ld ps)\n", this->sampling_period, measured_period);
@@ -391,12 +408,6 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
                     // If the WS just changed, apply the delay before starting sending
                     this->current_ws_delay = this->ws_delay;
-                    if (this->current_ws_delay == 0)
-                    {
-                        this->frame_active = true;
-                        this->pending_bits = this->config.word_size;
-                        this->active_slot = 0;
-                    }
                 }
 
                 if (this->frame_active)
@@ -412,6 +423,10 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                         if (this->active_slot == this->config.nb_slots)
                         {
                             this->frame_active = false;
+                            if (this->ws_delay == 0)
+                            {
+                                this->zero_delay_start = true;
+                            }
                         }
                     }
 
