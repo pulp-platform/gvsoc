@@ -1027,22 +1027,9 @@ void Slot::pdm_sync(int sd)
 
 int Slot::pdm_get()
 {
-    if (this->infile)
+    if (this->instream)
     {
-        char line [16];
-
-        if (fgets(line, 16, this->infile) == NULL)
-        {
-            fseek(this->infile, 0, SEEK_SET);
-            if (fgets(line, 16, this->infile) == NULL)
-            {
-                this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
-                return 3;
-            }
-        }
-
-        int data = strtol(line, NULL, 0);
-
+        int data = this->instream->get_sample();
         return data;
     }
     else
