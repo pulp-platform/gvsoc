@@ -182,7 +182,10 @@ void Uart_flow_control_checker::handle_received_byte(uint8_t byte)
                     // Randomize a bit
                     cycles = cycles * (rand() % 100) / 100;
 
-                    this->uart->clock->enqueue(this->bw_limiter_event, cycles);
+                    if (!this->bw_limiter_event->is_enqueued())
+                    {
+                        this->uart->clock->enqueue(this->bw_limiter_event, cycles);
+                    }
                 }
 
             }
