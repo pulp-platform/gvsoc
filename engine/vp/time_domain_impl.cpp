@@ -103,7 +103,7 @@ static void *signal_routine(void *arg)
     do
     {
         sigwait(&sigs_to_catch, &caught);
-        engine->stop_engine(true);
+        engine->stop_engine(-1, true);
     } while (1);
     return NULL;
 }
@@ -185,9 +185,9 @@ void vp::time_engine::run()
 
 
 
-void vp::time_engine::quit()
+void vp::time_engine::quit(int status)
 {
-    this->stop_engine(true);
+    this->stop_engine(status, true);
 }
 
 

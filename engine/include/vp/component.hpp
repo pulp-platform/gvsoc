@@ -393,7 +393,7 @@ namespace vp {
     virtual void start() {}
     virtual void stop() {}
     virtual void flush() {}
-    virtual void quit() {}
+    virtual void quit(int status) {}
     virtual void pre_reset() {}
     virtual void reset(bool active) {}
     virtual void load() {}

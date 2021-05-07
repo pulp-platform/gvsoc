@@ -1650,7 +1650,7 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
             }
             else if (words[0] == "quit")
             {
-                this->top->quit();
+                this->top->quit(strtol(words[1].c_str(), NULL, 0));
             }
             else if (words[0] == "trace")
             {
