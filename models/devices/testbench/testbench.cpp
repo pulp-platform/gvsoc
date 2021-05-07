@@ -962,9 +962,6 @@ void Testbench::handle_set_status()
 
 #ifdef __VP_USE_SYSTEMV
     dpi_set_status(req->set_status.status);
-#else
-    fprintf(stderr, "UNIMPLEMENTED at %s %d\n", __FILE__, __LINE__);
-    exit(-1);
 #endif
 }
 
