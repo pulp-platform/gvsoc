@@ -1665,6 +1665,11 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
                         this->top->traces.get_trace_manager()->add_trace_path(0, words[2]);
                         this->top->traces.get_trace_manager()->check_traces();
                     }
+                    else if (words[1] == "level")
+                    {
+                        this->top->traces.get_trace_manager()->set_trace_level(words[2].c_str());
+                        this->top->traces.get_trace_manager()->check_traces();
+                    }
                     else
                     {
                         this->top->traces.get_trace_manager()->add_exclude_trace_path(0, words[2]);

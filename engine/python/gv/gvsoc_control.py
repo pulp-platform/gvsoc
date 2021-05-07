@@ -53,6 +53,17 @@ class Telnet_proxy(object):
 
         self.telnet.write(('trace remove %s\n' % trace).encode('ascii'))
 
+    def trace_level(self, level: str):
+        """Specify the trace level.
+
+        Parameters
+        ----------
+        level : str
+            The trace level, can be "error", "warning", "info", "debug" or "trace"
+        """
+
+        self.telnet.write(('trace level %s\n' % level).encode('ascii'))
+
     def event_add(self, event: str):
         """Enable an event.
 
