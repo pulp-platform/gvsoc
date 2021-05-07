@@ -870,7 +870,7 @@ void I2C::sync(int scl, int sda)
             if (this->pending_send_ack)
             {
                 this->pending_send_ack = false;
-                this->itf.sync(1);
+                this->itf.sync(2, 1);
             }
         }
         else
@@ -919,7 +919,7 @@ void I2C::sync(int scl, int sda)
                 {
                     this->top->trace.msg(vp::trace::LEVEL_TRACE, "Generate I2C ack (id: %d)\n", id);
 
-                    this->itf.sync(0);
+                    this->itf.sync(2, 0);
                     this->state = I2C_STATE_GET_DATA;
                     break;
                 }
