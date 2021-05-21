@@ -92,7 +92,7 @@ public:
   router(js::config *config);
 
   int build();
-  std::string handle_command(std::vector<std::string> args);
+  std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -339,7 +339,7 @@ void router::response(void *_this, vp::io_req *req)
 }
 
 
-std::string router::handle_command(std::vector<std::string> args)
+std::string router::handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args)
 {
     if (args[0] == "mem_write" or args[0] == "mem_read")
     {

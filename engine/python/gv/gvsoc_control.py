@@ -14,11 +14,16 @@
 # limitations under the License.
 #
 
-from telnetlib import Telnet
+import socket
+import threading
+import socket
 
-class Telnet_proxy(object):
+
+
+
+class Proxy(object):
     """
-    A class used to control GVSOC through the telnet proxy
+    A class used to control GVSOC through the socket proxy
 
     Attributes
     ----------
@@ -28,8 +33,73 @@ class Telnet_proxy(object):
         the port where to connect
     """
 
+    class _Socket_proxy_reader_thread(threading.Thread):
+
+        def __init__(self, socket):
+            super(Proxy._Socket_proxy_reader_thread, self).__init__()
+            self.socket = socket
+            self.lock = threading.Lock()
+            self.condition = threading.Condition(self.lock)
+            self.replies = []
+            self.matches = {}
+
+        def run(self):
+            while True:
+                reply = ""
+                try:
+                    while True:
+                        byte = self.socket.recv(1).decode('utf-8')
+                        reply += byte
+                        if byte == '\n':
+                            break
+                except:
+                    return
+
+                callback = self.matches.get(reply)
+                if callback is not None:
+                    callback[0](*callback[1], **callback[2])
+                else:
+                    self.lock.acquire()
+                    self.replies.append(reply)
+                    self.condition.notify()
+                    self.lock.release()
+
+
+        def wait_reply(self):
+            self.lock.acquire()
+            while len(self.replies) == 0:
+                self.condition.wait()
+            reply = self.replies.pop(0)
+
+            self.lock.release()
+
+            return reply
+
+        def register_callback(self, match, callback, *kargs, **kwargs):
+            self.matches[match] = callback, kargs, kwargs
+
+        def unregister_callback(self, match):
+            self.matches[match] = None
+
+
     def __init__(self, host: str = 'localhost', port: int = 42951):
-        self.telnet = Telnet(host, port)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((host, port))
+
+        self.reader = self._Socket_proxy_reader_thread(self.socket)
+        self.reader.start()
+
+
+    def close(self):
+        """Close the proxy.
+
+        This will free resources and close threads so that simulation can properly exit.
+
+        """
+        self.socket.shutdown(socket.SHUT_WR)
+        self.socket.close()
+        self.reader.join()
+
 
     def trace_add(self, trace: str):
         """Enable a trace.
@@ -40,7 +110,7 @@ class Telnet_proxy(object):
             A regular expression used to enable traces
         """
 
-        self.telnet.write(('trace add %s\n' % trace).encode('ascii'))
+        self.socket.send(('trace add %s\n' % trace).encode('ascii'))
 
     def trace_remove(self, trace: str):
         """Disable a trace.
@@ -51,7 +121,7 @@ class Telnet_proxy(object):
             A regular expression used to disable traces
         """
 
-        self.telnet.write(('trace remove %s\n' % trace).encode('ascii'))
+        self.socket.send(('trace remove %s\n' % trace).encode('ascii'))
 
     def trace_level(self, level: str):
         """Changes the trace level.
@@ -62,7 +132,7 @@ class Telnet_proxy(object):
             The trace level, can be "error", "warning", "info", "debug" or "trace"
         """
 
-        self.telnet.write(('trace level %s\n' % level).encode('ascii'))
+        self.socket.send(('trace level %s\n' % level).encode('ascii'))
 
     def event_add(self, event: str):
         """Enable an event.
@@ -73,7 +143,7 @@ class Telnet_proxy(object):
             A regular expression used to enable events
         """
 
-        self.telnet.write(('event add %s\n' % event).encode('ascii'))
+        self.socket.send(('event add %s\n' % event).encode('ascii'))
 
     def event_remove(self, event: str):
         """Disable a trace.
@@ -84,7 +154,7 @@ class Telnet_proxy(object):
             A regular expression used to enable events
         """
 
-        self.telnet.write(('event remove %s\n' % event).encode('ascii'))
+        self.socket.send(('event remove %s\n' % event).encode('ascii'))
 
     def run(self, duration: int = None):
         """Starts execution.
@@ -96,11 +166,11 @@ class Telnet_proxy(object):
         """
 
         if duration is not None:
-            self.telnet.write(('step %d\n' % duration).encode('ascii'))
+            self.socket.send(('step %d\n' % duration).encode('ascii'))
         else:
-            self.telnet.write('run\n'.encode('ascii'))
+            self.socket.send('run\n'.encode('ascii'))
 
-        self.telnet.read_until(b"\n")
+        self.reader.wait_reply()
 
     def quit(self, status: int = 0):
         """Exit simulation.
@@ -111,7 +181,7 @@ class Telnet_proxy(object):
             Specify the status value.
         """
 
-        self.telnet.write(('quit %d\n' % status).encode('ascii'))
+        self.socket.send(('quit %d\n' % status).encode('ascii'))
 
 
     def _handle_err(self, error, error_str=None):
@@ -123,7 +193,7 @@ class Telnet_proxy(object):
 
 
     def _get_retval(self):
-        result = self.telnet.read_until(b"\n").decode('ascii')
+        result = self.reader.wait_reply()
         error = 0
         error_str = None
         for arg in result.split(';'):
@@ -143,9 +213,9 @@ class Telnet_proxy(object):
 
 
     def _get_component(self, path):
-            self.telnet.write(('get_component %s\n' % path).encode('ascii'))
-            result = self.telnet.read_until(b"\n")
-            return result.decode('ascii').replace('\n', '')
+            self.socket.send(('get_component %s\n' % path).encode('utf-8'))
+            result = self.reader.wait_reply()
+            return result.replace('\n', '')
 
 
 class Router(object):
@@ -154,13 +224,13 @@ class Router(object):
 
     Attributes
     ----------
-    proxy : Telnet_proxy
+    proxy : Proxy
         The proxy object. This class will use it to send command to GVSOC through the proxy connection.
     path : string, optional
         The path to the router in the architecture.
     """
 
-    def __init__(self, proxy: Telnet_proxy, path: str = '/sys/board/chip/soc/axi_ico'):
+    def __init__(self, proxy: Proxy, path: str = '/sys/board/chip/soc/axi_ico'):
         self.proxy = proxy
         self.component = proxy._get_component(path)
 
@@ -191,7 +261,7 @@ class Router(object):
 
         cmd += '\n'
 
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
 
         self.proxy._get_retval()
 
@@ -219,9 +289,9 @@ class Router(object):
             If the access generates an error in the architecture.
         """
         cmd = 'component %s mem_read 0x%x 0x%x\n' % (self.component, addr, size)
-        self.proxy.telnet.write(cmd.encode('ascii'))
-        result = self.proxy.telnet.read_until(b"\n")
-        reply = result.decode('ascii').replace('\n', '')
+        self.proxy.socket.send(cmd.encode('ascii'))
+        result = self.reader.wait_reply()
+        reply = result.replace('\n', '')
         values_str, err = reply.split(' ;')
 
         self.proxy._handle_err(int(err.split('=')[1]))
@@ -291,13 +361,13 @@ class Testbench(object):
 
     Attributes
     ----------
-    proxy : Telnet_proxy
+    proxy : Proxy
         The proxy object. This class will use it to send command to GVSOC through the proxy connection.
     path : string, optional
         The path to the testbench in the architecture.
     """
 
-    def __init__(self, proxy: Telnet_proxy, path: str = '/sys/board/testbench/testbench'):
+    def __init__(self, proxy: Proxy, path: str = '/sys/board/testbench/testbench'):
         self.proxy = proxy
         self.component = proxy._get_component(path)
 
@@ -305,7 +375,7 @@ class Testbench(object):
     def i2s_get(self, id: int = 0):
         """Open an SAI.
 
-        Opena an SAI and return and object which can be used to interact with it.
+        Opena an SAI and return an object which can be used to interact with it.
 
         Parameters
         ----------
@@ -319,6 +389,250 @@ class Testbench(object):
         return Testbench_i2s(self.proxy, self.component, id)
 
 
+    def uart_get(self, id: int = 0):
+        """Open a uart interface.
+
+        Opena a uart interface and return an object which can be used to interact with it.
+
+        Parameters
+        ----------
+        id : int, optional
+            The uart interface identifier.
+
+        Returns:
+        Testbench_uart
+            An object which can be used to access the specified uart interface.
+        """
+        return Testbench_uart(self.proxy, self.component, id)
+
+
+class Testbench_uart(object):
+    """Class instantiated for each manipulated uart interface.
+
+    It can used to interact with the uart interface, like injecting streams.
+
+    Attributes
+    ----------
+        proxy : Proxy
+            The proxy object. This class will use it to send command to GVSOC through the proxy connection.
+        testbench : int
+            The testbench object.
+        id : int, optional
+            The identifier of the uart interface.
+    """
+
+    def __init__(self, proxy: Proxy, testbench: Testbench, id=0):
+        self.id = id
+        self.proxy = proxy
+        self.testbench = testbench
+        self.callback = None
+        self.lock = threading.Lock()
+        self.condition = threading.Condition(self.lock)
+        self.pending_rx_bytes = []
+
+    def open(self, baudrate: int, word_size: int=8, stop_bits: int=1, parity_mode: bool=False, ctrl_flow: bool=True,
+            is_usart: bool=False, usart_polarity: int=0, usart_phase: int=0):
+        """Open and configure a uart interface.
+
+        Parameters
+        ----------
+        baudrate : int
+            Specify the uart baudrate in bps
+        word_size : int, optional
+            Specify the size in bits of the uart bytes.
+        stop_bits : int, optional
+            Specify the number of stop bits.
+        parity_mode : bool, optional
+            True if parity is enabled.
+        ctrl_flow : bool, optional
+            True if control flow is enabled.
+        is_usart : bool, optional
+            True if uart is in usart mode.
+        usart_polarity: int, optional
+            Usart polarity.
+        usart_phase: int, optional
+            Usart phase.
+
+        Raises
+        ------
+        RuntimeError
+            If there is any invalid parameter.
+        """
+
+        options = ''
+        options += ' itf=%d' % self.id
+        options += ' enabled=1'
+        options += ' baudrate=%d' % baudrate
+        options += ' word_size=%d' % word_size
+        options += ' stop_bits=%d' % stop_bits
+        options += ' parity_mode=%d' % parity_mode
+        options += ' ctrl_flow=%d' % ctrl_flow
+        options += ' is_usart=%d' % is_usart
+        options += ' usart_polarity=%d' % usart_polarity
+        options += ' usart_phase=%d' % usart_phase
+        cmd = 'component %s uart setup %s\n' % (self.testbench, options)
+        self.proxy.socket.send(cmd.encode('ascii'))
+        self.proxy._get_retval()
+
+    def close(self):
+        """Close the uart interface.
+    
+        Raises
+        ------
+        RuntimeError
+            If there is any error while closing.
+        """
+        options = ''
+        options += ' itf=%d' % self.id
+        options += ' enabled=0'
+        cmd = 'component %s uart setup %s\n' % (self.testbench, options)
+        self.proxy.socket.send(cmd.encode('ascii'))
+        self.proxy._get_retval()
+
+    def tx(self, values: bytes):
+        """Send data to the uart.
+
+        This enqueues an array of bytes to be transmitted. If previous transfers are not finished,
+        these bytes will be transfered after.
+
+        Parameters
+        ----------
+        values : bytes
+            The sequence of bytes to be sent, in little endian byte ordering.
+
+        Raises
+        ------
+        RuntimeError
+            If the access generates an error in the architecture.
+        """
+        cmd = 'component %s uart tx %d %d\n' % (self.testbench, self.id, len(values))
+
+        self.proxy.socket.send(cmd.encode('ascii'))
+        self.proxy.socket.send(values)
+
+        self.proxy._get_retval()
+
+    def rx(self, size=None):
+        """Read data from the uart.
+
+        Once reception on the uart is enabled, the received bytes are pushed to a fifo. This method
+        can be called to pop received bytes from the FIFO.
+
+        Parameters
+        ----------
+        size : int
+            The number of bytes to be read. If it is None, it returns the bytes which has already been received.
+
+        Returns
+        -------
+        bytes
+            The sequence of bytes received, in little endian byte ordering.
+
+        Raises
+        ------
+        RuntimeError
+            If the access generates an error in the architecture.
+        """
+        self.lock.acquire()
+
+        if size is not None:
+            while len(self.pending_rx_bytes) < size:
+                self.condition.wait()
+        else:
+            size = len(self.pending_rx_bytes)
+
+        reply = self.pending_rx_bytes[0:size]
+        self.pending_rx_bytes = self.pending_rx_bytes[size:]
+
+        self.lock.release()
+
+        return reply
+
+
+    def rx_enable(self):
+        """Enable receiving bytes from the uart.
+
+        Any byte received from the uart either triggers the callback execution if it has been registered,
+        or is pushed to a FIFO which can read.
+
+        Raises
+        ------
+        RuntimeError
+            If the access generates an error in the architecture.
+        """
+        self.proxy.reader.register_callback('uart rx %d\n' % self.id, self.__handle_rx)
+        cmd = 'component %s uart rx %d 1\n' % (self.testbench, self.id)
+        self.proxy.socket.send(cmd.encode('ascii'))
+        self.proxy._get_retval()
+
+
+    def rx_disable(self):
+        """Dsiable receiving bytes from the uart.
+
+        Raises
+        ------
+        RuntimeError
+            If the access generates an error in the architecture.
+        """
+        self.proxy.reader.unregister_callback('uart rx %d\n' % self.id)
+        cmd = 'component %s uart rx %d 0\n' % (self.testbench, self.id)
+        self.proxy.socket.send(cmd.encode('ascii'))
+        self.proxy._get_retval()
+
+
+    def __handle_rx(self):
+        self.lock.acquire()
+        reply = self.proxy.socket.recv(1)
+        if self.callback is not None:
+            self.callback[0](1, reply, *self.callback[1], **self.callback[2])
+        else:
+            self.pending_rx_bytes += reply
+            self.condition.notify()
+        self.lock.release()
+
+
+    def rx_attach_callback(self, callback, *kargs, **kwargs):
+        """Attach callback for receiving bytes from the uart.
+
+        All bytes received from the uart now triggers the execution of the specified callback.
+        This must be called only when uart reception is disabled.
+        The callback will be called asynchronously by a different thread and so special care must be taken
+        to access shared variables using locks. Also the proxy can not be used from the callback.
+
+        Parameters
+        ----------
+        callback
+            The function to be called when bytes are received from the uart. First parameters will contain
+            number of bytes and received, and second one will be the bytes received.
+        kargs, kwargs
+            Arguments propagated to the callback
+
+        Returns
+        -------
+        bytes
+            The sequence of bytes received, in little endian byte ordering.
+
+        Raises
+        ------
+        RuntimeError
+            If the access generates an error in the architecture.
+        """
+        self.callback = callback, kargs, kwargs
+
+
+    def rx_detach_callback(self):
+        """Detach a callback.
+
+        The callback previously attached won't be called anymore.
+        This must be called only when uart reception is disabled.
+
+        Raises
+        ------
+        RuntimeError
+            If the access generates an error in the architecture.
+        """
+        self.callback = None
+
 
 class Testbench_i2s(object):
     """Class instantiated for each manipulated SAI.
@@ -327,7 +641,7 @@ class Testbench_i2s(object):
 
     Attributes
     ----------
-        proxy : Telnet_proxy
+        proxy : Proxy
             The proxy object. This class will use it to send command to GVSOC through the proxy connection.
         testbench : int
             The testbench object.
@@ -335,7 +649,7 @@ class Testbench_i2s(object):
             The identifier of the SAI interface.
     """
 
-    def __init__(self, proxy: Telnet_proxy, testbench: Testbench, id=0):
+    def __init__(self, proxy: Proxy, testbench: Testbench, id=0):
         self.id = id
         self.proxy = proxy
         self.testbench = testbench
@@ -392,7 +706,7 @@ class Testbench_i2s(object):
         options += ' clk_polarity=%d' % clk_polarity
         options += ' ws_polarity=%d' % ws_polarity
         cmd = 'component %s i2s setup %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def close(self):
@@ -407,7 +721,7 @@ class Testbench_i2s(object):
         options += ' itf=%d' % self.id
         options += ' enabled=0'
         cmd = 'component %s i2s setup %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def clk_start(self):
@@ -421,7 +735,7 @@ class Testbench_i2s(object):
             If there is any error while starting the clock.
         """
         cmd = 'component %s i2s clk_start %d\n' % (self.testbench, self.id)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def clk_stop(self):
@@ -435,7 +749,7 @@ class Testbench_i2s(object):
             If there is any error while stopping the clock.
         """
         cmd = 'component %s i2s clk_stop %d\n' % (self.testbench, self.id)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def slot_open(self, slot: int = 0, is_rx: bool = True, word_size: int = 16, is_msb: bool = True,
@@ -470,7 +784,7 @@ class Testbench_i2s(object):
         options += ' word_size=%d' % word_size
         options += ' format=%d' % (is_msb | (left_align << 1) | (sign_extend << 1))
         cmd = 'component %s i2s slot_setup %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def slot_close(self, slot: int = 0):
@@ -491,7 +805,7 @@ class Testbench_i2s(object):
         options += ' slot=%d' % slot
         options += ' enabled=0'
         cmd = 'component %s i2s slot_setup %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def slot_rx_file_reader(self, slot: int = 0, filetype: str = "wav", filepath: str = None):
@@ -519,7 +833,7 @@ class Testbench_i2s(object):
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
         cmd = 'component %s i2s slot_rx_file_reader %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def slot_tx_file_dumper(self, slot: int = 0, filetype: str = "wav", filepath: str = None):
@@ -547,7 +861,7 @@ class Testbench_i2s(object):
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
         cmd = 'component %s i2s slot_tx_file_dumper %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
     def slot_stop(self, slot: int = 0, stop_rx: bool = True, stop_tx: bool = True):
@@ -575,5 +889,5 @@ class Testbench_i2s(object):
         options += ' stop_rx=%d' % stop_rx
         options += ' stop_tx=%d' % stop_tx
         cmd = 'component %s i2s slot_stop %s\n' % (self.testbench, options)
-        self.proxy.telnet.write(cmd.encode('ascii'))
+        self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()

@@ -301,7 +301,13 @@ void Uart::set_control(bool active, int baudrate)
 
 void Uart::handle_received_byte(uint8_t byte)
 {
-    if (this->is_control)
+    if (this->proxy_file)
+    {
+        fprintf(this->proxy_file, "uart rx %d\n", this->id);
+        fwrite(&byte, 1, 1, this->proxy_file);
+        fflush(NULL);
+    }
+    else if (this->is_control)
     {
         this->top->handle_received_byte(uart_byte);
     }
@@ -362,6 +368,27 @@ void Uart::check_send_byte()
 }
 
 
+void Uart::send_buffer(uint8_t *buffer, int size)
+{
+    if (this->pending_buffers.size() == 0 && this->tx_pending_bits == 0)
+    {
+        for (int i=1; i<size; i++)
+        {
+            this->pending_buffers.push(buffer[i]);
+        }
+
+        this->send_byte(buffer[0]);
+    }
+    else
+    {
+        for (int i=0; i<size; i++)
+        {
+            this->pending_buffers.push(buffer[i]);
+        }
+    }
+}
+
+
 void Uart::send_byte(uint8_t byte)
 {
     this->trace.msg(vp::trace::LEVEL_TRACE, "Send byte (value: 0x%x)\n", byte);
@@ -408,6 +435,7 @@ Uart::Uart(Testbench *top, int id)
     this->is_usart = 0;
 
     this->is_control_active = false;
+    this->proxy_file = NULL;
 }
 
 
@@ -472,7 +500,7 @@ void Uart::sync(void *__this, int data)
 {
     Uart *_this = (Uart *)__this;
 
-    if (!_this->is_control && !_this->dev)
+    if (!_this->is_control && !_this->dev && !_this->proxy_file)
         return;
 
     _this->trace.msg(vp::trace::LEVEL_TRACE, "UART control sync (value: %d, waiting_start: %d)\n", data, _this->uart_tx_wait_start);
@@ -581,7 +609,13 @@ void Uart::send_bit()
             if (this->tx_current_stop_bits == 0)
             {
                 this->tx_state = UART_TX_STATE_START;
-                if (this->dev)
+                if (this->pending_buffers.size())
+                {
+                    uint8_t byte = this->pending_buffers.front();
+                    this->pending_buffers.pop();
+                    this->send_byte(byte);
+                }
+                else if (this->dev)
                 {
                     this->dev->send_byte_done();
                 }
@@ -1126,7 +1160,7 @@ void Testbench::handle_i2s_verif_slot_stop()
 }
 
 
-std::string Testbench::handle_command(std::vector<std::string> args)
+std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args)
 {
     bool error = false;
     string error_str = "";
@@ -1400,7 +1434,94 @@ std::string Testbench::handle_command(std::vector<std::string> args)
 
                 this->handle_i2s_verif_slot_stop();
             }
-        
+        }
+        if (args[0] == "uart")
+        {
+            if (args[1] == "setup")
+            {
+                pi_testbench_req_uart_checker_t *config = (pi_testbench_req_uart_checker_t *)this->req;
+
+                *config = {};
+
+                std::vector<std::string> params = {args.begin() + 2, args.end()};
+
+                for (std::string x: params)
+                {
+                    int pos = x.find_first_of("=");
+                    std::string name = x.substr(0, pos);
+                    std::string value_str = x.substr(pos + 1);
+                    int value = strtol(value_str.c_str(), NULL, 0);
+
+                    if (name == "itf")
+                    {
+                        config->id = value;
+                    }
+                    else if (name == "enabled")
+                    {
+                        config->enabled = value;
+                    }
+                    else if (name == "word_size")
+                    {
+                        config->word_size = value;
+                    }
+                    else if (name == "baudrate")
+                    {
+                        config->baudrate = value;
+                    }
+                    else if (name == "stop_bits")
+                    {
+                        config->stop_bits = value;
+                    }
+                    else if (name == "parity_mode")
+                    {
+                        config->parity = value;
+                    }
+                    else if (name == "ctrl_flow")
+                    {
+                        config->flow_control = value;
+                    }
+                    else if (name == "usart_polarity")
+                    {
+                        config->polarity = value;
+                    }
+                    else if (name == "is_usart")
+                    {
+                        config->usart = value;
+                    }
+                    else if (name == "usart_phase")
+                    {
+                        config->phase = value;
+                    }
+                    else
+                    {
+                        return "err=1;msg=invalid option: " + name;
+                    }
+                }
+
+                this->handle_uart_checker();
+            }
+            else if (args[1] == "tx")
+            {
+                int itf = strtol(args[2].c_str(), NULL, 0);
+                int size = strtol(args[3].c_str(), NULL, 0);
+                uint8_t *buffer = new uint8_t[size];
+                int read_size = fread(buffer, 1, size, req_file);
+                this->uarts[itf]->send_buffer(buffer, size);
+            }
+            else if (args[1] == "rx")
+            {
+                int itf = strtol(args[2].c_str(), NULL, 0);
+                int enabled = strtol(args[3].c_str(), NULL, 0);
+
+                if (enabled)
+                {
+                    this->uarts[itf]->proxy_file = reply_file;
+                }
+                else
+                {
+                    this->uarts[itf]->proxy_file = NULL;
+                }
+            }
         }
     }
     catch (std::invalid_argument& e)

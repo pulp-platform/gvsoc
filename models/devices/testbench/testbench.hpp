@@ -38,6 +38,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <regex>
+#include <queue>
 
 extern "C" void dpi_set_status(int status);
 
@@ -455,6 +456,7 @@ public:
     void set_control(bool active, int baudrate);
     void set_dev(Uart_dev *dev) { this->dev = dev; }
     void send_byte(uint8_t byte);
+    void send_buffer(uint8_t *byte, int size);
     void set_cts(int cts);
 
     uint64_t baudrate;
@@ -469,6 +471,8 @@ public:
     int phase;
     int id;
     bool is_control_active;
+
+    FILE *proxy_file;
 
 private:
 
@@ -495,6 +499,8 @@ private:
     Uart_dev *dev = NULL;
 
     vp::trace trace;
+
+    std::queue<uint8_t> pending_buffers;
 
     vp::clk_slave    periph_clock_itf;
 
@@ -570,7 +576,7 @@ public:
 
     int build();
     void start();
-    std::string handle_command(std::vector<std::string> args);
+    std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args);
 
     void handle_received_byte(uint8_t byte);
 
