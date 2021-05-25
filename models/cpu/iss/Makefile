@@ -1,7 +1,7 @@
 include cpu/iss/iss.mk
 
-$(eval $(call declare_iss_isa_build,riscy))
-$(eval $(call declare_iss_isa_build,zeroriscy,--implem=zeroriscy))
+$(eval $(call declare_iss_isa_build,cpu/iss/iss_wrapper/riscy))
+$(eval $(call declare_iss_isa_build,cpu/iss/iss_wrapper/zeroriscy,--implem=zeroriscy))
 
 
 cpu/iss/iss_zeroriscy_CFLAGS += -DPIPELINE_STAGES=1 -DISS_SINGLE_REGFILE

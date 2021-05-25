@@ -694,6 +694,7 @@ class Isa(object):
             tree.dumpTree(self, isaFile)
 
 
+
         for isa_tag in insn_isa_tags.keys():
             self.dump('static iss_decoder_item_t *__iss_isa_tag_%s[] = {\n' % isa_tag)
             insn_list = []

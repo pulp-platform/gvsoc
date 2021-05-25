@@ -14,10 +14,10 @@ endif
 
 define declare_iss_isa_build
 
-$(VP_BUILD_DIR)/cpu/iss/iss_wrapper/$(1)_decoder_gen.hpp: $(GVSOC_ISS_PATH)/isa_gen/isa_generator.py $(GVSOC_ISS_PATH)/isa_gen/isa_riscv_gen.py $(GVSOC_ISS_PATH)/isa_gen/isa_gen.py $(3)
-	$(GVSOC_ISS_PATH)/isa_gen/isa_generator.py --source-file=$(VP_BUILD_DIR)/cpu/iss/iss_wrapper/$(1)_decoder_gen.cpp --header-file=$(VP_BUILD_DIR)/cpu/iss/iss_wrapper/$(1)_decoder_gen.hpp $(2)
+$(VP_BUILD_DIR)/$(1)_decoder_gen.hpp: $(GVSOC_ISS_PATH)/isa_gen/isa_generator.py $(GVSOC_ISS_PATH)/isa_gen/isa_riscv_gen.py $(GVSOC_ISS_PATH)/isa_gen/isa_gen.py $(3)
+	$(GVSOC_ISS_PATH)/isa_gen/isa_generator.py --source-file=$(VP_BUILD_DIR)/$(1)_decoder_gen.cpp --header-file=$(VP_BUILD_DIR)/$(1)_decoder_gen.hpp $(2)
 
-$(VP_BUILD_DIR)/cpu/iss/iss_wrapper/$(1)_decoder_gen.cpp: $(GVSOC_ISS_PATH)/isa_gen/isa_generator.py $(GVSOC_ISS_PATH)/isa_gen/isa_riscv_gen.py $(GVSOC_ISS_PATH)/isa_gen/isa_gen.py $(3)
-	$(GVSOC_ISS_PATH)/isa_gen/isa_generator.py --source-file=$(VP_BUILD_DIR)/cpu/iss/iss_wrapper/$(1)_decoder_gen.cpp --header-file=$(VP_BUILD_DIR)/cpu/iss/iss_wrapper/$(1)_decoder_gen.hpp $(2)
+$(VP_BUILD_DIR)/$(1)_decoder_gen.cpp: $(GVSOC_ISS_PATH)/isa_gen/isa_generator.py $(GVSOC_ISS_PATH)/isa_gen/isa_riscv_gen.py $(GVSOC_ISS_PATH)/isa_gen/isa_gen.py $(3)
+	$(GVSOC_ISS_PATH)/isa_gen/isa_generator.py --source-file=$(VP_BUILD_DIR)/$(1)_decoder_gen.cpp --header-file=$(VP_BUILD_DIR)/$(1)_decoder_gen.hpp $(2)
 
 endef
