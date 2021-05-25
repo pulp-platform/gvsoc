@@ -289,6 +289,7 @@ int iss_open(iss_t *iss)
   iss->cpu.state.fetch_cycles = 0;
 
   iss_irq_build(iss);
+  iss_resource_init(iss);
 
   iss_trace_init(iss);
 
