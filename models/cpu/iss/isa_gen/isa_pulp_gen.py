@@ -56,6 +56,7 @@ class Riscy(Riscv_core):
                 IsaDecodeTree('c', [rv32c]),
                 IsaDecodeTree('priv', [priv]),
                 IsaDecodeTree('pulp_v2', [pulp_v2]),
+                IsaDecodeTree('pulp_nn', [pulp_nn]),
                 IsaDecodeTree('rnnext', [pulp_v2_rnnext]),
                 IsaDecodeTree('f', [rv32f]),
                 IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec, Xfaux]),
