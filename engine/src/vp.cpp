@@ -1596,6 +1596,7 @@ void vp::component::create_comps()
 void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
 {
     FILE *sock = fdopen(socket_fd, "r");
+    FILE *reply_sock = fdopen(reply_fd, "w");
 
     while(1)
     {
@@ -1608,21 +1609,10 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
         std::regex regex{R"([\s]+)"};
         std::sregex_token_iterator it{s.begin(), s.end(), regex, -1};
         std::vector<std::string> words{it, {}};
-
+        
         if (words.size() > 0)
         {
-            if (words[0] == "get_component")
-            {
-                vp::component *comp = this->top->get_component(words[1]);
-                dprintf(reply_fd, "%p\n", comp);
-            }
-            else if (words[0] == "component")
-            {
-                vp::component *comp = (vp::component *)strtoll(words[1].c_str(), NULL, 0);
-                std::string retval = comp->handle_command({words.begin() + 2, words.end()});
-                dprintf(reply_fd, "%s\n", retval.c_str());
-            }
-            else if (words[0] == "run")
+            if (words[0] == "run")
             {
                 int64_t timestamp = top->get_time();
                 this->top->run();
@@ -1650,51 +1640,77 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
             }
             else if (words[0] == "quit")
             {
-                this->top->quit();
-            }
-            else if (words[0] == "trace")
-            {
-                if (words.size() != 3)
-                {
-                    fprintf(stderr, "This command requires 2 arguments: trace [add|remove] regexp");
-                }
-                else
-                {
-                    if (words[1] == "add")
-                    {
-                        this->top->traces.get_trace_manager()->add_trace_path(0, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                    else
-                    {
-                        this->top->traces.get_trace_manager()->add_exclude_trace_path(0, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                }
-            }
-            else if (words[0] == "event")
-            {
-                if (words.size() != 3)
-                {
-                    fprintf(stderr, "This command requires 2 arguments: event [add|remove] regexp");
-                }
-                else
-                {
-                    if (words[1] == "add")
-                    {
-                        this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                    else
-                    {
-                        this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                }
+                this->top->pause();
+                this->top->quit(strtol(words[1].c_str(), NULL, 0));
             }
             else
             {
-                printf("Ignoring invalid command: %s\n", words[0].c_str());
+                // Before interacting with the engine, we must lock it since our requests will come
+                // from a different thread.
+                this->top->get_time_engine()->lock();
+
+                if (words[0] == "get_component")
+                {
+                    vp::component *comp = this->top->get_component(words[1]);
+                    dprintf(reply_fd, "%p\n", comp);
+                }
+                else if (words[0] == "component")
+                {
+                    vp::component *comp = (vp::component *)strtoll(words[1].c_str(), NULL, 0);
+                    std::string retval = comp->handle_command(sock, reply_sock, {words.begin() + 2, words.end()});
+                    dprintf(reply_fd, "%s\n", retval.c_str());
+                }
+                else if (words[0] == "trace")
+                {
+                    if (words.size() != 3)
+                    {
+                        fprintf(stderr, "This command requires 2 arguments: trace [add|remove] regexp");
+                    }
+                    else
+                    {
+                        if (words[1] == "add")
+                        {
+                            this->top->traces.get_trace_manager()->add_trace_path(0, words[2]);
+                            this->top->traces.get_trace_manager()->check_traces();
+                        }
+                        else if (words[1] == "level")
+                        {
+                            this->top->traces.get_trace_manager()->set_trace_level(words[2].c_str());
+                            this->top->traces.get_trace_manager()->check_traces();
+                        }
+                        else
+                        {
+                            this->top->traces.get_trace_manager()->add_exclude_trace_path(0, words[2]);
+                            this->top->traces.get_trace_manager()->check_traces();
+                        }
+                    }
+                }
+                else if (words[0] == "event")
+                {
+                    if (words.size() != 3)
+                    {
+                        fprintf(stderr, "This command requires 2 arguments: event [add|remove] regexp");
+                    }
+                    else
+                    {
+                        if (words[1] == "add")
+                        {
+                            this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
+                            this->top->traces.get_trace_manager()->check_traces();
+                        }
+                        else
+                        {
+                            this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
+                            this->top->traces.get_trace_manager()->check_traces();
+                        }
+                    }
+                }
+                else
+                {
+                    printf("Ignoring2 invalid command: %s\n", words[0].c_str());
+                }
+
+                this->top->get_time_engine()->unlock();
             }
         }
     }

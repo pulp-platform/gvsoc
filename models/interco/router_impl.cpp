@@ -92,6 +92,7 @@ public:
   router(js::config *config);
 
   int build();
+  std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -118,6 +119,7 @@ private:
 
   int bandwidth = 0;
   int latency = 0;
+  vp::io_req proxy_req;
 };
 
 router::router(js::config *config)
@@ -336,6 +338,51 @@ void router::response(void *_this, vp::io_req *req)
     port->resp(req);
 }
 
+
+std::string router::handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args)
+{
+    if (args[0] == "mem_write" or args[0] == "mem_read")
+    {
+        bool is_write = args[0] == "mem_write";
+        long long int addr = strtoll(args[1].c_str(), NULL, 0);
+        long long int size = strtoll(args[2].c_str(), NULL, 0);
+        long long int value = 0;
+        if (is_write)
+        {
+            for (int i=0; i<size; i++)
+            {
+                value |= strtoll(args[3 + i].c_str(), NULL, 0) << (i*8);
+            }
+        }
+
+        vp::io_req *req = &this->proxy_req;
+        req->set_data((uint8_t *)&value);
+        req->set_is_write(is_write);
+        req->set_size(size);
+        req->set_addr(addr);
+        req->set_debug(true);
+
+        vp::io_req_status_e result = router::req((void *)this, req);
+
+        if (args[0] == "mem_write")
+        {
+            return "err=" + std::to_string(result);
+        }
+        else
+        {
+            std::string reply = "";
+
+            for (int i=0; i<size; i++)
+            {
+                reply += std::to_string((value >> (i*8)) & 0xff) + " ";
+            }
+            return reply + ";err=" + std::to_string(result);
+        }
+    }
+    return "err=1";
+}
+
+
 int router::build()
 {
   traces.new_trace("trace", &trace, vp::DEBUG);
@@ -351,6 +398,9 @@ int router::build()
   latency = get_config_int("latency");
 
   js::config *mappings = get_js_config()->get("mappings");
+
+  this->proxy_req.set_data(new uint8_t[4]);
+
 
   if (mappings != NULL)
   {

@@ -22,27 +22,12 @@
 #
 
 
-
 from isa_gen import *
 import argparse
 import os.path
-
-fpuGroup      = IsaGroup('fpu', offload=['shfpu_offload', '--shared-fpu'], timingTable=TimingTable(name='fpu', option='--fpu-timing', default='timing_fpu_private.cfg'))
-rv32mGroup     = IsaGroup('rv32m', timingTable=TimingTable(name='rv32m', option='--rv32m-timing', default='timing_rv32m_ri5cy.cfg'))
-
-fpuGroupOther = InstrGroup(fpuGroup, 'INSTR_GROUP_OTHER')
-fpuGroupAdd   = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_ADD')
-fpuGroupMul   = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_MUL')
-fpuGroupDiv   = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_DIV')
-fpuGroupFmadd = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_FMADD')
-fpuGroupConv  = InstrGroup(fpuGroup, 'INSTR_GROUP_FPU_CONV')
+import importlib
 
 
-
-rv32mGroupOther   = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_OTHER')
-rv32mGroupMul     = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_MUL')
-rv32mGroupMulh    = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_MULH')
-rv32mGroupDiv     = InstrGroup(rv32mGroup, 'INSTR_GROUP_RV32M_DIV')
 
 class R5(Instr):
     def __init__(self, label, format, encoding, decode=None, N=None, L=None, mapTo=None, group=None, fast_handler=False, tags=[], isa_tags=[]):
@@ -2054,127 +2039,3 @@ int64 = IsaSubset('int64',
     R5('p.mulsh.d',  'R2x32_W64',      '0111001 ----- ----- 110 ----- 0110011'),
     R5('p.muluh.d',  'R2x32_W64',      '0111001 ----- ----- 111 ----- 0110011'),
 ])
-
-
-#if args.version == 1:
-#    isa = Isa('riscv', [IsaSubset('rv32i', rv32i),
-#                        IsaSubset('rv32m', rv32m),
-#                        IsaSubset('rv32c', rv32c),
-#                        IsaSubset('priv', priv),
-#                        IsaSubset('priv_pulp', priv_pulp, file=None, active='--priv_pulp'),
-#                        IsaSubset('priv_1_9', priv_1_9, file=None, active='--priv_1_9'),
-#                        IsaSubset('pulp', pulp),
-#                        IsaSubset('fpu', rv32f, active='--fpu', file=None),
-#                        IsaSubset('fpud', rv32d, active='--fpud', file=None),
-#                        IsaSubset('pulp_v1', pulp_v1, file=None)
-#                        ], options=commonOptions, power='pe.instr')
-#    isaName = 'riscv'
-
-
-
-isa = Isa(
-    'riscv',
-    [
-        IsaDecodeTree('pulp_v2', [priv_pulp_v2]),
-        IsaDecodeTree('i', [rv32i]),
-        IsaDecodeTree('m', [rv32m]),
-        IsaDecodeTree('c', [rv32c]),
-        IsaDecodeTree('priv', [priv]),
-        IsaDecodeTree('pulp_v2', [pulp_v2]),
-        IsaDecodeTree('pulp_nn', [pulp_nn]),
-        IsaDecodeTree('rnnext', [pulp_v2_rnnext]),
-        IsaDecodeTree('f', [rv32f]),
-        IsaDecodeTree('sfloat', [Xf16, Xf16alt, Xf8, Xfvec, Xfaux]),
-        IsaDecodeTree('gap8', [gap8]),
-        IsaDecodeTree('gap9', [gap9]),
-        IsaDecodeTree('int64', [int64]),
-        #IsaTree('fpud', rv32d),
-        #IsaTree('gap8', gap8),
-        #IsaTree('priv_pulp_v2', priv_pulp_v2),
-        #IsaTree('priv_1_9', priv_1_9)
-        #IsaTree('rv32a', rv32a),
-        #IsaTree('pulp_zeroriscy', pulp_zeroriscy),
-    ]
-)
-
-
-
-if __name__ == "__main__":    
-    parser = argparse.ArgumentParser(description='Generate ISA for RISCV')
-
-    parser.add_argument("--version", dest="version", default=1, type=int, metavar="VALUE", help="Specify ISA version")
-    parser.add_argument("--header-file", dest="header_file", default=None, metavar="PATH", help="Specify header output file")
-    parser.add_argument("--source-file", dest="source_file", default=None, metavar="PATH", help="Specify source output file")
-    parser.add_argument("--implem", dest="implem", default=None, help="Specify implementation name")
-
-    args = parser.parse_args()
-
-    commonOptions = ["--pulp-perf-counters", "--pulp-hw-loop", "--itc-internal", "--itc-external-req", "--itc-external-wire", "--is-secured"]
-
-    try:
-        os.makedirs(os.path.dirname(args.header_file))
-    except Exception:
-        pass
-
-    try:
-        os.makedirs(os.path.dirname(args.source_file))
-    except Exception:
-        pass
-
-    with open(args.header_file, 'w') as isaFileHeader:
-        with open(args.source_file, 'w') as isaFile:
-
-            for insn in isa.get_insns():
-
-                if args.implem is None:
-
-                    if "load" in insn.tags:
-                        insn.get_out_reg(0).set_latency(2)
-                    elif "fdiv" in insn.tags:
-                        insn.get_out_reg(0).set_latency(9)
-                    elif "sfdiv" in insn.tags:
-                        insn.get_out_reg(0).set_latency(4)
-                    elif "mul" in insn.tags:
-                        insn.get_out_reg(0).set_latency(2)
-                    elif "mulh" in insn.tags:
-                        insn.set_latency(5)
-                    elif "div" in insn.tags:
-                        insn.get_out_reg(0).set_latency(31)
-
-
-                elif args.implem == 'zeroriscy':
-
-                    if "load" in insn.tags:
-                        insn.get_out_reg(0).set_latency(2)
-                    elif "fdiv" in insn.tags:
-                        insn.get_out_reg(0).set_latency(9)
-                    elif "sfdiv" in insn.tags:
-                        insn.get_out_reg(0).set_latency(4)
-                    elif "mul" in insn.tags:
-                        insn.get_out_reg(0).set_latency(3)
-                    elif "mulh" in insn.tags:
-                        insn.set_latency(5)
-                    elif "div" in insn.tags:
-                        insn.get_out_reg(0).set_latency(37)
-
-
-            # TODO these are the old timings, find a way to make that more configurable        
-            # for insn in isa.get_insns():
-            #     if "load" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(2)
-            #     elif "fmul" in insn.tags or "fadd" in insn.tags or "fconv" in insn.tags or "fother" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(2)
-            #     elif "fmadd" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(3)
-            #     elif "fdiv" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(9)
-            #     elif "sfdiv" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(4)
-            #     elif "mul" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(2)
-            #     elif "mulh" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(3)
-            #     elif "div" in insn.tags:
-            #         insn.get_out_reg(0).set_latency(8)
-
-            isa.gen(isaFile, isaFileHeader)

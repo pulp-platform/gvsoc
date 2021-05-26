@@ -551,7 +551,9 @@ Tx_stream_libsnd_file::Tx_stream_libsnd_file(Slot *slot, pi_testbench_i2s_verif_
 
 Tx_stream_libsnd_file::~Tx_stream_libsnd_file()
 {
+#ifdef USE_SNDFILE
     sf_close(this->sndfile);
+#endif
 }
 
 

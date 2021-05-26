@@ -393,7 +393,7 @@ namespace vp {
     virtual void start() {}
     virtual void stop() {}
     virtual void flush() {}
-    virtual void quit() {}
+    virtual void quit(int status) {}
     virtual void pre_reset() {}
     virtual void reset(bool active) {}
     virtual void load() {}
@@ -500,7 +500,7 @@ namespace vp {
 
     void throw_error(std::string error);
 
-    virtual std::string handle_command(std::vector<std::string> args) { return ""; }
+    virtual std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args) { return ""; }
 
     component_trace traces;
     component_power power;
