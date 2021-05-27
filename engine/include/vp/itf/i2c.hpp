@@ -34,6 +34,7 @@ namespace vp {
 
   typedef void (i2c_sync_meth_t)(void *, int scl, int sda);
   typedef void (i2c_sync_meth_muxed_t)(void *, int scl, int sda, int id);
+  typedef void (i2c_sync_meth_demuxed_t)(void *, int scl, int sda, int id);
 
   typedef void (i2c_slave_sync_meth_t)(void *, int scl, int sda);
   typedef void (i2c_slave_sync_meth_muxed_t)(void *, int scl, int sda, int id);
@@ -99,6 +100,7 @@ namespace vp {
 
     inline void set_sync_meth(i2c_sync_meth_t *meth);
     inline void set_sync_meth_muxed(i2c_sync_meth_muxed_t *meth, int id);
+    inline void set_sync_meth_demuxed(i2c_sync_meth_demuxed_t *meth);
 
     inline void bind_to(vp::port *_port, vp::config *config);
 
@@ -118,8 +120,7 @@ namespace vp {
     vp::component *comp_mux;
     int sync_mux;
     int mux_id;
-
-
+    int demux_id;
   };
 
 
@@ -150,11 +151,20 @@ namespace vp {
     else
     {
       sync_meth_mux = port->sync_mux_meth;
-      sync_meth = (i2c_sync_meth_t *)&i2c_master::sync_muxed_stub;
-
       this->set_remote_context(this);
       comp_mux = (vp::component *)port->get_context();
-      sync_mux = port->mux_id;
+      sync_meth = (i2c_sync_meth_t *)&i2c_master::sync_muxed_stub;
+      if (port->demux_id >= 0)
+      {
+        sync_mux = port->demux_id;
+        port->demux_id++;
+      }
+      else
+      {
+        this->set_remote_context(this);
+        comp_mux = (vp::component *)port->get_context();
+        sync_mux = port->mux_id;
+      }
     }
   }
 
@@ -202,6 +212,7 @@ namespace vp {
 
   inline i2c_slave::i2c_slave() : sync_meth(NULL), sync_mux_meth(NULL) {
     sync_meth = (i2c_sync_meth_t *)&i2c_slave::sync_default;
+    demux_id = -1;
   }
 
   inline void i2c_slave::set_sync_meth(i2c_sync_meth_t *meth)
@@ -215,6 +226,13 @@ namespace vp {
     sync_mux_meth = meth;
     sync_meth = NULL;
     mux_id = id;
+  }
+
+  inline void i2c_slave::set_sync_meth_demuxed(i2c_sync_meth_muxed_t *meth)
+  {
+    sync_mux_meth = meth;
+    sync_meth = NULL;
+    demux_id = 0;
   }
 
   inline void i2c_slave::sync_default(i2c_slave *, int scl, int sda)
