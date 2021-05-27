@@ -232,7 +232,27 @@ class Router(object):
 
     def __init__(self, proxy: Proxy, path: str = '/sys/board/chip/soc/axi_ico'):
         self.proxy = proxy
+        self.lock = threading.Lock()
+        self.condition = threading.Condition(self.lock)
+        self.pending_read_bytes = []
         self.component = proxy._get_component(path)
+        self.proxy.reader.register_callback('router %s read\n' % self.component, self.__handle_read)
+
+
+    def __handle_read(self):
+
+        self.lock.acquire()
+
+        size = self.read_size
+        reply = []
+        while size > 0:
+            reply += self.proxy.socket.recv(size)
+            size = self.read_size - len(reply)
+        
+        self.pending_read_bytes = reply
+        self.condition.notify()
+        self.lock.release()
+
 
     def mem_write(self, addr: int, size: int, values: bytes):
         """Inject a memory write.
@@ -254,14 +274,10 @@ class Router(object):
         RuntimeError
             If the access generates an error in the architecture.
         """
-        cmd = 'component %s mem_write 0x%x 0x%x' % (self.component, addr, size)
-
-        for byte in values:
-            cmd += ' 0x%x' % byte
-
-        cmd += '\n'
+        cmd = 'component %s mem_write 0x%x 0x%x\n' % (self.component, addr, size)
 
         self.proxy.socket.send(cmd.encode('ascii'))
+        self.proxy.socket.send(values)
 
         self.proxy._get_retval()
 
@@ -288,20 +304,25 @@ class Router(object):
         RuntimeError
             If the access generates an error in the architecture.
         """
+
+        self.read_size = size
         cmd = 'component %s mem_read 0x%x 0x%x\n' % (self.component, addr, size)
         self.proxy.socket.send(cmd.encode('ascii'))
-        result = self.reader.wait_reply()
-        reply = result.replace('\n', '')
-        values_str, err = reply.split(' ;')
 
-        self.proxy._handle_err(int(err.split('=')[1]))
+        self.lock.acquire()
+        
+        while len(self.pending_read_bytes) < size:
+            self.condition.wait()
 
-        values = bytearray()
+        reply = self.pending_read_bytes
+        self.pending_read_bytes = []
 
-        for value_str in values_str.split(' '):
-            values += int(value_str).to_bytes(1, byteorder="little")
+        self.lock.release()
 
-        return values
+        self.proxy._get_retval()
+
+        return reply
+
 
     def mem_write_int(self, addr: int, size: int, value: int):
         """Write an integer.

@@ -174,6 +174,7 @@ static inline int iss_fetch_req_common(iss_t *_this, uint64_t addr, uint8_t *dat
   }
 
   int64_t latency = req->get_latency();
+  
   if (latency)
   {
     _this->cpu.state.fetch_cycles += latency;

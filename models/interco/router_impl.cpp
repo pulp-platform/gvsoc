@@ -343,41 +343,45 @@ std::string router::handle_command(FILE *req_file, FILE *reply_file, std::vector
 {
     if (args[0] == "mem_write" or args[0] == "mem_read")
     {
+        int error = 0;
         bool is_write = args[0] == "mem_write";
         long long int addr = strtoll(args[1].c_str(), NULL, 0);
         long long int size = strtoll(args[2].c_str(), NULL, 0);
-        long long int value = 0;
+
+        uint8_t *buffer = new uint8_t[size];
+
         if (is_write)
         {
-            for (int i=0; i<size; i++)
+            int read_size = fread(buffer, 1, size, req_file);
+            if (read_size != size)
             {
-                value |= strtoll(args[3 + i].c_str(), NULL, 0) << (i*8);
+                error = 1;
             }
         }
 
         vp::io_req *req = &this->proxy_req;
-        req->set_data((uint8_t *)&value);
+        req->set_data((uint8_t *)buffer);
         req->set_is_write(is_write);
         req->set_size(size);
         req->set_addr(addr);
         req->set_debug(true);
 
         vp::io_req_status_e result = router::req((void *)this, req);
+        error |= result != vp::IO_REQ_OK;
 
-        if (args[0] == "mem_write")
+        if (!is_write)
         {
-            return "err=" + std::to_string(result);
-        }
-        else
-        {
-            std::string reply = "";
-
-            for (int i=0; i<size; i++)
+            fprintf(reply_file, "router %p read\n", this);
+            int write_size = fwrite(buffer, 1, size, reply_file);
+            if (write_size != size)
             {
-                reply += std::to_string((value >> (i*8)) & 0xff) + " ";
+                error = 1;
             }
-            return reply + ";err=" + std::to_string(result);
         }
+
+        delete buffer;
+
+        return "err=" + std::to_string(error);
     }
     return "err=1";
 }

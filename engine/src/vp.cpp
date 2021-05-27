@@ -1658,7 +1658,8 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
                 {
                     vp::component *comp = (vp::component *)strtoll(words[1].c_str(), NULL, 0);
                     std::string retval = comp->handle_command(sock, reply_sock, {words.begin() + 2, words.end()});
-                    dprintf(reply_fd, "%s\n", retval.c_str());
+                    fprintf(reply_sock, "%s\n", retval.c_str());
+                    fflush(reply_sock);
                 }
                 else if (words[0] == "trace")
                 {
