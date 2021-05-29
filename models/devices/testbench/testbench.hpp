@@ -272,7 +272,6 @@ typedef struct
 
     uint8_t itf;   // Reserved for runtime
     uint8_t slot;  // Reserved for runtime
-    uint16_t slots;  // Reserved for runtime
 }
 __attribute__((packed)) pi_testbench_i2s_verif_slot_start_config_t;
 

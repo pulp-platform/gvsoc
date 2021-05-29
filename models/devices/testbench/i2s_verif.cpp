@@ -829,7 +829,7 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config, Slot *reuse
             }
             else
             {
-                this->instream = new Rx_stream_libsnd_file(this->i2s, (pi_testbench_i2s_verif_start_config_rx_file_reader_type_e)config->rx_file_reader.type, filepath, __builtin_popcount(config->slots), config->rx_file_reader.width);
+                this->instream = new Rx_stream_libsnd_file(this->i2s, (pi_testbench_i2s_verif_start_config_rx_file_reader_type_e)config->rx_file_reader.type, filepath, nb_channels, config->rx_file_reader.width);
             }
         }
         this->instream->use_count++;
