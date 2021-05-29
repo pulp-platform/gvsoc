@@ -788,7 +788,7 @@ void Testbench::handle_received_byte(uint8_t byte)
 
                 case PI_TESTBENCH_CMD_I2S_VERIF_SLOT_START:
                 {
-                    this->handle_i2s_verif_slot_start();
+                    this->handle_i2s_verif_slot_start(std::vector<int>());
                     break;
                 }
 
@@ -1130,7 +1130,7 @@ void Testbench::handle_i2s_verif_slot_setup()
 }
 
 
-void Testbench::handle_i2s_verif_slot_start()
+void Testbench::handle_i2s_verif_slot_start(std::vector<int> slots)
 {
     pi_testbench_i2s_verif_slot_start_config_t *req = (pi_testbench_i2s_verif_slot_start_config_t *)this->req;
     int itf = req->itf;
@@ -1141,7 +1141,7 @@ void Testbench::handle_i2s_verif_slot_start()
         return;
     }
 
-    this->i2ss[itf]->i2s_verif_slot_start(req);
+    this->i2ss[itf]->i2s_verif_slot_start(req, slots);
 }
 
 
@@ -1304,6 +1304,7 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                 *config = {};
 
                 std::vector<std::string> params = {args.begin() + 3, args.end()};
+                std::vector<int> slots;
 
                 for (std::string x: params)
                 {
@@ -1319,6 +1320,7 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                     else if (name == "slot")
                     {
                         config->slot = value;
+                        slots.push_back(value);
                     }
                     else if (name == "filepath")
                     {
@@ -1345,7 +1347,7 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                 config->rx_file_reader.nb_samples = -1;
                 config->rx_file_reader.filepath_len = strlen(filepath) + 1;
 
-                this->handle_i2s_verif_slot_start();
+                this->handle_i2s_verif_slot_start(slots);
             }
             else if (args[1] == "slot_tx_file_dumper")
             {
@@ -1355,6 +1357,7 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                 *config = {};
 
                 std::vector<std::string> params = {args.begin() + 3, args.end()};
+                std::vector<int> slots;
 
                 for (std::string x: params)
                 {
@@ -1370,6 +1373,7 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                     else if (name == "slot")
                     {
                         config->slot = value;
+                        slots.push_back(value);
                     }
                     else if (name == "filepath")
                     {
@@ -1396,7 +1400,7 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                 config->tx_file_dumper.nb_samples = -1;
                 config->tx_file_dumper.filepath_len = strlen(filepath) + 1;
 
-                this->handle_i2s_verif_slot_start();
+                this->handle_i2s_verif_slot_start(slots);
             }
             else if (args[1] == "slot_stop")
             {
@@ -1627,7 +1631,7 @@ I2s::I2s(Testbench *top, int itf) : top(top)
 }
 
 
-void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
+void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config, std::vector<int> slots)
 {
     if (!this->i2s_verif)
     {
@@ -1635,7 +1639,7 @@ void I2s::i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *confi
         return;
     }
 
-    this->i2s_verif->slot_start(config);
+    this->i2s_verif->slot_start(config, slots);
 }
 
 

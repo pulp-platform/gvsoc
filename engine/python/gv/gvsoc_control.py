@@ -829,19 +829,26 @@ class Testbench_i2s(object):
         self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
-    def slot_rx_file_reader(self, slot: int = 0, filetype: str = "wav", filepath: str = None):
+    def slot_rx_file_reader(self, slot: int = None, slots: list = [], filetype: str = "wav", filepath: str = None, channel: int = 0):
         """Read a stream of samples from a file.
 
-        This will open a file and stream it to the SAI so that gap receives the samples
+        This will open a file and stream it to the SAI so that gap receives the samples.
+        It can be used either in mono-channel mode with the slot parameter or multi-channel mode with the
+        slots parameter. In multi-channel mode, the slots parameters give the list of slots associated to each channel.
+        To allow empty channels, a slot of -1 can be given.
 
         Parameters
         ----------
         slot : int, optional
             Slot identifier
+        slots : list, optional
+            List of slots when using multi-channel mode. slot must be None if this one is not empty.
         filetype : string, optional
             Describes the type of the file, can be "wav" or "au".
         filepath : string, optional
             Path to the file.
+        channel : int, optional
+            If the format supports it, this will get the samples from the specified channel in the input file.
 
         Raises
         ------
@@ -850,26 +857,38 @@ class Testbench_i2s(object):
         """
         options = ''
         options += ' itf=%d' % self.id
-        options += ' slot=%d' % slot
+        if slot is not None:
+            options += ' slot=%d' % slot
+        for slot in slots:
+            options += ' slot=%d' % slot
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
+        options += ' channel=%d' % channel
         cmd = 'component %s i2s slot_rx_file_reader %s\n' % (self.testbench, options)
         self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
 
-    def slot_tx_file_dumper(self, slot: int = 0, filetype: str = "wav", filepath: str = None):
+    def slot_tx_file_dumper(self, slot: int = None, slots: list = [], filetype: str = "wav", filepath: str = None, channel: int = 0):
         """Write a stream of samples to a file.
 
-        This will open a file and write to it all the samples received from gap
+        This will open a file and write to it all the samples received from gap.
+        It can be used either in mono-channel mode with the slot parameter or multi-channel mode with the
+        slots parameter. In multi-channel mode, the slots parameters give the list of slots associated to each channel.
+        To allow empty channels, a slot of -1 can be given. A slot can be given several times in order to push the samples
+        to several channels.
 
         Parameters
         ----------
         slot : int, optional
             Slot identifier
+        slots : list, optional
+            List of slots when using multi-channel mode. slot must be None if this one is not empty.
         filetype : string, optional
             Describes the type of the file, can be "wav" or "au".
         filepath : string, optional
             Path to the file.
+        channel : int, optional
+            If the format supports it, this will dump the samples to the specified channel in the output file.
 
         Raises
         ------
@@ -878,9 +897,13 @@ class Testbench_i2s(object):
         """
         options = ''
         options += ' itf=%d' % self.id
-        options += ' slot=%d' % slot
+        if slot is not None:
+            options += ' slot=%d' % slot
+        for slot in slots:
+            options += ' slot=%d' % slot
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
+        options += ' channel=%d' % channel
         cmd = 'component %s i2s slot_tx_file_dumper %s\n' % (self.testbench, options)
         self.proxy.socket.send(cmd.encode('ascii'))
         self.proxy._get_retval()
