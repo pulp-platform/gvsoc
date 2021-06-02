@@ -19,6 +19,13 @@
 #include <vp/vp.hpp>
 #include <vp/itf/i2c.hpp>
 
+#include <map>
+
+typedef struct {
+    int scl;
+    int sda;
+} i2c_pair_t;
+
 
 class I2c_bus : public vp::component
 {
@@ -34,6 +41,8 @@ private:
     vp::trace trace;
 
     vp::i2c_slave in;
+
+    std::map<int, i2c_pair_t> i2c_values;
 };
 
 
@@ -53,11 +62,34 @@ int I2c_bus::build()
 }
 
 
-void I2c_bus::sync(void *__this, int scl, int sca, int id)
+void I2c_bus::sync(void *__this, int scl, int sda, int id)
 {
     I2c_bus *_this = (I2c_bus *)__this;
 
-    printf("[%p] SYNC scl %d sca %d id %d\n", _this, scl, sca, id);
+    printf("[%p] SYNC scl %d sda %d id %d\n", _this, scl, sda, id);
+
+    /* store incoming values in maps */
+    _this->i2c_values[id].scl = scl;
+    _this->i2c_values[id].sda = sda;
+
+    /* browse all values and compute resulting SCL and SDA */
+    int res_scl_value = 1;
+    int res_sda_value = 1;
+
+    for (std::pair<int, i2c_pair_t> i2c_val : _this->i2c_values)
+    {
+        if (i2c_val.second.scl == 0)
+        {
+            res_scl_value = 0;
+        }
+        if (i2c_val.second.sda == 0)
+        {
+            res_sda_value = 0;
+        }
+    }
+
+    /* broadcast the values to all peripherals */
+    _this->in.sync(res_scl_value, res_sda_value);
 }
 
 
