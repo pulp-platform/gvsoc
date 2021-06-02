@@ -186,16 +186,6 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
     {
       if (this->state == HYPERFLASH_STATE_PROGRAM)
       {
-        // this->trace.msg(vp::trace::LEVEL_INFO, "Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
-
-        // uint8_t new_value = this->data[address] & data;
-
-        // if (new_value != data)
-        // {
-        //   this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
-        // }
-
-        // this->data[address] &= new_value;
         if(burst_write)
         {
           if((address >> 1 == sector) && data == 0x29)
@@ -206,7 +196,16 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
           else
           {
             this->trace.msg(vp::trace::LEVEL_TRACE, "[Write Buffer Programming] Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
-            this->data[address] = data;
+
+            uint8_t new_value = this->data[address] & data;
+
+            if (new_value != data)
+            {
+              this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
+            }
+
+            this->data[address] &= new_value;
+
             if(pending_bytes)
             {
               this->nb_word--;
@@ -221,7 +220,15 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
         else
         {
           this->trace.msg(vp::trace::LEVEL_TRACE, "[Word Programming] Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
-          this->data[address] = data;
+
+          uint8_t new_value = this->data[address] & data;
+
+          if (new_value != data)
+          {
+            this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
+          }
+
+          this->data[address] &= data;
         }
       }
       else
@@ -466,7 +473,7 @@ void Hyperflash::cs_sync(void *__this, bool value)
     else if (_this->state == HYPERFLASH_STATE_PROGRAM)
     {
       _this->trace.msg(vp::trace::LEVEL_DEBUG, "End of program command (addr: 0x%x)\n", _this->current_address);
-      //_this->state = HYPERFLASH_STATE_WAIT_CMD0;
+
       if(_this->get_nb_word() < 0)
       {
         _this->state = HYPERFLASH_STATE_WAIT_CMD0;
