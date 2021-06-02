@@ -257,14 +257,16 @@ typedef struct
             int32_t nb_samples;
             uint32_t filepath;
             uint32_t filepath_len;
-            uint32_t type;
+            uint8_t type;
+            uint8_t width;
         } tx_file_dumper;
         struct
         {
             int32_t nb_samples;
             uint32_t filepath;
             uint32_t filepath_len;
-            uint32_t type;
+            uint8_t type;
+            uint8_t width;
         } rx_file_reader;
     };
 
@@ -352,7 +354,7 @@ public:
     void i2s_verif_setup(pi_testbench_i2s_verif_config_t *config);
     void i2s_verif_start(pi_testbench_i2s_verif_start_config_t *config);
     void i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
-    void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
+    void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config, std::vector<int> slots);
     void i2s_verif_slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config);
     static void sync(void *__this, int sck, int ws, int sd);
     void sync_sck(int sck);
@@ -609,7 +611,7 @@ private:
     void handle_i2s_verif_setup();
     void handle_i2s_verif_start();
     void handle_i2s_verif_slot_setup();
-    void handle_i2s_verif_slot_start();
+    void handle_i2s_verif_slot_start(std::vector<int> slots);
     void handle_i2s_verif_slot_stop();
 
     static void gpio_sync(void *__this, int value, int id);
