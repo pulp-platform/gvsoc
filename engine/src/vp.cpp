@@ -1375,6 +1375,11 @@ vp::component *vp::component::new_component(std::string name, js::config *config
     if (module_name == "")
     {
         module_name = config->get_child_str("vp_component");
+
+        if (module_name == "")
+        {
+            module_name = "utils.composite_impl";
+        }
     }
 
     if (this->get_vp_config()->get_child_bool("sv-mode"))
@@ -1428,6 +1433,10 @@ void vp::component::create_ports()
 {
     js::config *config = this->get_js_config();
     js::config *ports = config->get("vp_ports");
+    if (ports == NULL)
+    {
+        ports = config->get("ports");
+    }
 
     if (ports != NULL)
     {
@@ -1449,6 +1458,10 @@ void vp::component::create_bindings()
 {
     js::config *config = this->get_js_config();
     js::config *bindings = config->get("vp_bindings");
+    if (bindings == NULL)
+    {
+        bindings = config->get("bindings");
+    }
 
     if (bindings != NULL)
     {
@@ -1570,6 +1583,10 @@ void vp::component::create_comps()
 {
     js::config *config = this->get_js_config();
     js::config *comps = config->get("vp_comps");
+    if (comps == NULL)
+    {
+        comps = config->get("components");
+    }
 
     if (comps != NULL)
     {
