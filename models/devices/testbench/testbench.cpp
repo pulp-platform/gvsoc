@@ -1706,8 +1706,8 @@ void I2s::sync_ws(int ws)
 
 void I2s::i2s_verif_setup(pi_testbench_i2s_verif_config_t *config)
 {
-    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif setup (enabled: %d, sampling_rate: %d, word_size: %d, nb_slots: %d, ext_clk: %d, ext_ws: %d)\n",
-        config->enabled, config->sampling_freq, config->word_size, config->nb_slots, config->is_ext_clk, config->is_ext_ws);
+    this->trace.msg(vp::trace::LEVEL_INFO, "I2S verif setup (enabled: %d, sampling_rate: %d, word_size: %d, nb_slots: %d, ext_clk: %d, ext_ws: %d, pdm: %d)\n",
+        config->enabled, config->sampling_freq, config->word_size, config->nb_slots, config->is_ext_clk, config->is_ext_ws, config->is_pdm);
 
     if (this->i2s_verif)
     {

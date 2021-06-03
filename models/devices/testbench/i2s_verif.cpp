@@ -207,6 +207,19 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     if (this->is_pdm)
     {
         this->config.nb_slots = 4;
+    
+        if (this->is_ext_clk)
+        {
+            if (config->sampling_freq <= 0)
+            {
+                this->trace.fatal("Invalid sampling frequency with external clock (sampling_freq: %d)\n", config->sampling_freq);
+                return;
+            }
+
+            this->clk_period = 1000000000000ULL / config->sampling_freq / 2;
+
+            this->clk = 0;
+        }
     }
     else
     {
@@ -393,7 +406,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
             {
                 int val0 = this->slots[0]->pdm_get();
                 int val1 = this->slots[2]->pdm_get();
-                this->itf->sync(2, 2, val0 | (val1 << 2));
+                this->itf->sync(this->clk, 2, val0 | (val1 << 2));
             }
             else
             {
@@ -402,7 +415,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
                 int val0 = this->slots[1]->pdm_get();
                 int val1 = this->slots[3]->pdm_get();
-                this->itf->sync(2, 2, val0 | (val1 << 2));
+                this->itf->sync(this->clk, 2, val0 | (val1 << 2));
             }
         }
         else
