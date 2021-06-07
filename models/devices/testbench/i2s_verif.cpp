@@ -55,6 +55,7 @@ public:
 
 private:
 #ifdef USE_SNDFILE
+#error 1o
     SNDFILE *sndfile;
     SF_INFO sfinfo;
 #endif
@@ -103,6 +104,7 @@ public:
     void push_sample(uint32_t sample, int channel_id);
 
 private:
+    I2s_verif *i2s;
 #ifdef USE_SNDFILE
     SNDFILE *sndfile;
     SF_INFO sfinfo;
@@ -549,6 +551,7 @@ void Tx_stream_raw_file::push_sample(uint32_t sample, int channel_id)
 
 
 Tx_stream_libsnd_file::Tx_stream_libsnd_file(I2s_verif *i2s, pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e type, std::string filepath, int channels, int width)
+: i2s(i2s)
 {
 #ifdef USE_SNDFILE
 
@@ -581,7 +584,7 @@ Tx_stream_libsnd_file::Tx_stream_libsnd_file(I2s_verif *i2s, pi_testbench_i2s_ve
     memset(this->items, 0, sizeof(uint32_t)*this->sfinfo.channels);
 #else
 
-    this->slot->top->get_trace()->fatal("Unable to open file (%s), libsndfile support is not active\n", filepath.c_str());
+    this->i2s->top->get_trace()->fatal("Unable to open file (%s), libsndfile support is not active\n", filepath.c_str());
     return;
 
 #endif
