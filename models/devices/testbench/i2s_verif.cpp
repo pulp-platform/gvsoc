@@ -382,7 +382,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
-    if (this->zero_delay_start && this->prev_ws != ws && ws == 1)
+    if (!this->is_pdm && this->zero_delay_start && this->prev_ws != ws && ws == 1)
     {
         this->zero_delay_start = false;
         this->frame_active = true;
