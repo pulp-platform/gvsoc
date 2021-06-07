@@ -55,7 +55,6 @@ public:
 
 private:
 #ifdef USE_SNDFILE
-#error 1o
     SNDFILE *sndfile;
     SF_INFO sfinfo;
 #endif
