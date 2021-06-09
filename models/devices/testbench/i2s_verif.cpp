@@ -125,7 +125,7 @@ private:
 };
 
 
-class Slot
+class Slot : public vp::time_engine_client
 {
     friend class Rx_stream_libsnd_file;
     friend class Rx_stream_raw_file;
@@ -140,7 +140,8 @@ public:
     int get_data();
     void send_data(int sdo);
     void pdm_sync(int sd);
-    int pdm_get();
+    void pdm_get();
+    int64_t exec();
 
 protected:
     Testbench *top;
@@ -167,6 +168,7 @@ private:
     Rx_stream *instream;
     int rx_channel_id;
     std::vector<int> tx_channel_id;
+    bool close;
 };
 
 
@@ -361,6 +363,12 @@ void I2s_verif::sync_ws(int ws)
 }
 
 
+void I2s_verif::set_pdm_data(int slot, int data)
+{
+    this->data = (this->data & ~(0x3 << (slot * 2))) | (data << (slot * 2));
+    this->itf->sync(this->clk, 2, this->data);
+}
+
 
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
@@ -405,18 +413,16 @@ void I2s_verif::sync(int sck, int ws, int sdio)
         {
             if (!sck)
             {
-                int val0 = this->slots[0]->pdm_get();
-                int val1 = this->slots[2]->pdm_get();
-                this->itf->sync(this->clk, 2, val0 | (val1 << 2));
+                this->slots[0]->pdm_get();
+                this->slots[2]->pdm_get();
             }
             else
             {
                 this->slots[0]->pdm_sync(sdio & 3);
                 this->slots[2]->pdm_sync(sdio >> 2);
 
-                int val0 = this->slots[1]->pdm_get();
-                int val1 = this->slots[3]->pdm_get();
-                this->itf->sync(this->clk, 2, val0 | (val1 << 2));
+                this->slots[1]->pdm_get();
+                this->slots[3]->pdm_get();
             }
         }
         else
@@ -736,7 +742,7 @@ uint32_t Rx_stream_libsnd_file::get_sample(int channel)
 }
 
 
-Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s), id(id)
+Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : vp::time_engine_client(NULL), top(top), i2s(i2s), id(id)
 {
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf) + "_slot" + std::to_string(id), &trace, vp::DEBUG);
 
@@ -747,6 +753,8 @@ Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s)
     this->instream = NULL;
     this->outfile = NULL;
     this->outstream = NULL;
+
+    this->engine = (vp::time_engine*)top->get_service("time");
 }
 
 
@@ -1108,20 +1116,40 @@ void Slot::pdm_sync(int sd)
 }
 
 
-int Slot::pdm_get()
+int64_t Slot::exec()
 {
-    if (this->instream)
+    if (close)
     {
-        int data = this->instream->get_sample(this->rx_channel_id);
-        return data;
+        this->i2s->set_pdm_data(this->id / 2, 2);
+        this->close = false;
+        return 17000;
     }
     else
     {
-        if (this->i2s->pdm_lanes_is_out[this->id / 2])
-            return 0;
+        int data;
+
+        if (this->instream)
+        {
+            data = this->instream->get_sample(this->rx_channel_id);
+        }
         else
-            return 2;
+        {
+            if (this->i2s->pdm_lanes_is_out[this->id / 2])
+                data = 0;
+            else
+                data = 2;
+        }
+
+        this->i2s->set_pdm_data(this->id / 2, data);
+        return -1;
     }
+}
+
+
+void Slot::pdm_get()
+{
+    this->close = true;
+    this->enqueue_to_engine(50);
 }
 
 

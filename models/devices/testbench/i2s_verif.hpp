@@ -41,6 +41,7 @@ public:
     void sync_sck(int sck);
     void sync_ws(int ws);
     int64_t exec();
+    void set_pdm_data(int slot, int data);
 
     Testbench *top;
     vp::trace trace;
