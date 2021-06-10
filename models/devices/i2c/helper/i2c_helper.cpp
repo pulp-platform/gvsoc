@@ -167,15 +167,52 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
     {
         if (this->scl == 1)
         {
-            if (sda_falling)
+            if (sda_falling && !this->is_busy())
             {
                 I2C_HELPER_DEBUG("START DETECTED\n");
                 this->bus_is_busy = true;
             }
-            else if (sda_rising)
+            else if (sda_rising && this->is_busy())
             {
                 I2C_HELPER_DEBUG("STOP DETECTED\n");
                 this->bus_is_busy = false;
+            }
+        }
+    }
+    else if (this->is_busy())
+    {
+        /* sampling bit*/
+        I2C_HELPER_DEBUG("fsm_step: sampling rising bit\n");
+        if (scl_rising)
+        {
+            this->sda_rise = this->sda;
+        }
+        else if (scl_falling)
+        {
+            if (this->sda_rise == this->sda)
+            {
+                this->recv_bit_queue.push(this->sda);
+            }
+            else
+            {
+                //TODO framing error ?
+                //TODO empty queue
+            }
+
+            if (this->recv_bit_queue.size() == 8)
+            {
+                int byte = 0;
+                /* full byte received */
+                for (int i = 0; i < 8; i++)
+                {
+                    int bit = this->recv_bit_queue.front();
+                    this->recv_bit_queue.pop();
+                    byte = byte << 1 & bit;
+                }
+                assert(this->recv_bit_queue.empty());
+
+                I2C_HELPER_DEBUG("fsm_step: byte received=%d\n", byte);
+                //TODO what ?
             }
         }
     }

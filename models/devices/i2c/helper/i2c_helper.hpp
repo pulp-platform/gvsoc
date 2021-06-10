@@ -18,6 +18,7 @@
 #pragma once
 
 #include <functional>
+#include <queue>
 
 #include "vp/itf/i2c.hpp"
 #include "vp/component.hpp"
@@ -133,4 +134,8 @@ class I2C_helper {
         bool bus_is_busy;
         int scl;
         int sda;
+
+        int sda_rise; /* sda sampled on scl rising edge */
+
+        std::queue<int> recv_bit_queue;
 };
