@@ -36,6 +36,7 @@ class I2c_eeprom : public vp::component
         static void event_handler(void *__this, vp::clock_event *event);
 
         void i2c_enqueue_event(vp::clock_event* event, uint64_t time_ps);
+        static void i2c_sync(void *__this, int scl, int sda);
 
         /**********/
         /* FIELDS */

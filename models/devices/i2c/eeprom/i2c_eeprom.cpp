@@ -57,6 +57,14 @@ I2c_eeprom::I2c_eeprom(js::config* config)
     //TODO
 }
 
+void I2c_eeprom::i2c_sync(void *__this, int scl, int sda)
+{
+    assert(NULL != __this);
+    I2c_eeprom* _this = (I2c_eeprom*) __this;
+    _this->i2c_helper.update_pins(scl, sda);
+}
+
+
 void I2c_eeprom::reset(bool active)
 {
     if (active)
@@ -73,6 +81,7 @@ int I2c_eeprom::build(void)
     traces.new_trace("trace", &this->trace, vp::DEBUG);
     this->trace.msg(vp::trace::LEVEL_TRACE, "Building component\n");
 
+    this->i2c_itf.set_sync_meth(&I2c_eeprom::i2c_sync);
     this->new_master_port("i2c", &this->i2c_itf);
 
     this->new_master_port("clock_cfg", &this->clock_cfg);

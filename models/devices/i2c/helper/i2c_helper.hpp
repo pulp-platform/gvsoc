@@ -60,8 +60,11 @@ class I2C_helper {
     public:
         I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_event_fn_t event);
 
+        // TO be called when pin values change
+        void update_pins(int scl, int sda);
+
         //TODO
-        void set_timings(int prescaler, int delay_low, int delay_high);
+        void set_timings(uint64_t delay_low_ps, uint64_t delay_high_ps);
 
         //TODO
         void send_start(void);
@@ -119,9 +122,8 @@ class I2C_helper {
         /*****************/
         /* Configuration */
         /*****************/
-        int prescaler;
-        int delay_low;
-        int delay_high;
+        uint64_t delay_low_ps;
+        uint64_t delay_high_ps;
 
         /****************/
         /* Runtime data */

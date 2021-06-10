@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <cassert>
 
-#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-PHY] " __VA_ARGS__))
+#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
 
 namespace {
     void null_callback(i2c_operation_e id, i2c_status_e status, int value)
@@ -37,9 +37,8 @@ I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_e
     parent(parent),
     itf(itf),
     enqueue_event(enqueue_event),
-    prescaler(10),
-    delay_low(5),
-    delay_high(5),
+    delay_low_ps(5),
+    delay_high_ps(5),
     bus_is_busy(false),
     scl(1),
     sda(1),
@@ -49,7 +48,6 @@ I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_e
     assert(NULL != this->parent);
     assert(NULL != this->itf);
 
-    this->itf->set_sync_meth(&I2C_helper::i2c_sync);
     I2C_HELPER_DEBUG("Initializing helper interface\n");
 }
 
@@ -78,15 +76,19 @@ void I2C_helper::register_callback(i2c_callback_t callback)
     this->cb_master_operation = callback;
 }
 
-void I2C_helper::set_timings(int prescaler, int delay_low, int delay_high)
+void I2C_helper::update_pins(int scl, int sda)
 {
-    I2C_HELPER_DEBUG("set_timings: prescaler=%d, delay_low=%d, delay_high=%d\n",
-            prescaler,
-            delay_low,
-            delay_high);
-    this->prescaler = prescaler;
-    this->delay_low = delay_low;
-    this->delay_high = delay_high;
+    this->fsm_step(scl, sda);
+}
+
+
+void I2C_helper::set_timings(uint64_t delay_low_ps, uint64_t delay_high_ps)
+{
+    I2C_HELPER_DEBUG("set_timings: delay_low_ps=%ld, delay_high_ps=%ld\n",
+            delay_low_ps,
+            delay_high_ps);
+    this->delay_low_ps = delay_low_ps;
+    this->delay_high_ps = delay_high_ps;
 }
 
 void I2C_helper::send_start(void)
@@ -95,6 +97,7 @@ void I2C_helper::send_start(void)
     if (!this->is_busy())
     {
         I2C_HELPER_DEBUG("send_start: sda=%d, scl=%d\n", this->sda, this->scl);
+        I2C_HELPER_DEBUG("send_start: this=%p\n", (void*) this);
         this->itf->sync(1, 0); //falling edge to trigger a start
         this->start_clock();
     }
@@ -134,14 +137,6 @@ void I2C_helper::send_stop(void)
     }
 }
 
-void I2C_helper::i2c_sync(void *__this, int input_scl, int input_sda)
-{
-    assert(NULL != __this);
-    I2C_helper* _this = (I2C_helper*) __this;
-    I2C_HELPER_DEBUG("i2c_sync: scl=%d, sda=%d\n", input_scl, input_sda);
-    _this->fsm_step(input_scl, input_sda);
-}
-
 void I2C_helper::start_clock(void)
 {
     I2C_HELPER_DEBUG("Starting clock\n");
@@ -154,7 +149,7 @@ void I2C_helper::stop_clock(void)
 
 void I2C_helper::fsm_step(int input_scl, int input_sda)
 {
-    I2C_HELPER_DEBUG("fsm_step\n");
+    I2C_HELPER_DEBUG("fsm_step: input_scl=%d, input_sda=%d\n", input_scl, input_sda);
 
     bool scl_rising = (input_scl == 1 && this->scl == 0);
     bool scl_falling = (input_scl == 0 && this->scl == 1);
@@ -162,7 +157,8 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
     bool sda_rising = (input_sda == 1 && this->sda == 0);
     bool sda_falling = (input_sda == 0 && this->sda == 1);
-    I2C_HELPER_DEBUG("sda=%d, this->sda=%d\n", input_sda, this->sda);
+    I2C_HELPER_DEBUG("fsm_step: sda=%d, this->sda=%d\n", input_sda, this->sda);
+    I2C_HELPER_DEBUG("fsm_step: this=%p\n", (void*) this);
 
     this->scl = input_scl;
     this->sda = input_sda;
