@@ -39,7 +39,7 @@ I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_e
     enqueue_event(enqueue_event),
     delay_low_ps(5),
     delay_high_ps(5),
-    bus_is_busy(false),
+    internal_state(I2C_INTERNAL_IDLE),
     scl(1),
     sda(1),
     is_clock_enabled(false),
@@ -124,7 +124,7 @@ void I2C_helper::send_start(void)
 
 bool I2C_helper::is_busy(void)
 {
-    return this->bus_is_busy;
+    return (this->internal_state != I2C_INTERNAL_IDLE);
 }
 
 void I2C_helper::send_address(int addr, bool is_write, bool is_10bits)
@@ -193,12 +193,14 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             if (sda_falling && !this->is_busy())
             {
                 I2C_HELPER_DEBUG("START DETECTED\n");
-                this->bus_is_busy = true;
+                this->internal_state = I2C_INTERNAL_DATA;
+                this->cb_master_operation(MASTER_START, MASTER_OK, 0);
             }
             else if (sda_rising && this->is_busy())
             {
                 I2C_HELPER_DEBUG("STOP DETECTED\n");
-                this->bus_is_busy = false;
+                this->internal_state = I2C_INTERNAL_IDLE;
+                this->cb_master_operation(MASTER_STOP, MASTER_OK, 0);
             }
         }
     }
@@ -215,28 +217,52 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             if (this->sda_rise == this->sda)
             {
                 this->recv_bit_queue.push(this->sda);
+                I2C_HELPER_DEBUG("fsm_step: received bit=%d (#%ld)\n", this->sda, this->recv_bit_queue.size());
             }
             else
             {
                 //TODO framing error ?
                 //TODO empty queue
                 I2C_HELPER_DEBUG("FRAMING ERROR!\n");
+                this->cb_master_operation(MASTER_STOP, ANY_ERROR_FRAMING, 0);
             }
 
-            if (this->recv_bit_queue.size() == 8)
+            if (this->internal_state == I2C_INTERNAL_DATA)
             {
-                int byte = 0;
-                /* full byte received */
-                for (int i = 0; i < 8; i++)
+                if (this->recv_bit_queue.size() == 8)
                 {
-                    int bit = this->recv_bit_queue.front();
+                    int byte = 0;
+                    /* full byte received */
+                    for (int i = 0; i < 8; i++)
+                    {
+                        int bit = this->recv_bit_queue.front();
+                        this->recv_bit_queue.pop();
+                        byte = byte << 1 & bit;
+                    }
+                    assert(this->recv_bit_queue.empty());
+
+                    I2C_HELPER_DEBUG("fsm_step: byte received=%d\n", byte);
+
+                    this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
+
+                    this->internal_state == I2C_INTERNAL_ACK;
+                }
+            }
+            else if (this->internal_state == I2C_INTERNAL_ACK)
+            {
+                if (this->recv_bit_queue.size() == 1)
+                {
+                    const int bit = this->recv_bit_queue.front();
                     this->recv_bit_queue.pop();
-                    byte = byte << 1 & bit;
+
+                    I2C_HELPER_DEBUG("fsm_step: ACK received=%d\n", bit);
+
+                    const i2c_status_e status = (bit == 1) ? MASTER_KO : MASTER_OK;
+                    this->cb_master_operation(MASTER_ACK, status, 0);
                 }
                 assert(this->recv_bit_queue.empty());
 
-                I2C_HELPER_DEBUG("fsm_step: byte received=%d\n", byte);
-                //TODO what ?
+                this->internal_state = I2C_INTERNAL_DATA;
             }
         }
     }

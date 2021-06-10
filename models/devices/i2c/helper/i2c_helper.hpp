@@ -26,8 +26,8 @@
 #include "vp/clock/clock_event.hpp"
 
 typedef enum {
-    MASTER_ACK, /*!< equivalent to OK for operations that have no ACK */
-    MASTER_NACK,
+    MASTER_OK,
+    MASTER_KO,
     MASTER_ERROR_ARBITRATION,
     ANY_ERROR_FRAMING,
 } i2c_status_e;
@@ -35,10 +35,16 @@ typedef enum {
 typedef enum {
     MASTER_START,
     MASTER_ADDR,
-    MASTER_READ,
-    MASTER_WRITE,
+    MASTER_DATA,
+    MASTER_ACK,
     MASTER_STOP
 } i2c_operation_e;
+
+typedef enum {
+    I2C_INTERNAL_IDLE,
+    I2C_INTERNAL_DATA,
+    I2C_INTERNAL_ACK,
+} i2c_internal_state_e;
 
 typedef std::function<void(i2c_operation_e id, i2c_status_e status, int value)> i2c_callback_t;
 
@@ -130,6 +136,8 @@ class I2C_helper {
         /* Runtime data */
         /****************/
         vp::clock_event master_event;
+
+        i2c_internal_state_e internal_state;
 
         bool bus_is_busy;
         int scl;
