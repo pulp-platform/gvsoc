@@ -66,8 +66,6 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
 {
     I2c_bus *_this = (I2c_bus *)__this;
 
-    printf("[%p] SYNC scl %d sda %d id %d\n", _this, scl, sda, id);
-
     /* store incoming values in maps */
     _this->i2c_values[id].scl = scl;
     _this->i2c_values[id].sda = sda;

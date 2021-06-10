@@ -103,6 +103,7 @@ class I2C_helper {
 
         void start_clock(void);
         void stop_clock(void);
+        void enqueue_clock_toggle(void);
 
         void fsm_step(int scl, int sda);
 
@@ -111,7 +112,6 @@ class I2C_helper {
         /*************/
         vp::component* parent;
         vp::i2c_master* itf;
-        //vp::clock_engine* clock;
 
         /*************/
         /* Callbacks */
@@ -138,4 +138,7 @@ class I2C_helper {
         int sda_rise; /* sda sampled on scl rising edge */
 
         std::queue<int> recv_bit_queue;
+
+        bool is_clock_enabled;
+        bool is_clock_low; /* tell if clock is in low or high state */
 };
