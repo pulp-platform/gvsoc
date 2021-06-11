@@ -214,6 +214,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         }
         else if (scl_falling)
         {
+            I2C_HELPER_DEBUG("INTERNAL_STATE = %d\n", this->internal_state);
             if (this->sda_rise == this->sda)
             {
                 this->recv_bit_queue.push(this->sda);
@@ -245,7 +246,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
                     this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
 
-                    this->internal_state == I2C_INTERNAL_ACK;
+                    this->internal_state = I2C_INTERNAL_ACK;
                 }
             }
             else if (this->internal_state == I2C_INTERNAL_ACK)
@@ -259,10 +260,11 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
                     const i2c_status_e status = (bit == 1) ? MASTER_KO : MASTER_OK;
                     this->cb_master_operation(MASTER_ACK, status, 0);
-                }
-                assert(this->recv_bit_queue.empty());
 
-                this->internal_state = I2C_INTERNAL_DATA;
+                    assert(this->recv_bit_queue.empty());
+
+                    this->internal_state = I2C_INTERNAL_DATA;
+                }
             }
         }
     }
