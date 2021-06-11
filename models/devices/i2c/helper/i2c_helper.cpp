@@ -20,7 +20,8 @@
 #include <stdio.h>
 #include <cassert>
 
-#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
+//#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
+#define I2C_HELPER_DEBUG(...)
 
 namespace {
     void null_callback(i2c_operation_e id, i2c_status_e status, int value)
