@@ -99,17 +99,19 @@ class I2C_helper {
         /******************/
         /* Static methods */
         /******************/
-        static void st_master_event_handler(void* __this, vp::clock_event* event);
+        static void st_data_event_handler(void* __this, vp::clock_event* event);
+        static void st_clock_event_handler(void* __this, vp::clock_event* event);
         static void i2c_sync(void *__this, int scl, int sda);
 
         /***********/
         /* Methods */
         /***********/
-        void master_event_handler(vp::clock_event* event);
+        void clock_event_handler(vp::clock_event* event);
 
         void start_clock(void);
         void stop_clock(void);
         void enqueue_clock_toggle(void);
+        void enqueue_data_change(int new_sda);
 
         void fsm_step(int scl, int sda);
 
@@ -135,7 +137,8 @@ class I2C_helper {
         /****************/
         /* Runtime data */
         /****************/
-        vp::clock_event master_event;
+        vp::clock_event clock_event;
+        vp::clock_event data_event;
 
         i2c_internal_state_e internal_state;
 
@@ -146,6 +149,10 @@ class I2C_helper {
         int sda_rise; /* sda sampled on scl rising edge */
 
         std::queue<int> recv_bit_queue;
+        int expected_bit_value; /* checked when scl is rising */
+
+        bool is_stopping;
+        bool is_starting;
 
         bool is_clock_enabled;
         bool is_clock_low; /* tell if clock is in low or high state */

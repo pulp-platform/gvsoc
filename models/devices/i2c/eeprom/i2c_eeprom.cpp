@@ -108,7 +108,7 @@ void I2c_eeprom::event_handler(void *__this, vp::clock_event *event)
 void I2c_eeprom::i2c_enqueue_event(vp::clock_event* event, uint64_t time_ps)
 {
     //TODO compute number of cycles according to time_ps
-    this->event_enqueue(event, 1);
+    this->event_enqueue(event, time_ps);
 }
 
 extern "C" vp::component *vp_constructor(js::config *config)

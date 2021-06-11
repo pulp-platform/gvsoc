@@ -43,10 +43,13 @@ I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_e
     internal_state(I2C_INTERNAL_IDLE),
     scl(1),
     sda(1),
+    is_starting(false),
+    is_stopping(false),
     is_clock_enabled(false),
     is_clock_low(false),
     cb_master_operation(null_callback),
-    master_event(parent, this, I2C_helper::st_master_event_handler)
+    clock_event(parent, this, I2C_helper::st_clock_event_handler),
+    data_event(parent, this, I2C_helper::st_data_event_handler)
 {
     assert(NULL != this->parent);
     assert(NULL != this->itf);
@@ -54,21 +57,31 @@ I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_e
     I2C_HELPER_DEBUG("Initializing helper interface\n");
 }
 
-void I2C_helper::st_master_event_handler(void* __this, vp::clock_event* event)
+void I2C_helper::st_data_event_handler(void* __this, vp::clock_event* event)
 {
     assert(NULL != __this);
     assert(NULL != event);
 
-    I2C_HELPER_DEBUG("st_master_event_handler: none\n");
+    I2C_HELPER_DEBUG("st_data_event_handler: none\n");
     I2C_helper* _this = (I2C_helper*) __this;
-    _this->master_event_handler(event);
+    _this->itf->sync(_this->scl, _this->expected_bit_value);
 }
 
-void I2C_helper::master_event_handler(vp::clock_event* event)
+void I2C_helper::st_clock_event_handler(void* __this, vp::clock_event* event)
+{
+    assert(NULL != __this);
+    assert(NULL != event);
+
+    I2C_HELPER_DEBUG("st_clock_event_handler: none\n");
+    I2C_helper* _this = (I2C_helper*) __this;
+    _this->clock_event_handler(event);
+}
+
+void I2C_helper::clock_event_handler(vp::clock_event* event)
 {
     assert(NULL != event);
 
-    I2C_HELPER_DEBUG("master_event_handler: none\n");
+    I2C_HELPER_DEBUG("clock_event_handler: none\n");
 
     /* clock toggling */
     if (this->is_clock_enabled)
@@ -119,7 +132,7 @@ void I2C_helper::send_start(void)
     }
     else
     {
-        //TODO report error to user
+        this->is_starting = true;
     }
 }
 
@@ -148,9 +161,7 @@ void I2C_helper::send_stop(void)
     I2C_HELPER_DEBUG("send_stop: none\n");
     if(this->is_busy())
     {
-        //TODO need to trigger on next scl high ?
-        this->itf->sync(1, 1); // sda rising edge while scl is 1
-        this->stop_clock();
+        this->is_stopping = true;
     }
 }
 
@@ -168,6 +179,8 @@ void I2C_helper::stop_clock(void)
 {
     I2C_HELPER_DEBUG("Stop clock\n");
     this->is_clock_enabled =false;
+    this->scl = 1;
+    this->itf->sync(this->scl, this->sda);
 }
 
 void I2C_helper::fsm_step(int input_scl, int input_sda)
@@ -193,14 +206,20 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         {
             if (sda_falling && !this->is_busy())
             {
-                I2C_HELPER_DEBUG("START DETECTED\n");
+                this->is_starting = false;
                 this->internal_state = I2C_INTERNAL_DATA;
+
+                I2C_HELPER_DEBUG("START DETECTED\n");
                 this->cb_master_operation(MASTER_START, MASTER_OK, 0);
             }
             else if (sda_rising && this->is_busy())
             {
-                I2C_HELPER_DEBUG("STOP DETECTED\n");
                 this->internal_state = I2C_INTERNAL_IDLE;
+                this->is_stopping = false;
+                /* stop clock */
+                this->stop_clock();
+
+                I2C_HELPER_DEBUG("STOP DETECTED\n");
                 this->cb_master_operation(MASTER_STOP, MASTER_OK, 0);
             }
         }
@@ -212,6 +231,17 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         if (scl_rising)
         {
             this->sda_rise = this->sda;
+            //TODO add check expected_bit_value
+            if (is_stopping)
+            {
+                this->expected_bit_value = 1;
+                this->enqueue_data_change(this->expected_bit_value);
+            }
+            else if (is_starting)
+            {
+                this->expected_bit_value = 0;
+                this->enqueue_data_change(this->expected_bit_value);
+            }
         }
         else if (scl_falling)
         {
@@ -229,7 +259,17 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->cb_master_operation(MASTER_STOP, ANY_ERROR_FRAMING, 0);
             }
 
-            if (this->internal_state == I2C_INTERNAL_DATA)
+            if (is_stopping)
+            {
+                this->expected_bit_value = 0;
+                this->enqueue_data_change(this->expected_bit_value);
+            }
+            else if (is_starting)
+            {
+                this->expected_bit_value = 1;
+                this->enqueue_data_change(this->expected_bit_value);
+            }
+            else if (this->internal_state == I2C_INTERNAL_DATA)
             {
                 if (this->recv_bit_queue.size() == 8)
                 {
@@ -293,6 +333,11 @@ void I2C_helper::enqueue_clock_toggle(void)
     if (this->is_clock_enabled)
     {
         const uint64_t delay = this->is_clock_low ? delay_low_ps : this->delay_high_ps;
-        this->enqueue_event(&this->master_event, delay);
+        this->enqueue_event(&this->clock_event, delay);
     }
+}
+
+void I2C_helper::enqueue_data_change(int new_sda)
+{
+    this->enqueue_event(&this->data_event, 1);
 }
