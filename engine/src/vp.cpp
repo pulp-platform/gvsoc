@@ -1743,11 +1743,13 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
                     {
                         if (words[1] == "add")
                         {
-                            this->top->traces.get_trace_manager()->conf_trace(1, words[2], 1);
+                            this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
+                            this->top->traces.get_trace_manager()->check_traces();
                         }
                         else
                         {
-                            this->top->traces.get_trace_manager()->conf_trace(1, words[2], 0);
+                            this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
+                            this->top->traces.get_trace_manager()->check_traces();
                         }
                     }
                 }
