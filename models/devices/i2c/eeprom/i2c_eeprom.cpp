@@ -53,6 +53,13 @@ I2c_eeprom::I2c_eeprom(js::config* config)
     assert(this->page_size > 0);
     assert(this->number_of_pages > 0);
 
+    /* set helper callback */
+    this->i2c_helper.register_callback(std::bind(&I2c_eeprom::i2c_helper_callback,
+                this,
+                std::placeholders::_1,
+                std::placeholders::_2,
+                std::placeholders::_3));
+
     /* allocate eeprom memory */
     //TODO
 }
@@ -103,6 +110,58 @@ void I2c_eeprom::event_handler(void *__this, vp::clock_event *event)
     I2c_eeprom* _this = (I2c_eeprom*) __this;
     _this->trace.msg(vp::trace::LEVEL_TRACE, "event !!\n");
     //TODO
+}
+
+void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, int value)
+{
+    fprintf(stderr, "CALLBACK id=%d, status=%d, value=%d !\n",
+            id, status, value);
+    //assert(id != MASTER_DATA || value == 0x55);
+    assert(id != MASTER_ACK || status == MASTER_OK);
+
+    static bool starting = false;
+    static bool is_write = false;
+
+    switch(id)
+    {
+        case MASTER_START:
+            //TODO
+            fprintf(stderr, "SL: START!\n");
+            starting = true;
+            break;
+        case MASTER_DATA:
+            fprintf(stderr, "SL: DATA!\n");
+            //TODO choose if send ack or not
+            if (starting)
+            {
+                fprintf(stderr, "ADDR: %d\n", value);
+                starting = false;
+                is_write = value & 1;
+                assert(value >> 1 == 80); // TODO remove, testing
+            }
+            else if (is_write)
+            {
+                //TODO get address (1 or 2 bytes) & write data to memory
+                //TODO send ack
+            }
+            else
+            {
+                //TODO send data
+            }
+            break;
+        case MASTER_ACK:
+            //TODO
+            starting = false;
+            fprintf(stderr, "SL: ACK!\n");
+            break;
+        case MASTER_STOP:
+            //TODO
+            starting = false;
+            fprintf(stderr, "SL: STOP!\n");
+            break;
+        default:
+            break;
+    }
 }
 
 void I2c_eeprom::i2c_enqueue_event(vp::clock_event* event, uint64_t time_ps)

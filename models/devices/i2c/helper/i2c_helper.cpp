@@ -167,10 +167,16 @@ bool I2C_helper::is_busy(void)
 
 void I2C_helper::send_address(int addr, bool is_write, bool is_10bits)
 {
-    I2C_HELPER_DEBUG("send_address: addr=%d, is_10bits=%s\n",
+    I2C_HELPER_DEBUG("send_address: addr=%d, is_write=%s, is_10bits=%s\n",
             addr,
+            is_write ? "true" : "false",
             is_10bits ? "true" : "false");
-    //TODO
+
+    //TODO support 10 bits mode
+    assert(!is_10bits);
+
+    int addr_byte = addr << 1 | (is_write ? 0 : 1);
+    this->send_data(addr_byte);
 }
 
 void I2C_helper::send_data(int byte)
@@ -188,7 +194,7 @@ void I2C_helper::send_data(int byte)
 
     /* enqueue data change if clock is low,
      * else will be done automatically at next falling scl */
-    if (this->is_clock_low)
+    if (this->is_clock_low && this->internal_state == I2C_INTERNAL_DATA)
     {
         I2C_HELPER_DEBUG("Directly enqueueing!\n");
         this->expected_bit_value = this->send_bit_queue.front();
@@ -201,6 +207,9 @@ void I2C_helper::send_ack(bool ack)
 {
     I2C_HELPER_DEBUG("send_ack: ack=%s\n", ack ? "true" : "false");
     //TODO
+    this->expected_bit_value = ack ? 0 : 1;
+    this->is_driving_sda = 1;
+    this->enqueue_data_change(this->expected_bit_value);
 }
 
 void I2C_helper::send_stop(void)
@@ -278,9 +287,10 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             if (sda_falling && !this->is_busy())
             {
                 this->is_starting = false;
-                this->internal_state = I2C_INTERNAL_DATA;
+                this->internal_state = I2C_INTERNAL_START;
 
                 this->sda_rise = this ->sda;
+                this->empty_queues();
                 I2C_HELPER_DEBUG("START DETECTED\n");
                 this->cb_master_operation(MASTER_START, MASTER_OK, 0);
             }
@@ -290,6 +300,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->is_stopping = false;
                 /* stop clock */
                 this->stop_clock();
+                this->empty_queues();
 
                 I2C_HELPER_DEBUG("STOP DETECTED\n");
                 this->cb_master_operation(MASTER_STOP, MASTER_OK, 0);
@@ -320,17 +331,23 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         {
             I2C_HELPER_DEBUG("SCL falling\n");
             I2C_HELPER_DEBUG("INTERNAL_STATE = %d\n", this->internal_state);
-            if (this->sda_rise == this->sda)
+            if (this->internal_state != I2C_INTERNAL_START)
             {
-                this->recv_bit_queue.push(this->sda);
-                I2C_HELPER_DEBUG("fsm_step: received bit=%d (#%ld)\n", this->sda, this->recv_bit_queue.size());
+                if (this->sda_rise == this->sda)
+                {
+                    this->recv_bit_queue.push(this->sda);
+                }
+                else
+                {
+                    //TODO framing error ?
+                    //TODO empty queue
+                    I2C_HELPER_DEBUG("FRAMING ERROR!, sda_rise=%d, sda=%d\n", this->sda_rise, this->sda);
+                    this->cb_master_operation(MASTER_STOP, ANY_ERROR_FRAMING, 0);
+                }
             }
             else
             {
-                //TODO framing error ?
-                //TODO empty queue
-                I2C_HELPER_DEBUG("FRAMING ERROR!, sda_rise=%d, sda=%d\n", this->sda_rise, this->sda);
-                this->cb_master_operation(MASTER_STOP, ANY_ERROR_FRAMING, 0);
+                this->internal_state = I2C_INTERNAL_DATA;
             }
 
             if (is_stopping)
@@ -348,6 +365,8 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 /* send data */
                 if (!this->send_bit_queue.empty())
                 {
+                    assert(this->send_bit_queue.size() <= 8);
+
                     int bit = this->send_bit_queue.front();
                     this->send_bit_queue.pop();
                     this->expected_bit_value = bit;
@@ -370,9 +389,10 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
                     I2C_HELPER_DEBUG("fsm_step: byte received=%d\n", byte);
 
-                    this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
-
                     this->internal_state = I2C_INTERNAL_ACK;
+                    this->empty_queues();
+
+                    this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
                 }
             }
             else if (this->internal_state == I2C_INTERNAL_ACK)
@@ -385,11 +405,13 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     I2C_HELPER_DEBUG("fsm_step: ACK received=%d\n", bit);
 
                     const i2c_status_e status = (bit == 1) ? MASTER_KO : MASTER_OK;
-                    this->cb_master_operation(MASTER_ACK, status, 0);
-
                     assert(this->recv_bit_queue.empty());
 
                     this->internal_state = I2C_INTERNAL_DATA;
+                    this->empty_queues();
+
+                    this->cb_master_operation(MASTER_ACK, status, 0);
+
                 }
             }
         }
@@ -423,5 +445,18 @@ void I2C_helper::enqueue_data_change(int new_sda)
     else
     {
         assert(false);
+    }
+}
+
+void I2C_helper::empty_queues(void)
+{
+    while(!this->send_bit_queue.empty())
+    {
+        this->send_bit_queue.pop();
+    }
+
+    while(!this->recv_bit_queue.empty())
+    {
+        this->send_bit_queue.pop();
     }
 }

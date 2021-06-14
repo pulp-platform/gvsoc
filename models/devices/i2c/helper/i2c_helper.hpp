@@ -42,6 +42,7 @@ typedef enum {
 
 typedef enum {
     I2C_INTERNAL_IDLE,
+    I2C_INTERNAL_START,
     I2C_INTERNAL_DATA,
     I2C_INTERNAL_ACK,
 } i2c_internal_state_e;
@@ -119,6 +120,7 @@ class I2C_helper {
         void fsm_step(int scl, int sda);
 
         void sync_pins(void);
+        void empty_queues(void);
 
         /*************/
         /* Externals */

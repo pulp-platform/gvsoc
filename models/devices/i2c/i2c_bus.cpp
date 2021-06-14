@@ -76,10 +76,10 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
 
     for (std::pair<int, i2c_pair_t> i2c_val : _this->i2c_values)
     {
-        fprintf(stderr, "[I2C-BUS] #%d: scl=%d, sda=%d\n",
-                i2c_val.first,
-                i2c_val.second.scl,
-                i2c_val.second.sda);
+        //fprintf(stderr, "[I2C-BUS] #%d: scl=%d, sda=%d\n",
+        //        i2c_val.first,
+        //        i2c_val.second.scl,
+        //        i2c_val.second.sda);
         if (i2c_val.second.scl == 0)
         {
             res_scl_value = 0;
