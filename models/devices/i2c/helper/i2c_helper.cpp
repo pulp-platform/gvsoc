@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <cassert>
 
-//#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
-#define I2C_HELPER_DEBUG(...)
+#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
+//#define I2C_HELPER_DEBUG(...)
 
 namespace {
     void null_callback(i2c_operation_e id, i2c_status_e status, int value)
@@ -43,10 +43,15 @@ I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_e
     internal_state(I2C_INTERNAL_IDLE),
     scl(1),
     sda(1),
+    desired_scl(1),
+    desired_sda(1),
+    sda_rise(1),
     is_starting(false),
     is_stopping(false),
     is_clock_enabled(false),
     is_clock_low(false),
+    is_driving_scl(false),
+    is_driving_sda(false),
     cb_master_operation(null_callback),
     clock_event(parent, this, I2C_helper::st_clock_event_handler),
     data_event(parent, this, I2C_helper::st_data_event_handler)
@@ -64,7 +69,8 @@ void I2C_helper::st_data_event_handler(void* __this, vp::clock_event* event)
 
     I2C_HELPER_DEBUG("st_data_event_handler: none\n");
     I2C_helper* _this = (I2C_helper*) __this;
-    _this->itf->sync(_this->scl, _this->expected_bit_value);
+    _this->desired_sda = _this->expected_bit_value;
+    _this->sync_pins();
 }
 
 void I2C_helper::st_clock_event_handler(void* __this, vp::clock_event* event)
@@ -88,13 +94,17 @@ void I2C_helper::clock_event_handler(vp::clock_event* event)
     {
         if (this->is_clock_low)
         {
+            I2C_HELPER_DEBUG("clock_event_handler: LOW (switch to high)\n");
             /* switch to high */
-            this->itf->sync(1, this->sda);
+            this->desired_scl = 1;
+            this->sync_pins();
         }
         else
         {
+            I2C_HELPER_DEBUG("clock_event_handler: HIGH (switch to low)\n");
             /* switch to low */
-            this->itf->sync(0, this->sda);
+            this->desired_scl = 0;
+            this->sync_pins();
         }
     }
 }
@@ -108,6 +118,16 @@ void I2C_helper::register_callback(i2c_callback_t callback)
 void I2C_helper::update_pins(int scl, int sda)
 {
     this->fsm_step(scl, sda);
+}
+
+
+void I2C_helper::sync_pins(void)
+{
+    int res_scl = this->is_driving_scl ? this->desired_scl : 1;
+    int res_sda = this->is_driving_sda ? this->desired_sda : 1;
+
+    I2C_HELPER_DEBUG("sync_pins: scl=%d, sda=%d\n", res_scl, res_sda);
+    this->itf->sync(res_scl, res_sda);
 }
 
 
@@ -127,7 +147,11 @@ void I2C_helper::send_start(void)
     {
         I2C_HELPER_DEBUG("send_start: sda=%d, scl=%d\n", this->sda, this->scl);
         I2C_HELPER_DEBUG("send_start: this=%p\n", (void*) this);
-        this->itf->sync(1, 0); //falling edge to trigger a start
+        this->is_driving_scl = true;
+        this->is_driving_sda = true;
+        this->desired_scl = 1;
+        this->desired_sda = 0;
+        this->sync_pins();
         this->start_clock();
     }
     else
@@ -173,6 +197,12 @@ void I2C_helper::send_data(int byte)
     }
 }
 
+void I2C_helper::send_ack(bool ack)
+{
+    I2C_HELPER_DEBUG("send_ack: ack=%s\n", ack ? "true" : "false");
+    //TODO
+}
+
 void I2C_helper::send_stop(void)
 {
     I2C_HELPER_DEBUG("send_stop: none\n");
@@ -196,20 +226,24 @@ void I2C_helper::stop_clock(void)
 {
     I2C_HELPER_DEBUG("Stop clock\n");
     this->is_clock_enabled =false;
-    this->scl = 1;
-    this->itf->sync(this->scl, this->sda);
+
+    this->desired_scl = 1;
+
+    this->is_driving_scl = false;
+    this->is_driving_sda = false;
+    this->sync_pins();
 }
 
 void I2C_helper::fsm_step(int input_scl, int input_sda)
 {
-    I2C_HELPER_DEBUG("fsm_step: input_scl=%d, input_sda=%d\n", input_scl, input_sda);
-
     bool scl_rising = (input_scl == 1 && this->scl == 0);
     bool scl_falling = (input_scl == 0 && this->scl == 1);
     bool scl_steady = (input_scl == this->scl);
 
     bool sda_rising = (input_sda == 1 && this->sda == 0);
     bool sda_falling = (input_sda == 0 && this->sda == 1);
+    I2C_HELPER_DEBUG("\n\n\n");
+    I2C_HELPER_DEBUG("fsm_step: input_scl=%d, input_sda=%d\n", input_scl, input_sda);
     I2C_HELPER_DEBUG("fsm_step: sda=%d, this->sda=%d\n", input_sda, this->sda);
     I2C_HELPER_DEBUG("fsm_step: this=%p\n", (void*) this);
 
@@ -235,6 +269,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         }
     }
 
+    /* I2C logic */
     if (scl_steady)
     {
         /* START/STOP detection */
@@ -245,6 +280,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->is_starting = false;
                 this->internal_state = I2C_INTERNAL_DATA;
 
+                this->sda_rise = this ->sda;
                 I2C_HELPER_DEBUG("START DETECTED\n");
                 this->cb_master_operation(MASTER_START, MASTER_OK, 0);
             }
@@ -263,9 +299,10 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
     else if (this->is_busy())
     {
         /* sampling bit*/
-        I2C_HELPER_DEBUG("fsm_step: sampling rising bit\n");
         if (scl_rising)
         {
+            I2C_HELPER_DEBUG("SCL rising\n");
+            I2C_HELPER_DEBUG("fsm_step: sampling rising bit\n");
             this->sda_rise = this->sda;
             //TODO add check expected_bit_value
             if (is_stopping)
@@ -281,6 +318,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         }
         else if (scl_falling)
         {
+            I2C_HELPER_DEBUG("SCL falling\n");
             I2C_HELPER_DEBUG("INTERNAL_STATE = %d\n", this->internal_state);
             if (this->sda_rise == this->sda)
             {
@@ -291,7 +329,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             {
                 //TODO framing error ?
                 //TODO empty queue
-                I2C_HELPER_DEBUG("FRAMING ERROR!\n");
+                I2C_HELPER_DEBUG("FRAMING ERROR!, sda_rise=%d, sda=%d\n", this->sda_rise, this->sda);
                 this->cb_master_operation(MASTER_STOP, ANY_ERROR_FRAMING, 0);
             }
 
@@ -360,17 +398,30 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
 void I2C_helper::enqueue_clock_toggle(void)
 {
-    //TODO
     I2C_HELPER_DEBUG("enqueue_clock_toggle\n");
     if (this->is_clock_enabled)
     {
-        const uint64_t delay = this->is_clock_low ? delay_low_ps : this->delay_high_ps;
-        this->enqueue_event(&this->clock_event, delay);
+        if (!this->clock_event.is_enqueued())
+        {
+            const uint64_t delay = this->is_clock_low ? this->delay_low_ps : this->delay_high_ps;
+            this->enqueue_event(&this->clock_event, delay);
+        }
+        else
+        {
+            assert(false);
+        }
     }
 }
 
 void I2C_helper::enqueue_data_change(int new_sda)
 {
     I2C_HELPER_DEBUG("enqueue_data_change: %d\n", new_sda);
-    this->enqueue_event(&this->data_event, 1);
+    if (!this->data_event.is_enqueued())
+    {
+        this->enqueue_event(&this->data_event, 1);
+    }
+    else
+    {
+        assert(false);
+    }
 }

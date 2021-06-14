@@ -86,6 +86,9 @@ class I2C_helper {
         void read_data(void);
 
         //TODO
+        void send_ack(bool ack);
+
+        //TODO
         void send_stop(void);
 
         //TODO
@@ -115,6 +118,8 @@ class I2C_helper {
 
         void fsm_step(int scl, int sda);
 
+        void sync_pins(void);
+
         /*************/
         /* Externals */
         /*************/
@@ -143,8 +148,13 @@ class I2C_helper {
         i2c_internal_state_e internal_state;
 
         bool bus_is_busy;
+
+        bool is_driving_scl;
         int scl;
+        int desired_scl;
+        bool is_driving_sda;
         int sda;
+        int desired_sda;
 
         int sda_rise; /* sda sampled on scl rising edge */
 
