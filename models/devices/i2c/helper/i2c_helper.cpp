@@ -151,9 +151,26 @@ void I2C_helper::send_address(int addr, bool is_write, bool is_10bits)
 
 void I2C_helper::send_data(int byte)
 {
-    (void) byte;
     I2C_HELPER_DEBUG("send_data: byte=%d\n", byte);
-    //TODO
+    // TODO verify that we are in data mode ?
+
+    /* load byte in sending queue */
+    for (int i = 7; i >= 0; i--)
+    {
+        int bit = (byte >> i) & 1;
+        I2C_HELPER_DEBUG("push to send bit queue:%d\n", bit);
+        this->send_bit_queue.push(bit);
+    }
+
+    /* enqueue data change if clock is low,
+     * else will be done automatically at next falling scl */
+    if (this->is_clock_low)
+    {
+        I2C_HELPER_DEBUG("Directly enqueueing!\n");
+        this->expected_bit_value = this->send_bit_queue.front();
+        this->send_bit_queue.pop();
+        this->enqueue_data_change(this->expected_bit_value);
+    }
 }
 
 void I2C_helper::send_stop(void)
@@ -198,6 +215,25 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
     this->scl = input_scl;
     this->sda = input_sda;
+
+    /* clock management */
+    if (!scl_steady)
+    {
+        /* manages clock synchronization and clock stretching automatically */
+        if (scl_rising)
+        {
+            this->is_clock_low = false;
+        }
+        else if (scl_falling)
+        {
+            this->is_clock_low = true;
+        }
+
+        if (this->is_clock_enabled)
+        {
+            this->enqueue_clock_toggle();
+        }
+    }
 
     if (scl_steady)
     {
@@ -271,6 +307,17 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             }
             else if (this->internal_state == I2C_INTERNAL_DATA)
             {
+                /* send data */
+                if (!this->send_bit_queue.empty())
+                {
+                    int bit = this->send_bit_queue.front();
+                    this->send_bit_queue.pop();
+                    this->expected_bit_value = bit;
+
+                    this->enqueue_data_change(this->expected_bit_value);
+                }
+
+                /* receiving data */
                 if (this->recv_bit_queue.size() == 8)
                 {
                     int byte = 0;
@@ -279,7 +326,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     {
                         int bit = this->recv_bit_queue.front();
                         this->recv_bit_queue.pop();
-                        byte = byte << 1 & bit;
+                        byte = byte << 1 | bit;
                     }
                     assert(this->recv_bit_queue.empty());
 
@@ -309,25 +356,6 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             }
         }
     }
-
-    /* clock management */
-    if (!scl_steady)
-    {
-        /* manages clock synchronization and clock stretching automatically */
-        if (scl_rising)
-        {
-            this->is_clock_low = false;
-        }
-        else if (scl_falling)
-        {
-            this->is_clock_low = true;
-        }
-
-        if (this->is_clock_enabled)
-        {
-            this->enqueue_clock_toggle();
-        }
-    }
 }
 
 void I2C_helper::enqueue_clock_toggle(void)
@@ -343,5 +371,6 @@ void I2C_helper::enqueue_clock_toggle(void)
 
 void I2C_helper::enqueue_data_change(int new_sda)
 {
+    I2C_HELPER_DEBUG("enqueue_data_change: %d\n", new_sda);
     this->enqueue_event(&this->data_event, 1);
 }

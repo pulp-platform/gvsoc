@@ -148,6 +148,7 @@ class I2C_helper {
 
         int sda_rise; /* sda sampled on scl rising edge */
 
+        std::queue<int> send_bit_queue;
         std::queue<int> recv_bit_queue;
         int expected_bit_value; /* checked when scl is rising */
 
