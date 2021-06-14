@@ -311,10 +311,10 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
     }
 
     /* clock management */
-    if(this->is_clock_enabled && !scl_steady)
+    if (!scl_steady)
     {
         /* manages clock synchronization and clock stretching automatically */
-        if(scl_rising)
+        if (scl_rising)
         {
             this->is_clock_low = false;
         }
@@ -322,7 +322,11 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         {
             this->is_clock_low = true;
         }
-        this->enqueue_clock_toggle();
+
+        if (this->is_clock_enabled)
+        {
+            this->enqueue_clock_toggle();
+        }
     }
 }
 
