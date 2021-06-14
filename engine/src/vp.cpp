@@ -1125,25 +1125,55 @@ void vp::component::add_child(std::string name, vp::component *child)
     this->childs_dict[name] = child;
 }
 
-vp::component *vp::component::get_component(std::string path)
+
+
+static std::vector<std::string> split(const std::string& s, char delimiter)
 {
-    if (this->get_path() == path)
+   std::vector<std::string> tokens;
+   std::string token;
+   std::istringstream tokenStream(s);
+   while (std::getline(tokenStream, token, delimiter))
+   {
+      tokens.push_back(token);
+   }
+   return tokens;
+}
+
+
+vp::component *vp::component::get_component(std::vector<std::string> path_list)
+{
+    if (path_list.size() == 0)
     {
         return this;
     }
 
-    if (this->get_path() != "")
+    std::string name = "";
+    unsigned int name_pos= 0;
+    for (auto x: path_list)
     {
-        if (path.find(this->get_path()) != 0)
+        if (x != "*" && x != "**")
         {
-            return NULL;
+            name = x;
+            break;
         }
+        name_pos += 1;
     }
-
 
     for (auto x:this->childs)
     {
-        vp::component *comp = x->get_component(path);
+        vp::component *comp;
+        if (name == x->get_name())
+        {
+            comp = x->get_component({ path_list.begin() + name_pos + 1, path_list.end() });
+        }
+        else if (path_list[0] == "**")
+        {
+            comp = x->get_component(path_list);
+        }
+        else if (path_list[0] == "*")
+        {
+            comp = x->get_component({ path_list.begin() + 1, path_list.end() });
+        }
         if (comp)
         {
             return comp;
@@ -1668,7 +1698,7 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
 
                 if (words[0] == "get_component")
                 {
-                    vp::component *comp = this->top->get_component(words[1]);
+                    vp::component *comp = this->top->get_component(split(words[1], '/'));
                     dprintf(reply_fd, "%p\n", comp);
                 }
                 else if (words[0] == "component")
@@ -1713,13 +1743,11 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
                     {
                         if (words[1] == "add")
                         {
-                            this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
-                            this->top->traces.get_trace_manager()->check_traces();
+                            this->top->traces.get_trace_manager()->conf_trace(1, words[2], 1);
                         }
                         else
                         {
-                            this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
-                            this->top->traces.get_trace_manager()->check_traces();
+                            this->top->traces.get_trace_manager()->conf_trace(1, words[2], 0);
                         }
                     }
                 }

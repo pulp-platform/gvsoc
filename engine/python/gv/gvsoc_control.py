@@ -230,7 +230,7 @@ class Router(object):
         The path to the router in the architecture.
     """
 
-    def __init__(self, proxy: Proxy, path: str = '/sys/board/chip/soc/axi_ico'):
+    def __init__(self, proxy: Proxy, path: str = '**/chip/soc/axi_ico'):
         self.proxy = proxy
         self.lock = threading.Lock()
         self.condition = threading.Condition(self.lock)
@@ -388,7 +388,7 @@ class Testbench(object):
         The path to the testbench in the architecture.
     """
 
-    def __init__(self, proxy: Proxy, path: str = '/sys/board/testbench/testbench'):
+    def __init__(self, proxy: Proxy, path: str = '**/testbench/testbench'):
         self.proxy = proxy
         self.component = proxy._get_component(path)
 

@@ -490,7 +490,7 @@ namespace vp {
 
     std::vector<vp::component *> get_childs() { return childs; }
     std::map<std::string, vp::component *> get_childs_dict() { return childs_dict; }
-    vp::component *get_component(std::string path);
+    vp::component *get_component(std::vector<std::string> path_list);
 
     virtual vp::port *get_slave_port(std::string name) { return this->slave_ports[name]; }
     virtual vp::port *get_master_port(std::string name) { return this->master_ports[name]; }
