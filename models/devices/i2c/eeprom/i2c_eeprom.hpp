@@ -62,4 +62,8 @@ class I2c_eeprom : public vp::component
         int64_t page_size;
         /** number of pages */
         int64_t number_of_pages;
+
+        /** memory */
+        //TODO use a better structure
+        std::queue<uint8_t> memory;
 };

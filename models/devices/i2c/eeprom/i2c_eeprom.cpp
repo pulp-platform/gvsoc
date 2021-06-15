@@ -123,6 +123,9 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
     static bool is_addressed = false;
     static bool is_read = false;
 
+    static uint32_t byte_counter = 0;
+    static uint32_t current_address = 0x0;
+
     switch(id)
     {
         case MASTER_START:
@@ -130,6 +133,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             fprintf(stderr, "SL: START!\n");
             starting = true;
             is_addressed = false;
+            byte_counter = 0;
             break;
         case MASTER_DATA:
             fprintf(stderr, "SL: DATA!\n");
@@ -148,8 +152,22 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             else if (is_addressed && !is_read)
             {
                 //TODO get address (1 or 2 bytes) & write data to memory
-                //TODO send ack
+                if (byte_counter < 2)
+                {
+                    //TODO for now address is ignored
+                }
+                else
+                {
+                    //TODO store incoming data
+                    fprintf(stderr, "EEPROM: Storing data=%d into memory\n", value & 0xFF);
+                    this->memory.push(value & 0xFF);
+                }
+
                 fprintf(stderr, "SL: received data=%d\n", value);
+                //TODO send ack
+
+                byte_counter++;
+
                 this->i2c_helper.send_ack(true);
             }
             break;
@@ -162,7 +180,14 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 if(is_read)
                 {
                     //TODO send real data
-                    this->i2c_helper.send_data(0xFE);
+                    uint8_t byte = 0x33;
+                    if (!this->memory.empty())
+                    {
+                        byte = this->memory.front();
+                        this->memory.pop();
+                    }
+                    fprintf(stderr, "EEPROM: sending byte=%d\n", byte);
+                    this->i2c_helper.send_data(byte);
                 }
             }
             break;

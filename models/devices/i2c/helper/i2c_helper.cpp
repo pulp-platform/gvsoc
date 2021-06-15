@@ -199,6 +199,7 @@ void I2C_helper::send_data(int byte)
         I2C_HELPER_DEBUG("Directly enqueueing!\n");
         this->expected_bit_value = this->send_bit_queue.front();
         this->send_bit_queue.pop();
+        this->is_driving_sda = true;
         this->enqueue_data_change(this->expected_bit_value);
     }
 }
