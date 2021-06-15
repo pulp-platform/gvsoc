@@ -69,6 +69,7 @@ namespace vp {
     vp::trace *get_trace_from_id(int id);
 
     virtual void add_trace_path(int events, std::string path) {}
+    virtual void conf_trace(int event, std::string path, bool enabled) {}
     virtual void add_exclude_trace_path(int events, std::string path) {}
     virtual void check_traces() {}
 

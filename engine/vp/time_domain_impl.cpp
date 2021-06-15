@@ -84,7 +84,7 @@ int time_domain::build()
     }
     else
     {
-        this->new_component("sys", this->get_js_config()->get("**/target"));
+        this->new_component("", this->get_js_config()->get("**/target"));
     }
     return 0;
 }

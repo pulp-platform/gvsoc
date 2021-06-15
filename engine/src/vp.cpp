@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <vp/time/time_scheduler.hpp>
 
 
 extern "C" long long int dpi_time_ps();
@@ -1743,13 +1744,17 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
                     {
                         if (words[1] == "add")
                         {
-                            this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
-                            this->top->traces.get_trace_manager()->check_traces();
+                            // TODO regular expressions are too slow for the profiler, should be moved
+                            // to a new command
+                            //this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
+                            //this->top->traces.get_trace_manager()->check_traces();
+                            this->top->traces.get_trace_manager()->conf_trace(1, words[2], 1);
                         }
                         else
                         {
-                            this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
-                            this->top->traces.get_trace_manager()->check_traces();
+                            //this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
+                            //this->top->traces.get_trace_manager()->check_traces();
+                            this->top->traces.get_trace_manager()->conf_trace(1, words[2], 0);
                         }
                     }
                 }
@@ -2123,6 +2128,66 @@ void Gvsoc_proxy::remove_trace_regex(std::string regex)
     dprintf(this->req_pipe[1], "trace remove %s\n", regex.c_str());
 }
 
+
+vp::time_scheduler::time_scheduler(js::config *config)
+    : time_engine_client(config)
+{
+
+}
+
+
+int64_t vp::time_scheduler::exec()
+{
+    vp::time_event *current = this->first_event;
+
+    while (current && current->time == this->get_time())
+    {
+        this->first_event = current->next;
+
+        current->meth(current->_this, current);
+
+        current = this->first_event;
+    }
+
+    if (this->first_event == NULL)
+    {
+        return -1;
+    }
+    else
+    {
+        return this->first_event->time - this->get_time();
+    }
+}
+
+
+vp::time_event::time_event(time_scheduler *comp, time_event_meth_t *meth)
+    : comp(comp), _this((void *)static_cast<vp::component *>((vp::time_scheduler *)(comp))), meth(meth), enqueued(false)
+{
+
+}
+
+vp::time_event *vp::time_scheduler::enqueue(time_event *event, int64_t time)
+{
+    vp::time_event *current = this->first_event, *prev = NULL;
+    int64_t full_time = time + this->get_time();
+
+    while (current && current->time < full_time)
+    {
+        prev = current;
+        current = current->next;
+    }
+
+    if (prev)
+        prev->next = event;
+    else
+        this->first_event = event;
+    event->next = current;
+    event->time = full_time;
+
+    this->enqueue_to_engine(time);
+
+    return event;
+}
 
 
 

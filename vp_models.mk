@@ -1,3 +1,5 @@
+ROOT_VP_BUILD_DIR ?= build
+
 VP_BUILD_DIR = $(ROOT_VP_BUILD_DIR)/models
 
 VP_INSTALL_PATH ?= $(INSTALL_DIR)/lib
@@ -214,3 +216,5 @@ build: $(VP_INSTALL_HEADERS) $(VP_INSTALL_TARGETS)
 
 vp_clean:
 	rm -rf $(VP_BUILD_DIR)
+
+.PHONY: vp_clean build

@@ -48,6 +48,7 @@ public:
     void add_path(int events, const char *path);
     void add_exclude_path(int events, const char *path);
     void add_trace_path(int events, std::string path);
+    void conf_trace(int event, std::string path, bool enabled);
     void add_exclude_trace_path(int events, std::string path);
     void reg_trace(vp::trace *trace, int event, string path, string name);
 
@@ -408,6 +409,43 @@ void trace_domain::add_path(int events, const char *path)
     }
 
     regcomp(regex, path, 0);
+}
+
+void trace_domain::conf_trace(int event, std::string path_str, bool enabled)
+{
+    const char *file_path = "all.vcd";
+    const char *path = path_str.c_str();
+    char *delim = (char *)::index(path, '@');
+    if (delim)
+    {
+        *delim = 0;
+        file_path = delim + 1;
+    }
+
+    vp::trace *trace = this->get_trace_from_path(path);
+
+    if (trace != NULL)
+    {
+        if (event)
+        {              
+            if (enabled)
+            {
+                vp::Event_trace *event_trace;
+                if (trace->is_real)
+                    event_trace = event_dumper.get_trace_real(path_str, file_path);
+                else if (trace->is_string)
+                    event_trace = event_dumper.get_trace_string(path_str, file_path);
+                else
+                    event_trace = event_dumper.get_trace(path_str, file_path, trace->width);
+                trace->event_trace = event_trace;
+            }
+            trace->set_event_active(enabled);
+        }
+        else
+        {
+            trace->set_active(enabled);
+        }
+    }
 }
 
 void trace_domain::add_trace_path(int events, std::string path)
