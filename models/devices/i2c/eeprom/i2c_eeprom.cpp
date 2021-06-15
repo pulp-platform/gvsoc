@@ -120,7 +120,8 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
     assert(id != MASTER_ACK || status == MASTER_OK);
 
     static bool starting = false;
-    static bool is_write = false;
+    static bool is_addressed = false;
+    static bool is_read = false;
 
     switch(id)
     {
@@ -128,6 +129,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             //TODO
             fprintf(stderr, "SL: START!\n");
             starting = true;
+            is_addressed = false;
             break;
         case MASTER_DATA:
             fprintf(stderr, "SL: DATA!\n");
@@ -136,23 +138,33 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             {
                 fprintf(stderr, "ADDR: %d\n", value);
                 starting = false;
-                is_write = value & 1;
+                is_read = value & 1;
                 assert(value >> 1 == 80); // TODO remove, testing
+                if ((value >> 1) == 80) // TODO remove hardcoded address
+                {
+                    is_addressed = true;
+                }
             }
-            else if (is_write)
+            else if (is_addressed && !is_read)
             {
                 //TODO get address (1 or 2 bytes) & write data to memory
                 //TODO send ack
-            }
-            else
-            {
-                //TODO send data
+                fprintf(stderr, "SL: received data=%d\n", value);
+                this->i2c_helper.send_ack(true);
             }
             break;
         case MASTER_ACK:
             //TODO
             starting = false;
             fprintf(stderr, "SL: ACK!\n");
+            if (status == MASTER_OK && is_addressed)
+            {
+                if(is_read)
+                {
+                    //TODO send real data
+                    this->i2c_helper.send_data(0xFE);
+                }
+            }
             break;
         case MASTER_STOP:
             //TODO
