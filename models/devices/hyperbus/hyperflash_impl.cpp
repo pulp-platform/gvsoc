@@ -499,6 +499,7 @@ int Hyperflash::build()
   js::config *conf = this->get_js_config();
 
   this->size = conf->get("size")->get_int();
+  this->trace.msg(vp::trace::LEVEL_INFO, "Building flash (size: 0x%x)\n", this->size);
 
   this->data = new uint8_t[this->size];
   memset(this->data, 0xff, this->size);
@@ -534,7 +535,6 @@ int Hyperflash::build()
 
   return 0;
 }
-
 
 
 extern "C" vp::component *vp_constructor(js::config *config)
