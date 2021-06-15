@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <cassert>
 
-#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
-//#define I2C_HELPER_DEBUG(...)
+//#define I2C_HELPER_DEBUG(...)    (fprintf(stderr, "[I2C-HLP] " __VA_ARGS__))
+#define I2C_HELPER_DEBUG(...)
 
 namespace {
     void null_callback(i2c_operation_e id, i2c_status_e status, int value)
@@ -218,6 +218,9 @@ void I2C_helper::send_stop(void)
     if(this->is_busy())
     {
         this->is_stopping = true;
+        this->is_driving_sda = true;
+        this->expected_bit_value = 0;
+        this->enqueue_data_change(this->expected_bit_value);
     }
 }
 
@@ -373,6 +376,12 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
                     this->enqueue_data_change(this->expected_bit_value);
                 }
+                else
+                {
+                    /* release sda pin */
+                    this->is_driving_sda = false;
+                    this->enqueue_data_change(this->expected_bit_value);
+                }
 
                 /* receiving data */
                 if (this->recv_bit_queue.size() == 8)
@@ -410,6 +419,11 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     this->internal_state = I2C_INTERNAL_DATA;
                     this->empty_queues();
 
+                    /* release sda pin */
+                    this->is_driving_sda = false;
+                    this->expected_bit_value = 1;
+                    this->enqueue_data_change(this->expected_bit_value);
+
                     this->cb_master_operation(MASTER_ACK, status, 0);
 
                 }
@@ -442,10 +456,6 @@ void I2C_helper::enqueue_data_change(int new_sda)
     {
         this->enqueue_event(&this->data_event, 1);
     }
-    else
-    {
-        assert(false);
-    }
 }
 
 void I2C_helper::empty_queues(void)
@@ -457,6 +467,6 @@ void I2C_helper::empty_queues(void)
 
     while(!this->recv_bit_queue.empty())
     {
-        this->send_bit_queue.pop();
+        this->recv_bit_queue.pop();
     }
 }
