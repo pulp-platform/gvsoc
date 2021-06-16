@@ -126,8 +126,6 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
 {
     fprintf(stderr, "CALLBACK id=%d, status=%d, value=%d !\n",
             id, status, value);
-    //assert(id != MASTER_DATA || value == 0x55);
-    assert(id != MASTER_ACK || status == MASTER_OK);
 
     static bool starting = false;
     static bool is_addressed = false;
@@ -157,6 +155,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 if ((value >> 1) == this->i2c_address)
                 {
                     is_addressed = true;
+                    this->i2c_helper.send_ack(true);
                 }
             }
             else if (is_addressed && !is_read)
