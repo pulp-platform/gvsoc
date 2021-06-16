@@ -82,9 +82,6 @@ class I2c_eeprom : public vp::component
         /* clock related */
         vp::clock_master clock_cfg;
 
-        /** clock event */
-        vp::clock_event *event;
-
         /** I2C slave helper */
         I2C_helper i2c_helper;
 

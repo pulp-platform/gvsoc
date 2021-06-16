@@ -184,23 +184,11 @@ int I2c_eeprom::build(void)
 
     this->new_master_port("clock_cfg", &this->clock_cfg);
 
-    this->event = this->event_new(I2c_eeprom::event_handler);
-
     return 0;
 }
 
 void I2c_eeprom::start(void)
 {
-    this->trace.msg(vp::trace::LEVEL_TRACE, "Starting component\n");
-    this->event_enqueue(this->event, 10);
-
-}
-
-void I2c_eeprom::event_handler(void *__this, vp::clock_event *event)
-{
-    I2c_eeprom* _this = (I2c_eeprom*) __this;
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "event !!\n");
-    //TODO
 }
 
 void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, int value)
