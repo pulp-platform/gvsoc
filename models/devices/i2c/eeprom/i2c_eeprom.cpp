@@ -32,24 +32,34 @@ I2c_eeprom::I2c_eeprom(js::config* config)
 {
     this->page_size = 8;
     this->number_of_pages = 128;
+    this->i2c_address = 80;
 
     js::config* properties = config->get("properties");
 
     if (NULL != properties)
     {
+        /* configure address */
+        js::config* address_elt = properties->get("address");
+        if (NULL != address_elt)
+        {
+            this->i2c_address = address_elt->get_int();
+        }
+
         /* configure page size */
         js::config* page_size_elt = properties->get("page_size");
         if (NULL != page_size_elt)
         {
-            page_size = page_size_elt->get_int();
+            this->page_size = page_size_elt->get_int();
         }
         /* configure number of pages*/
         js::config* number_of_pages_elt= properties->get("number_of_pages");
         if (NULL != number_of_pages_elt)
         {
-            number_of_pages = number_of_pages_elt->get_int();
+            this->number_of_pages = number_of_pages_elt->get_int();
         }
     }
+
+    assert(this->i2c_address > 0 && this->i2c_address < 128);
     assert(this->page_size > 0);
     assert(this->number_of_pages > 0);
 
@@ -143,8 +153,8 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 fprintf(stderr, "ADDR: %d\n", value);
                 starting = false;
                 is_read = value & 1;
-                assert(value >> 1 == 80); // TODO remove, testing
-                if ((value >> 1) == 80) // TODO remove hardcoded address
+                //assert(value >> 1 == this->i2c_address); // used for testing
+                if ((value >> 1) == this->i2c_address)
                 {
                     is_addressed = true;
                 }

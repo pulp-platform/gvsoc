@@ -58,6 +58,9 @@ class I2c_eeprom : public vp::component
         /** I2C slave helper */
         I2C_helper i2c_helper;
 
+        /** I2C address of the eeprom */
+        int i2c_address;
+
         /** size of the page in byte */
         int64_t page_size;
         /** number of pages */
