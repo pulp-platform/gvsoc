@@ -21,7 +21,37 @@
 #include <vp/itf/clock.hpp>
 #include <vp/itf/i2c.hpp>
 
+#include <vector>
+
 #include "i2c_helper.hpp"
+
+class I2c_eeprom_memory
+{
+    public:
+        I2c_eeprom_memory(void);
+
+        // set the current reading address
+        void set_address(int address);
+
+        // return byte at the current address, increments address by 1 (wrap at the end of a page)
+        uint8_t read(void);
+        // write byte at the current address, increments address by 1 (wrap at the end of a page)
+        void write(uint8_t byte);
+
+        void initialize_memory(int number_of_pages, int page_size, uint8_t default_value);
+        void erase_memory(void);
+
+    private:
+        void increment_address(void);
+
+        int current_address;
+
+        int number_of_pages;
+        int page_size;
+        uint8_t default_value;
+
+        std::vector<std::vector<uint8_t>> memory;
+};
 
 class I2c_eeprom : public vp::component
 {
@@ -67,6 +97,5 @@ class I2c_eeprom : public vp::component
         int64_t number_of_pages;
 
         /** memory */
-        //TODO use a better structure
-        std::queue<uint8_t> memory;
+        I2c_eeprom_memory memory;
 };

@@ -20,6 +20,88 @@
 #include "stdio.h"
 #include <cassert>
 
+I2c_eeprom_memory::I2c_eeprom_memory(void)
+    :  current_address(0x0),
+    number_of_pages(-1),
+    page_size(-1),
+    default_value(0)
+{
+}
+
+void I2c_eeprom_memory::set_address(int address)
+{
+    if (address >= (this->page_size * this->number_of_pages))
+    {
+        this->current_address = 0x0;
+    }
+    else
+    {
+        this->current_address = address;
+    }
+}
+
+void I2c_eeprom_memory::write(uint8_t byte)
+{
+    int page_number = this->current_address / this->page_size;
+    int page_index = this->current_address % this->page_size;
+
+    this->memory[page_number][page_index] = byte;
+
+    this->increment_address();
+}
+
+uint8_t I2c_eeprom_memory::read(void)
+{
+    int page_number = this->current_address / this->page_size;
+    int page_index = this->current_address % this->page_size;
+
+    uint8_t byte = this->memory[page_number][page_index];
+
+    this->increment_address();
+    return byte;
+}
+
+void I2c_eeprom_memory::increment_address(void)
+{
+    int page_number = this->current_address / this->page_size;
+    int page_index = this->current_address % this->page_size;
+
+    this->current_address = page_number * this->page_size + ((page_index + 1) % this->page_size);
+    fprintf(stderr, "EEPROM current_address = %d\n", this->current_address);
+}
+
+void I2c_eeprom_memory::initialize_memory(int number_of_pages, int page_size, uint8_t default_value)
+{
+    assert(number_of_pages > 0);
+    assert(page_size > 0);
+
+    this->number_of_pages = number_of_pages;
+    this->page_size = page_size;
+    this->default_value = default_value;
+
+    for (int i = 0; i < this->number_of_pages; i++)
+    {
+        std::vector<uint8_t> page;
+        for (int j = 0; j < this->page_size; j++)
+        {
+            page.push_back(this->default_value);
+        }
+
+        this->memory.push_back(page);
+    }
+}
+
+void I2c_eeprom_memory::erase_memory(void)
+{
+    for (int i = 0; i < this->number_of_pages; i++)
+    {
+        for (int j = 0; j < this->page_size; j++)
+        {
+            this->memory[i][j] = 0;
+        }
+    }
+}
+
 I2c_eeprom::I2c_eeprom(js::config* config)
     : vp::component(config),
     i2c_helper(this,
@@ -70,8 +152,8 @@ I2c_eeprom::I2c_eeprom(js::config* config)
                 std::placeholders::_2,
                 std::placeholders::_3));
 
-    /* allocate eeprom memory */
-    //TODO
+    /* initialize eeprom memory */
+    this->memory.initialize_memory(this->number_of_pages, this->page_size, 0x55);
 }
 
 void I2c_eeprom::i2c_sync(void *__this, int scl, int sda)
@@ -145,7 +227,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             break;
         case MASTER_DATA:
             fprintf(stderr, "SL: DATA!\n");
-            //TODO choose if send ack or not
+
             if (starting)
             {
                 fprintf(stderr, "ADDR: %d\n", value);
@@ -160,21 +242,23 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             }
             else if (is_addressed && !is_read)
             {
-                //TODO get address (1 or 2 bytes) & write data to memory
-                if (byte_counter < 2)
+                if (byte_counter == 0)
                 {
-                    //TODO for now address is ignored
+                    current_address = (value & 0xFF) << 8;
+                }
+                else if (byte_counter == 1)
+                {
+                    current_address = (value & 0xFF) | current_address;
+                    this->memory.set_address(current_address);
                 }
                 else
                 {
                     //TODO store incoming data
                     fprintf(stderr, "EEPROM: Storing data=%d into memory\n", value & 0xFF);
-                    this->memory.push(value & 0xFF);
+                    this->memory.write(value & 0xFF);
                 }
 
                 fprintf(stderr, "SL: received data=%d\n", value);
-                //TODO send ack
-
                 byte_counter++;
 
                 this->i2c_helper.send_ack(true);
@@ -188,13 +272,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             {
                 if(is_read)
                 {
-                    //TODO send real data
-                    uint8_t byte = 0x33;
-                    if (!this->memory.empty())
-                    {
-                        byte = this->memory.front();
-                        this->memory.pop();
-                    }
+                    uint8_t byte = this->memory.read();
                     fprintf(stderr, "EEPROM: sending byte=%d\n", byte);
                     this->i2c_helper.send_data(byte);
                 }
