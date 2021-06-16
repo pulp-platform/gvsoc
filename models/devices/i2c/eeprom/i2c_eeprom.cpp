@@ -67,7 +67,6 @@ void I2c_eeprom_memory::increment_address(void)
     int page_index = this->current_address % this->page_size;
 
     this->current_address = page_number * this->page_size + ((page_index + 1) % this->page_size);
-    fprintf(stderr, "EEPROM current_address = %d\n", this->current_address);
 }
 
 void I2c_eeprom_memory::initialize_memory(int number_of_pages, int page_size, uint8_t default_value)
