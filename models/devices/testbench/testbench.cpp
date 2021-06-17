@@ -1236,6 +1236,10 @@ std::string Testbench::handle_command(FILE *req_file, FILE *reply_file, std::vec
                     {
                         config->ws_polarity = value;
                     }
+                    else if (name == "ws_delay")
+                    {
+                        config->ws_delay = value;
+                    }
                 }
 
                 this->handle_i2s_verif_setup();
