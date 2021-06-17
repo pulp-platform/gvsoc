@@ -75,6 +75,9 @@ private:
   vp::io_req refill_req;
 
   int refill_latency;
+  int refill_shift;
+  uint32_t add_offset;
+  int64_t refill_timestamp;
 
   int64_t nextPacketStart;
   unsigned int R1;
@@ -127,6 +130,8 @@ int Cache::build()
   this->nb_sets = 1 << this->nb_sets_bits;
   this->line_size = 1 << this->line_size_bits;
   this->refill_latency = this->get_js_config()->get_child_int("refill_latency");
+  this->refill_shift = this->get_js_config()->get_child_int("refill_shift");
+  this->add_offset = this->get_js_config()->get_child_int("add_offset");
 
   this->input_itf.resize(this->nb_ports);
 
@@ -186,6 +191,7 @@ int Cache::build()
     }
   }
 
+  this->refill_timestamp = -1;
   this->line_index_mask = (1 << this->nb_sets_bits) - 1;
   this->line_offset_mask = (1 << this->line_size_bits) - 1;
 
@@ -226,7 +232,7 @@ cache_line_t *Cache::refill(int line_index, unsigned int addr, unsigned int tag,
 
   cache_line_t *line = &this->lines[line_index*this->nb_ways + refillWay];
 
-  uint32_t full_addr = this->get_line_base(addr);
+  uint32_t full_addr = (this->get_line_base(addr << this->refill_shift) + this->add_offset);
 
   this->trace.msg(vp::trace::LEVEL_DEBUG, "Refilling line (addr: 0x%x, index: %d)\n", full_addr, line_index);
   // Flush the line in case it is dirty to copy it back outside
@@ -257,7 +263,18 @@ cache_line_t *Cache::refill(int line_index, unsigned int addr, unsigned int tag,
     }
   }
 
-  int64_t latency = refill_req->get_full_latency() + this->refill_latency;
+  // This cache supports only one refill at the same time. Since we allow
+  // synchronous request responses, make sure we report the delay in the latency
+  // in case the cache is still supposed to be reilling a line.
+  int64_t latency = 0;
+  if (this->get_cycles() < this->refill_timestamp)
+  {
+      latency += this->refill_timestamp - this->get_cycles();
+  }
+
+  latency += refill_req->get_full_latency() + this->refill_latency;
+
+  this->refill_timestamp = this->get_cycles() + latency;
 
   req->inc_latency(latency);
 

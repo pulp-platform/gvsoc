@@ -1066,7 +1066,8 @@ def gen_gtkw_files(config, gv_config, chip_path='sys.board.'):
 
                         with gtkw.group('icache', closed=True):
                             check_user_traces(gtkw, tp, 'chip.cluster.icache', user_traces)
-                            gen_gtkw_icache_traces(gtkw, tp, chip_path + 'chip.cluster.icache', 1<<config.get_int('**/cluster/icache/nb_ways_bits'), 1<<config.get_int('**/cluster/icache/nb_sets_bits'))
+                            if config.get('**/cluster/icache/nb_ways_bits') is not None:
+                                gen_gtkw_icache_traces(gtkw, tp, chip_path + 'chip.cluster.icache', 1<<config.get_int('**/cluster/icache/nb_ways_bits'), 1<<config.get_int('**/cluster/icache/nb_sets_bits'))
 
                         with gtkw.group('hwce', closed=True):
                             gtkw.trace(tp.get('hwce', chip_path + 'chip.cluster.hwce.conv_exec'), 'conv_exec')
