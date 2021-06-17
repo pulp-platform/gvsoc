@@ -32,6 +32,7 @@ typedef struct
   bool dirty;
   uint8_t *data;
   vp::trace tag_event;
+  int64_t timestamp;
 } cache_line_t;
 
 
@@ -72,6 +73,8 @@ private:
   vp::wire_slave<uint32_t>  flush_line_addr_itf;
 
   vp::io_req refill_req;
+
+  int refill_latency;
 
   int64_t nextPacketStart;
   unsigned int R1;
@@ -123,6 +126,7 @@ int Cache::build()
   this->nb_ways = 1 << this->nb_ways_bits;
   this->nb_sets = 1 << this->nb_sets_bits;
   this->line_size = 1 << this->line_size_bits;
+  this->refill_latency = this->get_js_config()->get_child_int("refill_latency");
 
   this->input_itf.resize(this->nb_ports);
 
@@ -139,6 +143,8 @@ int Cache::build()
       this->input_itf[i].set_req_meth_muxed(&Cache::req, i);
     this->new_slave_port("input_" + std::to_string(i), &this->input_itf[i]);
   }
+
+  this->new_slave_port("input", &this->input_itf[0]);
 
   this->traces.new_trace("trace", &this->trace, vp::DEBUG);
 
@@ -173,6 +179,7 @@ int Cache::build()
     for (int j=0; j<this->nb_ways; j++)
     {
       cache_line_t *line = &lines[i*this->nb_ways+j];
+      line->timestamp = -1;
       line->tag = -1;
       line->data = new uint8_t[1<<this->line_size_bits];
       traces.new_trace_event("set_" + std::to_string(j) + "/line_" + std::to_string(i), &line->tag_event, 32);
@@ -250,9 +257,12 @@ cache_line_t *Cache::refill(int line_index, unsigned int addr, unsigned int tag,
     }
   }
 
-  req->set_latency(refill_req->get_full_latency());
+  int64_t latency = refill_req->get_full_latency() + this->refill_latency;
+
+  req->inc_latency(latency);
 
   line->tag = tag;
+  line->timestamp = this->get_cycles() + latency;
 
   return line;
 }
@@ -355,6 +365,13 @@ vp::io_req_status_e Cache::req(void *__this, vp::io_req *req, int port)
         return vp::IO_REQ_INVALID;
     }
   }
+  else
+  {
+    if (_this->get_cycles() < line->timestamp)
+    {
+      req->inc_latency(line->timestamp - _this->get_cycles());
+    }
+  }
 
   if (data)
   {
@@ -407,7 +424,13 @@ vp::io_req_status_e Cache::req_l16_w4(void *__this, vp::io_req *req, int port)
   // in case there is a miss.
   if (likely(!data))
   {
-    if (tag != line[0].tag && tag != line[1].tag && tag != line[2].tag && tag != line[3].tag)
+    cache_line_t *hit_line = NULL;
+
+    if (tag == line[0].tag) hit_line = &line[0];
+    else if (tag == line[1].tag) hit_line = &line[1];
+    else if (tag == line[2].tag) hit_line = &line[2];
+    else if (tag == line[3].tag) hit_line = &line[3];
+    else
     {
       _this->trace.msg(vp::trace::LEVEL_DEBUG, "Cache miss\n");
       _this->refill_event.event((uint8_t *)&offset);
@@ -420,10 +443,19 @@ vp::io_req_status_e Cache::req_l16_w4(void *__this, vp::io_req *req, int port)
           return vp::IO_REQ_INVALID;
       }
     }
+
+    if (hit_line)
+    {
+      if (_this->get_cycles() < hit_line->timestamp)
+      {
+        req->inc_latency(hit_line->timestamp - _this->get_cycles());
+      }
+    }
   }
   else
   {
-    cache_line_t *hit_line;
+    cache_line_t *hit_line = NULL;
+    bool check_ts = true;
 
     if (tag == line[0].tag) hit_line = &line[0];
     else if (tag == line[1].tag) hit_line = &line[1];
@@ -434,6 +466,7 @@ vp::io_req_status_e Cache::req_l16_w4(void *__this, vp::io_req *req, int port)
       _this->trace.msg(vp::trace::LEVEL_DEBUG, "Cache miss\n");
       _this->refill_event.event((uint8_t *)&offset);
       bool pending = false;
+      check_ts = false;
       hit_line = _this->refill(line_index, offset, tag, req, &pending);
       if (hit_line == NULL)
       {
@@ -449,6 +482,14 @@ vp::io_req_status_e Cache::req_l16_w4(void *__this, vp::io_req *req, int port)
     } else {
       //hitLine->setDirty();
       memcpy((void *)hit_line->data, data, size);
+    }
+
+    if (check_ts)
+    {
+      if (_this->get_cycles() < hit_line->timestamp)
+      {
+        req->inc_latency(hit_line->timestamp - _this->get_cycles());
+      }
     }
   }
 
