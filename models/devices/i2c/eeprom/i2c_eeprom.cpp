@@ -20,6 +20,9 @@
 #include "stdio.h"
 #include <cassert>
 
+//#define EEPROM_DEBUG(...) fprintf(stderr, "[EEPROM] " __VA_ARGS__)
+#define EEPROM_DEBUG(...)
+
 I2c_eeprom_memory::I2c_eeprom_memory(void)
     :  current_address(0x0),
     number_of_pages(-1),
@@ -193,7 +196,7 @@ void I2c_eeprom::start(void)
 
 void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, int value)
 {
-    fprintf(stderr, "CALLBACK id=%d, status=%d, value=%d !\n",
+    EEPROM_DEBUG("CALLBACK id=%d, status=%d, value=%d !\n",
             id, status, value);
 
     static bool starting = false;
@@ -207,17 +210,17 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
     {
         case MASTER_START:
             //TODO
-            fprintf(stderr, "SL: START!\n");
+            EEPROM_DEBUG("SL: START!\n");
             starting = true;
             is_addressed = false;
             byte_counter = 0;
             break;
         case MASTER_DATA:
-            fprintf(stderr, "SL: DATA!\n");
+            EEPROM_DEBUG("SL: DATA!\n");
 
             if (starting)
             {
-                fprintf(stderr, "ADDR: %d\n", value);
+                EEPROM_DEBUG("ADDR: %d\n", value);
                 starting = false;
                 is_read = value & 1;
                 //assert(value >> 1 == this->i2c_address); // used for testing
@@ -241,11 +244,11 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 else
                 {
                     //TODO store incoming data
-                    fprintf(stderr, "EEPROM: Storing data=%d into memory\n", value & 0xFF);
+                    EEPROM_DEBUG("EEPROM: Storing data=%d into memory\n", value & 0xFF);
                     this->memory.write(value & 0xFF);
                 }
 
-                fprintf(stderr, "SL: received data=%d\n", value);
+                EEPROM_DEBUG("SL: received data=%d\n", value);
                 byte_counter++;
 
                 this->i2c_helper.send_ack(true);
@@ -254,13 +257,13 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
         case MASTER_ACK:
             //TODO
             starting = false;
-            fprintf(stderr, "SL: ACK!\n");
+            EEPROM_DEBUG("SL: ACK!\n");
             if (status == MASTER_OK && is_addressed)
             {
                 if(is_read)
                 {
                     uint8_t byte = this->memory.read();
-                    fprintf(stderr, "EEPROM: sending byte=%d\n", byte);
+                    EEPROM_DEBUG("EEPROM: sending byte=%d\n", byte);
                     this->i2c_helper.send_data(byte);
                 }
             }
@@ -268,7 +271,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
         case MASTER_STOP:
             //TODO
             starting = false;
-            fprintf(stderr, "SL: STOP!\n");
+            EEPROM_DEBUG("SL: STOP!\n");
             break;
         default:
             break;
