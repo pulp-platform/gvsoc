@@ -185,6 +185,8 @@ int I2c_eeprom::build(void)
 
     this->new_master_port("clock_cfg", &this->clock_cfg);
 
+    this->trace.msg(vp::trace::LEVEL_INFO, "Instantiated eeprom (address: 0x%x, page_size: 0x%x, nb_pages: %d)\n", this->i2c_address, this->page_size, this->number_of_pages);
+
     return 0;
 }
 
