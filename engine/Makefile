@@ -153,4 +153,7 @@ build: $(INSTALL_DIR)/lib/libpulpvp.so $(INSTALL_DIR)/lib/libpulpvp-debug.so $(I
 clean: vp_clean
 	rm -rf $(ENGINE_BUILD_DIR)
 
+gen:
+	gvsoc-itf-gen --input include/vp/itf/wire.json --output include/vp/itf --name wire
+
 .PHONY: build

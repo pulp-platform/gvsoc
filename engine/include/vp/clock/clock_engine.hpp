@@ -111,6 +111,8 @@ namespace vp {
 
     inline void stop_engine(int status) { engine->stop_engine(status); }
 
+    inline void stop_retain(int count) { engine->stop_retain(count); }
+
     int64_t get_period() { return period; }
 
     int64_t get_frequency() { return freq; }
