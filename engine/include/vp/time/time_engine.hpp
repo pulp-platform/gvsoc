@@ -168,7 +168,7 @@ inline void vp::time_engine::stop_engine(int status, bool force)
         stop_status |= status;
     }
 
-    if (stop_retain_count == 0)
+    if (stop_retain_count == 0 || stop_status != 0)
     {
     #ifdef __VP_USE_SYSTEMC
         sync_event.notify();
