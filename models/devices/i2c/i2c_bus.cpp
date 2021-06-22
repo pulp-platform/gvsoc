@@ -43,11 +43,16 @@ private:
     vp::i2c_slave in;
 
     std::map<int, i2c_pair_t> i2c_values;
+
+    int current_scl;
+    int current_sda;
 };
 
 
 I2c_bus::I2c_bus(js::config *config)
-    : vp::component(config)
+    : vp::component(config),
+    current_scl(1),
+    current_sda(1)
 {
 }
 
@@ -90,8 +95,14 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
         }
     }
 
-    /* broadcast the values to all peripherals */
-    _this->in.sync(res_scl_value, res_sda_value);
+    /* broadcast the values to all peripherals if needed */
+    if (res_scl_value != _this->current_scl || res_sda_value != _this->current_sda)
+    {
+        /* only propagate changes */
+        _this->current_scl = res_scl_value;
+        _this->current_sda = res_sda_value;
+        _this->in.sync(res_scl_value, res_sda_value);
+    }
 }
 
 
