@@ -199,21 +199,15 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
     EEPROM_DEBUG("CALLBACK id=%d, status=%d, value=%d !\n",
             id, status, value);
 
-    static bool starting = false;
-    static bool is_addressed = false;
-    static bool is_read = false;
-
-    static uint32_t byte_counter = 0;
-    static uint32_t current_address = 0x0;
 
     switch(id)
     {
         case MASTER_START:
             //TODO
             EEPROM_DEBUG("SL: START!\n");
-            starting = true;
-            is_addressed = false;
-            byte_counter = 0;
+            this->starting = true;
+            this->is_addressed = false;
+            this->byte_counter = 0;
             break;
         case MASTER_DATA:
             EEPROM_DEBUG("SL: DATA!\n");
@@ -221,25 +215,26 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             if (starting)
             {
                 EEPROM_DEBUG("ADDR: %d\n", value);
-                starting = false;
-                is_read = value & 1;
+                this->starting = false;
+                this->is_read = value & 1;
                 //assert(value >> 1 == this->i2c_address); // used for testing
                 if ((value >> 1) == this->i2c_address)
                 {
-                    is_addressed = true;
+                    EEPROM_DEBUG("IS_ADDRESSED !\n");
+                    this->is_addressed = true;
                     this->i2c_helper.send_ack(true);
                 }
             }
-            else if (is_addressed && !is_read)
+            else if (this->is_addressed && !this->is_read)
             {
-                if (byte_counter == 0)
+                if (this->byte_counter == 0)
                 {
-                    current_address = (value & 0xFF) << 8;
+                    this->current_address = (value & 0xFF) << 8;
                 }
-                else if (byte_counter == 1)
+                else if (this->byte_counter == 1)
                 {
-                    current_address = (value & 0xFF) | current_address;
-                    this->memory.set_address(current_address);
+                    this->current_address = (value & 0xFF) | this->current_address;
+                    this->memory.set_address(this->current_address);
                 }
                 else
                 {
@@ -249,18 +244,18 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 }
 
                 EEPROM_DEBUG("SL: received data=%d\n", value);
-                byte_counter++;
+                this->byte_counter++;
 
                 this->i2c_helper.send_ack(true);
             }
             break;
         case MASTER_ACK:
             //TODO
-            starting = false;
+            this->starting = false;
             EEPROM_DEBUG("SL: ACK!\n");
-            if (status == MASTER_OK && is_addressed)
+            if (status == MASTER_OK && this->is_addressed)
             {
-                if(is_read)
+                if(this->is_read)
                 {
                     uint8_t byte = this->memory.read();
                     EEPROM_DEBUG("EEPROM: sending byte=%d\n", byte);
@@ -270,7 +265,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
             break;
         case MASTER_STOP:
             //TODO
-            starting = false;
+            this->starting = false;
             EEPROM_DEBUG("SL: STOP!\n");
             break;
         default:

@@ -95,4 +95,12 @@ class I2c_eeprom : public vp::component
 
         /** memory */
         I2c_eeprom_memory memory;
+
+        /* state data */
+        bool starting = false;
+        bool is_addressed = false;
+        bool is_read = false;
+
+        uint32_t byte_counter = 0;
+        uint32_t current_address = 0x0;
 };
