@@ -93,6 +93,9 @@ class I2C_helper {
         void send_stop(void);
 
         //TODO
+        void release_pins(void);
+
+        //TODO
         bool is_busy(void);
 
         /**

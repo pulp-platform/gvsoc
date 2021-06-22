@@ -225,6 +225,13 @@ void I2C_helper::send_stop(void)
     }
 }
 
+void I2C_helper::release_pins(void)
+{
+    // release everything that could hold the bus
+    this->empty_queues();
+    this->stop_clock();
+}
+
 void I2C_helper::start_clock(void)
 {
     I2C_HELPER_DEBUG("Starting clock\n");
@@ -360,86 +367,105 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             if (this->is_driving_sda && this->desired_sda != this->sda)
             {
                 // we lost arbitration
-                assert(false);
-            }
+                i2c_operation_e operation = MASTER_DATA;
 
-
-            if (is_stopping)
-            {
-                this->is_driving_sda = true;
-                this->expected_bit_value = 0;
-                this->enqueue_data_change(this->expected_bit_value);
-            }
-            else if (is_starting)
-            {
-                this->is_driving_sda = true;
-                this->expected_bit_value = 1;
-                this->enqueue_data_change(this->expected_bit_value);
-            }
-            else if (this->internal_state == I2C_INTERNAL_DATA)
-            {
-                /* send data */
-                if (!this->send_bit_queue.empty())
+                if (this->is_stopping)
                 {
-                    assert(this->send_bit_queue.size() <= 8);
+                    operation = MASTER_STOP;
+                }
+                else if (this->internal_state == I2C_INTERNAL_DATA)
+                {
+                    operation = MASTER_DATA;
+                }
+                else if (this->internal_state == I2C_INTERNAL_ACK)
+                {
+                    operation = MASTER_ACK;
+                }
 
-                    int bit = this->send_bit_queue.front();
-                    this->send_bit_queue.pop();
-                    this->expected_bit_value = bit;
-
+                this->cb_master_operation(
+                        operation,
+                        MASTER_ERROR_ARBITRATION,
+                        0);
+            }
+            else
+            {
+                if (is_stopping)
+                {
                     this->is_driving_sda = true;
+                    this->expected_bit_value = 0;
                     this->enqueue_data_change(this->expected_bit_value);
                 }
-                else
+                else if (is_starting)
                 {
-                    /* release sda pin */
-                    this->is_driving_sda = false;
-                    this->enqueue_data_change(this->expected_bit_value);
-                }
-
-                /* receiving data */
-                if (this->recv_bit_queue.size() == 8)
-                {
-                    int byte = 0;
-                    /* full byte received */
-                    for (int i = 0; i < 8; i++)
-                    {
-                        int bit = this->recv_bit_queue.front();
-                        this->recv_bit_queue.pop();
-                        byte = byte << 1 | bit;
-                    }
-                    assert(this->recv_bit_queue.empty());
-
-                    I2C_HELPER_DEBUG("fsm_step: byte received=%d\n", byte);
-
-                    this->internal_state = I2C_INTERNAL_ACK;
-                    this->empty_queues();
-
-                    this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
-                }
-            }
-            else if (this->internal_state == I2C_INTERNAL_ACK)
-            {
-                if (this->recv_bit_queue.size() == 1)
-                {
-                    const int bit = this->recv_bit_queue.front();
-                    this->recv_bit_queue.pop();
-
-                    I2C_HELPER_DEBUG("fsm_step: ACK received=%d\n", bit);
-
-                    const i2c_status_e status = (bit == 1) ? MASTER_KO : MASTER_OK;
-                    assert(this->recv_bit_queue.empty());
-
-                    this->internal_state = I2C_INTERNAL_DATA;
-                    this->empty_queues();
-
-                    /* release sda pin */
-                    this->is_driving_sda = false;
+                    this->is_driving_sda = true;
                     this->expected_bit_value = 1;
                     this->enqueue_data_change(this->expected_bit_value);
+                }
+                else if (this->internal_state == I2C_INTERNAL_DATA)
+                {
+                    /* send data */
+                    if (!this->send_bit_queue.empty())
+                    {
+                        assert(this->send_bit_queue.size() <= 8);
 
-                    this->cb_master_operation(MASTER_ACK, status, 0);
+                        int bit = this->send_bit_queue.front();
+                        this->send_bit_queue.pop();
+                        this->expected_bit_value = bit;
 
+                        this->is_driving_sda = true;
+                        this->enqueue_data_change(this->expected_bit_value);
+                    }
+                    else
+                    {
+                        /* release sda pin */
+                        this->is_driving_sda = false;
+                        this->enqueue_data_change(this->expected_bit_value);
+                    }
+
+                    /* receiving data */
+                    if (this->recv_bit_queue.size() == 8)
+                    {
+                        int byte = 0;
+                        /* full byte received */
+                        for (int i = 0; i < 8; i++)
+                        {
+                            int bit = this->recv_bit_queue.front();
+                            this->recv_bit_queue.pop();
+                            byte = byte << 1 | bit;
+                        }
+                        assert(this->recv_bit_queue.empty());
+
+                        I2C_HELPER_DEBUG("fsm_step: byte received=%d\n", byte);
+
+                        this->internal_state = I2C_INTERNAL_ACK;
+                        this->empty_queues();
+
+                        this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
+                    }
+                }
+                else if (this->internal_state == I2C_INTERNAL_ACK)
+                {
+                    if (this->recv_bit_queue.size() == 1)
+                    {
+                        const int bit = this->recv_bit_queue.front();
+                        this->recv_bit_queue.pop();
+
+                        I2C_HELPER_DEBUG("fsm_step: ACK received=%d\n", bit);
+
+                        const i2c_status_e status = (bit == 1) ? MASTER_KO : MASTER_OK;
+                        assert(this->recv_bit_queue.empty());
+
+                        this->internal_state = I2C_INTERNAL_DATA;
+                        this->empty_queues();
+
+                        /* release sda pin */
+                        this->is_driving_sda = false;
+                        this->expected_bit_value = 1;
+                        this->enqueue_data_change(this->expected_bit_value);
+
+                        this->cb_master_operation(MASTER_ACK, status, 0);
+
+                    }
                 }
             }
         }
