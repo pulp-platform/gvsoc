@@ -322,11 +322,14 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             //TODO add check expected_bit_value
             if (is_stopping)
             {
+                this->is_driving_sda = true;
                 this->expected_bit_value = 1;
                 this->enqueue_data_change(this->expected_bit_value);
             }
             else if (is_starting)
             {
+                /* drive sda pin down */
+                this->is_driving_sda = true;
                 this->expected_bit_value = 0;
                 this->enqueue_data_change(this->expected_bit_value);
             }
@@ -354,13 +357,22 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->internal_state = I2C_INTERNAL_DATA;
             }
 
+            if (this->is_driving_sda && this->desired_sda != this->sda)
+            {
+                // we lost arbitration
+                assert(false);
+            }
+
+
             if (is_stopping)
             {
+                this->is_driving_sda = true;
                 this->expected_bit_value = 0;
                 this->enqueue_data_change(this->expected_bit_value);
             }
             else if (is_starting)
             {
+                this->is_driving_sda = true;
                 this->expected_bit_value = 1;
                 this->enqueue_data_change(this->expected_bit_value);
             }
@@ -375,6 +387,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     this->send_bit_queue.pop();
                     this->expected_bit_value = bit;
 
+                    this->is_driving_sda = true;
                     this->enqueue_data_change(this->expected_bit_value);
                 }
                 else
