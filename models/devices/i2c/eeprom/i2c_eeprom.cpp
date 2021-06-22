@@ -20,8 +20,9 @@
 #include "stdio.h"
 #include <cassert>
 
+#define EEPROM_DEBUG(...) (this->trace.msg(vp::trace::LEVEL_TRACE, __VA_ARGS__))
 //#define EEPROM_DEBUG(...) fprintf(stderr, "[EEPROM] " __VA_ARGS__)
-#define EEPROM_DEBUG(...)
+//#define EEPROM_DEBUG(...)
 
 I2c_eeprom_memory::I2c_eeprom_memory(void)
     :  current_address(0x0),

@@ -164,6 +164,9 @@ class I2C_helper {
         std::queue<int> recv_bit_queue;
         int expected_bit_value; /* checked when scl is rising */
 
+        bool check_sent;
+        int sent_value;
+
         bool is_stopping;
         bool is_starting;
 
