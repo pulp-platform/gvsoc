@@ -118,25 +118,23 @@ I2c_eeprom::I2c_eeprom(js::config* config)
     this->number_of_pages = 128;
     this->i2c_address = 80;
 
-    js::config* properties = config->get("properties");
-
-    if (NULL != properties)
+    if (NULL != config)
     {
         /* configure address */
-        js::config* address_elt = properties->get("address");
+        js::config* address_elt = config->get("address");
         if (NULL != address_elt)
         {
             this->i2c_address = address_elt->get_int();
         }
 
         /* configure page size */
-        js::config* page_size_elt = properties->get("page_size");
+        js::config* page_size_elt = config->get("page_size");
         if (NULL != page_size_elt)
         {
             this->page_size = page_size_elt->get_int();
         }
         /* configure number of pages*/
-        js::config* number_of_pages_elt= properties->get("number_of_pages");
+        js::config* number_of_pages_elt= config->get("number_of_pages");
         if (NULL != number_of_pages_elt)
         {
             this->number_of_pages = number_of_pages_elt->get_int();
