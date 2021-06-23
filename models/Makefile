@@ -28,7 +28,8 @@ VP_DIRS=memory \
   devices/ble \
   gdbserver \
   devices/i2c \
-  devices/i2c/eeprom
+  devices/i2c/eeprom \
+  devices/i2c/corruptor
 
 
 -include $(ROOT_VP_BUILD_DIR)/props.mk
