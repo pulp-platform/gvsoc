@@ -298,12 +298,6 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             if (sda_falling && !this->is_busy())
             {
                 this->is_starting = false;
-                this->internal_state = I2C_INTERNAL_START;
-
-                this->sda_rise = this ->sda;
-                this->empty_queues();
-                I2C_HELPER_DEBUG("START DETECTED\n");
-                this->cb_master_operation(MASTER_START, MASTER_OK, 0);
             }
             else if (sda_rising && this->is_busy())
             {
@@ -317,6 +311,16 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->cb_master_operation(MASTER_STOP, MASTER_OK, 0);
             }
         }
+    }
+    else if (!this->is_busy() && scl_falling && this->sda == 0)
+    {
+        /* propagate start condition */
+        this->internal_state = I2C_INTERNAL_START;
+
+        this->sda_rise = this ->sda;
+        this->empty_queues();
+        I2C_HELPER_DEBUG("START DETECTED\n");
+        this->cb_master_operation(MASTER_START, MASTER_OK, 0);
     }
     else if (this->is_busy())
     {
@@ -382,6 +386,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     operation = MASTER_ACK;
                 }
 
+                assert(false);
                 this->cb_master_operation(
                         operation,
                         MASTER_ERROR_ARBITRATION,
@@ -484,7 +489,7 @@ void I2C_helper::enqueue_clock_toggle(void)
         }
         else
         {
-            assert(false);
+            //assert(false);
         }
     }
 }
