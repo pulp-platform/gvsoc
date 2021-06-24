@@ -71,6 +71,8 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
 {
     I2c_bus *_this = (I2c_bus *)__this;
 
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "bus update [id=%d]: scl=%d, sda=%d\n",
+            id, scl, sda);
     /* store incoming values in maps */
     _this->i2c_values[id].scl = scl;
     _this->i2c_values[id].sda = sda;
@@ -81,10 +83,10 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
 
     for (std::pair<int, i2c_pair_t> i2c_val : _this->i2c_values)
     {
-        //fprintf(stderr, "[I2C-BUS] #%d: scl=%d, sda=%d\n",
-        //        i2c_val.first,
-        //        i2c_val.second.scl,
-        //        i2c_val.second.sda);
+        _this->trace.msg(vp::trace::LEVEL_TRACE, "bus values [id=%d]: scl=%d, sda=%d\n",
+                i2c_val.first,
+                i2c_val.second.scl,
+                i2c_val.second.sda);
         if (i2c_val.second.scl == 0)
         {
             res_scl_value = 0;
@@ -101,6 +103,8 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
         /* only propagate changes */
         _this->current_scl = res_scl_value;
         _this->current_sda = res_sda_value;
+        _this->trace.msg(vp::trace::LEVEL_TRACE, "I2C: scl=%d, sda=%d\n",
+                _this->current_scl, _this->current_sda);
         _this->in.sync(res_scl_value, res_sda_value);
     }
 }
