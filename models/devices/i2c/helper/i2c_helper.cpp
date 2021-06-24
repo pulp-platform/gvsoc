@@ -386,7 +386,6 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     operation = MASTER_ACK;
                 }
 
-                assert(false);
                 this->cb_master_operation(
                         operation,
                         MASTER_ERROR_ARBITRATION,
