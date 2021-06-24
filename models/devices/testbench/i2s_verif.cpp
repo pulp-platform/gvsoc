@@ -189,10 +189,7 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->prev_ws = 0;
     this->frame_active = false;
     this->ws_delay = config->ws_delay;
-    if (this->ws_delay == 0)
-    {
-        this->zero_delay_start = true;
-    }
+    this->zero_delay_start = this->ws_delay == 0;
     this->current_ws_delay = 0;
     this->is_pdm = config->is_pdm;
     this->is_full_duplex = config->is_full_duplex;
