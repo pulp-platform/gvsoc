@@ -21,7 +21,7 @@
 #include <vp/itf/clock.hpp>
 #include <vp/itf/i2c.hpp>
 
-#include <vector>
+#include <cstdint>
 
 #include "i2c_helper.hpp"
 
@@ -35,9 +35,11 @@ class I2c_corruptor : public vp::component
         void reset(bool active);
 
     private:
+        static void st_start_event_handler(void* __this, vp::clock_event* event);
         void i2c_enqueue_event(vp::clock_event* event, uint64_t time_ps);
         static void i2c_sync(void *__this, int scl, int sda);
         void i2c_helper_callback(i2c_operation_e id, i2c_status_e status, int value);
+        void trigger_start(void);
 
         /**********/
         /* FIELDS */
@@ -54,4 +56,18 @@ class I2c_corruptor : public vp::component
 
         /** I2C slave helper */
         I2C_helper i2c_helper;
+
+        /* start detection*/
+        int prev_sda;
+        int prev_scl;
+
+        /** number of start counter */
+        uint32_t start_counter;
+        /** start threshold */
+        uint32_t start_threshold;
+
+        /** event used to trigger start */
+        vp::clock_event start_event;
+
+        bool is_started;
 };

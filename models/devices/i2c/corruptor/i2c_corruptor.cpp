@@ -30,7 +30,13 @@ I2c_corruptor::I2c_corruptor(js::config* config)
                 this,
                 std::placeholders::_1,
                 std::placeholders::_2)
-            )
+            ),
+    start_event(this, this, &I2c_corruptor::st_start_event_handler),
+    prev_sda(1),
+    prev_scl(1),
+    start_counter(0),
+    start_threshold(2),
+    is_started(false)
 {
     assert(NULL != config);
     /* set helper callback */
@@ -39,13 +45,60 @@ I2c_corruptor::I2c_corruptor(js::config* config)
                 std::placeholders::_1,
                 std::placeholders::_2,
                 std::placeholders::_3));
+    this->i2c_helper.set_timings(1000, 1000);
+}
+
+void I2c_corruptor::st_start_event_handler(void* __this, vp::clock_event* event)
+{
+    assert(NULL != __this);
+    assert(NULL != event);
+
+    I2c_corruptor* _this = (I2c_corruptor*) __this;
+
+    if (!_this->i2c_helper.is_busy())
+    {
+        _this->is_started = true;
+        _this->trace.msg(vp::trace::LEVEL_TRACE, "sending start\n");
+        _this->i2c_helper.send_start();
+    }
 }
 
 void I2c_corruptor::i2c_sync(void *__this, int scl, int sda)
 {
     assert(NULL != __this);
     I2c_corruptor* _this = (I2c_corruptor*) __this;
+
+    /* detect start to launch start */
+    const bool scl_steady1 = (_this->prev_scl == 1 && scl == _this->prev_scl);
+    const bool sda_falling = (_this->prev_sda == 1 && sda == 0);
+
+    _this->prev_sda = sda;
+    _this->prev_scl = scl;
+
+    if (!_this->is_started)
+    {
+        if (!_this->i2c_helper.is_busy() && scl_steady1 && sda_falling)
+        {
+            /* increment start counter */
+            _this->start_counter++;
+        }
+        if (_this->start_counter >= _this->start_threshold)
+        {
+            _this->start_counter = 0;
+            /* trigger start */
+            _this->trigger_start();
+        }
+    }
+
     _this->i2c_helper.update_pins(scl, sda);
+}
+
+void I2c_corruptor::trigger_start(void)
+{
+    if (!this->start_event.is_enqueued())
+    {
+        this->event_enqueue(&this->start_event, 1);
+    }
 }
 
 
@@ -67,8 +120,6 @@ int I2c_corruptor::build(void)
     this->new_master_port("i2c", &this->i2c_itf);
 
     this->new_master_port("clock_cfg", &this->clock_cfg);
-
-    this->trace.msg(vp::trace::LEVEL_INFO, "Instantiated corruptor\n");
     return 0;
 }
 
@@ -84,12 +135,30 @@ void I2c_corruptor::i2c_helper_callback(i2c_operation_e id, i2c_status_e status,
     switch(id)
     {
         case MASTER_START:
+            if (this->is_started)
+            {
+                CORRUPTOR_DEBUG("Sending 0 to trigger arbitration loss\n");
+                this->i2c_helper.send_data(0x0);
+            }
             break;
         case MASTER_DATA:
+            if (this->is_started)
+            {
+                CORRUPTOR_DEBUG("Sending ack to trigger arbitration loss\n");
+                this->i2c_helper.send_ack(true);
+            }
             break;
         case MASTER_ACK:
+            if (this->is_started)
+            {
+                this->i2c_helper.send_stop();
+            }
             break;
         case MASTER_STOP:
+            if (this->is_started)
+            {
+                this->is_started = false;
+            }
             break;
         default:
             break;
