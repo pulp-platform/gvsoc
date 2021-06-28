@@ -30,8 +30,9 @@
 class trace_regex
 {
 public:
-    trace_regex(std::string path, regex_t *regex, std::string file_path) : path(path), regex(regex), file_path(file_path) {}
+    trace_regex(std::string path, regex_t *regex, std::string file_path, bool is_path=false) : is_path(is_path), path(path), regex(regex), file_path(file_path) {}
 
+    bool is_path;
     std::string path;
     regex_t *regex;
     std::string file_path;
@@ -45,9 +46,9 @@ public:
 
     void set_trace_level(const char *trace_level);
     void add_paths(int events, int nb_path, const char **paths);
-    void add_path(int events, const char *path);
+    void add_path(int events, const char *path, bool is_path=false);
     void add_exclude_path(int events, const char *path);
-    void add_trace_path(int events, std::string path);
+    void add_trace_path(int events, std::string path, bool is_path=false);
     void conf_trace(int event, std::string path, bool enabled);
     void add_exclude_trace_path(int events, std::string path);
     void reg_trace(vp::trace *trace, int event, string path, string name);
@@ -88,12 +89,12 @@ private:
     std::unordered_map<std::string, FILE *> trace_files;
 
     vp::component *power_engine;
+    FILE *trace_file;
 };
 
 vp::trace_engine::trace_engine(js::config *config)
     : event_dumper(this), vp::component(config), first_trace_to_dump(NULL)
 {
-
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&cond, NULL);
 
@@ -112,6 +113,12 @@ vp::trace_engine::trace_engine(js::config *config)
 trace_domain::trace_domain(js::config *config)
     : vp::trace_engine(config)
 {
+    std::string path = "trace_file.txt";
+    this->trace_file = fopen(path.c_str(), "w");
+    if (this->trace_file == NULL)
+    {
+        throw std::runtime_error("Error while opening VCD file (path: " + path + ", error: " + strerror(errno) + ")\n");
+    }
 }
 
 void trace_domain::run()
@@ -150,7 +157,7 @@ void trace_domain::check_trace_active(vp::trace *trace, int event)
     {
         for (auto &x : events_path_regex)
         {
-            if (regexec(x.second->regex, full_path.c_str(), 0, NULL, 0) == 0)
+            if (x.second->is_path || regexec(x.second->regex, full_path.c_str(), 0, NULL, 0) == 0)
             {
                 std::string file_path = x.second->file_path;                
                 vp::Event_trace *event_trace;
@@ -245,6 +252,19 @@ void trace_domain::reg_trace(vp::trace *trace, int event, string path, string na
     trace->trace_file = stdout;
 
     this->check_trace_active(trace, event);
+
+    if (trace->get_event_active())
+    {
+        fprintf(this->trace_file, "%s %s ", path.c_str(), name.c_str());
+        if (trace->is_real || trace->width <= 1)
+        {
+            fprintf(this->trace_file, "%s\n", name.c_str());
+        }
+        else
+        {
+            fprintf(this->trace_file, "%s[%d:0]\n", name.c_str(), trace->width-1);
+        }
+    }
 }
 
 void trace_domain::pre_pre_build()
@@ -260,6 +280,11 @@ void trace_domain::pre_pre_build()
     {
         std::string trace_path = x->get_str();
         this->add_trace_path(1, trace_path);
+    }
+    for (auto x : this->get_vp_config()->get("events/include_raw")->get_elems())
+    {
+        std::string trace_path = x->get_str();
+        this->add_trace_path(1, trace_path, true);
     }
 
     this->set_trace_level(this->get_vp_config()->get_child_str("traces/level").c_str());
@@ -365,7 +390,7 @@ void trace_domain::add_exclude_path(int events, const char *path)
 
 
 
-void trace_domain::add_path(int events, const char *path)
+void trace_domain::add_path(int events, const char *path, bool is_path)
 {
     regex_t *regex = new regex_t();
 
@@ -385,7 +410,7 @@ void trace_domain::add_path(int events, const char *path)
             this->events_exclude_path_regex.erase(path);
         }
 
-        this->events_path_regex[path] = new trace_regex(path, regex, file_path);
+        this->events_path_regex[path] = new trace_regex(path, regex, file_path, is_path);
     }
     else
     {
@@ -448,9 +473,9 @@ void trace_domain::conf_trace(int event, std::string path_str, bool enabled)
     }
 }
 
-void trace_domain::add_trace_path(int events, std::string path)
+void trace_domain::add_trace_path(int events, std::string path, bool is_path)
 {
-    this->add_path(events, path.c_str());
+    this->add_path(events, path.c_str(), is_path);
 }
 
 void trace_domain::add_exclude_trace_path(int events, std::string path)

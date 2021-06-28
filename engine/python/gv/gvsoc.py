@@ -56,7 +56,7 @@ def appendArgs(parser: argparse.ArgumentParser, runnerConfig: js.config) -> None
 
     parser.add_argument("--event-format", dest="format", default=None, help="Specify events format (vcd or fst)")
 
-    parser.add_argument("--gtkw", dest="gtkw", action="store_true", help="Dump events to pipe and open gtkwave in interactive mode")
+    parser.add_argument("--gtkwi", dest="gtkwi", action="store_true", help="Dump events to pipe and open gtkwave in interactive mode")
 
 
 def process_args(args, config):
@@ -81,7 +81,7 @@ def process_args(args, config):
     if args.format is not None:
         config.set('gvsoc/events/format', args.format)
 
-    if args.gtkw:
+    if args.gtkwi:
         config.set('gvsoc/events/gtkw', True)
 
 
@@ -132,8 +132,8 @@ def dump_config(full_config, gvsoc_config_path):
 
 class Runner(runner.default_runner.Runner):
 
-    def __init__(self, args, config):
-        super(Runner, self).__init__(args, config)
+    def __init__(self, args, config, system):
+        super(Runner, self).__init__(args, config, system)
         process_args(args, config)
 
     def conf(self):
@@ -158,6 +158,23 @@ class Runner(runner.default_runner.Runner):
 
         return 0
 
+    def gtkw(self):
+        gvsoc_config = self.full_config.get('gvsoc')
+
+        if self.system is not None:
+            self.system.gen_gtkw_script(
+                work_dir=self.config.get_str('gapy/work_dir'),
+                path=os.path.join(self.config.get_str('gapy/work_dir'), 'view_all.gtkw'),
+                tags=gvsoc_config.get('events/tags').get_dict(),
+                level=gvsoc_config.get_child_int('events/level'),
+                trace_file=os.path.join(self.config.get_str('gapy/work_dir'), 'trace_file.txt'),
+                gen_full_tree=True
+            )
+
+            os.system('gtkwave %s' % os.path.join(self.config.get_str('gapy/work_dir'), 'view_all.gtkw'))
+
+        return 0
+
     def exec(self):
 
         os.chdir(self.config.get_str('gapy/work_dir'))
@@ -172,6 +189,18 @@ class Runner(runner.default_runner.Runner):
                 gv.gtkwave.gen_gtkw_files(self.full_config, gvsoc_config, chip_path='')
             else:
                 gv.gtkwave.gen_gtkw_files(self.full_config, gvsoc_config)
+
+            if self.system is not None:
+                traces = self.system.gen_gtkw_script(
+                    work_dir=self.config.get_str('gapy/work_dir'),
+                    path=os.path.join(self.config.get_str('gapy/work_dir'), 'view.gtkw'),
+                    tags=gvsoc_config.get('events/tags').get_dict(),
+                    level=gvsoc_config.get_child_int('events/level'),
+                    gen_full_tree=False
+                )
+
+
+                gvsoc_config.get('events').set('include_raw', traces)
 
         self.__gen_debug_info(self.full_config, self.full_config.get('gvsoc'))
 

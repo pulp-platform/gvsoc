@@ -97,11 +97,12 @@ void vp::component_trace::new_trace_event_string(std::string name, trace *trace)
 
 void vp::component_trace::post_post_build()
 {
-  trace_manager = (vp::trace_engine *)top.get_service("trace");
-  for (auto& x: trace_events) {
-    x.second->trace_manager = trace_manager;
-    trace_manager->reg_trace(x.second, 1, top.get_path(), x.first);
-  }
+  // TODO this seems useless now that the traces are registered immediately to the trace engine
+  // trace_manager = (vp::trace_engine *)top.get_service("trace");
+  // for (auto& x: trace_events) {
+  //   x.second->trace_manager = trace_manager;
+  //   trace_manager->reg_trace(x.second, 1, top.get_path(), x.first);
+  // }
 }
 
 

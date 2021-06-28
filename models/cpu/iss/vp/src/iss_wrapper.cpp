@@ -429,11 +429,10 @@ void iss_wrapper::check_state()
   }
   else
   {
-    uint8_t zero = 0;
     if (halted.get() && !do_step.get())
     {
       is_active_reg.set(false);
-      this->state_event.event(&zero);
+      this->state_event.event(NULL);
       if (this->ipc_stat_event.get_event_active())
         this->stop_ipc_stat();
       this->halt_core();
@@ -443,7 +442,7 @@ void iss_wrapper::check_state()
       if (irq_req == -1)
       {
         is_active_reg.set(false);
-        this->state_event.event(&zero);
+        this->state_event.event(NULL);
         if (this->ipc_stat_event.get_event_active())
           this->stop_ipc_stat();
       }

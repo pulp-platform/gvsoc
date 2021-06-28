@@ -83,6 +83,12 @@ namespace vp {
       inline void set_32(uint32_t value) { *(uint32_t *)this->value_bytes = value; }
       inline void set_64(uint64_t value) { *(uint64_t *)this->value_bytes = value; }
 
+      inline void release() {
+        this->trace.msg("Release register\n");
+        if (this->reg_event.get_event_active())
+          this->reg_event.event(NULL);
+      }
+
       inline void read(int reg_offset, int size, uint8_t *value) { memcpy((void *)value, (void *)(this->value_bytes+reg_offset), size); }
       inline void read(uint8_t *value) { memcpy((void *)value, (void *)this->value_bytes, this->nb_bytes); }
       inline uint8_t  get_1 () { return *(uint8_t *)this->value_bytes; }
