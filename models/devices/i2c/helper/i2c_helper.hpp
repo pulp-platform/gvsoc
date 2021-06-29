@@ -26,18 +26,17 @@
 #include "vp/clock/clock_event.hpp"
 
 typedef enum {
-    MASTER_OK,
-    MASTER_KO,
-    MASTER_ERROR_ARBITRATION,
-    ANY_ERROR_FRAMING,
+    I2C_STATUS_OK,
+    I2C_STATUS_KO,
+    I2C_STATUS_ERROR_ARBITRATION,
+    I2C_STATUS_ERROR_FRAMING,
 } i2c_status_e;
 
 typedef enum {
-    MASTER_START,
-    MASTER_ADDR,
-    MASTER_DATA,
-    MASTER_ACK,
-    MASTER_STOP
+    I2C_OP_START,
+    I2C_OP_DATA,
+    I2C_OP_ACK,
+    I2C_OP_STOP
 } i2c_operation_e;
 
 typedef enum {

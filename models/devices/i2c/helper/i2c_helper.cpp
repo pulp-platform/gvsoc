@@ -308,7 +308,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->empty_queues();
 
                 I2C_HELPER_DEBUG("STOP DETECTED\n");
-                this->cb_master_operation(MASTER_STOP, MASTER_OK, 0);
+                this->cb_master_operation(I2C_OP_STOP, I2C_STATUS_OK, 0);
             }
         }
     }
@@ -320,7 +320,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
         this->sda_rise = this ->sda;
         this->empty_queues();
         I2C_HELPER_DEBUG("START DETECTED\n");
-        this->cb_master_operation(MASTER_START, MASTER_OK, 0);
+        this->cb_master_operation(I2C_OP_START, I2C_STATUS_OK, 0);
     }
     else if (this->is_busy())
     {
@@ -360,7 +360,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                     //TODO framing error ?
                     //TODO empty queue
                     I2C_HELPER_DEBUG("FRAMING ERROR!, sda_rise=%d, sda=%d\n", this->sda_rise, this->sda);
-                    this->cb_master_operation(MASTER_STOP, ANY_ERROR_FRAMING, 0);
+                    this->cb_master_operation(I2C_OP_STOP, I2C_STATUS_ERROR_FRAMING, 0);
                 }
             }
             else
@@ -371,24 +371,24 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
             if (this->is_driving_sda && this->desired_sda != this->sda)
             {
                 // we lost arbitration
-                i2c_operation_e operation = MASTER_DATA;
+                i2c_operation_e operation = I2C_OP_DATA;
 
                 if (this->is_stopping)
                 {
-                    operation = MASTER_STOP;
+                    operation = I2C_OP_STOP;
                 }
                 else if (this->internal_state == I2C_INTERNAL_DATA)
                 {
-                    operation = MASTER_DATA;
+                    operation = I2C_OP_DATA;
                 }
                 else if (this->internal_state == I2C_INTERNAL_ACK)
                 {
-                    operation = MASTER_ACK;
+                    operation = I2C_OP_ACK;
                 }
 
                 this->cb_master_operation(
                         operation,
-                        MASTER_ERROR_ARBITRATION,
+                        I2C_STATUS_ERROR_ARBITRATION,
                         0);
             }
             else
@@ -444,7 +444,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                         this->internal_state = I2C_INTERNAL_ACK;
                         this->empty_queues();
 
-                        this->cb_master_operation(MASTER_DATA, MASTER_OK, byte);
+                        this->cb_master_operation(I2C_OP_DATA, I2C_STATUS_OK, byte);
                     }
                 }
                 else if (this->internal_state == I2C_INTERNAL_ACK)
@@ -456,7 +456,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
                         I2C_HELPER_DEBUG("fsm_step: ACK received=%d\n", bit);
 
-                        const i2c_status_e status = (bit == 1) ? MASTER_KO : MASTER_OK;
+                        const i2c_status_e status = (bit == 1) ? I2C_STATUS_KO : I2C_STATUS_OK;
                         assert(this->recv_bit_queue.empty());
 
                         this->internal_state = I2C_INTERNAL_DATA;
@@ -467,7 +467,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                         this->expected_bit_value = 1;
                         this->enqueue_data_change(this->expected_bit_value);
 
-                        this->cb_master_operation(MASTER_ACK, status, 0);
+                        this->cb_master_operation(I2C_OP_ACK, status, 0);
 
                     }
                 }

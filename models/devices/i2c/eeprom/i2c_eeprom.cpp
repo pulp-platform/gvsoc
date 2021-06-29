@@ -203,14 +203,14 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
 
     switch(id)
     {
-        case MASTER_START:
+        case I2C_OP_START:
             //TODO
             EEPROM_DEBUG("SL: START!\n");
             this->starting = true;
             this->is_addressed = false;
             this->byte_counter = 0;
             break;
-        case MASTER_DATA:
+        case I2C_OP_DATA:
             EEPROM_DEBUG("SL: DATA!\n");
 
             if (starting)
@@ -250,11 +250,11 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 this->i2c_helper.send_ack(true);
             }
             break;
-        case MASTER_ACK:
+        case I2C_OP_ACK:
             //TODO
             this->starting = false;
             EEPROM_DEBUG("SL: ACK!\n");
-            if (status == MASTER_OK && this->is_addressed)
+            if (status == I2C_STATUS_OK && this->is_addressed)
             {
                 if(this->is_read)
                 {
@@ -264,7 +264,7 @@ void I2c_eeprom::i2c_helper_callback(i2c_operation_e id, i2c_status_e status, in
                 }
             }
             break;
-        case MASTER_STOP:
+        case I2C_OP_STOP:
             //TODO
             this->starting = false;
             EEPROM_DEBUG("SL: STOP!\n");

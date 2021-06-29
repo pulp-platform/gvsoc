@@ -134,27 +134,27 @@ void I2c_corruptor::i2c_helper_callback(i2c_operation_e id, i2c_status_e status,
 
     switch(id)
     {
-        case MASTER_START:
+        case I2C_OP_START:
             if (this->is_started)
             {
                 CORRUPTOR_DEBUG("Sending 0 to trigger arbitration loss\n");
                 this->i2c_helper.send_data(0x0);
             }
             break;
-        case MASTER_DATA:
+        case I2C_OP_DATA:
             if (this->is_started)
             {
                 CORRUPTOR_DEBUG("Sending ack to trigger arbitration loss\n");
                 this->i2c_helper.send_ack(true);
             }
             break;
-        case MASTER_ACK:
+        case I2C_OP_ACK:
             if (this->is_started)
             {
                 this->i2c_helper.send_stop();
             }
             break;
-        case MASTER_STOP:
+        case I2C_OP_STOP:
             if (this->is_started)
             {
                 this->is_started = false;
