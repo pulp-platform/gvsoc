@@ -44,15 +44,13 @@ private:
 
     std::map<int, i2c_pair_t> i2c_values;
 
-    int current_scl;
-    int current_sda;
+    vp::reg_1 bus_scl;
+    vp::reg_1 bus_sda;
 };
 
 
 I2c_bus::I2c_bus(js::config *config)
-    : vp::component(config),
-    current_scl(1),
-    current_sda(1)
+    : vp::component(config)
 {
 }
 
@@ -62,6 +60,13 @@ int I2c_bus::build()
 
     this->in.set_sync_meth_demuxed(&I2c_bus::sync);
     new_slave_port("input", &in);
+
+    uint8_t reset_val = 1;
+    this->bus_scl.init(this, "scl", &reset_val);
+    this->bus_sda.init(this, "sda", &reset_val);
+
+    this->bus_scl.set(1);
+    this->bus_sda.set(1);
 
     return 0;
 }
@@ -98,13 +103,13 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
     }
 
     /* broadcast the values to all peripherals if needed */
-    if (res_scl_value != _this->current_scl || res_sda_value != _this->current_sda)
+    if (res_scl_value != _this->bus_scl.get() || res_sda_value != _this->bus_sda.get())
     {
         /* only propagate changes */
-        _this->current_scl = res_scl_value;
-        _this->current_sda = res_sda_value;
+        _this->bus_scl.set(res_scl_value);
+        _this->bus_sda.set(res_sda_value);
         _this->trace.msg(vp::trace::LEVEL_TRACE, "I2C: scl=%d, sda=%d\n",
-                _this->current_scl, _this->current_sda);
+                _this->bus_scl, _this->bus_sda);
         _this->in.sync(res_scl_value, res_sda_value);
     }
 }
