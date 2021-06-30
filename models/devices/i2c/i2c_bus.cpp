@@ -76,7 +76,7 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
 {
     I2c_bus *_this = (I2c_bus *)__this;
 
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "bus update [id=%d]: scl=%d, sda=%d\n",
+    _this->trace.msg(vp::trace::LEVEL_TRACE, " => bus update [id=%d]: scl=%d, sda=%d\n",
             id, scl, sda);
     /* store incoming values in maps */
     _this->i2c_values[id].scl = scl;
@@ -109,7 +109,7 @@ void I2c_bus::sync(void *__this, int scl, int sda, int id)
         _this->bus_scl.set(res_scl_value);
         _this->bus_sda.set(res_sda_value);
         _this->trace.msg(vp::trace::LEVEL_TRACE, "I2C: scl=%d, sda=%d\n",
-                _this->bus_scl, _this->bus_sda);
+                _this->bus_scl.get(), _this->bus_sda.get());
         _this->in.sync(res_scl_value, res_sda_value);
     }
 }

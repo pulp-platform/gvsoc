@@ -49,6 +49,7 @@ typedef enum {
 typedef std::function<void(i2c_operation_e id, i2c_status_e status, int value)> i2c_callback_t;
 
 typedef std::function<void(vp::clock_event* event,uint64_t time_ps)> i2c_enqueue_event_fn_t;
+typedef std::function<void(vp::clock_event* event)> i2c_cancel_event_fn_t;
 
 /**
  * \brief TODO
@@ -65,7 +66,7 @@ typedef std::function<void(vp::clock_event* event,uint64_t time_ps)> i2c_enqueue
  */
 class I2C_helper {
     public:
-        I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_event_fn_t event);
+        I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_event_fn_t event, i2c_cancel_event_fn_t cancel_event);
 
         // TO be called when pin values change
         void update_pins(int scl, int sda);
@@ -136,6 +137,7 @@ class I2C_helper {
         i2c_callback_t cb_master_operation;
 
         i2c_enqueue_event_fn_t enqueue_event;
+        i2c_cancel_event_fn_t cancel_event;
 
         /*****************/
         /* Configuration */

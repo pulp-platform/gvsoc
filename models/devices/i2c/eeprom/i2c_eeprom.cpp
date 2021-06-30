@@ -112,7 +112,10 @@ I2c_eeprom::I2c_eeprom(js::config* config)
             std::bind(&I2c_eeprom::i2c_enqueue_event,
                 this,
                 std::placeholders::_1,
-                std::placeholders::_2)
+                std::placeholders::_2),
+            std::bind(&I2c_eeprom::i2c_cancel_event,
+                this,
+                std::placeholders::_1)
             )
 {
     this->page_size = 8;
@@ -278,6 +281,11 @@ void I2c_eeprom::i2c_enqueue_event(vp::clock_event* event, uint64_t time_ps)
 {
     //TODO compute number of cycles according to time_ps
     this->event_enqueue(event, time_ps);
+}
+
+void I2c_eeprom::i2c_cancel_event(vp::clock_event* event)
+{
+    this->event_cancel(event);
 }
 
 extern "C" vp::component *vp_constructor(js::config *config)

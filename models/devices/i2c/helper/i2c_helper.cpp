@@ -34,10 +34,12 @@ namespace {
     }
 }
 
-I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf, i2c_enqueue_event_fn_t enqueue_event) :
+I2C_helper::I2C_helper(vp::component* parent, vp::i2c_master* itf,
+        i2c_enqueue_event_fn_t enqueue_event, i2c_cancel_event_fn_t cancel_event) :
     parent(parent),
     itf(itf),
     enqueue_event(enqueue_event),
+    cancel_event(cancel_event),
     delay_low_ps(5),
     delay_high_ps(5),
     internal_state(I2C_INTERNAL_IDLE),
@@ -88,7 +90,6 @@ void I2C_helper::clock_event_handler(vp::clock_event* event)
     assert(NULL != event);
 
     I2C_HELPER_DEBUG("clock_event_handler: none\n");
-
     /* clock toggling */
     if (this->is_clock_enabled)
     {
@@ -246,12 +247,13 @@ void I2C_helper::stop_clock(void)
 {
     I2C_HELPER_DEBUG("Stop clock\n");
     this->is_clock_enabled =false;
+    this->cancel_event(&this->clock_event);
 
     this->desired_scl = 1;
 
     this->is_driving_scl = false;
     this->is_driving_sda = false;
-    this->sync_pins();
+    this->enqueue_data_change(1);
 }
 
 void I2C_helper::fsm_step(int input_scl, int input_sda)
@@ -264,6 +266,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
     bool sda_falling = (input_sda == 0 && this->sda == 1);
     I2C_HELPER_DEBUG("\n\n\n");
     I2C_HELPER_DEBUG("fsm_step: input_scl=%d, input_sda=%d\n", input_scl, input_sda);
+    I2C_HELPER_DEBUG("fsm_step: scl=%d, this->scl=%d\n", input_scl, this->scl);
     I2C_HELPER_DEBUG("fsm_step: sda=%d, this->sda=%d\n", input_sda, this->sda);
     I2C_HELPER_DEBUG("fsm_step: this=%p\n", (void*) this);
 
@@ -368,7 +371,7 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
                 this->internal_state = I2C_INTERNAL_DATA;
             }
 
-            if (this->is_driving_sda && this->desired_sda != this->sda)
+            if (this->is_driving_sda && this->desired_sda != this->sda && this->desired_sda != 0)
             {
                 // we lost arbitration
                 i2c_operation_e operation = I2C_OP_DATA;
@@ -478,18 +481,17 @@ void I2C_helper::fsm_step(int input_scl, int input_sda)
 
 void I2C_helper::enqueue_clock_toggle(void)
 {
-    I2C_HELPER_DEBUG("enqueue_clock_toggle\n");
+    I2C_HELPER_DEBUG("enqueue_clock_toggle: clock_low=%s\n",
+            this->is_clock_low ? "true" : "false");
     if (this->is_clock_enabled)
     {
-        if (!this->clock_event.is_enqueued())
+        if (this->clock_event.is_enqueued())
         {
-            const uint64_t delay = this->is_clock_low ? this->delay_low_ps : this->delay_high_ps;
-            this->enqueue_event(&this->clock_event, delay);
+            this->cancel_event(&this->clock_event);
         }
-        else
-        {
-            //assert(false);
-        }
+
+        const uint64_t delay = this->is_clock_low ? this->delay_low_ps : this->delay_high_ps;
+        this->enqueue_event(&this->clock_event, delay);
     }
 }
 

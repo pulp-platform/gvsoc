@@ -29,7 +29,10 @@ I2c_corruptor::I2c_corruptor(js::config* config)
             std::bind(&I2c_corruptor::i2c_enqueue_event,
                 this,
                 std::placeholders::_1,
-                std::placeholders::_2)
+                std::placeholders::_2),
+            std::bind(&I2c_corruptor::i2c_cancel_event,
+                this,
+                std::placeholders::_1)
             ),
     start_event(this, this, &I2c_corruptor::st_start_event_handler),
     prev_sda(1),
@@ -45,7 +48,7 @@ I2c_corruptor::I2c_corruptor(js::config* config)
                 std::placeholders::_1,
                 std::placeholders::_2,
                 std::placeholders::_3));
-    this->i2c_helper.set_timings(1000, 1000);
+    this->i2c_helper.set_timings(100, 100);
 }
 
 void I2c_corruptor::st_start_event_handler(void* __this, vp::clock_event* event)
@@ -168,6 +171,11 @@ void I2c_corruptor::i2c_helper_callback(i2c_operation_e id, i2c_status_e status,
 void I2c_corruptor::i2c_enqueue_event(vp::clock_event* event, uint64_t time_unit)
 {
     this->event_enqueue(event, time_unit);
+}
+
+void I2c_corruptor::i2c_cancel_event(vp::clock_event* event)
+{
+    this->event_cancel(event);
 }
 
 extern "C" vp::component *vp_constructor(js::config *config)
