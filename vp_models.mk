@@ -24,6 +24,15 @@ VP_COMP_DBG_LDFLAGS=-lpulpvp-debug
 VP_COMP_CFLAGS += -Werror -Wfatal-errors
 VP_COMP_LDFLAGS += -Werror -Wfatal-errors
 
+# This workaround disables the -Werror for detected null pointer dereferences.
+# This is only necessary in the case of a buggy detection where
+# invalid warnings are issued that result in a fatal build error.
+ifdef VP_WORKAROUND_NONNULL_BUG
+VP_COMP_CFLAGS += -Wno-error=nonnull
+VP_COMP_CPPFLAGS += -Wno-error=nonnull
+VP_COMP_LDFLAGS += -Wno-error=nonnull
+endif
+
 ifdef VP_USE_SYSTEMC
 VP_COMP_CFLAGS += -D__VP_USE_SYSTEMC -I$(SYSTEMC_HOME)/include
 ifdef VP_USE_SYSTEMC_DRAMSYS
