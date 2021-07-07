@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
@@ -29,9 +29,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "vp/itf/hyper.hpp"
-#include "vp/itf/wire.hpp"
-#include "archi/utils.h"
+#include <vp/itf/hyper.hpp>
+#include <vp/itf/wire.hpp>
 
 #define REGS_AREA_SIZE 1024
 
@@ -512,7 +511,7 @@ int Hyperflash::build()
   this->state = HYPERFLASH_STATE_WAIT_CMD0;
   this->pending_bytes = 0;
   this->pending_cmd = 0;
-  
+
   js::config *preload_file_conf = conf->get("preload_file");
   if (preload_file_conf == NULL)
   {
