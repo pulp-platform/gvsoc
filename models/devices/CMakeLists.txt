@@ -1,0 +1,8 @@
+add_subdirectory(ble)
+add_subdirectory(camera)
+add_subdirectory(hyperbus)
+add_subdirectory(jtag)
+add_subdirectory(sound)
+add_subdirectory(spiflash)
+add_subdirectory(testbench)
+add_subdirectory(uart)
