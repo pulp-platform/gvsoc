@@ -1,6 +1,7 @@
 add_subdirectory(ble)
 add_subdirectory(camera)
 add_subdirectory(hyperbus)
+add_subdirectory(i2c)
 add_subdirectory(jtag)
 add_subdirectory(sound)
 add_subdirectory(spiflash)
