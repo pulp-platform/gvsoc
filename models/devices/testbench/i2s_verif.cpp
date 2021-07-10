@@ -402,18 +402,17 @@ void I2s_verif::sync(int sck, int ws, int sdio)
     if (sck != this->prev_sck)
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
-
-
+        
         this->prev_sck = sck;
 
         if (this->is_pdm)
         {
-            if (!sck)
+            if (sck == 0)
             {
                 this->slots[0]->pdm_get();
                 this->slots[2]->pdm_get();
             }
-            else
+            else if (sck == 1)
             {
                 this->slots[0]->pdm_sync(sdio & 3);
                 this->slots[2]->pdm_sync(sdio >> 2);
@@ -424,7 +423,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
         }
         else
         {
-            if (sck)
+            if (sck == 1)
             {
                 // The channel is the one of this microphone
                 if (this->prev_ws != ws && ws == 1)
