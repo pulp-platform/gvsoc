@@ -194,7 +194,7 @@ void vp::time_engine::run()
 
 void vp::time_engine::quit(int status)
 {
-    this->stop_engine(status, true);
+    this->stop_engine(status, true, true);
 }
 
 

@@ -63,7 +63,7 @@ public:
 
     inline void unlock();
 
-    inline void stop_engine(int status=0, bool force = true);
+    inline void stop_engine(int status=0, bool force = true, bool no_retain = false);
 
     inline void stop_retain(int count);
 
@@ -156,7 +156,7 @@ protected:
 
 // This can be called from anywhere so just propagate the stop request
 // to the main python thread which will take care of stopping the engine.
-inline void vp::time_engine::stop_engine(int status, bool force)
+inline void vp::time_engine::stop_engine(int status, bool force, bool no_retain)
 {
     if (!this->engine_has_been_stopped)
     {
@@ -168,7 +168,7 @@ inline void vp::time_engine::stop_engine(int status, bool force)
         stop_status |= status;
     }
 
-    if (stop_retain_count == 0 || stop_status != 0)
+    if (no_retain || stop_retain_count == 0 || stop_status != 0)
     {
     #ifdef __VP_USE_SYSTEMC
         sync_event.notify();
