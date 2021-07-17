@@ -538,6 +538,7 @@ Tx_stream_raw_file::Tx_stream_raw_file(Slot *slot, std::string filepath)
 {
     this->slot = slot;
     this->outfile = fopen(filepath.c_str(), "w");
+    this->slot->trace.msg(vp::trace::LEVEL_INFO, "Opening dumper (path: %s)\n", filepath.c_str());
     if (this->outfile == NULL)
     {
         this->slot->top->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
@@ -1145,7 +1146,7 @@ int64_t Slot::exec()
 void Slot::pdm_get()
 {
     this->close = true;
-    this->enqueue_to_engine(50);
+    this->enqueue_to_engine(4000);
 }
 
 
