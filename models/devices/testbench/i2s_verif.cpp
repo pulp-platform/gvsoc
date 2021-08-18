@@ -190,6 +190,7 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     this->frame_active = false;
     this->ws_delay = config->ws_delay;
     this->zero_delay_start = this->ws_delay == 0;
+    this->sync_ongoing = false;
     this->current_ws_delay = 0;
     this->is_pdm = config->is_pdm;
     this->is_full_duplex = config->is_full_duplex;
@@ -369,6 +370,13 @@ void I2s_verif::set_pdm_data(int slot, int data)
 
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
+    bool got_data = false;
+
+    if (this->sync_ongoing)
+        return;
+
+    this->sync_ongoing = true;
+
     this->sdio = sdio;
 
     if (this->config.is_sai0_clk)
@@ -388,22 +396,39 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
-    if (!this->is_pdm && this->zero_delay_start && this->prev_ws != ws && ws == 1)
-    {
-        this->zero_delay_start = false;
-        this->frame_active = true;
-        this->active_slot = 0;
-        this->pending_bits = this->config.word_size;
-        this->slots[0]->start_frame();
-        this->data = this->slots[0]->get_data() | (2 << 2);
-        this->itf->sync(this->clk, this->ws_value, this->data);
-    }
+        this->trace.msg(vp::trace::LEVEL_TRACE, "I2S SYNC (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
+        
+        if (!this->is_pdm && this->zero_delay_start && this->prev_ws != ws && ws == 1)
+        {
+            got_data = true;
+            this->zero_delay_start = false;
+            this->frame_active = true;
+            this->active_slot = 0;
+            this->pending_bits = this->config.word_size;
+            this->slots[0]->start_frame();
+            this->data = this->slots[0]->get_data() | (2 << 2);
+            this->itf->sync(this->clk, this->ws_value, this->data);
+        }
 
     if (sck != this->prev_sck)
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
         
         this->prev_sck = sck;
+#if 0
+        if (sck == 0 && !this->is_pdm && this->zero_delay_start && this->prev_ws != ws && ws == 1)
+        {
+            got_data = true;
+            this->got_zero_delay_data = true;
+            this->zero_delay_start = false;
+            this->frame_active = true;
+            this->active_slot = 0;
+            this->pending_bits = this->config.word_size;
+            this->slots[0]->start_frame();
+            this->data = this->slots[0]->get_data() | (2 << 2);
+            this->itf->sync(this->clk, this->ws_value, this->data);
+        }
+        #endif
 
         if (this->is_pdm)
         {
@@ -439,7 +464,7 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                         if (error >= 10)
                         {
                             this->trace.fatal("Detected wrong period (expected: %ld ps, measured: %ld ps)\n", this->sampling_period, measured_period);
-                            return;                            
+                            goto end;
                         }
                     }
 
@@ -489,15 +514,18 @@ void I2s_verif::sync(int sck, int ws, int sdio)
             {
                 if (this->frame_active)
                 {
-                    if (this->pending_bits == this->config.word_size)
+                    if (!got_data)
                     {
-                        this->slots[this->active_slot]->start_frame();
+                        if (this->pending_bits == this->config.word_size)
+                        {
+                            this->slots[this->active_slot]->start_frame();
+                        }
+                        this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
+
+
+                        this->trace.msg(vp::trace::LEVEL_TRACE, "I2S output data (sdi: 0x%x)\n", this->data & 3);
+                        this->itf->sync(this->clk, this->ws_value, this->data);
                     }
-                    this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
-
-
-                    this->trace.msg(vp::trace::LEVEL_TRACE, "I2S output data (sdi: 0x%x)\n", this->data & 3);
-                    this->itf->sync(this->clk, this->ws_value, this->data);
                 }
             }
 
@@ -518,6 +546,9 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
         }
     }
+
+end:
+    this->sync_ongoing = false;
 }
 
 

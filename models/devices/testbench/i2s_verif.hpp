@@ -54,6 +54,7 @@ public:
     bool frame_active;
     int  current_ws_delay;
     int  active_slot;
+    bool sync_ongoing;
     bool zero_delay_start;
     int  pending_bits;
 
