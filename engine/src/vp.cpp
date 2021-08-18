@@ -1289,6 +1289,11 @@ void vp::reg::reset(bool active)
         {
             memset((void *)this->value_bytes, 0, this->nb_bytes);
         }
+
+        if (this->reg_event.get_event_active())
+        {
+            this->reg_event.event((uint8_t *)this->value_bytes);
+        }
     }
 }
 
