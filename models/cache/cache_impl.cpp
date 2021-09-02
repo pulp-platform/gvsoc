@@ -339,7 +339,7 @@ vp::io_req_status_e Cache::req(void *__this, vp::io_req *req, int port)
 
   _this->trace.msg(vp::trace::LEVEL_TRACE, "Received req (port: %d, is_write: %d, offset: 0x%x, size: 0x%x)\n", port, is_write, offset, size);
 
-  if (!_this->enabled)
+  if (!_this->enabled || req->is_debug())
   {
     req->set_addr((req->get_addr() << _this->refill_shift) + _this->add_offset);
     return _this->refill_itf.req_forward(req);
@@ -421,7 +421,7 @@ vp::io_req_status_e Cache::req_l16_w4(void *__this, vp::io_req *req, int port)
 
   _this->trace.msg(vp::trace::LEVEL_TRACE, "Received req (port: %d, is_write: %d, offset: 0x%x, size: 0x%x)\n", port, is_write, offset, size);
 
-  if (!_this->enabled)
+  if (!_this->enabled || req->is_debug())
   {
     req->set_addr((req->get_addr() << _this->refill_shift) + _this->add_offset);
     return _this->refill_itf.req_forward(req);

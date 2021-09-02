@@ -161,6 +161,10 @@ static inline int iss_fetch_req_common(iss_t *_this, uint64_t addr, uint8_t *dat
   req->set_size(size);
   req->set_is_write(is_write);
   req->set_data(data);
+  if (!timed)
+  {
+    req->set_debug(true);
+  }
   vp::io_req_status_e err = _this->fetch.req(req);
   if (err != vp::IO_REQ_OK)
   {
@@ -174,8 +178,8 @@ static inline int iss_fetch_req_common(iss_t *_this, uint64_t addr, uint8_t *dat
   }
 
   int64_t latency = req->get_latency();
-  
-  if (latency)
+
+  if (timed && latency)
   {
     _this->cpu.state.fetch_cycles += latency;
     iss_pccr_account_event(_this, CSR_PCER_IMISS, latency);
@@ -184,14 +188,9 @@ static inline int iss_fetch_req_common(iss_t *_this, uint64_t addr, uint8_t *dat
   return 0;
 }
 
-static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
+static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write, bool timed)
 {
-  return iss_fetch_req_common(_this, addr, data, size, is_write, 0);
-}
-
-static inline int iss_fetch_req_timed(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
-{
-  return iss_fetch_req_common(_this, addr, data, size, is_write, 1);
+  return iss_fetch_req_common(_this, addr, data, size, is_write, timed);
 }
 
 static inline int iss_irq_ack(iss_t *iss, int irq)
