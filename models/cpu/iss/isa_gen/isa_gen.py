@@ -947,6 +947,7 @@ class Instr(object):
         self.isa_tags = isa_tags
         self.out_reg_latencies = []
         self.latency = 0
+        self.power_group = 0
         self.resource = None
         nb_insn += 1
 
@@ -993,6 +994,9 @@ class Instr(object):
 
     def set_latency(self, latency):
         self.latency = latency
+
+    def set_power_group(self, power_group):
+        self.power_group = power_group
 
     def get_out_reg(self, reg):
         index = 0
@@ -1057,6 +1061,7 @@ class Instr(object):
                 arg.gen(isaFile, indent=8)
         self.dump(isaFile, '      },\n')
         self.dump(isaFile, '      .resource_id=%d,\n' % (-1 if self.resource is None else isa.get_resource_index(self.resource)))
+        self.dump(isaFile, '      .power_group=%d,\n' % (self.power_group))
         self.dump(isaFile, '    }\n')
         self.dump(isaFile, '  }\n')
         self.dump(isaFile, '};\n')

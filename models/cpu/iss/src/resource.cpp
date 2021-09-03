@@ -62,7 +62,11 @@ iss_insn_t *iss_resource_offload(iss_t *iss, iss_insn_t *insn)
     }
 
     // Account the latency of the resource on the core, as the result is available after the resource latency
-    iss->cpu.state.insn_cycles += cycles + instance->latency - 1;  
+    iss->cpu.state.insn_cycles += cycles + instance->latency - 1;
+
+    // TODO this is incompatible with frequency scaling, this should be replaced by an event scheduled with cycles
+    static uint8_t one = 1, zero = 0;
+    iss->insn_cont_event.event_pulse(iss->get_period() * cycles + instance->latency - 1, &one, &zero);
 
     // Now that timing is modeled, execute the instruction
     return insn->resource_handler(iss, insn);

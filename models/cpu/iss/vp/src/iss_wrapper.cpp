@@ -103,13 +103,13 @@ do { \
   { \
     _this->ipc_stat_nb_insn++; \
   } \
-  if (_this->power_trace.get_active()) \
-  { \
-  _this->insn_power.account_event(); \
- } \
  \
   iss_insn_t *insn = _this->cpu.current_insn; \
   int cycles = func(_this); \
+  if (_this->power_trace.get_active()) \
+  { \
+  _this->insn_groups_power[_this->cpu.prev_insn->decoder_item->u.insn.power_group].account_event(); \
+ } \
   trdb_record_instruction(_this, insn); \
   if (cycles >= 0) \
   { \
@@ -1089,6 +1089,7 @@ int iss_wrapper::build()
   traces.new_trace_event_string("file", &file_trace_event);
   traces.new_trace_event("line", &line_trace_event, 32);
   traces.new_trace_event("misaligned", &misaligned_req_event, 1);
+  traces.new_trace_event("insn_cont", &insn_cont_event, 1);
 
   // TODO this should come from the config file as different chips may not have
   // same counters
@@ -1124,7 +1125,20 @@ int iss_wrapper::build()
   this->new_reg("step_mode", &this->step_mode, false);
   this->new_reg("do_step", &this->do_step, false);
 
-  power.new_event("power_insn", &insn_power, this->get_js_config()->get("**/insn"), &power_trace);
+  if (this->get_js_config()->get("**/insn_groups"))
+  {
+    js::config *config = this->get_js_config()->get("**/insn_groups");
+    this->insn_groups_power.resize(config->get_size());
+    for (int i=0; i<config->get_size(); i++)
+    {
+      power.new_event("power_insn_" + std::to_string(i), &this->insn_groups_power[i], config->get_elem(i), &power_trace);
+    }
+  }
+  else
+  {
+    this->insn_groups_power.resize(1);
+    power.new_event("power_insn", &this->insn_groups_power[0], this->get_js_config()->get("**/insn"), &power_trace);
+  }
   power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace);
   power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
 
@@ -1276,6 +1290,7 @@ void iss_wrapper::reset(bool active)
       this->pcer_trace_event[i].event((uint8_t *)&zero);
     }
     this->misaligned_req_event.event((uint8_t *)&zero);
+    this->insn_cont_event.event((uint8_t *)&zero);
 
     iss_pc_set(this, this->bootaddr_reg.get() + this->bootaddr_offset);
     iss_irq_set_vector_table(this, this->bootaddr_reg.get() & ~((1<<8) - 1));

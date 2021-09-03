@@ -262,6 +262,7 @@ typedef struct iss_decoder_item_s {
       int latency;
       iss_decoder_arg_t args[ISS_MAX_DECODE_ARGS];
       int resource_id;
+      int power_group;
     } insn;
 
     struct {

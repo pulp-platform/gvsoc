@@ -151,7 +151,7 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
   #ifdef VP_TRACE_ACTIVE
     if (_this->power_trigger)
     {
-      if (req->get_is_write() && size == 4)
+      if (req->get_is_write() && size == 4 && offset == 0)
       {
         if (*(uint32_t *)data == 0xabbaabba)
         {

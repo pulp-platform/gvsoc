@@ -388,6 +388,7 @@ void vp::component_clock::pre_build(component *comp)
 
     comp->traces.new_trace("comp", comp->get_trace(), vp::DEBUG);
     comp->traces.new_trace("warning", &comp->warning, vp::WARNING);
+
 }
 
 

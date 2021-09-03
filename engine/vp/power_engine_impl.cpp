@@ -115,13 +115,7 @@ void power_manager::stop_capture()
         return;
     }
 
-    fprintf(file, "Trace path; Dynamic power (W); Leakage power (W); Total (W);");
-
-    for (auto trace : this->traces)
-    {
-        if (!trace->is_dumped())
-            trace->get_top_trace()->dump(file);
-    }
+    this->dump_traces_recursive(file);
 }
 
 

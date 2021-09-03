@@ -409,6 +409,10 @@ namespace vp {
     virtual void pause() {}
     virtual int join() { return -1; }
 
+    virtual void dump_traces(FILE *file) {}
+
+    void dump_traces_recursive(FILE *file);
+
 
     inline js::config *get_js_config() { return comp_js_config; }
 

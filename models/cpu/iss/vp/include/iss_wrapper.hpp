@@ -133,7 +133,7 @@ public:
 
   vp::power_trace power_trace;
 
-  vp::power_source insn_power;
+  std::vector<vp::power_source> insn_groups_power;
   vp::power_source clock_gated_power;
   vp::power_source leakage_power;
 
@@ -146,6 +146,7 @@ public:
   vp::trace     pcer_trace_event[32];
   vp::trace     insn_trace_event;
   vp::trace     misaligned_req_event;
+  vp::trace     insn_cont_event;
 
   static void ipc_stat_handler(void *__this, vp::clock_event *event);
   void gen_ipc_stat(bool pulse=false);
