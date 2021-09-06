@@ -70,6 +70,7 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
   insn->hwloop_handler = NULL;
   insn->fast_handler = item->u.insn.fast_handler;
   insn->handler = item->u.insn.handler;
+  insn->resource_id = item->u.insn.resource_id;
 
   if (item->u.insn.resource_id != -1)
   {

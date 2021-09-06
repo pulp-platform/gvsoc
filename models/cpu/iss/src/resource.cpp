@@ -52,6 +52,8 @@ iss_insn_t *iss_resource_offload(iss_t *iss, iss_insn_t *insn)
     {
         // If not, account the number of cycles until the instance becomes available
         cycles = instance->cycles - iss->get_cycles();
+        iss_pccr_account_event(iss, CSR_PCER_INSN_CONT, cycles);
+
         // And account the access on the instance. The time taken by the access is indicated by the resource bandwidth
         instance->cycles += instance->bandwidth;
     }
@@ -63,8 +65,6 @@ iss_insn_t *iss_resource_offload(iss_t *iss, iss_insn_t *insn)
 
     // Account the latency of the resource on the core, as the result is available after the resource latency
     iss->cpu.state.insn_cycles += cycles + instance->latency - 1;
-
-    iss_pccr_account_event(iss, CSR_PCER_INSN_CONT, cycles + instance->latency - 1);
 
     // Now that timing is modeled, execute the instruction
     return insn->resource_handler(iss, insn);
