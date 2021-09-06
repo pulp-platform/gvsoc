@@ -48,6 +48,7 @@ static inline void iss_pccr_incr(iss_t *iss, unsigned int event, int incr)
   static uint64_t one = 1;
   if (iss->pcer_trace_event[event].get_event_active())
   {
+    // TODO this is incompatible with frequency scaling, this should be replaced by an event scheduled with cycles
     iss->pcer_trace_event[event].event_pulse(incr*iss->get_period(), (uint8_t *)&one, (uint8_t *)&zero);
   }
 }

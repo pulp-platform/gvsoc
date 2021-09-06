@@ -33,6 +33,14 @@
 #include "trace_debugger.h"
 #endif
 
+
+typedef struct
+{
+    std::string name;
+    std::string help;
+} iss_wrapper_pcer_info_t;
+
+
 class iss_wrapper : public vp::component, vp::Gdbserver_core
 {
 
@@ -45,7 +53,7 @@ public:
   void pre_reset();
   void reset(bool active);
 
-  virtual void target_open() {}
+  virtual void target_open();
 
   static void data_grant(void *_this, vp::io_req *req);
   static void data_response(void *_this, vp::io_req *req);
@@ -97,6 +105,8 @@ public:
   int gdbserver_stepi();
   int gdbserver_state();
 
+  void declare_pcer(int index, std::string name, std::string help);
+
   vp::io_master data;
   vp::io_master fetch;
   vp::io_slave  dbg_unit;
@@ -145,8 +155,10 @@ public:
   vp::trace     file_trace_event;
   vp::trace     pcer_trace_event[32];
   vp::trace     insn_trace_event;
-  vp::trace     misaligned_req_event;
-  vp::trace     insn_cont_event;
+
+  iss_wrapper_pcer_info_t pcer_info[32];
+  int64_t cycle_count_start;
+  int64_t cycle_count;
 
   static void ipc_stat_handler(void *__this, vp::clock_event *event);
   void gen_ipc_stat(bool pulse=false);
