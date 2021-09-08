@@ -630,276 +630,448 @@ void iss_wrapper::handle_riscv_ebreak()
 {
   int id = this->cpu.regfile.regs[10];
 
-  if (id == 0x4)
+  switch (id)
   {
-    std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
-    printf("%s", path.c_str());
-  }
-  else if (id == 0x1)
-  {
-    iss_reg_t args[3];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+    case 0x4:
     {
-      this->cpu.regfile.regs[10] = -1;
-      return;
-    }
-    std::string path = this->read_user_string(args[0], args[2]);
-
-
-    unsigned int mode = args[1];
-
-    this->cpu.regfile.regs[10] = open(path.c_str(), open_modeflags[mode], 0644);
-
-    if (this->cpu.regfile.regs[10] == -1)
-      this->warning.force_warning("Caught error during semi-hosted call (name: open, path: %s, mode: 0x%x, error: %s)\n", path.c_str(), mode, strerror(errno));
-
-
-  }
-  else if (id == 0x2)
-  {
-    this->cpu.regfile.regs[10] = close(this->cpu.regfile.regs[11]);
-  }
-  else if (id == 0x5)
-  {
-    iss_reg_t args[3];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      this->cpu.regfile.regs[10] = -1;
-      return;
+      std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
+      printf("%s", path.c_str());
+      break;
     }
 
-    uint8_t buffer[1024];
-    int size = args[2];
-    iss_reg_t addr = args[1];
-    while(size)
+    case 0x1:
     {
-      int iter_size = 1024;
-      if (size < 1024)
-        iter_size = size;
+      iss_reg_t args[3];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+      std::string path = this->read_user_string(args[0], args[2]);
 
-      if (this->user_access(addr, buffer, iter_size, false))
+
+      unsigned int mode = args[1];
+
+      this->cpu.regfile.regs[10] = open(path.c_str(), open_modeflags[mode], 0644);
+
+      if (this->cpu.regfile.regs[10] == -1)
+        this->warning.force_warning("Caught error during semi-hosted call (name: open, path: %s, mode: 0x%x, error: %s)\n", path.c_str(), mode, strerror(errno));
+
+      break;
+    }
+
+    case 0x2:
+    {
+      this->cpu.regfile.regs[10] = close(this->cpu.regfile.regs[11]);
+      break;
+    }
+
+    case 0x5:
+    {
+      iss_reg_t args[3];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
       {
         this->cpu.regfile.regs[10] = -1;
         return;
       }
 
-      if (write(args[0], (void *)(long)buffer, iter_size) != iter_size)
-        break;
-
-      size -= iter_size;
-      addr += iter_size;
-    }
-
-    this->cpu.regfile.regs[10] = size;
-  }
-  else if (id == 0x6)
-  {
-    iss_reg_t args[3];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      this->cpu.regfile.regs[10] = -1;
-      return;
-    }
-
-    uint8_t buffer[1024];
-    int size = args[2];
-    iss_reg_t addr = args[1];
-    while(size)
-    {
-      int iter_size = 1024;
-      if (size < 1024)
-        iter_size = size;
-
-      int read_size = read(args[0], (void *)(long)buffer, iter_size);
-
-      if (read_size <= 0)
+      uint8_t buffer[1024];
+      int size = args[2];
+      iss_reg_t addr = args[1];
+      while(size)
       {
-        if (read_size < 0)
+        int iter_size = 1024;
+        if (size < 1024)
+          iter_size = size;
+
+        if (this->user_access(addr, buffer, iter_size, false))
         {
           this->cpu.regfile.regs[10] = -1;
           return;
         }
-        else
-        {
+
+        if (write(args[0], (void *)(long)buffer, iter_size) != iter_size)
           break;
-        }
+
+        size -= iter_size;
+        addr += iter_size;
       }
 
-      if (this->user_access(addr, buffer, read_size, true))
+      this->cpu.regfile.regs[10] = size;
+      break;
+    }
+
+    case 0x6:
+    {
+      iss_reg_t args[3];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
       {
         this->cpu.regfile.regs[10] = -1;
         return;
       }
 
-      size -= read_size;
-      addr += read_size;
-    }
-
-    this->cpu.regfile.regs[10] = size;
-  }
-  else if (id == 0xA)
-  {
-    iss_reg_t args[2];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      this->cpu.regfile.regs[10] = -1;
-      return;
-    }
-
-    int pos = lseek(args[0], args[1], SEEK_SET);
-    this->cpu.regfile.regs[10] = pos != args[1];
-  }
-  else if (id == 0x18)
-  {
-    if (this->cpu.regfile.regs[11] == 0x20026)
-      exit(0);
-    else
-      exit(1);
-  }
-  else if (id == 0x0C)
-  {
-    struct stat buf;
-    fstat(this->cpu.regfile.regs[11], &buf);
-    this->cpu.regfile.regs[10] = buf.st_size;
-  }
-  else if (id == 0x100)
-  {
-    iss_reg_t args[2];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      this->cpu.regfile.regs[10] = -1;
-      return;
-    }
-    std::string path = this->read_user_string(args[0]);
-    if (path == "")
-    {
-      this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[0]);
-    }
-    else
-    {
-      if (args[1])
+      uint8_t buffer[1024];
+      int size = args[2];
+      iss_reg_t addr = args[1];
+      while(size)
       {
-        this->traces.get_trace_manager()->add_trace_path(0, path);
-      }
-      else
-      {
-        this->traces.get_trace_manager()->add_exclude_trace_path(0, path);
-      }
-      this->traces.get_trace_manager()->check_traces();
-    }
-  }
-  else if (id == 0x101)
-  {
-    iss_reg_t args[1];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      this->cpu.regfile.regs[10] = -1;
-      return;
-    }
+        int iter_size = 1024;
+        if (size < 1024)
+          iter_size = size;
 
-    iss_csr_write(this, CSR_PCER, args[0]);
-  }
-  else if (id == 0x102)
-  {
-    iss_csr_write(this, CSR_PCCR(31), 0);
-    this->cycle_count = 0;
-    iss_reg_t value;
-    iss_csr_read(this, CSR_PCMR, &value);
-    if ((value & 1) == 1)
-    {
-      this->cycle_count_start = this->get_cycles();
-    }
-  }
-  else if (id == 0x103)
-  {
-    iss_reg_t value;
-    iss_csr_read(this, CSR_PCMR, &value);
-    if ((value & 1) == 0)
-    {
-      this->cycle_count_start = this->get_cycles();
-    }
+        int read_size = read(args[0], (void *)(long)buffer, iter_size);
 
-    iss_csr_write(this, CSR_PCMR, 1);
-  }
-  else if (id == 0x104)
-  {
-
-    iss_reg_t value;
-    iss_csr_read(this, CSR_PCMR, &value);
-    if ((value & 1) == 1)
-    {
-      this->cycle_count += this->get_cycles() - this->cycle_count_start;
-    }
-
-    iss_csr_write(this, CSR_PCMR, 0);
-  }
-  else if (id == 0x105)
-  {
-    iss_reg_t args[1];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      return;
-    }
-    iss_csr_read(this, CSR_PCCR(args[0]), &this->cpu.regfile.regs[10]);
-  }
-  else if (id == 0x106)
-  {
-    iss_reg_t args[2];
-    if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
-    {
-      this->cpu.regfile.regs[10] = -1;
-      return;
-    }
-    std::string path = this->read_user_string(args[0]);
-    std::string mode = this->read_user_string(args[1]);
-    if (path == "")
-    {
-      this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[0]);
-    }
-    else
-    {
-      if (mode == "")
-      {
-        this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[1]);
-      }
-      else
-      {
-        this->cpu.regfile.regs[10] = 0;
-        FILE *file = fopen(path.c_str(), mode.c_str());
-        if (file == NULL)
+        if (read_size <= 0)
         {
-          this->cpu.regfile.regs[10] = -1;
-          return;
-        }
-
-        iss_reg_t value;
-        iss_csr_read(this, CSR_PCMR, &value);
-        if ((value & 1) == 1)
-        {
-          this->cycle_count += this->get_cycles() - this->cycle_count_start;
-          this->cycle_count_start = this->get_cycles();
-        }
-
-        fprintf(file, "PCER values at timestamp %ld ps, duration %ld cycles\n", this->get_time(), this->cycle_count);
-        fprintf(file, "Index; Name; Description; Value\n");
-        for (int i=0; i<31; i++)
-        {
-          if (this->pcer_info[i].name != "")
+          if (read_size < 0)
           {
-            iss_reg_t value;
-            iss_csr_read(this, CSR_PCCR(i), &value);
-            fprintf(file, "%d; %s; %s; %d\n", i, this->pcer_info[i].name.c_str(), this->pcer_info[i].help.c_str(), value);
+            this->cpu.regfile.regs[10] = -1;
+            return;
+          }
+          else
+          {
+            break;
           }
         }
 
+        if (this->user_access(addr, buffer, read_size, true))
+        {
+          this->cpu.regfile.regs[10] = -1;
+          return;
+        }
 
-        fclose(file);
+        size -= read_size;
+        addr += read_size;
       }
+
+      this->cpu.regfile.regs[10] = size;
+
+      break;
     }
-  }
-  else
-  {
-    this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
+
+    case 0xA:
+    {
+      iss_reg_t args[2];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+
+      int pos = lseek(args[0], args[1], SEEK_SET);
+      this->cpu.regfile.regs[10] = pos != args[1];
+      break;
+    }
+
+    case 0x18:
+    {
+      if (this->cpu.regfile.regs[11] == 0x20026)
+        exit(0);
+      else
+        exit(1);
+
+      break;
+    }
+
+    case 0x0C:
+    {
+      struct stat buf;
+      fstat(this->cpu.regfile.regs[11], &buf);
+      this->cpu.regfile.regs[10] = buf.st_size;
+      break;
+    }
+
+    case 0x100:
+    {
+      iss_reg_t args[2];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+      std::string path = this->read_user_string(args[0]);
+      if (path == "")
+      {
+        this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[0]);
+      }
+      else
+      {
+        if (args[1])
+        {
+          this->traces.get_trace_manager()->add_trace_path(0, path);
+        }
+        else
+        {
+          this->traces.get_trace_manager()->add_exclude_trace_path(0, path);
+        }
+        this->traces.get_trace_manager()->check_traces();
+      }
+      break;
+    }
+
+    case 0x101:
+    {
+      iss_reg_t args[1];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+
+      iss_csr_write(this, CSR_PCER, args[0]);
+
+      break;
+    }
+
+    case 0x102:
+    {
+      iss_csr_write(this, CSR_PCCR(31), 0);
+      this->cycle_count = 0;
+      iss_reg_t value;
+      iss_csr_read(this, CSR_PCMR, &value);
+      if ((value & 1) == 1)
+      {
+        this->cycle_count_start = this->get_cycles();
+      }
+      break;
+    }
+
+    case 0x103:
+    {
+      iss_reg_t value;
+      iss_csr_read(this, CSR_PCMR, &value);
+      if ((value & 1) == 0)
+      {
+        this->cycle_count_start = this->get_cycles();
+      }
+
+      iss_csr_write(this, CSR_PCMR, 1);
+      break;
+    }
+
+    case 0x104:
+    {
+
+      iss_reg_t value;
+      iss_csr_read(this, CSR_PCMR, &value);
+      if ((value & 1) == 1)
+      {
+        this->cycle_count += this->get_cycles() - this->cycle_count_start;
+      }
+
+      iss_csr_write(this, CSR_PCMR, 0);
+      break;
+    }
+
+    case 0x105:
+    {
+      iss_reg_t args[1];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        return;
+      }
+      iss_csr_read(this, CSR_PCCR(args[0]), &this->cpu.regfile.regs[10]);
+      break;
+    }
+
+    case 0x106:
+    {
+      iss_reg_t args[2];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+      std::string path = this->read_user_string(args[0]);
+      std::string mode = this->read_user_string(args[1]);
+      if (path == "")
+      {
+        this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[0]);
+      }
+      else
+      {
+        if (mode == "")
+        {
+          this->warning.force_warning("Invalid user string while opening trace (addr: 0x%x)\n", args[1]);
+        }
+        else
+        {
+          this->cpu.regfile.regs[10] = 0;
+          FILE *file = fopen(path.c_str(), mode.c_str());
+          if (file == NULL)
+          {
+            this->cpu.regfile.regs[10] = -1;
+            return;
+          }
+
+          iss_reg_t value;
+          iss_csr_read(this, CSR_PCMR, &value);
+          if ((value & 1) == 1)
+          {
+            this->cycle_count += this->get_cycles() - this->cycle_count_start;
+            this->cycle_count_start = this->get_cycles();
+          }
+
+          fprintf(file, "PCER values at timestamp %ld ps, duration %ld cycles\n", this->get_time(), this->cycle_count);
+          fprintf(file, "Index; Name; Description; Value\n");
+          for (int i=0; i<31; i++)
+          {
+            if (this->pcer_info[i].name != "")
+            {
+              iss_reg_t value;
+              iss_csr_read(this, CSR_PCCR(i), &value);
+              fprintf(file, "%d; %s; %s; %d\n", i, this->pcer_info[i].name.c_str(), this->pcer_info[i].help.c_str(), value);
+            }
+          }
+
+
+          fclose(file);
+        }
+      }
+        break;
+    }
+
+    case 0x107: {
+      iss_reg_t args[1];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+      this->traces.get_trace_manager()->set_global_enable(args[0]);
+      break;
+    }
+
+    case 0x108: {
+      iss_reg_t args[1];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+
+      int result = -1;
+      std::string path = this->read_user_string(args[0]);
+      if (path == "")
+      {
+        this->warning.force_warning("Invalid user string while opening VCD trace (addr: 0x%x)\n", args[0]);
+      }
+      else
+      {
+        vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_path(path);
+        if (trace == NULL)
+        {
+          this->warning.force_warning("Invalid VCD trace (path: %s)\n", path.c_str());
+        }
+        else
+        {
+          this->trace.msg("Opened VCD trace (path: %s, id: %d)\n", path.c_str(), trace->id);
+          result = trace->id;
+        }
+      }
+
+      this->cpu.regfile.regs[10] = result;
+
+      break;
+    }
+    
+    case 0x109:
+    break;
+    
+    case 0x10A: {
+      iss_reg_t args[2];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+
+      int id = args[0];
+      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
+      if (trace == NULL)
+      {
+        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
+      }
+      else
+      {
+        if (trace->width > 32)
+        {
+          this->warning.force_warning("Trying to write to VCD trace whose width is bigger than 32 (id: %d)\n", id);
+        }
+        else
+        {
+          if (0)
+            trace->event(NULL);
+          else
+            trace->event((uint8_t *)&args[1]);
+        }
+      }
+
+      break; 
+    }
+    
+    case 0x10C: {
+      iss_reg_t args[1];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+
+      int id = args[0];
+      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
+      if (trace == NULL)
+      {
+        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
+      }
+      else
+      {
+        if (trace->width > 32)
+        {
+          this->warning.force_warning("Trying to write to VCD trace whose width is bigger than 32 (id: %d)\n", id);
+        }
+        else
+        {
+          trace->event(NULL);
+        }
+      }
+
+      break; 
+    }
+    
+    case 0x10B: {
+      iss_reg_t args[2];
+      if (this->user_access(this->cpu.regfile.regs[11], (uint8_t *)args, sizeof(args), false))
+      {
+        this->cpu.regfile.regs[10] = -1;
+        return;
+      }
+
+      int id = args[0];
+      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
+      if (trace == NULL)
+      {
+        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
+      }
+      else
+      {
+        if (!trace->is_string)
+        {
+          this->warning.force_warning("Trying to write string to VCD trace which is not a string (id: %d)\n", id);
+        }
+        else
+        {
+          std::string path = this->read_user_string(args[1]);
+
+          trace->event_string(path);
+        }
+      }
+      break;
+    }
+
+    default:
+      this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
+      break;
   }
 }
 
@@ -951,90 +1123,7 @@ void iss_wrapper::handle_ebreak()
 
       break; 
     }
-    
-    case GV_SEMIHOSTING_VCD_CONFIGURE: {
-      int enabled = this->cpu.regfile.regs[11];
-      this->traces.get_trace_manager()->set_global_enable(enabled);
-    }
-    break;
-
-    case GV_SEMIHOSTING_VCD_OPEN_TRACE: {
-      int result = -1;
-      std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
-      if (path == "")
-      {
-        this->warning.force_warning("Invalid user string while opening VCD trace (addr: 0x%x)\n", this->cpu.regfile.regs[11]);
-      }
-      else
-      {
-        vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_path(path);
-        if (trace == NULL)
-        {
-          this->warning.force_warning("Invalid VCD trace (path: %s)\n", path.c_str());
-        }
-        else
-        {
-          this->trace.msg("Opened VCD trace (path: %s, id: %d)\n", path.c_str(), trace->id);
-          result = trace->id;
-        }
-      }
-
-      this->cpu.regfile.regs[10] = result;
-
-      break;
-    }
-    
-    case GV_SEMIHOSTING_VCD_CONF_TRACE:
-    break;
-    
-    case GV_SEMIHOSTING_VCD_DUMP_TRACE: {
-      int id = this->cpu.regfile.regs[11];
-      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
-      if (trace == NULL)
-      {
-        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
-      }
-      else
-      {
-        if (trace->width > 32)
-        {
-          this->warning.force_warning("Trying to write to VCD trace whose width is bigger than 32 (id: %d)\n", id);
-        }
-        else
-        {
-          if (this->cpu.regfile.regs[12] == 1)
-            trace->event(NULL);
-          else
-            trace->event((uint8_t *)&this->cpu.regfile.regs[14]);
-        }
-      }
-
-      break; 
-    }
-    
-    case GV_SEMIHOSTING_VCD_DUMP_TRACE_STRING: {
-      int id = this->cpu.regfile.regs[11];
-      vp::trace *trace = this->traces.get_trace_manager()->get_trace_from_id(id);
-      if (trace == NULL)
-      {
-        this->warning.force_warning("Unknown trace ID while dumping VCD trace (id: %d)\n", id);
-      }
-      else
-      {
-        if (!trace->is_string)
-        {
-          this->warning.force_warning("Trying to write string to VCD trace which is not a string (id: %d)\n", id);
-        }
-        else
-        {
-          std::string path = this->read_user_string(this->cpu.regfile.regs[12]);
-
-          trace->event_string(path);
-        }
-      }
-      break;
-    }
-    
+  
     default:
       this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
       break;
