@@ -71,6 +71,8 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
   insn->fast_handler = item->u.insn.fast_handler;
   insn->handler = item->u.insn.handler;
   insn->resource_id = item->u.insn.resource_id;
+  insn->resource_latency = item->u.insn.resource_latency;
+  insn->resource_bandwidth = item->u.insn.resource_bandwidth;
 
   if (item->u.insn.resource_id != -1)
   {
