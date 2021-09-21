@@ -100,13 +100,14 @@ class Proxy(object):
 
                         else:
 
-                            self.payloads[req] = bytearray()
+                            payload = bytearray()
                             size = int(value)
-                            while len(self.payloads[req]) < size:
-                                response = self.socket.recv(size - len(self.payloads[req]))
-                                self.payloads[req] += response
+                            while len(payload) < size:
+                                response = self.socket.recv(size - len(payload))
+                                payload += response
 
                             self.lock.acquire()
+                            self.payloads[req] = payload
                             self.condition.notify_all()
                             self.lock.release()
 
