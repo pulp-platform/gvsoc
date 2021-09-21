@@ -22,6 +22,7 @@
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
 #include <vp/itf/wire.hpp>
+#include <vp/proxy.hpp>
 #include <stdio.h>
 #include <math.h>
 
@@ -92,7 +93,7 @@ public:
   router(js::config *config);
 
   int build();
-  std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args);
+  std::string handle_command(Gv_proxy *proxy, FILE *req_file, FILE *reply_file, std::vector<std::string> args, std::string req);
 
   static vp::io_req_status_e req(void *__this, vp::io_req *req);
 
@@ -342,7 +343,7 @@ void router::response(void *_this, vp::io_req *req)
 }
 
 
-std::string router::handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args)
+std::string router::handle_command(Gv_proxy *proxy, FILE *req_file, FILE *reply_file, std::vector<std::string> args, std::string cmd_req)
 {
     if (args[0] == "mem_write" or args[0] == "mem_read")
     {
@@ -374,15 +375,10 @@ std::string router::handle_command(FILE *req_file, FILE *reply_file, std::vector
 
         if (!is_write)
         {
-            fprintf(reply_file, "router %p read\n", this);
-            int write_size = fwrite(buffer, 1, size, reply_file);
-            if (write_size != size)
-            {
-                error = 1;
-            }
+            error = proxy->send_payload(reply_file, cmd_req, buffer, size);
         }
 
-        delete buffer;
+        delete[] buffer;
 
         return "err=" + std::to_string(error);
     }

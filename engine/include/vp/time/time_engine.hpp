@@ -43,7 +43,7 @@ public:
 
     void run_loop();
 
-    void step(int64_t timestamp);
+    int64_t step(int64_t timestamp);
 
     void run();
 
@@ -68,6 +68,12 @@ public:
     inline void stop_retain(int count);
 
     inline void pause();
+
+    void stop_exec();
+
+    void req_stop_exec();
+
+    void register_stop_notifier(Notifier *notifier);
 
     inline vp::time_engine *get_time_engine() { return this; }
 
@@ -111,6 +117,10 @@ private:
     sc_event sync_event;
     bool started = false;
 #endif
+
+private:
+    vp::component *stop_event;
+    std::vector<Notifier *> stop_notifiers;
 };
 
 class time_engine_client : public component
@@ -206,7 +216,6 @@ inline void vp::time_engine::pause()
 
     pthread_mutex_unlock(&mutex);
 }
-
 
 
 inline void vp::time_engine::wait_running()

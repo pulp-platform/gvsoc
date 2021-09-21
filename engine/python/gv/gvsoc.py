@@ -71,6 +71,7 @@ def process_args(args, config):
 
     if args.vcd:
         config.set('gvsoc/events/enabled', True)
+        config.set('gvsoc/events/gen_gtkw', True)
 
     for event in args.events:
         config.set('gvsoc/events/include_regex', event)
@@ -198,7 +199,6 @@ class Runner(runner.default_runner.Runner):
                     level=gvsoc_config.get_child_int('events/level'),
                     gen_full_tree=False
                 )
-
 
                 gvsoc_config.get('events').set('include_raw', traces)
 

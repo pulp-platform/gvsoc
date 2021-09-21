@@ -36,6 +36,8 @@ namespace vp {
 
         time_event *time_event_new(time_event_meth_t *meth);
 
+        void time_event_del(time_event *event);
+
         time_event *enqueue(time_event *event, int64_t time);
 
         int64_t exec();
@@ -86,6 +88,11 @@ namespace vp {
 inline vp::time_event *vp::time_scheduler::time_event_new(vp::time_event_meth_t *meth)
 {
     return new time_event(this, meth);
+}
+
+inline void vp::time_scheduler::time_event_del(vp::time_event *event)
+{
+    delete event;
 }
 
 #endif

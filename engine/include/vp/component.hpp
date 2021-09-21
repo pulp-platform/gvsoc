@@ -48,6 +48,8 @@ using namespace std;
 #define VP_ERROR_SIZE (1<<16)
 extern char vp_error[];
 
+class Gv_proxy;
+
 namespace vp {
 
   class config;
@@ -383,6 +385,11 @@ namespace vp {
   };
 
 
+  class Notifier {
+  public:
+      virtual void notify() {}
+  };
+
 
 
   class component : public component_clock
@@ -405,8 +412,11 @@ namespace vp {
     virtual void load() {}
     virtual void elab();
     virtual void run() {}
-    virtual void step(int64_t timestamp) {}
+    virtual int64_t step(int64_t timestamp) {return 0; }
     virtual void pause() {}
+    virtual void register_stop_notifier(Notifier *notifier) {}
+    virtual void req_stop_exec() {}
+    virtual void stop_exec() {}
     virtual int join() { return -1; }
 
     virtual void dump_traces(FILE *file) {}
@@ -484,6 +494,7 @@ namespace vp {
     void add_service(std::string name, void *service);
 
     vp::component *new_component(std::string name, js::config *config, std::string module="");
+    void build_instance(std::string name, vp::component *parent);
 
     int get_ports(bool master, int size, const char *names[], void *ports[]);
 
@@ -510,7 +521,7 @@ namespace vp {
 
     void throw_error(std::string error);
 
-    virtual std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args) { return ""; }
+    virtual std::string handle_command(Gv_proxy *proxy, FILE *req_file, FILE *reply_file, std::vector<std::string> args, std::string req) { return ""; }
 
     component_trace traces;
     component_power power;

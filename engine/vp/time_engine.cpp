@@ -21,6 +21,7 @@
 
 #include <vp/vp.hpp>
 #include "vp/time/time_engine.hpp"
+#include "vp/time/time_scheduler.hpp"
 #include <pthread.h>
 #include <signal.h>
 
@@ -52,6 +53,19 @@ SC_MODULE(my_module)
 
 #endif
 
+class time_domain;
+
+class Time_engine_stop_event : public vp::time_scheduler
+{
+public:
+    Time_engine_stop_event(vp::time_engine *top);
+    int64_t step(int64_t duration);
+
+private:
+    static void event_handler(void *__this, vp::time_event *event);
+    vp::time_engine *top;
+};
+
 class time_domain : public vp::time_engine
 {
 
@@ -60,6 +74,7 @@ public:
 
     void pre_pre_build();
     int build();
+
 };
 
 time_domain::time_domain(js::config *config)
@@ -194,7 +209,9 @@ void vp::time_engine::run()
 
 void vp::time_engine::quit(int status)
 {
+    this->get_time_engine()->lock();
     this->stop_engine(status, true, true);
+    this->get_time_engine()->unlock();
 }
 
 
@@ -276,6 +293,8 @@ void vp::time_engine::start()
         retain_count++;
     }
 
+    this->stop_event = new Time_engine_stop_event(this);
+
     if (sa_mode)
     {
     #ifdef __VP_USE_SYSTEMV
@@ -296,61 +315,38 @@ void vp::time_engine::wait_ready()
 }
 
 
-void vp::time_engine::step(int64_t duration)
+
+Time_engine_stop_event::Time_engine_stop_event(vp::time_engine *top) : vp::time_scheduler(NULL), top(top)
 {
-    time_engine_client *current = first_client;
+    this->engine = (vp::time_engine*)top->get_service("time");
 
-    time_engine_client *client = first_client;
+    this->build_instance("stop_event", top);
+}
 
-    int64_t timestamp = this->time + duration;
+int64_t Time_engine_stop_event::step(int64_t duration)
+{
+    vp::time_event *event = this->time_event_new(this->event_handler);
+    this->enqueue(event, duration);
+    return 0;
+}
 
-    while (current && this->time <= timestamp)
-    {
-        current = first_client;
-        
-        vp_assert(first_client->next_event_time >= get_time(), NULL, "event time is before vp time\n");
+void Time_engine_stop_event::event_handler(void *__this, vp::time_event *event)
+{
+    Time_engine_stop_event *_this = (Time_engine_stop_event *)__this;
+    _this->top->stop_exec();
+    _this->time_event_del(event);
+}
 
-        first_client = current->next;
-        current->is_enqueued = false;
 
-        // Update the global engine time with the current event time
-        this->time = current->next_event_time;
-
-        current->running = true;
-
-        int64_t time = current->exec();
-
-        if (likely(time > 0))
-        {
-            time += this->time;
-        }
-
-        time_engine_client *next = first_client;
-
-        // Remove it, reenqueue it and continue with the next one.
-        // We can optimize a bit the operation as we already know
-        // who to schedule next.
-
-        if (time > 0)
-        {
-            current->next_event_time = time;
-            time_engine_client *client = first_client, *prev = NULL;
-            while (client && client->next_event_time < time)
-            {
-                prev = client;
-                client = client->next;
-            }
-            if (prev == NULL)
-                first_client = current;
-            else
-                prev->next = current;
-
-            current->next = client;
-            current->is_enqueued = true;
-        }
-
-        current->running = false;
-    }
+int64_t vp::time_engine::step(int64_t duration)
+{
+    int64_t timestamp;
+    this->get_time_engine()->lock();
+    timestamp = this->get_time();
+    this->stop_event->step(duration);
+    this->get_time_engine()->unlock();
+    this->run();
+    return timestamp + duration;
 }
 
 
@@ -368,6 +364,10 @@ void vp::time_engine::run_loop()
 
         while (!run_req)
         {
+            for (auto x: this->stop_notifiers)
+            {
+                x->notify();
+            }
             running = false;
             pthread_cond_broadcast(&cond);
             pthread_cond_wait(&cond, &mutex);
@@ -613,6 +613,25 @@ void vp::time_engine::run_loop()
         pthread_cond_broadcast(&cond);
         pthread_mutex_unlock(&mutex);
     }
+}
+
+void vp::time_engine::req_stop_exec()
+{
+    this->pause();
+    this->get_time_engine()->lock();
+    this->flush_all();
+    fflush(NULL);
+    this->get_time_engine()->unlock();
+}
+
+void vp::time_engine::register_stop_notifier(Notifier *notifier)
+{
+    this->stop_notifiers.push_back(notifier);
+}
+
+void vp::time_engine::stop_exec()
+{
+    this->run_req = false;
 }
 
 static void init_sigint_handler(int s)

@@ -434,6 +434,7 @@ void vp::trace_engine::vcd_routine()
     char *event_buffer, *event_buffer_start;
 
     pthread_mutex_lock(&this->mutex);
+
     while(this->ready_event_buffers.size() == 0 && !end)
     {
       pthread_cond_wait(&this->cond, &this->mutex);
@@ -512,7 +513,6 @@ void vp::trace_engine::vcd_routine()
           this->first_trace_to_dump = trace->event_trace;
         }
       }
-
     }
 
     pthread_mutex_lock(&this->mutex);

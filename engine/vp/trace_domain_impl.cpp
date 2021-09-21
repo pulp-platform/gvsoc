@@ -48,7 +48,7 @@ public:
     void add_paths(int events, int nb_path, const char **paths);
     void add_path(int events, const char *path, bool is_path=false);
     void add_exclude_path(int events, const char *path);
-    void add_trace_path(int events, std::string path, bool is_path=false);
+    void add_trace_path(int events, std::string path);
     void conf_trace(int event, std::string path, bool enabled);
     void add_exclude_trace_path(int events, std::string path);
     void reg_trace(vp::trace *trace, int event, string path, string name);
@@ -59,9 +59,13 @@ public:
     void run();
     void quit(int status);
     void pause();
+    void stop_exec();
+    void req_stop_exec();
+    void register_stop_notifier(vp::Notifier *notifier);
+
     int join();
 
-    void step(int64_t timestamp);
+    int64_t step(int64_t timestamp);
 
     void check_traces();
 
@@ -126,9 +130,9 @@ void trace_domain::run()
     this->power_engine->run();
 }
 
-void trace_domain::step(int64_t timestamp)
+int64_t trace_domain::step(int64_t timestamp)
 {
-    this->power_engine->step(timestamp);
+    return this->power_engine->step(timestamp);
 }
 
 void trace_domain::quit(int status)
@@ -139,6 +143,21 @@ void trace_domain::quit(int status)
 void trace_domain::pause()
 {
     this->power_engine->pause();
+}
+
+void trace_domain::stop_exec()
+{
+    this->power_engine->stop_exec();
+}
+
+void trace_domain::req_stop_exec()
+{
+    this->power_engine->req_stop_exec();
+}
+
+void trace_domain::register_stop_notifier(vp::Notifier *notifier)
+{
+    this->power_engine->register_stop_notifier(notifier);
 }
 
 int trace_domain::join()
@@ -284,7 +303,7 @@ void trace_domain::pre_pre_build()
     for (auto x : this->get_vp_config()->get("events/include_raw")->get_elems())
     {
         std::string trace_path = x->get_str();
-        this->add_trace_path(1, trace_path, true);
+        this->add_path(1, trace_path.c_str(), true);
     }
 
     this->set_trace_level(this->get_vp_config()->get_child_str("traces/level").c_str());
@@ -473,9 +492,9 @@ void trace_domain::conf_trace(int event, std::string path_str, bool enabled)
     }
 }
 
-void trace_domain::add_trace_path(int events, std::string path, bool is_path)
+void trace_domain::add_trace_path(int events, std::string path)
 {
-    this->add_path(events, path.c_str(), is_path);
+    this->add_path(events, path.c_str());
 }
 
 void trace_domain::add_exclude_trace_path(int events, std::string path)

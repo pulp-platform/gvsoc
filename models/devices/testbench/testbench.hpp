@@ -475,6 +475,7 @@ public:
     bool is_control_active;
 
     FILE *proxy_file;
+    int req;
 
 private:
 
@@ -578,11 +579,13 @@ public:
 
     int build();
     void start();
-    std::string handle_command(FILE *req_file, FILE *reply_file, std::vector<std::string> args);
+    std::string handle_command(Gv_proxy *proxy, FILE *req_file, FILE *reply_file, std::vector<std::string> args, std::string req);
 
     void handle_received_byte(uint8_t byte);
 
     void send_byte_done();
+
+    Gv_proxy *proxy;
 
     vp::trace trace;
 
