@@ -879,7 +879,7 @@ class Testbench_i2s(object):
         RuntimeError
             If there is any error while starting the clock.
         """
-        cmd = 'req=%d;cmd=component %s i2s clk_start %d' % (self.testbench, self.id)
+        cmd = 'component %s i2s clk_start %d' % (self.testbench, self.id)
         self.proxy._send_cmd(cmd)
 
     def clk_stop(self):
@@ -984,7 +984,7 @@ class Testbench_i2s(object):
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
         options += ' channel=%d' % channel
-        cmd = 'req=%d;cmd=component %s i2s slot_rx_file_reader %s' % (self.testbench, options)
+        cmd = 'component %s i2s slot_rx_file_reader %s' % (self.testbench, options)
         self.proxy._send_cmd(cmd)
 
     def slot_tx_file_dumper(self, slot: int = None, slots: list = [], filetype: str = "wav", filepath: str = None, channel: int = 0):
