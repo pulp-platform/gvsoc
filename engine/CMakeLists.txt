@@ -10,6 +10,7 @@ set(GVSOC_ENGINE_CXX_SRCS "src/trace/lxt2.cpp"
                           "src/trace/vcd.cpp"
                           "src/clock/clock.cpp"
                           "src/vp.cpp"
+                          "src/proxy.cpp"
                           "src/power/power.cpp"
     )
 
