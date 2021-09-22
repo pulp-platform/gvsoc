@@ -3,9 +3,9 @@ project(gvsoc-core)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(JSON_TOOLS_SRCS "../../tools/pulp_tools/json-tools/src/jsmn.cpp"
-                    "../../tools/pulp_tools/json-tools/src/json.cpp")
-set(JSON_TOOLS_INC_DIRS "../../tools/pulp_tools/json-tools/include/")
+set(JSON_TOOLS_SRCS "../../utils/json-tools/src/jsmn.cpp"
+                    "../../utils/json-tools/src/json.cpp")
+set(JSON_TOOLS_INC_DIRS "../../utils/json-tools/include/")
 
 add_library(json-tools OBJECT ${JSON_TOOLS_SRCS})
 target_include_directories(json-tools PUBLIC ${JSON_TOOLS_INC_DIRS})
