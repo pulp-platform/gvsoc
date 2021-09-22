@@ -44,3 +44,4 @@ install(TARGETS gvsoc-engine
         RUNTIME DESTINATION bin
         INCLUDES DESTINATION include
         )
+add_subdirectory(vp)
