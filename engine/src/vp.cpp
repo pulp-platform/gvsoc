@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
@@ -97,7 +97,7 @@ bool vp::regmap::access(uint64_t offset, int size, uint8_t *value, bool is_write
             }
 
             x->access((offset - aliased_reg->offset), size, value, is_write);
-            
+
             if (aliased_reg->trace.get_active(vp::trace::LEVEL_DEBUG))
             {
                 std::string regfields_values = "";
@@ -114,7 +114,7 @@ bool vp::regmap::access(uint64_t offset, int size, uint8_t *value, bool is_write
 
                         regfields_values += y->name + "=" + std::string(buff);
                     }
-                    
+
                     regfields_values = "{ " + regfields_values + " }";
                 }
                 else
@@ -1760,7 +1760,7 @@ void Gvsoc_proxy::proxy_loop()
     {
         char line[1024];
 
-        if (!fgets(line, 1024, sock)) 
+        if (!fgets(line, 1024, sock))
             return ;
 
         std::string s = std::string(line);
@@ -1827,7 +1827,7 @@ int Gvsoc_proxy::open()
         // test in case the original parent exited just
         // before the prctl() call
         if (getppid() != ppid_before_fork) exit(1);
-        
+
         void *instance = gv_open(this->config_path.c_str(), true, NULL, this->req_pipe[0], this->reply_pipe[1]);
 
         int retval = gv_run(instance);
