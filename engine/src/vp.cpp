@@ -198,7 +198,15 @@ void vp::component::set_vp_config(js::config *config)
 
 void vp::component::set_gv_conf(struct gv_conf *gv_conf)
 {
-    memcpy(&this->gv_conf, gv_conf, sizeof(struct gv_conf));
+    if (gv_conf)
+    {
+        memcpy(&this->gv_conf, gv_conf, sizeof(struct gv_conf));
+    }
+    else
+    {
+        memset(&this->gv_conf, 0, sizeof(struct gv_conf));
+        gv_init(&this->gv_conf);
+    }
 }
 
 
@@ -1564,11 +1572,11 @@ void vp::component::bind_comps()
 }
 
 
-void *vp::component::external_bind(std::string name, int handle)
+void *vp::component::external_bind(std::string comp_name, std::string itf_name, void *handle)
 {
     for (auto &x : this->childs)
     {
-        void *result = x->external_bind(name, handle);
+        void *result = x->external_bind(comp_name, itf_name, handle);
         if (result != NULL)
             return result;
     }
@@ -1612,11 +1620,9 @@ void vp::component::create_comps()
     }
 }
 
-
-
-extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
+vp::component *vp::__gv_create(std::string config_path, struct gv_conf *gv_conf)
 {
-    setenv("PULP_CONFIG_FILE", config_path, 1);
+    setenv("PULP_CONFIG_FILE", config_path.c_str(), 1);
 
     js::config *js_config = js::import_config_from_file(config_path);
     if (js_config == NULL)
@@ -1660,7 +1666,13 @@ extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
     instance->set_vp_config(gv_config);
     instance->set_gv_conf(gv_conf);
 
-    return (void *)instance;
+    return instance;
+}
+
+
+extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
+{
+    return (void *)vp::__gv_create(config_path, gv_conf);
 }
 
 
@@ -2016,5 +2028,5 @@ int sc_main(int argc, char *argv[])
 extern "C" void *gv_chip_pad_bind(void *handle, char *name, int ext_handle)
 {
     vp::component *instance = (vp::component *)handle;
-    return instance->external_bind(name, ext_handle);
+    return instance->external_bind(name, "", (void *)(long)ext_handle);
 }

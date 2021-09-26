@@ -343,7 +343,10 @@ int64_t vp::time_engine::step(int64_t duration)
     int64_t timestamp;
     this->get_time_engine()->lock();
     timestamp = this->get_time();
-    this->stop_event->step(duration);
+    if (duration > 0)
+    {
+        this->stop_event->step(duration);
+    }
     this->get_time_engine()->unlock();
     this->run();
     return timestamp + duration;

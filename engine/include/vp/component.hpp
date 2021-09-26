@@ -477,7 +477,7 @@ namespace vp {
 
     void final_bind();
 
-    virtual void *external_bind(std::string name, int handle);
+    virtual void *external_bind(std::string comp_name, std::string itf_name, void *handle);
 
     void reset_all(bool active, bool from_itf=false);
 
@@ -562,6 +562,8 @@ namespace vp {
 
     time_engine *time_engine_ptr = NULL;
   };
+
+  vp::component *__gv_create(std::string config_path, struct gv_conf *gv_conf);
 
 };  
 
