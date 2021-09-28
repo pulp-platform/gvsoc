@@ -3,4 +3,4 @@ vp_model(NAME i2c_corruptor
     SOURCES "i2c_corruptor.cpp"
     )
 
-target_link_libraries(i2c_corruptor PRIVATE i2c_helper)
+vp_model_link_libraries(NAME i2c_corruptor LIBRARY i2c_helper)

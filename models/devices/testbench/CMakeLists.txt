@@ -10,7 +10,7 @@ vp_model(NAME testbench
 
 find_library(SNDFILE_LIB sndfile)
 if(SNDFILE_LIB)
-    target_compile_options(testbench PRIVATE "-DUSE_SNDFILE")
-    target_link_libraries(testbench PRIVATE sndfile)
+    vp_model_compile_options(NAME testbench OPTIONS "-DUSE_SNDFILE")
+    vp_model_link_libraries(NAME testbench LIBRARY sndfile)
 endif()
 

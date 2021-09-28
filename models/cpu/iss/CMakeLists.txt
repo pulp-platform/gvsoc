@@ -35,7 +35,9 @@ function(generate_isa)
         PREFIX "${GEN_ISA_PREFIX}"
         SOURCES ${GEN_ISA_SOURCES} ${GEN_ISA_FILES} ${ISS_FILES}
         )
-    target_include_directories(${GEN_ISA_NAME} PRIVATE
+    vp_model_include_directories(
+        NAME ${GEN_ISA_NAME}
+        DIRECTORY
         "${F_GVSOC_ISS_DIR}/include"
         "${F_GVSOC_ISS_DIR}/vp/include"
         "${F_GVSOC_ISS_DIR}/sa/include"
@@ -43,8 +45,10 @@ function(generate_isa)
         "${F_GVSOC_ISS_DIR}/flexfloat"
         "${F_GVSOC_ISS_DIR}/sa/ext/bfd"
         )
-    target_compile_definitions(${GEN_ISA_NAME} PRIVATE
-        -DRISCV=1
-        -DRISCY
+    vp_model_compile_definitions(
+        NAME ${GEN_ISA_NAME}
+        DEFINITIONS
+        "-DRISCV=1"
+        "-DRISCY"
         )
 endfunction()

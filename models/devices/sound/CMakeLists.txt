@@ -15,9 +15,9 @@ vp_model(NAME i2s_clock
 
 find_library(SNDFILE_LIB sndfile)
 if(SNDFILE_LIB)
-    target_compile_options(i2s_speaker PRIVATE "-DUSE_SNDFILE")
-    target_link_libraries(i2s_speaker PRIVATE sndfile)
+    vp_model_compile_options(NAME i2s_speaker OPTIONS "-DUSE_SNDFILE")
+    vp_model_link_libraries(NAME i2s_speaker LIBRARY sndfile)
 
-    target_compile_options(i2s_microphone PRIVATE "-DUSE_SNDFILE")
-    target_link_libraries(i2s_microphone PRIVATE sndfile)
+    vp_model_compile_options(NAME i2s_microphone OPTIONS "-DUSE_SNDFILE")
+    vp_model_link_libraries(NAME i2s_microphone LIBRARY sndfile)
 endif()

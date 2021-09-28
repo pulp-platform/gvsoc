@@ -3,4 +3,4 @@ vp_model(NAME i2c_eeprom
     SOURCES "i2c_eeprom.cpp"
     )
 
-target_link_libraries(i2c_eeprom PRIVATE i2c_helper)
+vp_model_link_libraries(NAME i2c_eeprom LIBRARY i2c_helper)

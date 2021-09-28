@@ -17,7 +17,7 @@ vp_model(NAME injector_impl
     PREFIX ${UTILS_PREFIX}
     SOURCES "injector_impl.cpp"
     )
-target_link_libraries(injector_impl PRIVATE gvsoc_launcher)
+vp_model_link_libraries(NAME injector_impl LIBRARY gvsoc_launcher_lib)
 
 vp_model(NAME composite_impl
     PREFIX ${UTILS_PREFIX}

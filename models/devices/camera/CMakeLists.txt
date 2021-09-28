@@ -4,7 +4,7 @@ vp_model(NAME himax
 
 find_library(MAGICK_LIB GraphicsMagick++)
 if(MAGICK_LIB)
-    target_compile_options(himax PRIVATE "-D__MAGICK__")
-    target_link_libraries(himax PRIVATE GraphicsMagick++)
+    vp_model_compile_options(NAME himax OPTIONS "-D__MAGICK__")
+    vp_model_link_libraries(NAME himax LIBRARY GraphicsMagick++)
 else()
 endif()
