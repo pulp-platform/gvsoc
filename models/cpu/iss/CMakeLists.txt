@@ -8,7 +8,7 @@ function(generate_isa)
         "SOURCES"
         ${ARGN}
         )
-    message(STATUS "generate_isa name=${GEN_ISA_NAME} thingy=${GEN_ISA_THINGY}")
+    #message(STATUS "generate_isa name=${GEN_ISA_NAME} thingy=${GEN_ISA_THINGY}")
     add_custom_command(
         OUTPUT "${GEN_ISA_NAME}_decoder_gen.cpp" "${GEN_ISA_NAME}_decoder_gen.hpp"
         COMMAND ${F_GVSOC_ISS_DIR}/isa_gen/isa_generator.py
