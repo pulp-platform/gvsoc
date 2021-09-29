@@ -29,11 +29,14 @@ set(GVSOC_ENGINE_INC_DIRS "include")
 #"vp/power_engine_impl.cpp"
 #"vp/trace_domain_impl.cpp"
 
+# ==================
 # Optimized launcher
+# ==================
 
 add_library(gvsoc SHARED ${GVSOC_ENGINE_CXX_SRCS} ${GVSOC_ENGINE_C_SRCS})
 target_include_directories(gvsoc PUBLIC ${GVSOC_ENGINE_INC_DIRS})
 target_link_libraries(gvsoc PUBLIC json-tools z pthread ${CMAKE_DL_LIBS})
+set_target_properties(gvsoc PROPERTIES OUTPUT_NAME "libpulpvp")
 install(TARGETS gvsoc
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
@@ -50,10 +53,14 @@ install(TARGETS gvsoc_launcher
     INCLUDES DESTINATION include
     )
 
+# ==============
 # Debug launcher
+# ==============
+
 add_library(gvsoc_debug SHARED ${GVSOC_ENGINE_CXX_SRCS} ${GVSOC_ENGINE_C_SRCS})
 target_include_directories(gvsoc_debug PUBLIC ${GVSOC_ENGINE_INC_DIRS})
 target_link_libraries(gvsoc_debug PUBLIC json-tools z pthread ${CMAKE_DL_LIBS})
+set_target_properties(gvsoc_debug PROPERTIES OUTPUT_NAME "libpulpvp-debug")
 install(TARGETS gvsoc_debug
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
@@ -71,5 +78,29 @@ install(TARGETS gvsoc_launcher_debug
     INCLUDES DESTINATION include
     )
 target_compile_definitions(gvsoc_launcher_debug PRIVATE "-DVP_TRACE_ACTIVE=1")
+
+# ==============
+# SV Library
+# ==============
+
+add_library(gvsoc_sv SHARED ${GVSOC_ENGINE_CXX_SRCS} ${GVSOC_ENGINE_C_SRCS})
+target_include_directories(gvsoc_sv PUBLIC ${GVSOC_ENGINE_INC_DIRS})
+target_link_libraries(gvsoc_sv PUBLIC json-tools z pthread ${CMAKE_DL_LIBS})
+set_target_properties(gvsoc_sv PROPERTIES OUTPUT_NAME "libpulpvp-sv")
+install(TARGETS gvsoc_sv
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include
+    )
+target_compile_definitions(gvsoc_sv
+    PRIVATE
+    "-DVP_TRACE_ACTIVE=1"
+    "-D__VP_USE_SYSTEMV=1"
+    )
+
+# ==============
+# Subdirectories
+# ==============
 
 add_subdirectory(vp)
