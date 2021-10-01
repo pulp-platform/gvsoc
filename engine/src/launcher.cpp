@@ -37,6 +37,10 @@ public:
 
     gv::Io_binding *io_bind(gv::Io_user *user, std::string comp_name, std::string itf_name);
 
+    void vcd_bind(gv::Vcd_user *user);
+    void event_add(std::string path, bool is_regex);
+    void event_exclude(std::string path, bool is_regex);
+
 private:
 
     vp::component *instance;
@@ -79,4 +83,19 @@ int64_t Gvsoc_launcher::step(int64_t duration)
 gv::Io_binding *Gvsoc_launcher::io_bind(gv::Io_user *user, std::string comp_name, std::string itf_name)
 {
     return (gv::Io_binding *)this->instance->external_bind(comp_name, itf_name, (void *)user);
+}
+
+void Gvsoc_launcher::vcd_bind(gv::Vcd_user *user)
+{
+    this->instance->traces.get_trace_manager()->set_vcd_user(user);
+}
+
+void Gvsoc_launcher::event_add(std::string path, bool is_regex)
+{
+
+}
+
+void Gvsoc_launcher::event_exclude(std::string path, bool is_regex)
+{
+
 }

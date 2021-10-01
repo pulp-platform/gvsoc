@@ -97,7 +97,7 @@ private:
 };
 
 vp::trace_engine::trace_engine(js::config *config)
-    : event_dumper(this), vp::component(config), first_trace_to_dump(NULL)
+    : event_dumper(this), vp::component(config), first_trace_to_dump(NULL), vcd_user(NULL)
 {
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&cond, NULL);
@@ -113,6 +113,8 @@ vp::trace_engine::trace_engine(js::config *config)
 
     thread = new std::thread(&trace_engine::vcd_routine, this);
 }
+
+
 
 trace_domain::trace_domain(js::config *config)
     : vp::trace_engine(config)

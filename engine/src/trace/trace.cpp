@@ -396,18 +396,47 @@ void vp::trace_engine::dump_event_delayed(vp::trace *trace, int64_t timestamp, u
     this->dump_event_to_buffer(trace, timestamp, event, bytes);
 }
 
-void vp::trace_engine::flush_Event_traces(int64_t timestamp)
+void vp::trace_engine::flush_event_traces(int64_t timestamp)
 {
     Event_trace *current = first_trace_to_dump;
     while (current)
     {
-        current->dump(timestamp);
+        if (this->vcd_user)
+        {
+            if (current->is_real)
+            {
+                //this->vcd_user->event_update_real(int id, *(double *)current->value);
+            }
+            else if (current->is_string)
+            {
+                //this->vcd_user->event_update_logical(int id, uint8_t *value, uint8_t *flags);
+            }
+            else if (current->width > 1)
+            {
+
+            }
+            else
+            {
+                this->vcd_user->event_update_logical(timestamp, current->id, *current->buffer);
+            }
+        }
+        else
+        {
+            current->dump(timestamp);
+        }
         current->is_enqueued = false;
         current = current->next;
     }
     first_trace_to_dump = NULL;
 }
 
+
+// This routines runs in a dedicated thread.
+// It waits for buffers of events filled by the engine thread, unpack them
+// and pass them to the proper back-end.
+// This routines is also in charge of merging events dumped several times during the same
+// timestamp. For that, it dumps it builds a list of traces to be dumped and flushes
+// them when the next timestamp is detected.
 void vp::trace_engine::vcd_routine()
 {
     int64_t last_timestamp = -1;
@@ -418,28 +447,36 @@ void vp::trace_engine::vcd_routine()
 
         pthread_mutex_lock(&this->mutex);
 
+        // Wait for a buffer of event of the end of simulation
         while (this->ready_event_buffers.size() == 0 && !end)
         {
             pthread_cond_wait(&this->cond, &this->mutex);
         }
 
+        // In case of the end of simulation, just leave
         if (this->ready_event_buffers.size() == 0 && end)
         {
             pthread_mutex_unlock(&this->mutex);
             break;
         }
 
+        // Pop the first buffer
         event_buffer = ready_event_buffers[0];
         event_buffer_start = event_buffer;
         ready_event_buffers.erase(ready_event_buffers.begin());
 
         pthread_mutex_unlock(&this->mutex);
 
+        // And go through the events to unpack them
         while (event_buffer - event_buffer_start < (int)(TRACE_EVENT_BUFFER_SIZE - sizeof(vp::trace *)))
         {
             int64_t timestamp;
             uint8_t flags;
 
+            // Unpack the trace.
+            // Note that the traces are dumped only when the next timestamp is detected
+            // so that different values of the same trace during the same timestamp
+            // are overwritten by the last value to merge them into one value.
             vp::trace *trace = *(vp::trace **)event_buffer;
             if (trace == NULL)
                 break;
@@ -463,9 +500,11 @@ void vp::trace_engine::vcd_routine()
             if (last_timestamp == -1)
                 last_timestamp = timestamp;
 
+            // A new timestamp is detected, flush all the traces to start a new set
+            // of values for the current timestamp
             if (last_timestamp < timestamp)
             {
-                this->flush_Event_traces(last_timestamp);
+                this->flush_event_traces(last_timestamp);
                 last_timestamp = timestamp;
             }
 
@@ -487,6 +526,8 @@ void vp::trace_engine::vcd_routine()
             memcpy((void *)&event, (void *)event_buffer, bytes);
             event_buffer += bytes;
 
+            // Check if the event trace is already registered, otherwise register it
+            // to dump it when the next timestamp is detected.
             if (trace->event_trace)
             {
                 trace->event_trace->reg(timestamp, event, trace->width, flags, flags_mask);
@@ -499,12 +540,13 @@ void vp::trace_engine::vcd_routine()
             }
         }
 
+        // Now push back the buffer of events into the list of free buffers
         pthread_mutex_lock(&this->mutex);
         event_buffers.push_back(event_buffer_start);
         pthread_cond_broadcast(&cond);
         pthread_mutex_unlock(&this->mutex);
     }
 
-    this->flush_Event_traces(last_timestamp);
+    this->flush_event_traces(last_timestamp);
     event_dumper.close();
 }

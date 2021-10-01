@@ -153,6 +153,133 @@ namespace gv {
 
 
     /**
+     * VCD event type
+     */
+    enum Vcd_event_type {
+        // Single bit signal
+        Vcd_event_type_logical,
+        // Bitfield
+        Vcd_event_type_bitfield,
+        // Real signals
+        Vcd_event_type_real,
+        // Strings
+        Vcd_event_type_string
+    };
+
+
+    /**
+     * Class required for receiving VCD events.
+     *
+     * When the external C++ connects to the VCD support, it must implement all the methods of this class
+     * to properly interact with GVSOC for what concerns VCD events.
+     */
+    class Vcd_user
+    {
+    public:
+        /**
+         * Called by GVSOC to register a new VCD event.
+         *
+         * This call is used by GVSOC to identify each VCD event by an integer and to give details
+         * about the associated signal.
+         * No GVSOC API can be called from this callback.
+         *
+         * @param id The identifier of the VCD event. This ID is used afterwards for identifying this event.
+         * @param path The path of the VCD event in the simulated system.
+         * @param type The type of the VCD event.
+         * @param width The width of the VCD event.
+         */
+        virtual void event_register(int id, std::string path, Vcd_event_type type, int width) = 0;
+
+        /**
+         * Called by GVSOC to update the value of a logical VCD event.
+         *
+         * This call is used by GVSOC to notify the external C code that the VCD event has a new value.
+         * No GVSOC API can be called from this callback.
+         *
+         * @param timestamp Timestamp of the new value in picoseconds.
+         * @param id ID of the VCD event.
+         * @param value The new value.
+         */
+        virtual void event_update_logical(int64_t timestamp, int id, uint8_t value) = 0;
+
+        /**
+         * Called by GVSOC to update the value of a bitfield VCD event.
+         *
+         * This call is used by GVSOC to notify the external C code that the VCD event has a new value.
+         * No GVSOC API can be called from this callback.
+         *
+         * @param timestamp Timestamp of the new value in picoseconds.
+         * @param id ID of the VCD event.
+         * @param value The new value.
+         */
+        virtual void event_update_bitfield(int64_t timestamp, int id, uint8_t *value, uint8_t *flags) = 0;
+
+        /**
+         * Called by GVSOC to update the value of a real VCD event.
+         *
+         * This call is used by GVSOC to notify the external C code that the VCD event has a new value.
+         * No GVSOC API can be called from this callback.
+         *
+         * @param timestamp Timestamp of the new value in picoseconds.
+         * @param id ID of the VCD event.
+         * @param value The new value.
+         */
+        virtual void event_update_real(int64_t timestamp, int id, double value) = 0;
+
+        /**
+         * Called by GVSOC to update the value of a string VCD event.
+         *
+         * This call is used by GVSOC to notify the external C code that the VCD event has a new value.
+         * No GVSOC API can be called from this callback.
+         *
+         * @param timestamp Timestamp of the new value in picoseconds.
+         * @param id ID of the VCD event.
+         * @param value The new value.
+         */
+        virtual void event_update_string(int64_t timestamp, int id, std::string value) = 0;
+    };
+
+
+    /**
+     * GVSOC interface for VCD events
+     *
+     * Gather all the methods which can be called to bind the simulated system with external C++ code
+     * so that VCD features can be configured.
+     */
+    class Vcd
+    {
+    public:
+        /**
+         * Bind external C++ code VCD features 
+         *
+         * @param user A pointer to the caller class instance which will be called for all VCD callbacks. This caller
+         *             must implement all the methods defined in class Vcd_user
+         */
+        virtual void vcd_bind(Vcd_user *user) = 0;
+
+        /**
+         * Enable VCD events
+         *
+         * This will add the specified list of events to the included ones. 
+         *
+         * @param path The path of the VCD events to enable.
+         * @param is_regex True if the specified path is a regular expression.
+         */
+        virtual void event_add(std::string path, bool is_regex=false) = 0;
+
+        /**
+         * Disable VCD events
+         *
+         * This will add the specified list of events to the excluded ones. 
+         *
+         * @param path The path of the VCD events to disable.
+         * @param is_regex True if the specified path is a regular expression.
+         */
+        virtual void event_exclude(std::string path, bool is_regex=false) = 0;
+    };
+
+
+    /**
      * GVSOC interface for IO requests
      *
      * Gather all the methods which can be called to bind the simulated system with external C++ code
@@ -185,7 +312,7 @@ namespace gv {
      *
      * Gather all the methods which can be called to control GVSOC execution and other features
      */
-    class Gvsoc : public Io
+    class Gvsoc : public Io, public Vcd
     {
     public:
         /**
