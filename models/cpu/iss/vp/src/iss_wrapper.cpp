@@ -1069,6 +1069,12 @@ void iss_wrapper::handle_riscv_ebreak()
       break;
     }
 
+    case 0x10D: {
+      this->get_engine()->stop_exec();
+
+      break; 
+    }
+    
     default:
       this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
       break;

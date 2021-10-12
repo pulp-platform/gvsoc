@@ -232,6 +232,14 @@ class Proxy(object):
     def _unlock_cmd(self):
         self.lock.release()
 
+    def wait_stop(self):
+        """Wait until execution stops.
+
+        This will block the caller until gvsoc stops execution.
+
+        """
+        self.reader.wait_stopped()
+
     def stop(self):
         """Stop execution.
         """
