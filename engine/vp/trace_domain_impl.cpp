@@ -61,7 +61,7 @@ public:
     void pause();
     void stop_exec();
     void req_stop_exec();
-    void register_stop_notifier(vp::Notifier *notifier);
+    void register_exec_notifier(vp::Notifier *notifier);
 
     int join();
 
@@ -157,9 +157,9 @@ void trace_domain::req_stop_exec()
     this->power_engine->req_stop_exec();
 }
 
-void trace_domain::register_stop_notifier(vp::Notifier *notifier)
+void trace_domain::register_exec_notifier(vp::Notifier *notifier)
 {
-    this->power_engine->register_stop_notifier(notifier);
+    this->power_engine->register_exec_notifier(notifier);
 }
 
 int trace_domain::join()

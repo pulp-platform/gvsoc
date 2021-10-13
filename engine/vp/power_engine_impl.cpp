@@ -47,7 +47,7 @@ public:
 
     void req_stop_exec();
 
-    void register_stop_notifier(vp::Notifier *notifier);
+    void register_exec_notifier(vp::Notifier *notifier);
 
     void stop_exec();
 
@@ -103,9 +103,9 @@ void power_manager::req_stop_exec()
     this->time_engine->req_stop_exec();
 }
 
-void power_manager::register_stop_notifier(vp::Notifier *notifier)
+void power_manager::register_exec_notifier(vp::Notifier *notifier)
 {
-    this->time_engine->register_stop_notifier(notifier);
+    this->time_engine->register_exec_notifier(notifier);
 }
 
 

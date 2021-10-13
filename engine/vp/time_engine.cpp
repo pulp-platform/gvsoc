@@ -367,15 +367,20 @@ void vp::time_engine::run_loop()
 
         while (!run_req)
         {
-            for (auto x: this->stop_notifiers)
+            for (auto x: this->exec_notifiers)
             {
-                x->notify();
+                x->notify_stop();
             }
             running = false;
             pthread_cond_broadcast(&cond);
             pthread_cond_wait(&cond, &mutex);
         }
         running = true;
+
+        for (auto x: this->exec_notifiers)
+        {
+            x->notify_run();
+        }
 
         if (!init)
         {
@@ -627,9 +632,9 @@ void vp::time_engine::req_stop_exec()
     this->get_time_engine()->unlock();
 }
 
-void vp::time_engine::register_stop_notifier(Notifier *notifier)
+void vp::time_engine::register_exec_notifier(Notifier *notifier)
 {
-    this->stop_notifiers.push_back(notifier);
+    this->exec_notifiers.push_back(notifier);
 }
 
 void vp::time_engine::stop_exec()

@@ -61,9 +61,14 @@ static std::vector<std::string> split(const std::string& s, char delimiter)
 }
 
 
-void Gv_proxy::notify()
+void Gv_proxy::notify_stop()
 {
     this->send_reply("req=-1;msg=stopped=" + std::to_string(top->get_time()) + '\n');
+}
+
+void Gv_proxy::notify_run()
+{
+    this->send_reply("req=-1;msg=running=" + std::to_string(top->get_time()) + '\n');
 }
 
 
@@ -141,10 +146,9 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
         {
             if (words[0] == "run")
             {
-                int64_t timestamp = top->get_time();
                 this->top->run();
                 std::unique_lock<std::mutex> lock(this->mutex);
-                dprintf(reply_fd, "req=%s;msg=running=%ld\n", req.c_str(), timestamp);
+                dprintf(reply_fd, "req=%s\n", req.c_str());
                 lock.unlock();
             }
             else if (words[0] == "step")
@@ -166,7 +170,7 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
             {
                 this->top->stop_exec();
                 std::unique_lock<std::mutex> lock(this->mutex);
-                dprintf(reply_fd, "req=%s;msg=stopped=%ld\n", req.c_str(), top->get_time());
+                dprintf(reply_fd, "req=%s\n", req.c_str());
                 lock.unlock();
             }
             else if (words[0] == "quit")
@@ -264,7 +268,7 @@ void Gv_proxy::proxy_loop(int socket_fd, int reply_fd)
 
 Gv_proxy::Gv_proxy(vp::component *top, int req_pipe, int reply_pipe): top(top), req_pipe(req_pipe), reply_pipe(reply_pipe)
 {
-    top->register_stop_notifier(this);
+    top->register_exec_notifier(this);
 }
 
 void Gv_proxy::listener(void)

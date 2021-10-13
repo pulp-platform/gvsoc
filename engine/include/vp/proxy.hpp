@@ -26,7 +26,8 @@ class Gv_proxy : vp::Notifier
     Gv_proxy(vp::component *top, int req_pipe, int reply_pipe);
     int open(int port, int *out_port);
     void stop(int status);
-    void notify();
+    void notify_stop();
+    void notify_run();
     bool send_payload(FILE *reply_file, std::string req, uint8_t *payload, int size);
     
   private:

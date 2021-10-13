@@ -238,6 +238,14 @@ class Proxy(object):
         """
         self.reader.wait_stopped()
 
+    def wait_running(self):
+        """Wait until GVSOC is running.
+
+        This will block the caller until gvsoc starts execution.
+
+        """
+        self.reader.wait_running()
+
     def stop(self):
         """Stop execution.
         """

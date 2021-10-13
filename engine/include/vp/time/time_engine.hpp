@@ -73,7 +73,7 @@ public:
 
     void req_stop_exec();
 
-    void register_stop_notifier(Notifier *notifier);
+    void register_exec_notifier(Notifier *notifier);
 
     inline vp::time_engine *get_time_engine() { return this; }
 
@@ -120,7 +120,7 @@ private:
 
 private:
     vp::component *stop_event;
-    std::vector<Notifier *> stop_notifiers;
+    std::vector<Notifier *> exec_notifiers;
 };
 
 class time_engine_client : public component

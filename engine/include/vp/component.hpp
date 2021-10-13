@@ -387,7 +387,8 @@ namespace vp {
 
   class Notifier {
   public:
-      virtual void notify() {}
+      virtual void notify_stop() {}
+      virtual void notify_run() {}
   };
 
 
@@ -414,7 +415,7 @@ namespace vp {
     virtual void run() {}
     virtual int64_t step(int64_t timestamp) {return 0; }
     virtual void pause() {}
-    virtual void register_stop_notifier(Notifier *notifier) {}
+    virtual void register_exec_notifier(Notifier *notifier) {}
     virtual void req_stop_exec() {}
     virtual void stop_exec() {}
     virtual int join() { return -1; }
