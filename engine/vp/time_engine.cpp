@@ -634,7 +634,10 @@ void vp::time_engine::register_stop_notifier(Notifier *notifier)
 
 void vp::time_engine::stop_exec()
 {
+    pthread_mutex_lock(&mutex);
+    pthread_cond_broadcast(&cond);
     this->run_req = false;
+    pthread_mutex_unlock(&mutex);
 }
 
 static void init_sigint_handler(int s)
