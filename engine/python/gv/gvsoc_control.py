@@ -114,16 +114,14 @@ class Proxy(object):
                 if req is None:
                     raise RuntimeError('Unknown reply: ' + req)
 
+                self.lock.acquire()
+
                 if is_stop is not None:
                     self.timestamp = is_stop
                     self.running = False
-                    self.lock.acquire()
-                    self.condition.notify_all()
-                    self.lock.release()
                 elif is_run is not None:
                     self.running = True
 
-                self.lock.acquire()
                 self.replies[req] = msg
                 self.condition.notify_all()
                 self.lock.release()
