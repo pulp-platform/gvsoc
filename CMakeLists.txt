@@ -10,6 +10,8 @@ set(JSON_TOOLS_INC_DIRS "../../utils/json-tools/include/")
 add_library(json-tools OBJECT ${JSON_TOOLS_SRCS})
 target_include_directories(json-tools PUBLIC ${JSON_TOOLS_INC_DIRS})
 
+install(DIRECTORY bin/ DESTINATION bin USE_SOURCE_PERMISSIONS)
+
 add_subdirectory(dpi-wrapper)
 add_subdirectory(engine)
 add_subdirectory(launcher)

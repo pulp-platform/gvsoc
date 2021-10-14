@@ -952,14 +952,17 @@ static inline unsigned int lib_VEC_PACKLO_SC_8(iss_cpu_state_t *s, unsigned int 
 }
 
 
+// FIXME don't know why with cmake build, dotp and sdotp are not working without the memory barrier
 #define VEC_DOTP(operName, typeOut, typeA, typeB, elemTypeA, elemTypeB, elemSize, num_elem, oper)                \
 static inline typeOut lib_VEC_##operName##_##elemSize(iss_cpu_state_t *s, typeA a, typeB b) {  \
   elemTypeA *tmp_a = (elemTypeA*)&a;                                                \
   elemTypeB *tmp_b = (elemTypeB*)&b;                                                \
   typeOut out = 0;                                                                       \
   int i;                                                                          \
-  for (i = 0; i < num_elem; i++)                                                  \
+  __asm__ __volatile__ ("" : : : "memory"); \
+  for (i = 0; i < num_elem; i++)     {                                              \
     out += tmp_a[i] oper tmp_b[i];                                          \
+  }\
   return out;                                                                     \
 }                                                                                 \
                                                                                   \
@@ -968,6 +971,7 @@ static inline typeOut lib_VEC_##operName##_SC_##elemSize(iss_cpu_state_t *s, typ
   elemTypeB *tmp_b = (elemTypeB*)&b;                                                \
   typeOut out = 0;                                                                             \
   int i;                                                                                \
+  __asm__ __volatile__ ("" : : : "memory"); \
   for (i = 0; i < num_elem; i++)                                                        \
     out += tmp_a[i] oper tmp_b[0];                                                       \
   return out;                                                                           \
@@ -989,6 +993,7 @@ static inline typeOut lib_VEC_##operName##_##elemSize(iss_cpu_state_t *s, typeOu
   elemTypeA *tmp_a = (elemTypeA*)&a;                                                \
   elemTypeB *tmp_b = (elemTypeB*)&b;                                                \
   int i;                                                                          \
+  __asm__ __volatile__ ("" : : : "memory"); \
   for (i = 0; i < num_elem; i++)                                                  \
     out += tmp_a[i] oper tmp_b[i];                                          \
   return out;                                                                     \
@@ -998,6 +1003,7 @@ static inline typeOut lib_VEC_##operName##_SC_##elemSize(iss_cpu_state_t *s, typ
   elemTypeA *tmp_a = (elemTypeA*)&a;                                                      \
   elemTypeB *tmp_b = (elemTypeB*)&b;                                                \
   int i;                                                                                \
+  __asm__ __volatile__ ("" : : : "memory"); \
   for (i = 0; i < num_elem; i++)                                                        \
     out += tmp_a[i] oper tmp_b[0];                                                       \
   return out;                                                                           \
