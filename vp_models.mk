@@ -16,7 +16,7 @@ endif
 
 VP_COMP_PYBIND_FLAGS := $(shell python3-config --includes)
 
-VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -D__GVSOC__=1 -I$(INSTALL_DIR)/include $(VP_COMP_PYBIND_FLAGS)
+VP_COMP_CFLAGS=-MMD -MP -O2 -g -fpic -DGVSOC_OLD_BUILD=1 -D__GVSOC__=1 -I$(INSTALL_DIR)/include $(VP_COMP_PYBIND_FLAGS)
 
 $(foreach dir, $(GVSOC_INC_PATHS), $(eval VP_COMP_CFLAGS += -I$(dir)))
 
