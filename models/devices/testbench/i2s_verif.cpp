@@ -74,24 +74,28 @@ private:
 class Rx_stream_raw_file : public Rx_stream
 {
 public:
-    Rx_stream_raw_file(Slot *slot, string filepath);
+    Rx_stream_raw_file(Slot *slot, string filepath, int width, bool is_bin);
     uint32_t get_sample(int channel_id);
     Slot *slot;
 
 private:
     FILE *infile;
+    int width;
+    bool is_bin;
 };
 
 
 class Tx_stream_raw_file : public Tx_stream
 {
 public:
-    Tx_stream_raw_file(Slot *slot, string filepath);
+    Tx_stream_raw_file(Slot *slot, string filepath, int width, bool is_bin);
     void push_sample(uint32_t sample, int channel_id);
     Slot *slot;
 
 private:
     FILE *outfile;
+    int width;
+    bool is_bin;
 };
 
 
@@ -561,8 +565,10 @@ void I2s_verif::start(pi_testbench_i2s_verif_start_config_t *config)
 }
 
 
-Tx_stream_raw_file::Tx_stream_raw_file(Slot *slot, std::string filepath)
+Tx_stream_raw_file::Tx_stream_raw_file(Slot *slot, std::string filepath, int width, bool is_bin)
 {
+    this->width = width;
+    this->is_bin = is_bin;
     this->slot = slot;
     this->outfile = fopen(filepath.c_str(), "w");
     this->slot->trace.msg(vp::trace::LEVEL_INFO, "Opening dumper (path: %s)\n", filepath.c_str());
@@ -575,7 +581,18 @@ Tx_stream_raw_file::Tx_stream_raw_file(Slot *slot, std::string filepath)
 
 void Tx_stream_raw_file::push_sample(uint32_t sample, int channel_id)
 {
-    fprintf(this->outfile, "0x%x\n", sample);
+    if (this->is_bin)
+    {
+        int nb_bytes = (this->width + 7) / 8;
+        if (fwrite((void *)&sample, nb_bytes, 1, this->outfile) != 1)
+        {
+            return;
+        }
+    }
+    else
+    {
+        fprintf(this->outfile, "0x%x\n", sample);
+    }
 }
 
 
@@ -649,8 +666,10 @@ void Tx_stream_libsnd_file::push_sample(uint32_t data, int channel)
 }
 
 
-Rx_stream_raw_file::Rx_stream_raw_file(Slot *slot, std::string filepath)
+Rx_stream_raw_file::Rx_stream_raw_file(Slot *slot, std::string filepath, int width, bool is_bin)
 {
+    this->width = width;
+    this->is_bin = is_bin;
     this->slot = slot;
     this->infile = fopen(filepath.c_str(), "r");
     if (this->infile == NULL)
@@ -662,19 +681,32 @@ Rx_stream_raw_file::Rx_stream_raw_file(Slot *slot, std::string filepath)
 
 uint32_t Rx_stream_raw_file::get_sample(int channel_id)
 {
-    char line [64];
-
-    if (fgets(line, 64, this->infile) == NULL)
+    if (this->is_bin)
     {
-        fseek(this->infile, 0, SEEK_SET);
-        if (fgets(line, 16, this->infile) == NULL)
+        int nb_bytes = (this->width + 7) / 8;
+        uint32_t result = 0;
+        if (fread((void *)&result, nb_bytes, 1, this->infile) != 1)
         {
-            this->slot->top->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
             return 0;
         }
+        return result;
     }
+    else
+    {
+        char line [64];
 
-    return strtol(line, NULL, 0);
+        if (fgets(line, 64, this->infile) == NULL)
+        {
+            fseek(this->infile, 0, SEEK_SET);
+            if (fgets(line, 16, this->infile) == NULL)
+            {
+                this->slot->top->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
+                return 0;
+            }
+        }
+
+        return strtol(line, NULL, 0);
+    }
 }
 
 
@@ -838,9 +870,9 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config, Slot *reuse
             }
             else
             {
-                if (config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_RAW)
+                if (config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_RAW || config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN)
                 {
-                    this->outstream = new Tx_stream_raw_file(this, filepath);
+                    this->outstream = new Tx_stream_raw_file(this, filepath, config->tx_file_dumper.width, config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN);
                 }
                 else
                 {
@@ -870,9 +902,9 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config, Slot *reuse
         }
         else
         {
-            if (config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_RAW)
+            if (config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_RAW || config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN)
             {
-                this->instream = new Rx_stream_raw_file(this, filepath);
+                this->instream = new Rx_stream_raw_file(this, filepath, config->rx_file_reader.width, config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN);
             }
             else
             {

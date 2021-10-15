@@ -1337,6 +1337,10 @@ std::string Testbench::handle_command(Gv_proxy *proxy, FILE *req_file, FILE *rep
                         {
                             config->rx_file_reader.type = PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_WAV;
                         }
+                        else if (value_str == "bin")
+                        {
+                            config->rx_file_reader.type = PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN;
+                        }
                         else if (value_str == "au")
                         {
                             config->rx_file_reader.type = PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_AU;
@@ -1389,6 +1393,10 @@ std::string Testbench::handle_command(Gv_proxy *proxy, FILE *req_file, FILE *rep
                         if (value_str == "wav")
                         {
                             config->tx_file_dumper.type = PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_WAV;
+                        }
+                        else if (value_str == "bin")
+                        {
+                            config->tx_file_dumper.type = PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_BIN;
                         }
                         else if (value_str == "au")
                         {
