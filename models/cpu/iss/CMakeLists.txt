@@ -51,4 +51,8 @@ function(generate_isa)
         "-DRISCV=1"
         "-DRISCY"
         )
+
+    vp_model_compile_options(NAME ${GEN_ISA_NAME} OPTIONS "-fno-strict-aliasing")
+
 endfunction()
+
