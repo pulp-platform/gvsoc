@@ -21,7 +21,6 @@
 
 #include <vp/vp.hpp>
 #include <vp/itf/io.hpp>
-#include "archi/gvsoc/gvsoc.h"
 #include "iss.hpp"
 #include <algorithm>
 #include <sys/types.h>
@@ -1089,6 +1088,8 @@ void iss_wrapper::handle_ebreak()
 
   switch (id)
   {
+  // TODO deprecated, should be removed
+#if 0
     case GV_SEMIHOSTING_TRACE_OPEN: {
       int result = -1;
       std::string path = this->read_user_string(this->cpu.regfile.regs[11]);
@@ -1129,7 +1130,8 @@ void iss_wrapper::handle_ebreak()
 
       break; 
     }
-  
+  #endif
+
     default:
       this->warning.force_warning("Unknown ebreak call (id: %d)\n", id);
       break;
