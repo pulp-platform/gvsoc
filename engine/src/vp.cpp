@@ -1768,12 +1768,6 @@ void Gvsoc_proxy::proxy_loop()
         std::sregex_token_iterator it{s.begin(), s.end(), regex, -1};
         std::vector<std::string> words{it, {}};
 
-
-        for (auto x: words)
-        {
-            printf("%s\n", x.c_str());
-        }
-
         if (words.size() > 0)
         {
             if (words[0] == "stopped")
@@ -1794,6 +1788,9 @@ void Gvsoc_proxy::proxy_loop()
                 this->running = true;
                 this->cond.notify_all();
                 this->mutex.unlock();
+            }
+            else if (words[0] == "req=")
+            {
             }
             else
             {
@@ -1849,7 +1846,7 @@ int Gvsoc_proxy::open()
 
 void Gvsoc_proxy::run()
 {
-    dprintf(this->req_pipe[1], "run\n");
+    dprintf(this->req_pipe[1], "cmd=run\n");
 }
 
 
@@ -1857,7 +1854,7 @@ void Gvsoc_proxy::run()
 int64_t Gvsoc_proxy::pause()
 {
     int64_t result;
-    dprintf(this->req_pipe[1], "stop\n");
+    dprintf(this->req_pipe[1], "cmd=stop\n");
     std::unique_lock<std::mutex> lock(this->mutex);
     while (this->running)
     {
@@ -1872,14 +1869,14 @@ int64_t Gvsoc_proxy::pause()
 
 void Gvsoc_proxy::close()
 {
-    dprintf(this->req_pipe[1], "quit\n");
+    dprintf(this->req_pipe[1], "cmd=quit\n");
 }
 
 
 
 void Gvsoc_proxy::add_event_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "event add %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=event add %s\n", regex.c_str());
 
 }
 
@@ -1887,21 +1884,21 @@ void Gvsoc_proxy::add_event_regex(std::string regex)
 
 void Gvsoc_proxy::remove_event_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "event remove %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=event remove %s\n", regex.c_str());
 }
 
 
 
 void Gvsoc_proxy::add_trace_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "trace add %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=trace add %s\n", regex.c_str());
 }
 
 
 
 void Gvsoc_proxy::remove_trace_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "trace remove %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=trace remove %s\n", regex.c_str());
 }
 
 
