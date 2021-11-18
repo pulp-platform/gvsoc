@@ -2022,6 +2022,16 @@ int sc_main(int argc, char *argv[])
 #endif
 
 
+void vp::fatal(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    if (vfprintf(stderr, fmt, ap) < 0) {}
+    va_end(ap);
+    abort();
+}
+
+
 extern "C" void *gv_chip_pad_bind(void *handle, char *name, int ext_handle)
 {
     vp::component *instance = (vp::component *)handle;
