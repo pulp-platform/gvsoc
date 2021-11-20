@@ -40,6 +40,10 @@ namespace vp {
     virtual void stop_capture() {}
 
     virtual void reg_trace(vp::power_trace *trace) {}
+
+    std::vector<vp::power_trace *> traces;
+
+    vp::component *time_engine;
   };
 
 };

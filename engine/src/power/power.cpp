@@ -351,21 +351,34 @@ void vp::power_trace::reg_top_trace(vp::power_trace *trace)
   }
 }
 
+
 void vp::power_trace::account_power()
 {
+  // We need to compute the energy spent on the current windows.
+
+  // First measure the duration of the windows
   int64_t diff = this->top->get_time() - this->current_power_timestamp;
+
   if (diff > 0)
   {
+    // Then energy based on the current power. Note that this can work only if the 
+    // power was constant over the period, which is the case, since this function is called
+    // before any modification to the power.
     double energy = this->current_power * diff;
 
+    // First account on upper trace if any
     if (this->top_trace)
     {
       this->top_trace->incr(energy);
     }
+    // Then on this trace
     this->total += energy;
+
+    // And update the timestamp to the current one to start a new window
     this->current_power_timestamp = this->top->get_time();
   }
 }
+
 
 void vp::power_trace::account_leakage_power()
 {
@@ -382,17 +395,21 @@ void vp::power_trace::account_leakage_power()
   }
 }
 
-void vp::power_trace::set_power(double quantum, bool is_leakage)
+void vp::power_trace::incr_power(double power_incr, bool is_leakage)
 {
+  // Leakage and dynamic are handled differently since they are reported separately,
+  // In both cases, first compute the power on current period, start a new one,
+  // and change the power so that it is constant over the period, to properly
+  // compute the energy.
   if (is_leakage)
   {
     this->account_leakage_power();
-    this->current_leakage_power += quantum;
+    this->current_leakage_power += power_incr;
   }
   else
   {
     this->account_power();
-    this->current_power += quantum;
+    this->current_power += power_incr;
   }
 }
 

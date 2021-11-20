@@ -59,10 +59,6 @@ public:
 
     void reg_trace(vp::power_trace *trace);
 
-private:
-    std::vector<vp::power_trace *> traces;
-
-    vp::component *time_engine;
 };
 
 

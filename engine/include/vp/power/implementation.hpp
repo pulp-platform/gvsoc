@@ -28,6 +28,26 @@
 #include "vp/power/power_engine.hpp"
 
 
+inline void vp::power_source::power_on()
+{
+    if (!this->is_on)
+        this->trace->incr_power(this->quantum, this->is_leakage);
+    this->is_on = true;
+}
+
+inline void vp::power_source::power_off()
+{
+    if (this->is_on)
+        this->trace->incr_power(-this->quantum, this->is_leakage);
+    this->is_on = false;
+}
+
+inline void vp::power_source::account_event()
+{
+  this->trace->account_quantum(this->quantum);
+}
+
+
 inline void vp::power_trace::account_quantum(double quantum)
 {
   this->incr(quantum);

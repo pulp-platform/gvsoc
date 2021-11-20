@@ -15,111 +15,210 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#ifndef __VP_POWER_POWER_HPP__
-#define __VP_POWER_POWER_HPP__
+#pragma once
 
 #include "json.hpp"
 #include "vp/vp_data.hpp"
 
-namespace vp {
+/**
+ * @brief Power framework
+ * 
+ * Power is modeled through 2 classes, one for declaring sources of power consumptions
+ * and another one for collecting consumed power from sources.
+ * A note on method visibility: all the global functions are there for the HW models
+ * to model HW power consumption while protected methods are there for the engine
+ * to manage the overall power framework.
+ * 
+ */
 
-  #define VP_POWER_DEFAULT_TEMP  25
-  #define VP_POWER_DEFAULT_VOLT  1.2
-  #define VP_POWER_DEFAULT_FREQ  50
+namespace vp
+{
 
-  class Linear_table;
+#define VP_POWER_DEFAULT_TEMP 25
+#define VP_POWER_DEFAULT_VOLT 1.2
+#define VP_POWER_DEFAULT_FREQ 50
 
-  class power_engine;
+    class Linear_table;
+    class power_engine;
+    class power_source;
+    class power_trace;
 
-  class power_trace
-  {
-  public:
-    int init(component *top, std::string name);
+    /**
+     * @brief Used to model a power source
+     *
+     * A power source is a piece of hardware which is consuming energy.
+     * This class can be instantiated any time as needed to model all the ways
+     * an IP is consuming energy.
+     * It can be used for dynamic or leakage power, or for both at the same time, since
+     * they are accounted separetly.
+     * For dynamic power it can be used either as a quantum-based power source or
+     * as background power source.
+     * A quantum-based power source will consume energy only when an event is triggered.
+     * A background power source will constantly consume power as soon as it is on.
+     * A leakage power source is similar to a background power source, but is just accounted
+     * differently in the power report.
+     */
+    class power_source
+    {
+        friend class component_power;
 
-    inline bool get_active() { return trace.get_event_active(); }
+    public:
+        /**
+         * @brief Account the event
+         * 
+         * This should be used in quantum-based power source to trigger the consumption
+         * of a quantum of energy.
+         * This will just add the quantum of energy to the current consumed energy.
+         */
+        inline void account_event();
 
-    inline void account_quantum(double quantum);
+        /**
+         * @brief Start accounting power
+         * 
+         * This should be used either for a background dynamic power or for leakage
+         * to start accounting the associated power.
+         * The power is accounted until the power source is turned off.
+         * This is actually converted to energy and accounted on the total of energy
+         * anytime current power is changed or source is turned off.
+         */
+        inline void power_on();
 
-    void set_power(double quantum, bool is_leakage);
+        /**
+         * @brief Stop accounting power
+         * 
+         * This will trigger the accounting of energy for the current windows
+         * and stop accounting power until it is turned on again.
+         */
+        inline void power_off();
 
-    void incr(double quantum, bool is_leakage=false);
+    protected:
+        /**
+         * @brief Initialize a power source
+         *
+         * @param top Component containing the power source.
+         * @param name Name of the power source, used in traces.
+         * @param data Configuration of the power source, giving power numbers.
+         * @param trace Power trace where this source should account power consumed.
+         * @param is_leakage True if this source is consuming leakage power, false if it is dynamic power.
+         */
+        int init(component *top, std::string name, js::config *config, power_trace *trace, bool is_leakage);
+        
+        /**
+         * @brief Set temperature, voltage and frequency
+         * 
+         * The power source will adapt its power number according to the given characteristics.
+         *
+         * @param temp Temperature
+         * @param volt Voltage
+         * @param freq Frequency
+         */
+        void setup(double temp, double volt, double freq);
 
-    inline double get_value();
-
-    inline double get_total();
-
-    inline double get_total_leakage();
-
-    bool is_dumped() { return this->dumped; }
-
-    power_trace *get_top_trace();
-
-    void clear();
-    
-    void flush();
-
-    void dump(FILE *file);
-
-    void collect();
-
-    void reg_top_trace(vp::power_trace *trace);
-    void reg_child_trace(vp::power_trace *trace);
-
-    void get(double *dynamic, double *leakage);
-
-    vp::trace     trace;
-
-  private:
-    void account_power();
-    void account_leakage_power();
-
-    component *top;
-    power_trace *top_trace = NULL;
-    std::vector<power_trace *> child_traces;
-    double value;
-    double total;
-    double total_leakage;
-    int64_t timestamp;
-    int64_t last_clear_timestamp;
-
-    double current_power;
-    int64_t current_power_timestamp;
-
-    double current_leakage_power;
-    int64_t current_leakage_power_timestamp;
-
-    bool dumped;
-  };
-
-  class power_source
-  {
-    friend class component_power;
-
-  public:
-    inline void account_event() { this->trace->account_quantum(this->quantum); }
-    inline void power_on() { if (!this->is_on) this->trace->set_power(this->quantum, this->is_leakage); this->is_on = true; }
-    inline void power_off() { if (this->is_on) this->trace->set_power(-this->quantum, this->is_leakage); this->is_on = false; }
-
-    inline double get_quantum() { return this->quantum; }
+    private:
+        Linear_table *table = NULL;  // Table of power values for all supported temperatures and voltages
+                                     // imported from the json configuration given when trace was initialized.
+        double quantum;        // Current quantumm of energy. Only valid in quantum-based power sources.
+                               // The current value is estimated depending on voltage and temperature according
+                               // to the provided json configuration.
+        component *top;        // Top component containing the power source
+        power_trace *trace;    // Power trace where the power consumption should be reported.
+        bool is_on = false;    // True is the source is on and backgroun-power and leakage should be reported
+        bool is_leakage;       // True is the power source is for leakage
+    };
 
 
-  protected:
-    int init(component *top, std::string name, js::config *config, power_trace *trace, bool is_leakage);
-    void setup(double temp, double volt, double freq);
+    /**
+     * @brief Used for tracing power consumption
+     * 
+     * This class can be used to gather the power consumption of several power sources and
+     * trace it through VCD traces and power reports.
+     * Each power source must be associated to a power trace and a power trace can be associated
+     * to one ore more power traces.
+     */
+    class power_trace
+    {
+        friend class power_source;
+        friend class component_power;
+        friend class power_engine;
 
-  private:
-    Linear_table *table = NULL;
-    double quantum;
-    component *top;
-    power_trace *trace;
-    bool is_on = false;
-    bool is_leakage;
-  };
+    public:
+        /**
+         * @brief Init the trace
+         *
+         * @param top Component containing the power trace.
+         * @param name Name of the power trace. It will be used in traces and in the power report
+         */
+        int init(component *top, std::string name);
+
+        /**
+         * @brief Return if the trace is enabled
+         * 
+         * @return true if the trace is active and should account power
+         * @return false if the trace is inactive and any activity should be ignored
+         */
+        inline bool get_active() { return trace.get_event_active(); }
+
+
+        inline double get_value();
+
+        inline double get_total();
+
+        inline double get_total_leakage();
+
+        bool is_dumped() { return this->dumped; }
+
+        power_trace *get_top_trace();
+
+        void clear();
+
+        void flush();
+
+        void dump(FILE *file);
+
+        void collect();
+
+        void reg_top_trace(vp::power_trace *trace);
+        void reg_child_trace(vp::power_trace *trace);
+
+        void get(double *dynamic, double *leakage);
+
+        vp::trace trace;
+
+        void incr_power(double power_incr, bool is_leakage);
+
+        inline void account_quantum(double quantum);
+
+    private:
+        // Compute the energy spent on the current windows and account it to the total amount of energy.
+        // This should be called everytime the current power is updated or before it is dumped.
+        void account_power();
+        void account_leakage_power();
+        void incr(double quantum, bool is_leakage = false);
+
+
+        component *top;
+        power_trace *top_trace = NULL;
+        std::vector<power_trace *> child_traces;
+        double value;
+        double total;
+        double total_leakage;
+        int64_t timestamp;
+        int64_t last_clear_timestamp;
+
+        double current_power;            // Power of the current power. This is used to account the energy over the period
+                                         // being measured. Everytime it is updated, the energy should be computed
+                                         // and the timestamp updated.
+        int64_t current_power_timestamp; // Indicate the timestamp of the last time the energy was accounted
+                                         // This is used everytime power is updated or dumped to compute the energy spent
+                                         // over the period.
+        double current_leakage_power;
+        int64_t current_leakage_power_timestamp;
+
+        bool dumped;
+    };
 
 };
-
-#endif
