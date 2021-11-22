@@ -105,7 +105,7 @@ do { \
  \
   iss_insn_t *insn = _this->cpu.current_insn; \
   int cycles = func(_this); \
-  if (_this->power_trace.get_active()) \
+  if (_this->power.power_get_power_trace()->get_active()) \
   { \
   _this->insn_groups_power[_this->cpu.prev_insn->decoder_item->u.insn.power_group].account_event(); \
  } \
@@ -1304,8 +1304,6 @@ int iss_wrapper::build()
 
   traces.new_trace_event_real("ipc_stat", &ipc_stat_event);
 
-  power.new_trace("power_trace", &power_trace);
-
   this->new_reg("bootaddr", &this->bootaddr_reg, get_config_int("boot_addr"));
   
   this->new_reg("fetch_enable", &this->fetch_enable_reg, get_js_config()->get("fetch_enable")->get_bool());
@@ -1323,16 +1321,16 @@ int iss_wrapper::build()
     this->insn_groups_power.resize(config->get_size());
     for (int i=0; i<config->get_size(); i++)
     {
-      power.new_event("power_insn_" + std::to_string(i), &this->insn_groups_power[i], config->get_elem(i), &power_trace);
+      power.new_power_source("power_insn_" + std::to_string(i), &this->insn_groups_power[i], config->get_elem(i));
     }
   }
   else
   {
     this->insn_groups_power.resize(1);
-    power.new_event("power_insn", &this->insn_groups_power[0], this->get_js_config()->get("**/insn"), &power_trace);
+    power.new_power_source("power_insn", &this->insn_groups_power[0], this->get_js_config()->get("**/insn"));
   }
-  power.new_event("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"), &power_trace);
-  power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
+  power.new_power_source("power_clock_gated", &clock_gated_power, this->get_js_config()->get("**/clock_gated"));
+  power.new_power_source("leakage", &leakage_power, this->get_js_config()->get("**/leakage"));
 
   data.set_resp_meth(&iss_wrapper::data_response);
   data.set_grant_meth(&iss_wrapper::data_grant);
@@ -1433,7 +1431,7 @@ void iss_wrapper::start()
   INIT_LIST_HEAD(&this->trdb_packet_list);
 #endif
 
-  this->leakage_power.power_on();
+  this->leakage_power.leakage_power_start();
 
   this->gdbserver = (vp::Gdbserver_engine *)this->get_service("gdbserver");
 

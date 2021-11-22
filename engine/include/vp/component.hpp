@@ -525,7 +525,7 @@ namespace vp {
     virtual std::string handle_command(Gv_proxy *proxy, FILE *req_file, FILE *reply_file, std::vector<std::string> args, std::string req) { return ""; }
 
     component_trace traces;
-    component_power power;
+    vp::power::component_power power;
 
     trace warning;
 

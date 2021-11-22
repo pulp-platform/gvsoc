@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
@@ -28,43 +28,50 @@
 
 using namespace std;
 
-namespace vp {
+namespace vp
+{
 
-  class power_trace;
-  class power_source;
+    namespace power
+    {
+        class power_trace;
+        class power_source;
 
-  class component_power
-  {
+        class component_power
+        {
 
-  public:
+        public:
+            component_power(component &top);
 
-    component_power(component &top);
+            power::engine *get_engine() { return power_manager; }
 
-    power_engine *get_engine() { return power_manager; }
+            void post_post_build();
 
-    void post_post_build();
+            void pre_start();
 
-    void pre_start();
+            int new_power_source(std::string name, power_source *source, js::config *config, power_trace *trace=NULL);
 
-    int new_event(std::string name, power_source *source, js::config *config, power_trace *trace, bool is_leakage=false);
+            int new_power_trace(std::string name, power_trace *trace);
 
-    int new_leakage_event(std::string name, power_source *source, js::config *config, power_trace *trace) { return this->new_event(name, source, config, trace, true); }
+            vp::power::power_trace *power_get_power_trace() { return &this->power_trace; }
+        //protected:
+            void power_get_energy_from_childs(double *dynamic, double *leakage);
 
-    int new_trace(std::string name, power_trace *trace);
+            void dump(FILE *file, double total);
+            void dump_child_traces(FILE *file, double total);
 
-    void reg_top_trace(vp::power_trace *trace);
+        private:
+            void power_get_energy_from_self_and_childs(double *dynamic, double *leakage);
 
-  protected:
+            component &top;
 
-  private:
-    component &top;
+            vp::power::power_trace power_trace;
 
-    std::vector<power_trace *> traces;
+            std::vector<vp::power::power_trace *> traces;
 
-    power_engine *power_manager = NULL;
-  };
+            power::engine *power_manager = NULL;
+        };
+    };
 
-};  
-
+};
 
 #endif

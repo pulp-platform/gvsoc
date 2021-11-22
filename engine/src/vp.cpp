@@ -1620,6 +1620,19 @@ void vp::component::create_comps()
     }
 }
 
+
+
+void vp::component::dump_traces_recursive(FILE *file)
+{
+    this->dump_traces(file);
+
+    for (auto& x: this->get_childs())
+    {
+        x->dump_traces_recursive(file);
+    }
+}
+
+
 vp::component *vp::__gv_create(std::string config_path, struct gv_conf *gv_conf)
 {
     setenv("PULP_CONFIG_FILE", config_path.c_str(), 1);
@@ -1662,6 +1675,8 @@ vp::component *vp::__gv_create(std::string config_path, struct gv_conf *gv_conf)
     }
 
     vp::component *instance = constructor(js_config);
+
+    new vp::power::engine(instance);
 
     instance->set_vp_config(gv_config);
     instance->set_gv_conf(gv_conf);

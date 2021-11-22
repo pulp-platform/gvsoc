@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
@@ -28,24 +28,31 @@
 #include <pthread.h>
 #include <thread>
 
-namespace vp {
+namespace vp
+{
 
-  class power_engine : public component
-  {
-  public:
-    power_engine(js::config *config);
+    namespace power
+    {
 
-    virtual void start_capture() {}
+        class engine
+        {
+        public:
+            engine(vp::component *top);
 
-    virtual void stop_capture() {}
+            void start_capture();
 
-    virtual void reg_trace(vp::power_trace *trace) {}
+            void stop_capture();
 
-    std::vector<vp::power_trace *> traces;
+            void reg_trace(vp::power::power_trace *trace);
 
-    vp::component *time_engine;
-  };
+        private:
+            std::vector<vp::power::power_trace *> traces;
 
+            vp::component *time_engine;
+
+            vp::component *top;
+        };
+    };
 };
 
 #endif

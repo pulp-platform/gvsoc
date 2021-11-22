@@ -27,34 +27,94 @@
 #include "vp/vp_data.hpp"
 #include "vp/power/power_engine.hpp"
 
+namespace vp {
 
-inline void vp::power_source::power_on()
+  namespace power {
+
+    class Linear_volt_table
+    {
+    public:
+      Linear_volt_table(double temp, js::config *config);
+      inline double get(double frequency) { return any; }
+
+      double volt;
+
+    private:
+      double any;
+    };
+
+
+
+    class Linear_temp_table
+    {
+    public:
+      Linear_temp_table(double temp, js::config *config);
+      double get(double volt, double frequency);
+
+      double temp;
+
+    private:
+      std::vector<Linear_volt_table *> volt_tables;
+    };
+
+
+
+    class Linear_table
+    {
+    public:
+      Linear_table(js::config *config);
+      double get(double temp, double volt, double frequency);
+
+    private:
+      std::vector<Linear_temp_table *> temp_tables;
+    };
+
+  };
+
+};
+
+
+inline void vp::power::power_source::leakage_power_start()
 {
     if (!this->is_on)
-        this->trace->incr_power(this->quantum, this->is_leakage);
+        this->trace->incr_leakage_power(this->quantum);
     this->is_on = true;
 }
 
-inline void vp::power_source::power_off()
+inline void vp::power::power_source::leakage_power_stop()
 {
     if (this->is_on)
-        this->trace->incr_power(-this->quantum, this->is_leakage);
+        this->trace->incr_leakage_power(-this->quantum);
     this->is_on = false;
 }
 
-inline void vp::power_source::account_event()
+inline void vp::power::power_source::dynamic_power_start()
+{
+    if (!this->is_on)
+        this->trace->incr_dynamic_power(this->quantum);
+    this->is_on = true;
+}
+
+inline void vp::power::power_source::dynamic_power_stop()
+{
+    if (this->is_on)
+        this->trace->incr_dynamic_power(-this->quantum);
+    this->is_on = false;
+}
+
+inline void vp::power::power_source::account_event()
 {
   this->trace->account_quantum(this->quantum);
 }
 
 
-inline void vp::power_trace::account_quantum(double quantum)
+inline void vp::power::power_trace::account_quantum(double quantum)
 {
   this->incr(quantum);
   this->trace.event_real_pulse(this->top->get_period(), quantum, 0);
 }
 
-inline double vp::power_trace::get_value()
+inline double vp::power::power_trace::get_value()
 {
   if (this->timestamp < this->top->get_time())
   {
@@ -64,22 +124,16 @@ inline double vp::power_trace::get_value()
   return this->value;
 }
 
-inline double vp::power_trace::get_total()
+inline double vp::power::power_trace::get_total()
 {
   this->account_power();
   return this->total;
 }
 
-inline double vp::power_trace::get_total_leakage()
+inline double vp::power::power_trace::get_total_leakage()
 {
   this->account_leakage_power();
   return this->total_leakage;
-}
-
-inline void vp::power_trace::flush()
-{
-  this->account_power();
-  this->account_leakage_power();
 }
 
 #endif

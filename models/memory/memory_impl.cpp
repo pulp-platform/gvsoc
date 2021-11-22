@@ -60,15 +60,14 @@ private:
   bool power_trigger;
   bool powered_up;
 
-  vp::power_trace power_trace;
-  vp::power_source idle_power;
-  vp::power_source read_8_power;
-  vp::power_source read_16_power;
-  vp::power_source read_32_power;
-  vp::power_source write_8_power;
-  vp::power_source write_16_power;
-  vp::power_source write_32_power;
-  vp::power_source leakage_power;
+  vp::power::power_source idle_power;
+  vp::power::power_source read_8_power;
+  vp::power::power_source read_16_power;
+  vp::power::power_source read_32_power;
+  vp::power::power_source write_8_power;
+  vp::power::power_source write_16_power;
+  vp::power::power_source write_32_power;
+  vp::power::power_source leakage_power;
 
   vp::clock_event *power_event;
   int64_t last_access_timestamp;
@@ -85,7 +84,7 @@ void memory::power_callback(void *__this, vp::clock_event *event)
   memory *_this = (memory *)__this;
   if (_this->last_access_timestamp < _this->get_time())
   {
-    _this->idle_power.power_on();
+    _this->idle_power.dynamic_power_start();
   }
 }
 
@@ -121,7 +120,7 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
       _this->next_packet_start = MAX(_this->next_packet_start, cycles) + duration;
     }
 
-    if (_this->power_trace.get_active())
+    if (_this->power.power_get_power_trace()->get_active())
     {
       _this->last_access_timestamp = _this->get_time();
 
@@ -224,16 +223,14 @@ int memory::build()
   js::config *config = get_js_config()->get("power_trigger");
   this->power_trigger = config != NULL && config->get_bool();
 
-  if (power.new_trace("power_trace", &power_trace)) return -1;
-
-  power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
-  power.new_event("idle", &idle_power, this->get_js_config()->get("**/idle"), &power_trace);
-  power.new_event("read_8", &read_8_power, this->get_js_config()->get("**/read_8"), &power_trace);
-  power.new_event("read_16", &read_16_power, this->get_js_config()->get("**/read_16"), &power_trace);
-  power.new_event("read_32", &read_32_power, this->get_js_config()->get("**/read_32"), &power_trace);
-  power.new_event("write_8", &write_8_power, this->get_js_config()->get("**/write_8"), &power_trace);
-  power.new_event("write_16", &write_16_power, this->get_js_config()->get("**/write_16"), &power_trace);
-  power.new_event("write_32", &write_32_power, this->get_js_config()->get("**/write_32"), &power_trace);
+  power.new_power_source("leakage", &leakage_power, this->get_js_config()->get("**/leakage"));
+  power.new_power_source("idle", &idle_power, this->get_js_config()->get("**/idle"));
+  power.new_power_source("read_8", &read_8_power, this->get_js_config()->get("**/read_8"));
+  power.new_power_source("read_16", &read_16_power, this->get_js_config()->get("**/read_16"));
+  power.new_power_source("read_32", &read_32_power, this->get_js_config()->get("**/read_32"));
+  power.new_power_source("write_8", &write_8_power, this->get_js_config()->get("**/write_8"));
+  power.new_power_source("write_16", &write_16_power, this->get_js_config()->get("**/write_16"));
+  power.new_power_source("write_32", &write_32_power, this->get_js_config()->get("**/write_32"));
 
   power_event = this->event_new(memory::power_callback);
 
@@ -290,8 +287,8 @@ void memory::start()
     }
   }
 
-  this->leakage_power.power_on();
-  this->idle_power.power_on();
+  this->leakage_power.leakage_power_start();
+  this->idle_power.dynamic_power_start();
   this->last_access_timestamp = -1;
 }
 
