@@ -12,7 +12,10 @@ set(GVSOC_ENGINE_CXX_SRCS
     "src/clock/clock.cpp"
     "src/vp.cpp"
     "src/proxy.cpp"
-    "src/power/power.cpp"
+    "src/power/power_engine.cpp"
+    "src/power/component_power.cpp"
+    "src/power/power_trace.cpp"
+    "src/power/power_source.cpp"
     "src/launcher.cpp"
     )
 

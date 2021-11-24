@@ -20,46 +20,53 @@
  */
 
 
-
-#ifndef __VP_POWER_IMPLEMENTATION_HPP__
-#define __VP_POWER_IMPLEMENTATION_HPP__
+#pragma once
 
 #include "vp/vp_data.hpp"
 #include "vp/power/power_engine.hpp"
 
+namespace vp {
 
-inline void vp::power_trace::account_quantum(double quantum)
-{
-  this->incr(quantum);
-  this->trace.event_real_pulse(this->top->get_period(), quantum, 0);
-}
+  namespace power {
 
-inline double vp::power_trace::get_value()
-{
-  if (this->timestamp < this->top->get_time())
-  {
-    this->timestamp = this->top->get_time();
-    this->value = 0;
-  }
-  return this->value;
-}
+    class Linear_volt_table
+    {
+    public:
+      Linear_volt_table(double temp, js::config *config);
+      inline double get(double frequency) { return any; }
 
-inline double vp::power_trace::get_total()
-{
-  this->account_power();
-  return this->total;
-}
+      double volt;
 
-inline double vp::power_trace::get_total_leakage()
-{
-  this->account_leakage_power();
-  return this->total_leakage;
-}
+    private:
+      double any;
+    };
 
-inline void vp::power_trace::flush()
-{
-  this->account_power();
-  this->account_leakage_power();
-}
 
-#endif
+
+    class Linear_temp_table
+    {
+    public:
+      Linear_temp_table(double temp, js::config *config);
+      double get(double volt, double frequency);
+
+      double temp;
+
+    private:
+      std::vector<Linear_volt_table *> volt_tables;
+    };
+
+
+
+    class Linear_table
+    {
+    public:
+      Linear_table(js::config *config);
+      double get(double temp, double volt, double frequency);
+
+    private:
+      std::vector<Linear_temp_table *> temp_tables;
+    };
+
+  };
+
+};

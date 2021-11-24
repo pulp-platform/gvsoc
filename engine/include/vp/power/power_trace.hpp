@@ -15,44 +15,41 @@
  * limitations under the License.
  */
 
-/*
+/* 
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#ifndef __VP_POWER_ENGINE_HPP__
-#define __VP_POWER_ENGINE_HPP__
+
+#pragma once
 
 #include "vp/vp_data.hpp"
-#include "vp/component.hpp"
-#include "gv/power.hpp"
-#include <pthread.h>
-#include <thread>
+#include "vp/power/power_engine.hpp"
 
-namespace vp
+
+
+inline double vp::power::power_trace::get_dynamic_energy_for_cycle()
 {
+  this->flush_dynamic_energy_for_cycle();
+  return this->dynamic_energy_for_cycle;
+}
 
-    namespace power
-    {
+inline void vp::power::power_trace::flush_dynamic_energy_for_cycle()
+{
+  if (this->timestamp < this->top->get_time())
+  {
+    this->timestamp = this->top->get_time();
+    this->dynamic_energy_for_cycle = 0;
+  }
+}
 
-        class engine
-        {
-        public:
-            engine(vp::component *top);
+inline double vp::power::power_trace::get_dynamic_energy()
+{
+  this->account_dynamic_power();
+  return this->total_dynamic_energy;
+}
 
-            void start_capture();
-
-            void stop_capture();
-
-            void reg_trace(vp::power::power_trace *trace);
-
-        private:
-            std::vector<vp::power::power_trace *> traces;
-
-            vp::component *time_engine;
-
-            vp::component *top;
-        };
-    };
-};
-
-#endif
+inline double vp::power::power_trace::get_leakage_energy()
+{
+  this->account_leakage_power();
+  return this->total_leakage_energy;
+}
