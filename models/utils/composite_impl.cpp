@@ -56,7 +56,7 @@ composite::composite(js::config *config)
 
 void composite::dump_traces(FILE *file)
 {
-    this->power.power_get_power_trace()->dump(file);
+    this->power.get_power_trace()->dump(file);
 }
 
 

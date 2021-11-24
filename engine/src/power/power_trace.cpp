@@ -27,49 +27,65 @@ int vp::power::power_trace::init(component *top, std::string name)
 {
   this->top = top;
   top->traces.new_trace_event_real(name, &this->trace);
-  this->value = 0;
-  this->total = 0;
-  this->total_leakage = 0;
+  this->dynamic_energy_for_cycle = 0;
+  this->total_dynamic_energy = 0;
+  this->total_leakage_energy = 0;
   this->timestamp = 0;
+  this->set_parent(NULL);
   this->trace.event_real(0);
   //this->top->power.get_engine()->reg_trace(this);
 
-  this->current_power = 0;
-  this->current_power_timestamp = 0;
+  this->current_dynamic_power = 0;
+  this->current_dynamic_power_timestamp = 0;
 
   this->current_leakage_power = 0;
   this->current_leakage_power_timestamp = 0;
+
+  this->trace_event = this->top->event_new((void *)this, vp::power::power_trace::trace_handler);
+
+  vp::component *component = top->get_parent();
+  if (component)
+  {
+      this->set_parent(component->power.get_power_trace());
+  }
 
   return 0;
 }
 
 
-void vp::power::power_trace::clear()
+void vp::power::power_trace::trace_handler(void *__this, vp::clock_event *event)
 {
-  this->dumped = false;
-  this->total = this->get_value();
-  this->total_leakage = 0;
-  this->last_clear_timestamp = this->top->get_time();
-  this->current_power_timestamp = this->top->get_time();
-  this->current_leakage_power_timestamp = this->top->get_time();
+    vp::power::power_trace *_this = (vp::power::power_trace *)__this;
+    _this->dump_vcd_trace();
 }
 
-void vp::power::power_trace::get_energy(double *dynamic, double *leakage)
+
+void vp::power::power_trace::report_start()
 {
-    *dynamic = this->get_total();
-    *leakage = this->get_total_leakage();
+    // Since the report start may be triggered in the middle of several events
+    // for power consumptions, include what has already be accounted
+    // in the same cycle.
+    this->total_dynamic_energy = this->get_dynamic_energy_for_cycle();
+    this->total_leakage_energy = 0;
+    this->report_start_timestamp = this->top->get_time();
+    this->current_dynamic_power_timestamp = this->top->get_time();
+    this->current_leakage_power_timestamp = this->top->get_time();
 }
 
-void vp::power::power_trace::get_power(double *dynamic, double *leakage)
+void vp::power::power_trace::get_report_energy(double *dynamic, double *leakage)
 {
-  this->dumped = true;
+    *dynamic = this->get_dynamic_energy();
+    *leakage = this->get_leakage_energy();
+}
 
+void vp::power::power_trace::get_report_power(double *dynamic, double *leakage)
+{
   double childs_dynamic=0, childs_leakage=0;
-  this->top->power.power_get_energy_from_childs(&childs_dynamic, &childs_leakage);
+  this->top->power.get_energy_from_childs(&childs_dynamic, &childs_leakage);
 
-  *dynamic = (childs_dynamic + this->get_total()) / (this->top->get_time() - this->last_clear_timestamp);
+  *dynamic = (childs_dynamic + this->get_dynamic_energy()) / (this->top->get_time() - this->report_start_timestamp);
 
-  *leakage = (childs_leakage + this->get_total_leakage()) / (this->top->get_time() - this->last_clear_timestamp);
+  *leakage = (childs_leakage + this->get_leakage_energy()) / (this->top->get_time() - this->report_start_timestamp);
 }
 
 void vp::power::power_trace::dump(FILE *file)
@@ -77,7 +93,7 @@ void vp::power::power_trace::dump(FILE *file)
   fprintf(file, "Trace path; Dynamic power (W); Leakage power (W); Total (W); Percentage\n");
 
   double dynamic, leakage;
-  this->get_power(&dynamic, &leakage);
+  this->get_report_power(&dynamic, &leakage);
   double total = dynamic + leakage;
 
   fprintf(file, "%s; %.12f; %.12f; %.12f; 1.0\n", this->trace.get_full_path().c_str(), dynamic, leakage, total);
@@ -88,38 +104,49 @@ void vp::power::power_trace::dump(FILE *file)
 
 }
 
-void vp::power::power_trace::incr(double quantum)
+
+void vp::power::power_trace::dump_vcd_trace()
 {
-  this->get_value();
+    if (this->top->get_clock())
+    {
+        double power = this->get_dynamic_energy_for_cycle() / this->top->get_period();
+        double power_background = this->current_dynamic_power + this->current_leakage_power;
+        double childs_power = this->top->power.get_power_from_childs();
 
-  this->value += quantum;
-  this->total += quantum;
+        this->current_power = power + power_background + childs_power;
 
-  if (this->top->get_clock())
-  {
-      this->trace.event_real_pulse(this->top->get_period(), this->value, 0);
-  }
+        this->trace.event_real(current_power);
+
+        if (!this->trace_event->is_enqueued() && power > 0)
+        {
+            this->top->event_enqueue(this->trace_event, 1);
+        }
+        if (this->parent)
+        {
+            this->parent->dump_vcd_trace();
+        }
+    }
 }
 
 
-void vp::power::power_trace::account_power()
+void vp::power::power_trace::account_dynamic_power()
 {
   // We need to compute the energy spent on the current windows.
 
   // First measure the duration of the windows
-  int64_t diff = this->top->get_time() - this->current_power_timestamp;
+  int64_t diff = this->top->get_time() - this->current_dynamic_power_timestamp;
 
   if (diff > 0)
   {
     // Then energy based on the current power. Note that this can work only if the 
     // power was constant over the period, which is the case, since this function is called
     // before any modification to the power.
-    double energy = this->current_power * diff;
+    double energy = this->current_dynamic_power * diff;
 
-    this->total += energy;
+    this->total_dynamic_energy += energy;
 
     // And update the timestamp to the current one to start a new window
-    this->current_power_timestamp = this->top->get_time();
+    this->current_dynamic_power_timestamp = this->top->get_time();
   }
 }
 
@@ -130,22 +157,35 @@ void vp::power::power_trace::account_leakage_power()
   if (diff > 0)
   {
     double energy = this->current_leakage_power * diff;
-    this->total_leakage += energy;
+    this->total_leakage_energy += energy;
     this->current_leakage_power_timestamp = this->top->get_time();
   }
 }
 
-void vp::power::power_trace::incr_dynamic_power(double power_incr)
+
+void vp::power::power_trace::inc_dynamic_energy(double quantum)
+{
+    this->flush_dynamic_energy_for_cycle();
+
+    this->dynamic_energy_for_cycle += quantum;
+    this->total_dynamic_energy += quantum;
+
+    this->dump_vcd_trace();
+}
+
+
+void vp::power::power_trace::inc_dynamic_power(double power_incr)
 {
   // Leakage and dynamic are handled differently since they are reported separately,
   // In both cases, first compute the power on current period, start a new one,
   // and change the power so that it is constant over the period, to properly
   // compute the energy.
-  this->account_power();
-  this->current_power += power_incr;
+  this->account_dynamic_power();
+  this->current_dynamic_power += power_incr;
 }
 
-void vp::power::power_trace::incr_leakage_power(double power_incr)
+
+void vp::power::power_trace::inc_leakage_power(double power_incr)
 {
   // Leakage and dynamic are handled differently since they are reported separately,
   // In both cases, first compute the power on current period, start a new one,
@@ -153,4 +193,10 @@ void vp::power::power_trace::incr_leakage_power(double power_incr)
   // compute the energy.
   this->account_leakage_power();
   this->current_leakage_power += power_incr;
+}
+
+
+void vp::power::power_trace::set_parent(power_trace *parent)
+{
+    this->parent = parent;
 }

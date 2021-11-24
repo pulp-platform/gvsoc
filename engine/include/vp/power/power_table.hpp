@@ -20,9 +20,7 @@
  */
 
 
-
-#ifndef __VP_POWER_IMPLEMENTATION_HPP__
-#define __VP_POWER_IMPLEMENTATION_HPP__
+#pragma once
 
 #include "vp/vp_data.hpp"
 #include "vp/power/power_engine.hpp"
@@ -72,68 +70,3 @@ namespace vp {
   };
 
 };
-
-
-inline void vp::power::power_source::leakage_power_start()
-{
-    if (!this->is_on)
-        this->trace->incr_leakage_power(this->quantum);
-    this->is_on = true;
-}
-
-inline void vp::power::power_source::leakage_power_stop()
-{
-    if (this->is_on)
-        this->trace->incr_leakage_power(-this->quantum);
-    this->is_on = false;
-}
-
-inline void vp::power::power_source::dynamic_power_start()
-{
-    if (!this->is_on)
-        this->trace->incr_dynamic_power(this->quantum);
-    this->is_on = true;
-}
-
-inline void vp::power::power_source::dynamic_power_stop()
-{
-    if (this->is_on)
-        this->trace->incr_dynamic_power(-this->quantum);
-    this->is_on = false;
-}
-
-inline void vp::power::power_source::account_event()
-{
-  this->trace->account_quantum(this->quantum);
-}
-
-
-inline void vp::power::power_trace::account_quantum(double quantum)
-{
-  this->incr(quantum);
-  this->trace.event_real_pulse(this->top->get_period(), quantum, 0);
-}
-
-inline double vp::power::power_trace::get_value()
-{
-  if (this->timestamp < this->top->get_time())
-  {
-    this->timestamp = this->top->get_time();
-    this->value = 0;
-  }
-  return this->value;
-}
-
-inline double vp::power::power_trace::get_total()
-{
-  this->account_power();
-  return this->total;
-}
-
-inline double vp::power::power_trace::get_total_leakage()
-{
-  this->account_leakage_power();
-  return this->total_leakage;
-}
-
-#endif

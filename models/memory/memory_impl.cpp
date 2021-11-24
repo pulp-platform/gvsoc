@@ -120,27 +120,27 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
       _this->next_packet_start = MAX(_this->next_packet_start, cycles) + duration;
     }
 
-    if (_this->power.power_get_power_trace()->get_active())
+    if (_this->power.get_power_trace()->get_active())
     {
       _this->last_access_timestamp = _this->get_time();
 
       if (req->get_is_write())
       {
         if (size == 1)
-          _this->write_8_power.account_event();
+          _this->write_8_power.account_energy_quantum();
         else if (size == 2)
-          _this->write_16_power.account_event();
+          _this->write_16_power.account_energy_quantum();
         else if (size == 4)
-          _this->write_32_power.account_event();
+          _this->write_32_power.account_energy_quantum();
       }
       else
       {
         if (size == 1)
-          _this->read_8_power.account_event();
+          _this->read_8_power.account_energy_quantum();
         else if (size == 2)
-          _this->read_16_power.account_event();
+          _this->read_16_power.account_energy_quantum();
         else if (size == 4)
-          _this->read_32_power.account_event();
+          _this->read_32_power.account_energy_quantum();
       }
 
       if (!_this->power_event->is_enqueued())

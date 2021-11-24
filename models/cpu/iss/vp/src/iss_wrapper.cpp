@@ -105,9 +105,9 @@ do { \
  \
   iss_insn_t *insn = _this->cpu.current_insn; \
   int cycles = func(_this); \
-  if (_this->power.power_get_power_trace()->get_active()) \
+  if (_this->power.get_power_trace()->get_active()) \
   { \
-  _this->insn_groups_power[_this->cpu.prev_insn->decoder_item->u.insn.power_group].account_event(); \
+  _this->insn_groups_power[_this->cpu.prev_insn->decoder_item->u.insn.power_group].account_energy_quantum(); \
  } \
   trdb_record_instruction(_this, insn); \
   if (cycles >= 0) \

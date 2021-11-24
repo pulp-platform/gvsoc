@@ -163,10 +163,14 @@ void vp::component::reg_step_pre_start(std::function<void()> callback)
     this->pre_start_callbacks.push_back(callback);
 }
 
+void vp::component::register_build_callback(std::function<void()> callback)
+{
+    this->build_callbacks.push_back(callback);
+}
+
 void vp::component::post_post_build()
 {
     traces.post_post_build();
-    power.post_post_build();
 }
 
 void vp::component::final_bind()
@@ -1384,6 +1388,12 @@ void vp::component::build_instance(std::string name, vp::component *parent)
     this->pre_pre_build();
     this->pre_build();
     this->build();
+    this->power.build();
+
+    for (auto x : build_callbacks)
+    {
+        x();
+    }
 }
 
 

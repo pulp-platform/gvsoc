@@ -171,7 +171,7 @@ void vp::power::engine::start_capture()
 {
     for (auto trace : this->traces)
     {
-        trace->clear();
+        trace->report_start();
     }
 }
 
