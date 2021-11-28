@@ -15,41 +15,62 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
-
 
 #pragma once
 
 #include "vp/vp_data.hpp"
-#include "vp/power/power_engine.hpp"
+
+
+
+inline double vp::power::power_trace::get_power()
+{
+    return this->current_power;
+}
 
 
 
 inline double vp::power::power_trace::get_dynamic_energy_for_cycle()
 {
-  this->flush_dynamic_energy_for_cycle();
-  return this->dynamic_energy_for_cycle;
+    // First check if the current energy is for an old cycle
+    this->flush_dynamic_energy_for_cycle();
+
+    // And return the current total
+    return this->dynamic_energy_for_cycle;
 }
+
+
 
 inline void vp::power::power_trace::flush_dynamic_energy_for_cycle()
 {
-  if (this->timestamp < this->top->get_time())
-  {
-    this->timestamp = this->top->get_time();
-    this->dynamic_energy_for_cycle = 0;
-  }
+    // Clear the current total if it is not for the current cycle
+    if (this->curent_cycle_timestamp < this->top->get_time())
+    {
+        this->curent_cycle_timestamp = this->top->get_time();
+        this->dynamic_energy_for_cycle = 0;
+    }
 }
 
-inline double vp::power::power_trace::get_dynamic_energy()
+
+
+inline double vp::power::power_trace::get_report_dynamic_energy()
 {
-  this->account_dynamic_power();
-  return this->total_dynamic_energy;
+    // First convert background power to energy
+    this->account_dynamic_power();
+    
+    // And return the current total
+    return this->report_dynamic_energy;
 }
 
-inline double vp::power::power_trace::get_leakage_energy()
+
+
+inline double vp::power::power_trace::get_report_leakage_energy()
 {
-  this->account_leakage_power();
-  return this->total_leakage_energy;
+    // First convert leakage power to energy
+    this->account_leakage_power();
+
+    // And return the current total
+    return this->report_leakage_energy;
 }

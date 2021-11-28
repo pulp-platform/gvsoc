@@ -23,8 +23,11 @@
 #include "vp/trace/trace.hpp"
 
 
+
 void vp::power::power_source::setup(double temp, double volt, double freq)
 {
+    // When temperature, voltage or frequency is modified, only impact dynamic energy quantum,
+    // dynamic background power or leakage if they are defined, which is the case if they are not -1
     if (this->quantum != -1)
     {
         this->quantum = this->table->get(temp, volt, freq);
@@ -56,6 +59,7 @@ int vp::power::power_source::init(component *top, std::string name, js::config *
         return -1;
     }
 
+    // Parse the JSON config and extract power numbers
     for (auto elem: source_config->get_childs())
     {
         js::config *config = elem.second;
@@ -94,16 +98,19 @@ int vp::power::power_source::init(component *top, std::string name, js::config *
 
             if (unit_cfg->get_str() == "pJ")
             {
+                // Setting it to 0 will make sure it is defined and the engine will properly maintain it
                 this->quantum = 0;
             }
             else if (unit_cfg->get_str() == "W")
             {
                 if (is_leakage)
                 {
+                    // Setting it to 0 will make sure it is defined and the engine will properly maintain it
                     this->leakage = 0;
                 }
                 else
                 {
+                    // Setting it to 0 will make sure it is defined and the engine will properly maintain it
                     this->background_power = 0;
                 }
             }

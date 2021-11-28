@@ -188,10 +188,14 @@ namespace vp
             /**
              * @brief Init the trace
              *
-             * @param top Component containing the power trace.
-             * @param name Name of the power trace. It will be used in traces and in the power report
+             * @param top    Component containing the power trace.
+             * @param name   Name of the power trace. It will be used in traces and in the power report
+             * @param parent Optional. Trace parent of this trace. Can be NULL to take the default
+             *               one of the parent component. Power consumption of this trace will also
+             *               be accounted to the parent to have a hierarchical view of the power
+             *               consumption.
              */
-            int init(component *top, std::string name);
+            int init(component *top, std::string name, power_trace *parent=NULL);
 
             /**
              * @brief Return if the trace is enabled
@@ -212,8 +216,6 @@ namespace vp
              */
             void dump(FILE *file);
 
-            void set_parent(power_trace *parent);
-
         protected:
 
             /**
@@ -230,12 +232,10 @@ namespace vp
              */
             void report_start();
 
-            inline double get_power() { return this->current_power; }
-
             /**
              * @brief Report the average power consumed on the active window.
              *
-             * The time duration of the active window (starting at the time where
+             * The time duration of the report window (starting at the time where
              * report_start was called) is computed, the average power estimated
              * on this window and returned (both dynamic and leakage).
              * This method is reserved for methods belonging to namespace vp::power.
@@ -248,7 +248,7 @@ namespace vp
             /**
              * @brief Report the energy consumed on the active window.
              *
-             * The time duration of the active window (starting at the time where
+             * The time duration of the report window (starting at the time where
              * report_start was called) is computed, the total amount of energy consumed
              * estimated on this window and returned (both dynamic and leakage).
              * This method is reserved for methods belonging to namespace vp::power.
@@ -257,6 +257,20 @@ namespace vp
              * @param leakage Leakage power consumed on the time window is reported here.
              */
             void get_report_energy(double *dynamic, double *leakage);
+
+            /**
+             * @brief Report the current instant power.
+             *
+             * Report the sum of background dynamic power, leakage power, and
+             * power corresponding to the dynamic energy consumed in the current cycle.
+             * For what concerns the energy, since this is based on events, this can grow
+             * several times in the same cycle. So it is important to call this function
+             * everytime the energy in the cycle is increased, to get the proper power at the
+             * end of the cycle.
+             * 
+             * @return The current instant power
+             */
+            inline double get_power();
 
             /**
              * @brief Increment the current dynamic background power.
@@ -313,81 +327,251 @@ namespace vp
             // power consumed.
             void account_leakage_power();
 
-            inline double get_dynamic_energy_for_cycle();
+            // Check if the current amount of cycle energy is not for the current cycle
+            // (by checking the timestamp), and if not, reset it to zero.
             inline void flush_dynamic_energy_for_cycle();
 
-            inline double get_dynamic_energy();
+            // Get the amount of energy spent in the current cycle
+            inline double get_dynamic_energy_for_cycle();
 
-            inline double get_leakage_energy();
+            // Return the total amount of dynamic energy spent since the beginning
+            // of the report windows (since report_start was called)
+            inline double get_report_dynamic_energy();
 
-            // Dump VCD trace reporting the powr consumption
+            // Return the total amount of leakage energy spent since the beginning
+            // of the report windows (since report_start was called)
+            inline double get_report_leakage_energy();
+
+            // Dump VCD trace reporting the power consumption
             // This should be called everytime the energy consumed in the current cycle
-            // or the current backgroun or leakage power is modified.
+            // or the current background or leakage power is modified.
             void dump_vcd_trace();
 
+            // Event handler called after an energy quantum has been accounted
+            // in order to dump the new value of the vcd trace since the quantum
+            // has to be removed from the vcd value in the next cycle
             static void trace_handler(void *__this, vp::clock_event *event);
 
 
-            component *top;
-            power_trace *parent;
-            vp::clock_event *trace_event;
+            component *top;                   // Component containing this power trace
+            power_trace *parent;              // Parent trace where power consumption should be
+                                              // also be accounted to build the hierarchical view.
+            vp::clock_event *trace_event;     // Clock event used to adjust VCD trace value after
+                                              // energy quantum has been accounted.
+            vp::trace trace;                  // Trace used for reporting power in VCD traces
+            
+            int64_t curent_cycle_timestamp;   // Timestamp of the current cycle, used to compute energy spent in the
+                                              // current cycle. As soon as current time is different, the timestamp
+                                              // is set to current time and the current energy is set to 0.
+            double dynamic_energy_for_cycle;  // Amount of energy spent in the current cycle.
+                                              // It is increased everytime a quantum of energy is
+                                              // spent and reset to zero when the current cycle is
+                                              // over. It is mostly used to compute the instant power
+                                              // displayed in VCD traces.
 
-            vp::trace trace;                    // Trace used for reporting power in VCD traces
-            double dynamic_energy_for_cycle;
-            double total_dynamic_energy;
-            double total_leakage_energy;
-            int64_t timestamp;
-            int64_t report_start_timestamp;
+            int64_t report_start_timestamp;   // Time where the current report window was started.
+                                              // It is used to compute the average power when the report is dumped
+            double report_dynamic_energy;     // Total amount of dynamic energy spent since the report was started
+            double report_leakage_energy;     // Total amount of leakage energy spent since the report was started
 
-            double current_dynamic_power;            // Power of the current power. This is used to account the energy over the period
-                                            // being measured. Everytime it is updated, the energy should be computed
-                                            // and the timestamp updated.
-            int64_t current_dynamic_power_timestamp; // Indicate the timestamp of the last time the energy was accounted
-                                            // This is used everytime power is updated or dumped to compute the energy spent
-                                            // over the period.
-            double current_leakage_power;
-            int64_t current_leakage_power_timestamp;
+            int64_t current_dynamic_power_timestamp; // Indicate the timestamp of the last time the background energy
+                                                     // was accounted. This is used everytime background power is
+                                                     // updated or dumped to compute the energy spent over the period.
+            double current_dynamic_power;            // Current dynamic background power. This is used to account the
+                                                     // energy over the period being measured. Everytime it is updated,
+                                                     // the energy should be computed and the timestamp updated.
 
-            double current_power;
+            int64_t current_leakage_power_timestamp; // Indicate the timestamp of the last time the leakage energy
+                                                     // was accounted. This is used everytime leakage power is
+                                                     // updated or dumped to compute the energy spent over the period.
+            double current_leakage_power;            // Current leakage power. This is used to account the
+                                                     // energy over the period being measured. Everytime it is updated,
+                                                     // the energy should be computed and the timestamp updated.
+
+            double current_power;    // Instant power of the current cycle. This is updated everytime
+                                     // background or leakage power is updated and also when a quantum of energy is 
+                                     // accounted, in order to proerly update the VCD trace
         };
 
 
+        /**
+         * @brief Class gathering all power aspects of a component
+         * 
+         * Each component should include an object of this class to include power modeling fetures.
+         * A model can use this object to model power consumption.
+         */
         class component_power
         {
+            // Only classes from vp::power are allowed as friends
             friend class power_trace;
 
         public:
+            /**
+             * @brief Construct a new component power object
+             * 
+             * @param top Component containing this object.
+             */
             component_power(component &top);
 
+            /**
+             * @brief Get the power engine
+             * 
+             * 
+             * @return power::engine* Return the central power engine
+             */
             power::engine *get_engine() { return engine; }
 
+            /**
+             * @brief Do all required initializations
+             * 
+             */
             void build();
 
+            /**
+             * @brief Declare a new power source
+             * 
+             * Power source can be used to report consumption.
+             * One power source can used to account both dynamic and leakage power,
+             * but any number of power sources can also be used to better organize
+             * the modeling of the power consumption.
+             * 
+             * @param name   Name of the power source.
+             * @param source Power source to be declared.
+             * @param config JSON configuration of the power source giving the power numbers
+             * @param trace  Power trace where the power consumption of this source should be reported.
+             * @return int   0 if it was successfully declared, -1 otherwise.
+             */
             int new_power_source(std::string name, power_source *source, js::config *config, power_trace *trace=NULL);
 
-            int new_power_trace(std::string name, power_trace *trace);
+            /**
+             * @brief Declare a new power trace
+             * 
+             * Power traces are used to account and report power consumption.
+             * A default trace is associated to each component but more traces can be
+             * declared to better organize power consumption modeling/
+             * 
+             * @param name   Name of the power trace
+             * @param trace  Power trace to be declared
+             * @param parent Optional. Parent trace. Can be NULL to take default parent trace.
+             *               Can be use to organize differently the hierarchy of traces for VCD dumping.
+             * @return int 
+             */
+            int new_power_trace(std::string name, power_trace *trace, vp::power::power_trace *parent=NULL);
 
+            /**
+             * @brief Get the default power trace
+             * 
+             * Get the default power trace associated to this component.
+             * All power sources have by default this power trace as parent.
+             * 
+             * @return vp::power::power_trace* The default power trace
+             */
             vp::power::power_trace *get_power_trace() { return &this->power_trace; }
 
         protected:
-            void get_energy_from_childs(double *dynamic, double *leakage);
+            /**
+             * @brief Get the report energy from childs object
+             * 
+             * Get the total amount of energy since the begining of the current report window
+             * (since report_start was called).
+             * 
+             * @param dynamic Report dynamic energy here
+             * @param leakage Report leakage energy here
+             */
+            void get_report_energy_from_childs(double *dynamic, double *leakage);
+
+            /**
+             * @brief Get the instant power from childs
+             * 
+             * This returns the instant power of the whole power hierarchy below this component.
+             * 
+             * @return double Instant power
+             */
             double get_power_from_childs();
 
+            /**
+             * @brief Dump component power traces
+             * 
+             * All the power traces of this component are dumped to the specified file.
+             *
+             * @param file  File where to dump the trace
+             * @param total Total power used to compute trace contribution
+             */
             void dump(FILE *file, double total);
+
+            /**
+             * @brief Dump power traces of child components
+             * 
+             * Each component child is asked to dump its power traces to the specified file.
+             * 
+             * @param file  File where to dump the trace
+             * @param total Total power used to compute trace contribution
+             */
             void dump_child_traces(FILE *file, double total);
 
         private:
-            void get_energy_from_self_and_childs(double *dynamic, double *leakage);
+            // Get energy since begining of report window for this component and his childs
+            void get_report_energy_from_self_and_childs(double *dynamic, double *leakage);
+
+            // Get instant power for this component and the whole hierarchy below him.
             double get_power_from_self_and_childs();
 
-            component &top;
-
-            vp::power::power_trace power_trace;
-
-            std::vector<vp::power::power_trace *> traces;
-
-            power::engine *engine = NULL;
+            component &top;                                // Component containing the power component object
+            vp::power::power_trace power_trace;            // Default power trace of this component
+            std::vector<vp::power::power_trace *> traces;  // Vector of power traces of this component
+            power::engine *engine = NULL;                  // Power engine
         };
+
+
+
+        /**
+         * @brief Class for power engine
+         * 
+         * The engine is a central object used for managing power modeling.
+         */
+        class engine
+        {
+            // Only classes from vp::power are allowed as friends
+            friend class vp::power::component_power;
+    
+        public:
+            /**
+             * @brief Construct a new engine object
+             * 
+             * @param top Top component of teh simulated system.
+             */
+            engine(vp::component *top);
+
+            /**
+             * @brief Start power report generation
+             * 
+             * This will start accounting power consumption for dumping the power report.
+             */
+            void start_capture();
+
+            /**
+             * @brief Dump power report
+             * 
+             * This dumps a report of the power consumed since start_capture was called.
+             */
+            void stop_capture();
+
+        protected:
+            /**
+             * @brief Register a new trace
+             * 
+             * Any power trace has to be registered in the engine by calling this method.
+             * 
+             * @param trace Trace to be registered.
+             */
+            void reg_trace(vp::power::power_trace *trace);
+
+        private:
+            std::vector<vp::power::power_trace *> traces; // Vector of all traces.
+
+            vp::component *top;  // Top component of the simulated architecture
+        };
+
     };
 
 };

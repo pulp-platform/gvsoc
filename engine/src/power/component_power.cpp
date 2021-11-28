@@ -22,10 +22,14 @@
 #include "vp/vp.hpp"
 #include "vp/trace/trace.hpp"
 
+
+
 vp::power::component_power::component_power(vp::component &top)
     : top(top)
 {
 }
+
+
 
 void vp::power::component_power::build()
 {
@@ -40,15 +44,18 @@ void vp::power::component_power::build()
 }
 
 
-int vp::power::component_power::new_power_trace(std::string name, vp::power::power_trace *trace)
+
+int vp::power::component_power::new_power_trace(std::string name, vp::power::power_trace *trace, vp::power::power_trace *parent)
 {
-    if (trace->init(&top, name))
+    if (trace->init(&top, name, parent))
         return -1;
 
     this->traces.push_back(trace);
 
     return 0;
 }
+
+
 
 int vp::power::component_power::new_power_source(std::string name, power_source *source, js::config *config, vp::power::power_trace *trace)
 {
@@ -66,6 +73,7 @@ int vp::power::component_power::new_power_source(std::string name, power_source 
 }
 
 
+
 double vp::power::component_power::get_power_from_childs()
 {
     double result = 0.0;
@@ -75,6 +83,7 @@ double vp::power::component_power::get_power_from_childs()
     }
     return result;
 }
+
 
 double vp::power::component_power::get_power_from_self_and_childs()
 {
@@ -90,15 +99,19 @@ double vp::power::component_power::get_power_from_self_and_childs()
     return result;
 }
 
-void vp::power::component_power::get_energy_from_childs(double *dynamic, double *leakage)
+
+
+void vp::power::component_power::get_report_energy_from_childs(double *dynamic, double *leakage)
 {
     for (auto &x : this->top.get_childs())
     {
-        x->power.get_energy_from_self_and_childs(dynamic, leakage);
+        x->power.get_report_energy_from_self_and_childs(dynamic, leakage);
     }
 }
 
-void vp::power::component_power::get_energy_from_self_and_childs(double *dynamic, double *leakage)
+
+
+void vp::power::component_power::get_report_energy_from_self_and_childs(double *dynamic, double *leakage)
 {
     for (auto &x : this->traces)
     {
@@ -108,8 +121,10 @@ void vp::power::component_power::get_energy_from_self_and_childs(double *dynamic
         *leakage += trace_leakage;
     }
 
-    this->get_energy_from_childs(dynamic, leakage);
+    this->get_report_energy_from_childs(dynamic, leakage);
 }
+
+
 
 void vp::power::component_power::dump(FILE *file, double total)
 {
@@ -125,6 +140,7 @@ void vp::power::component_power::dump(FILE *file, double total)
         fprintf(file, "%s; %.12f; %.12f; %.12f; %.6f\n", x->trace.get_full_path().c_str(), dynamic, leakage, dynamic + leakage, percentage);
     }
 }
+
 
 
 void vp::power::component_power::dump_child_traces(FILE *file, double total)
