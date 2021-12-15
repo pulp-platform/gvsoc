@@ -411,8 +411,24 @@ void vp::trace_engine::flush_event_traces(int64_t timestamp)
             {
                 //this->vcd_user->event_update_logical(int id, uint8_t *value, uint8_t *flags);
             }
-            else if (current->width > 1)
+            else if (current->width > 8)
             {
+                if (current->width <= 16)
+                {
+                    this->vcd_user->event_update_logical(timestamp, current->id, *(uint16_t *)current->buffer);
+                }
+                else if (current->width <= 32)
+                {
+                    this->vcd_user->event_update_logical(timestamp, current->id, *(uint32_t *)current->buffer);
+                }
+                else if (current->width <= 64)
+                {
+                    this->vcd_user->event_update_logical(timestamp, current->id, *(uint64_t *)current->buffer);
+                }
+                else
+                {
+                    // Use bitfield
+                }
 
             }
             else
