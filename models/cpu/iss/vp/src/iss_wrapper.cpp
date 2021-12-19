@@ -1300,6 +1300,7 @@ int iss_wrapper::build()
   traces.new_trace_event_string("func", &func_trace_event);
   traces.new_trace_event_string("inline_func", &inline_trace_event);
   traces.new_trace_event_string("file", &file_trace_event);
+  traces.new_trace_event_string("binaries", &binaries_trace_event);
   traces.new_trace_event("line", &line_trace_event, 32);
 
   traces.new_trace_event_real("ipc_stat", &ipc_stat_event);
@@ -1421,6 +1422,11 @@ void iss_wrapper::start()
   for (auto x:this->get_js_config()->get("**/debug_binaries")->get_elems())
   {
     iss_register_debug_info(this, x->get_str().c_str());
+  }
+
+  for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
+  {
+    this->binaries_trace_event.event_string("static enable " + x->get_str());
   }
 
 
