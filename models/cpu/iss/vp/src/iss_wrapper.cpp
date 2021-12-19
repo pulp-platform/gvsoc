@@ -1424,11 +1424,13 @@ void iss_wrapper::start()
     iss_register_debug_info(this, x->get_str().c_str());
   }
 
-  for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
+  if (this->get_js_config()->get("**/binaries") != NULL)
   {
-    this->binaries_trace_event.event_string("static enable " + x->get_str());
+    for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
+    {
+      this->binaries_trace_event.event_string("static enable " + x->get_str());
+    }
   }
-
 
   trace.msg("ISS start (fetch: %d, is_active: %d, boot_addr: 0x%lx)\n", fetch_enable_reg.get(), is_active_reg.get(), get_config_int("boot_addr"));
 
