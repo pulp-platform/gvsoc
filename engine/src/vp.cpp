@@ -2071,6 +2071,7 @@ void vp::fatal(const char *fmt, ...)
 
 extern "C" void *gv_chip_pad_bind(void *handle, char *name, int ext_handle)
 {
-    vp::component *instance = (vp::component *)handle;
+    vp::top *top = (vp::top *)handle;
+    vp::component *instance = (vp::component *)top->top_instance;
     return instance->external_bind(name, "", (void *)(long)ext_handle);
 }
