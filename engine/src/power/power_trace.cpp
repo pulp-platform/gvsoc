@@ -96,8 +96,6 @@ void vp::power::power_trace::get_report_energy(double *dynamic, double *leakage)
 
 void vp::power::power_trace::get_report_power(double *dynamic, double *leakage)
 {
-    double childs_dynamic = 0, childs_leakage = 0;
-
     // To get the power on the report window, we just get the total energy and divide by the window duration
     *dynamic = (this->get_report_dynamic_energy()) / (this->top->get_time() - this->report_start_timestamp);
     *leakage = (this->get_report_leakage_energy()) / (this->top->get_time() - this->report_start_timestamp);
