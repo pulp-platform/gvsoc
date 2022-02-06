@@ -94,10 +94,10 @@ void Gvsoc_launcher::vcd_bind(gv::Vcd_user *user)
 
 void Gvsoc_launcher::event_add(std::string path, bool is_regex)
 {
-
+    this->instance->traces.get_trace_manager()->conf_trace(1, path, 1);
 }
 
 void Gvsoc_launcher::event_exclude(std::string path, bool is_regex)
 {
-
+    this->instance->traces.get_trace_manager()->conf_trace(1, path, 0);
 }
