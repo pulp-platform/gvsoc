@@ -769,10 +769,10 @@ void iss_wrapper::handle_riscv_ebreak()
 
     case 0x18:
     {
-      if (this->cpu.regfile.regs[11] == 0x20026)
-        exit(0);
-      else
-        exit(1);
+      int status = this->cpu.regfile.regs[11] == 0x20026 ? 0 : 1;
+
+      this->clock->stop_retain(-1);
+      this->clock->stop_engine(status & 0x7fffffff);
 
       break;
     }
