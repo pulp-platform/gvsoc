@@ -965,7 +965,7 @@ class Testbench_i2s(object):
         self.proxy._send_cmd(cmd)
 
     def slot_rx_file_reader(self, slot: int = None, slots: list = [], filetype: str = "wav",
-            filepath: str = None, channel: int = 0, width: int = 0):
+            filepath: str = None, encoding: str = "asis", channel: int = 0, width: int = 0):
         """Read a stream of samples from a file.
 
         This will open a file and stream it to the SAI so that gap receives the samples.
@@ -985,6 +985,8 @@ class Testbench_i2s(object):
             width of the samples, in case the file is in binary format
         filepath : string, optional
             Path to the file.
+        encoding: string, optional
+            Encoding type for binary files, can be: "asis", "plusminus"
         channel : int, optional
             If the format supports it, this will get the samples from the specified channel in the input file.
 
@@ -1001,13 +1003,14 @@ class Testbench_i2s(object):
             options += ' slot=%d' % slot
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
+        options += ' encoding=%s' % encoding
         options += ' channel=%d' % channel
         options += ' width=%d' % width
         cmd = 'component %s i2s slot_rx_file_reader %s' % (self.testbench, options)
         self.proxy._send_cmd(cmd)
 
     def slot_tx_file_dumper(self, slot: int = None, slots: list = [], filetype: str = "wav", 
-            filepath: str = None, channel: int = 0, width: int = 0):
+            filepath: str = None, encoding: str = "asis", channel: int = 0, width: int = 0):
         """Write a stream of samples to a file.
 
         This will open a file and write to it all the samples received from gap.
@@ -1024,6 +1027,8 @@ class Testbench_i2s(object):
             List of slots when using multi-channel mode. slot must be None if this one is not empty.
         filetype : string, optional
             Describes the type of the file, can be "wav", "raw", "bin" or "au".
+        encoding: string, optional
+            Encoding type for binary files, can be: "asis", "plusminus"
         width : int, optional
             width of the samples, in case the file is in binary format
         filepath : string, optional
@@ -1044,6 +1049,7 @@ class Testbench_i2s(object):
             options += ' slot=%d' % slot
         options += ' filetype=%s' % filetype
         options += ' filepath=%s' % filepath
+        options += ' encoding=%s' % encoding
         options += ' channel=%d' % channel
         options += ' width=%d' % width
         cmd = 'component %s i2s slot_tx_file_dumper %s' % (self.testbench, options)
