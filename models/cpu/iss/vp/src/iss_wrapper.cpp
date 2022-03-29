@@ -308,6 +308,8 @@ void iss_wrapper::clock_sync(void *__this, bool active)
   {
     _this->state_event.event(NULL);
     _this->busy.release();
+    if (_this->active_pc_trace_event.get_event_active())
+      _this->active_pc_trace_event.event(NULL);
   }
 
   if (_this->ipc_stat_event.get_event_active())
@@ -1417,7 +1419,6 @@ int iss_wrapper::build()
   this->cpu.config.debug_handler = this->get_js_config()->get_int("debug_handler");
 
   this->is_active_reg.set(false);
-  this->active_pc_trace_event.event(NULL);
 
   ipc_clock_event = this->event_new(iss_wrapper::ipc_stat_handler);
 
@@ -1492,6 +1493,8 @@ void iss_wrapper::reset(bool active)
     this->ipc_stat_nb_insn = 0;
     this->ipc_stat_delay = 10;
     this->clock_active = false;
+
+    this->active_pc_trace_event.event(NULL);
 
     iss_reset(this, 1);
   }

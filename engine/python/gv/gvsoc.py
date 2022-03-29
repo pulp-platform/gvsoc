@@ -111,7 +111,7 @@ def gen_config(args, config):
         if args.binary is not None:
             debug_binaries.append(args.binary)
 
-        rom_binary = full_config.get_str('**/soc/rom/binary')
+        rom_binary = full_config.get_str('**/soc/rom/config/binary')
 
         if rom_binary is not None:
             
