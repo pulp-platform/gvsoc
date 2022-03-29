@@ -94,6 +94,10 @@ do { \
   { \
     _this->pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr); \
   } \
+  if (_this->active_pc_trace_event.get_event_active()) \
+  { \
+    _this->active_pc_trace_event.event((uint8_t *)&_this->cpu.current_insn->addr); \
+  } \
   if (_this->func_trace_event.get_event_active() || _this->inline_trace_event.get_event_active() || _this->file_trace_event.get_event_active() || _this->line_trace_event.get_event_active()) \
   { \
     _this->dump_debug_traces(); \
@@ -296,9 +300,15 @@ void iss_wrapper::clock_sync(void *__this, bool active)
   // account in the core state machine
   uint8_t value = active && _this->is_active_reg.get();
   if (value)
+  {
     _this->state_event.event((uint8_t *)&value);
+    _this->busy.set(1);
+  }
   else
+  {
     _this->state_event.event(NULL);
+    _this->busy.release();
+  }
 
   if (_this->ipc_stat_event.get_event_active())
   {
@@ -414,6 +424,7 @@ void iss_wrapper::check_state()
       is_active_reg.set(true);
       uint8_t one = 1;
       this->state_event.event(&one);
+      this->busy.set(1);
       if (this->ipc_stat_event.get_event_active())
         this->trigger_ipc_stat();
 
@@ -435,6 +446,8 @@ void iss_wrapper::check_state()
   {
     if (halted.get() && !do_step.get())
     {
+      if (this->active_pc_trace_event.get_event_active())
+        this->active_pc_trace_event.event(NULL);
       is_active_reg.set(false);
       this->state_event.event(NULL);
       if (this->ipc_stat_event.get_event_active())
@@ -445,8 +458,11 @@ void iss_wrapper::check_state()
     {
       if (irq_req == -1)
       {
+        if (this->active_pc_trace_event.get_event_active())
+          this->active_pc_trace_event.event(NULL);
         is_active_reg.set(false);
         this->state_event.event(NULL);
+        this->busy.release();
         if (this->ipc_stat_event.get_event_active())
           this->stop_ipc_stat();
       }
@@ -1299,7 +1315,9 @@ int iss_wrapper::build()
   traces.new_trace("perf", &perf_counter_trace, vp::TRACE);
 
   traces.new_trace_event("state", &state_event, 8);
+  this->new_reg("busy", &this->busy, 1);
   traces.new_trace_event("pc", &pc_trace_event, 32);
+  traces.new_trace_event("active_pc", &active_pc_trace_event, 32);
   this->pc_trace_event.register_callback(std::bind(&iss_wrapper::insn_trace_callback, this));
   traces.new_trace_event_string("asm", &insn_trace_event);
   traces.new_trace_event_string("func", &func_trace_event);
@@ -1399,6 +1417,7 @@ int iss_wrapper::build()
   this->cpu.config.debug_handler = this->get_js_config()->get_int("debug_handler");
 
   this->is_active_reg.set(false);
+  this->active_pc_trace_event.event(NULL);
 
   ipc_clock_event = this->event_new(iss_wrapper::ipc_stat_handler);
 

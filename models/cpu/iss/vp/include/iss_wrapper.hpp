@@ -146,7 +146,9 @@ public:
   vp::power::power_source background_power;
 
   vp::trace     state_event;
+  vp::reg_1     busy;
   vp::trace     pc_trace_event;
+  vp::trace     active_pc_trace_event;
   vp::trace     func_trace_event;
   vp::trace     inline_trace_event;
   vp::trace     line_trace_event;
