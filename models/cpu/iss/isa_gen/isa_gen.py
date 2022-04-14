@@ -29,6 +29,7 @@ nb_decoder_tree = 0
 
 def append_insn_to_isa_tag(isa_tag, insn):
     global insn_isa_tags
+
     if insn_isa_tags.get(isa_tag) is None:
         insn_isa_tags[isa_tag] = []
     insn_isa_tags[isa_tag].append(insn)
@@ -577,6 +578,9 @@ class IsaSubset(object):
             for insn in self.instrs:
                 if len(insn.isa_tags) == 0:
                     append_insn_to_isa_tag(self.name, insn)
+                else:
+                    for isa_tag in insn.isa_tags:
+                        append_insn_to_isa_tag(isa_tag, insn)
 
         return self.instrs
 
