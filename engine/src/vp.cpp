@@ -46,6 +46,8 @@
 #include <sys/prctl.h>
 #include <vp/time/time_scheduler.hpp>
 #include <vp/proxy.hpp>
+#include <vp/queue.hpp>
+#include <vp/signal.hpp>
 
 
 extern "C" long long int dpi_time_ps();
@@ -355,6 +357,16 @@ void vp::component::reset_all(bool active, bool from_itf)
         for (auto &x : this->childs)
         {
             x->reset_all(active);
+        }
+    }
+
+    this->block::reset_all(active);
+
+    if (active)
+    {
+        for (clock_event *event: this->events)
+        {
+            this->event_cancel(event);
         }
     }
 }
@@ -755,6 +767,12 @@ int64_t vp::clock_engine::exec()
 vp::clock_event::clock_event(component_clock *comp, clock_event_meth_t *meth)
     : comp(comp), _this((void *)static_cast<vp::component *>((vp::component_clock *)(comp))), meth(meth), enqueued(false)
 {
+    comp->add_clock_event(this);
+}
+
+void vp::component_clock::add_clock_event(clock_event *event)
+{
+    this->events.push_back(event);
 }
 
 vp::time_engine *vp::component::get_time_engine()
@@ -1446,7 +1464,7 @@ vp::component *vp::component::new_component(std::string name, js::config *config
 }
 
 vp::component::component(js::config *config)
-    : traces(*this), power(*this), reset_done_from_itf(false)
+    : block(NULL), traces(*this), power(*this), reset_done_from_itf(false)
 {
     this->comp_js_config = config;
 
@@ -1994,7 +2012,6 @@ vp::time_event *vp::time_scheduler::enqueue(time_event *event, int64_t time)
 
     return event;
 }
-
 
 
 extern "C" int gv_run(void *arg)
