@@ -268,6 +268,10 @@ void iss_reset(iss_t *iss, int active)
     
     iss->cpu.prev_insn = NULL;
     iss->cpu.state.elw_insn = NULL;
+    iss->cpu.state.do_fetch = false;
+
+    iss->cpu.state.hwloop_end_insn[0] = NULL;
+    iss->cpu.state.hwloop_end_insn[1] = NULL;
   }
 
   iss_csr_init(iss, active);
@@ -309,4 +313,10 @@ void iss_start(iss_t *iss)
 void iss_pc_set(iss_t *iss, iss_addr_t value)
 {
   iss->cpu.current_insn = insn_cache_get(iss, value);
+
+
+
+  // Since the ISS needs to fetch the instruction in advanced, we force the core
+  // to refetch the current instruction
+  prefetcher_refetch(iss);
 }
