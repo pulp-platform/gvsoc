@@ -111,10 +111,10 @@ do { \
   int cycles = func(_this); \
   if (_this->power.get_power_trace()->get_active()) \
   { \
-  _this->insn_groups_power[_this->cpu.prev_insn->decoder_item->u.insn.power_group].account_energy_quantum(); \
+  _this->insn_groups_power[insn->decoder_item->u.insn.power_group].account_energy_quantum(); \
  } \
   trdb_record_instruction(_this, insn); \
-  if (cycles >= 0) \
+  if (!_this->stalled.get()) \
   { \
     _this->enqueue_next_instr(cycles); \
   } \
@@ -127,7 +127,6 @@ do { \
     else \
     { \
       _this->is_active_reg.set(false); \
-      _this->stalled.set(true);     \
     } \
   } \
 } while(0)
@@ -225,9 +224,16 @@ void iss_wrapper::fetch_grant(void *_this, vp::io_req *req)
 
 }
 
-void iss_wrapper::fetch_response(void *_this, vp::io_req *req)
+void iss_wrapper::fetch_response(void *__this, vp::io_req *req)
 {
-    printf("FETCH RESPONSE\n");
+  iss_t *_this = (iss_t *)__this;
+  printf("UNSTALL\n");
+  _this->stalled.set(false);
+  if (_this->cpu.state.fetch_stall_callback)
+  {
+    _this->cpu.state.fetch_stall_callback(_this);
+  }
+  _this->check_state();
 }
 
 void iss_wrapper::bootaddr_sync(void *__this, uint32_t value)
@@ -422,6 +428,22 @@ void iss_wrapper::check_state()
   {
     if (!halted.get() && fetch_enable_reg.get() && !stalled.get() && (!wfi.get() || irq_req != -1 || this->cpu.state.debug_mode))
     {
+      // Check if we can directly reenqueue next instruction because it has already
+      // been fetched or we need to fetch it
+      if (this->cpu.state.do_fetch)
+      {
+        // In case we need to fetch it, first trigger the fetch
+        prefetcher_fetch(this, this->cpu.current_insn);
+
+        // Then enqueue the instruction only if the fetch ws completed synchronously.
+        // Otherwise, the next instruction will be enqueued when we receive the fetch
+        // response
+        if (this->stalled.get())
+        {
+          return;
+        }
+      }
+
       wfi.set(false);
       is_active_reg.set(true);
       uint8_t one = 1;
@@ -434,12 +456,13 @@ void iss_wrapper::check_state()
       {
         do_step.set(true);
       }
-      enqueue_next_instr(1 + this->wakeup_latency);
 
       if (this->cpu.csr.pcmr & CSR_PCMR_ACTIVE && this->cpu.csr.pcer & (1<<CSR_PCER_CYCLES))
       {
         this->cpu.csr.pccr[CSR_PCER_CYCLES] += 1 + this->wakeup_latency;
       }
+
+      enqueue_next_instr(1 + this->wakeup_latency);
 
       this->wakeup_latency = 0;
     }
@@ -1518,10 +1541,13 @@ void iss_wrapper::reset(bool active)
 
     if (this->get_js_config()->get("**/binaries") != NULL)
     {
+      std::string binaries = "static enable";
       for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
       {
-        this->binaries_trace_event.event_string("static enable " + x->get_str());
+        binaries += " " +  x->get_str();
       }
+
+      this->binaries_trace_event.event_string(binaries);
     }
 
     check_state();

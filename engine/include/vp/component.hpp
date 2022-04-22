@@ -55,6 +55,7 @@ namespace vp {
   class config;
   class clock_engine;
   class component;
+  class signal;
 
   class regfield
   {
@@ -392,8 +393,25 @@ namespace vp {
   };
 
 
+    class block
+    {
+    public:
+        block(block *parent);
+        virtual void reset(bool active) {}
+        void add_signal(vp::signal *signal);
 
-  class component : public component_clock
+    protected:
+        void reset_all(bool active);
+        void add_block(block *block);
+
+    private:
+        block *parent;
+        std::vector<block *> subblocks;
+        std::vector<signal *> signals;
+    };
+
+
+  class component : public component_clock, public block
   {
 
     friend class component_clock;

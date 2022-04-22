@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2020 GreenWaves Technologies, SAS, ETH Zurich and
- *                    University of Bologna
+ * Copyright (C) 2020  GreenWaves Technologies, SAS
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +14,25 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#ifndef __CPU_ISS_ISS_INSN_CACHE_HPP
-#define __CPU_ISS_ISS_INSN_CACHE_HPP
+#include <stdint.h>
 
-int insn_cache_init(iss_t *iss);
-void iss_cache_flush(iss_t *iss);
-iss_insn_t *insn_cache_get(iss_t *iss, iss_addr_t pc);
+namespace vp {
 
-#endif
+    class signal
+    {
+    public:
+        signal(block *parent, int64_t reset);
+        void set(int64_t value) { this->value = value; }
+        void setu(uint64_t value) { this->value = value; }
+        int64_t get() { return this->value; }
+        uint64_t getu() { return this->value; }
+        void reset(bool active);
+    private:
+        int64_t value;
+        int64_t reset_value;
+    };
+};

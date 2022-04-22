@@ -15,15 +15,23 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
-#ifndef __CPU_ISS_ISS_INSN_CACHE_HPP
-#define __CPU_ISS_ISS_INSN_CACHE_HPP
+#include <vp/vp.hpp>
+#include <vp/signal.hpp>
 
-int insn_cache_init(iss_t *iss);
-void iss_cache_flush(iss_t *iss);
-iss_insn_t *insn_cache_get(iss_t *iss, iss_addr_t pc);
+vp::signal::signal(block *parent, int64_t reset)
+{
+    this->reset_value = reset;
+    parent->add_signal(this);
+}
 
-#endif
+void vp::signal::reset(bool active)
+{
+    if (active)
+    {
+        this->value = this->reset_value;
+    }
+}

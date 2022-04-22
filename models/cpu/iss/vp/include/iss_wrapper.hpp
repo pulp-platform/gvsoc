@@ -176,9 +176,9 @@ public:
   uint8_t trdb_pending_word[16];
 #endif
 
+  vp::clock_event *current_event;
 private:
 
-  vp::clock_event *current_event;
   vp::clock_event *instr_event;
   vp::clock_event *check_all_event;
   vp::clock_event *misaligned_event;
@@ -223,7 +223,7 @@ private:
   inline void enqueue_next_instr(int64_t cycles);
   void halt_core();
 };
-\
+
 inline void iss_wrapper::enqueue_next_instr(int64_t cycles)
 {
   if (is_active_reg.get())
