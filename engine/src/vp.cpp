@@ -352,6 +352,16 @@ void vp::component::reset_all(bool active, bool from_itf)
             reg->reset(active);
         }
 
+        this->block::reset_all(active);
+
+        if (active)
+        {
+            for (clock_event *event: this->events)
+            {
+                this->event_cancel(event);
+            }
+        }
+
         this->reset(active);
 
         for (auto &x : this->childs)
@@ -360,15 +370,6 @@ void vp::component::reset_all(bool active, bool from_itf)
         }
     }
 
-    this->block::reset_all(active);
-
-    if (active)
-    {
-        for (clock_event *event: this->events)
-        {
-            this->event_cancel(event);
-        }
-    }
 }
 
 void vp::component_clock::reset_sync(void *__this, bool active)

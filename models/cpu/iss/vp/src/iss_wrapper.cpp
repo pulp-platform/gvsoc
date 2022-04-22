@@ -1541,10 +1541,13 @@ void iss_wrapper::reset(bool active)
 
     if (this->get_js_config()->get("**/binaries") != NULL)
     {
+      std::string binaries = "static enable";
       for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
       {
-        this->binaries_trace_event.event_string("static enable " + x->get_str());
+        binaries += " " +  x->get_str();
       }
+
+      this->binaries_trace_event.event_string(binaries);
     }
 
     check_state();
