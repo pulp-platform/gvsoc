@@ -314,8 +314,6 @@ void iss_pc_set(iss_t *iss, iss_addr_t value)
 {
   iss->cpu.current_insn = insn_cache_get(iss, value);
 
-
-
   // Since the ISS needs to fetch the instruction in advanced, we force the core
   // to refetch the current instruction
   prefetcher_refetch(iss);

@@ -181,6 +181,7 @@ void iss_wrapper::exec_instr_check_all(void *__this, vp::clock_event *event)
     }
     _this->check_state();
   }
+
 }
 
 void iss_wrapper::exec_first_instr(vp::clock_event *event)
@@ -426,6 +427,10 @@ void iss_wrapper::check_state()
 
   if (!is_active_reg.get())
   {
+
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Checking state (active: %d, halted: %d, fetch_enable: %d, stalled: %d, wfi: %d, irq_req: %d, debug_mode: %d)\n",
+      is_active_reg.get(), halted.get(), fetch_enable_reg.get(), stalled.get(), wfi.get(), irq_req, this->cpu.state.debug_mode);
+
     if (!halted.get() && fetch_enable_reg.get() && !stalled.get() && (!wfi.get() || irq_req != -1 || this->cpu.state.debug_mode))
     {
       // Check if we can directly reenqueue next instruction because it has already
