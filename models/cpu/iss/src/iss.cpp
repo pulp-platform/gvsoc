@@ -289,6 +289,7 @@ int iss_open(iss_t *iss)
   iss->cpu.regfile.regs[0] = 0;
   iss->cpu.current_insn = NULL;
   iss->cpu.stall_insn = NULL;
+  iss->cpu.prefetch_insn = NULL;
   iss->cpu.prev_insn = NULL;
   iss->cpu.state.fetch_cycles = 0;
 

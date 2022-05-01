@@ -157,6 +157,7 @@ static inline int iss_io_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_
 static inline int iss_fetch_req(iss_t *_this, uint64_t addr, uint8_t *data, uint64_t size, bool is_write)
 {
   vp::io_req *req = &_this->fetch_req;
+
   req->init();
   req->set_addr(addr);
   req->set_size(size);
@@ -220,7 +221,8 @@ static inline void iss_csr_ext_counter_get(iss_t *iss, int id, unsigned int *val
 
 static inline void iss_unstall(iss_t *iss)
 {
-  iss->stalled.set(false);
+  printf("INSN UNSTALL\n");
+  iss->stalled.dec(1);
 }
 
 static inline void iss_lsu_load_resume(iss_t *iss)

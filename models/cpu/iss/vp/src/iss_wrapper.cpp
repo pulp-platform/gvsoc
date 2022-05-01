@@ -204,7 +204,7 @@ void iss_wrapper::data_grant(void *__this, vp::io_req *req)
 void iss_wrapper::data_response(void *__this, vp::io_req *req)
 {
   iss_t *_this = (iss_t *)__this;
-  _this->stalled.set(false);
+  _this->stalled.dec(1);
   _this->wakeup_latency = req->get_latency();
   if (_this->misaligned_access.get())
   {
@@ -214,7 +214,6 @@ void iss_wrapper::data_response(void *__this, vp::io_req *req)
   {
     // First call the ISS to finish the instruction
     _this->cpu.state.stall_callback(_this);
-    iss_exec_insn_resume(_this);
     iss_exec_insn_terminate(_this);
   }
   _this->check_state();
@@ -228,8 +227,8 @@ void iss_wrapper::fetch_grant(void *_this, vp::io_req *req)
 void iss_wrapper::fetch_response(void *__this, vp::io_req *req)
 {
   iss_t *_this = (iss_t *)__this;
-  printf("UNSTALL\n");
-  _this->stalled.set(false);
+
+  _this->stalled.dec(1);
   if (_this->cpu.state.fetch_stall_callback)
   {
     _this->cpu.state.fetch_stall_callback(_this);
@@ -357,7 +356,7 @@ void iss_wrapper::flush_cache_sync(void *__this, bool active)
 void iss_wrapper::flush_cache_ack_sync(void *__this, bool active)
 {
     iss_t *_this = (iss_t *)__this;
-    iss_exec_insn_resume(_this);
+    //iss_exec_insn_resume(_this);
     iss_exec_insn_terminate(_this);
     _this->check_state();
 }

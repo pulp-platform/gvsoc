@@ -81,6 +81,7 @@ void iss_cache_flush(iss_t *iss)
   iss_addr_t current_addr = 0;
   iss_addr_t prev_addr = 0;
   iss_addr_t stall_addr = 0;
+  iss_addr_t prefetch_addr = 0;
   iss_addr_t hwloop_end_addr[2] = {0};
 
   if (iss->cpu.current_insn)
@@ -97,6 +98,11 @@ void iss_cache_flush(iss_t *iss)
   if (iss->cpu.stall_insn)
   {
     stall_addr = iss->cpu.stall_insn->addr;
+  }
+
+  if (iss->cpu.prefetch_insn)
+  {
+    stall_addr = iss->cpu.prefetch_insn->addr;
   }
 
   if (iss->cpu.state.hwloop_end_insn[0])
@@ -127,6 +133,11 @@ void iss_cache_flush(iss_t *iss)
   if (iss->cpu.stall_insn)
   {
     iss->cpu.stall_insn = insn_cache_get(iss, stall_addr);
+  }
+
+  if (iss->cpu.prefetch_insn)
+  {
+    iss->cpu.prefetch_insn = insn_cache_get(iss, stall_addr);
   }
 
   if (iss->cpu.state.hwloop_end_insn[0])

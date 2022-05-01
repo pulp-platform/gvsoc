@@ -25,7 +25,6 @@
 #include "types.hpp"
 
 static inline void iss_exec_insn_stall(iss_t *iss);
-static inline void iss_exec_insn_resume(iss_t *iss);
 static inline void iss_exec_insn_terminate(iss_t *iss);
 
 int iss_open(iss_t *iss);
