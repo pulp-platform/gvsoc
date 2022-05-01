@@ -134,6 +134,12 @@ namespace vp {
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
     }
+    inline void inc(uint8_t value) {
+      this->set(this->get() + value);
+    }
+    inline void dec(uint8_t value) {
+      this->set(this->get() - value);
+    }
     inline void write(uint8_t *value) {
       memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes);
       if (this->reg_event.get_event_active())
@@ -178,9 +184,16 @@ namespace vp {
 
     inline uint8_t get() { return this->value; }
     inline void set(uint8_t value) {
+      this->trace.msg("Setting register (value: 0x%x)\n", value);
       this->value = value;
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
+    }
+    inline void inc(uint8_t value) {
+      this->set(this->get() + value);
+    }
+    inline void dec(uint8_t value) {
+      this->set(this->get() - value);
     }
     inline void set_field(uint8_t value, int offset, int width) {
       this->value = (this->value & ~(((1UL<<width)-1)<<offset)) | (value << offset);
@@ -232,9 +245,16 @@ namespace vp {
 
     inline uint16_t get() { return this->value; }
     inline void set(uint16_t value) {
+      this->trace.msg("Setting register (value: 0x%x)\n", value);
       this->value = value;
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
+    }
+    inline void inc(uint16_t value) {
+      this->set(this->get() + value);
+    }
+    inline void dec(uint16_t value) {
+      this->set(this->get() - value);
     }
     inline void set_field(uint16_t value, int offset, int width) {
       this->value = (this->value & ~(((1UL<<width)-1)<<offset)) | (value << offset);
@@ -286,9 +306,16 @@ namespace vp {
 
     inline uint32_t get() { return this->value; }
     inline void set(uint32_t value) {
+      this->trace.msg("Setting register (value: 0x%x)\n", value);
       this->value = value;
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
+    }
+    inline void inc(uint32_t value) {
+      this->set(this->get() + value);
+    }
+    inline void dec(uint32_t value) {
+      this->set(this->get() - value);
     }
     inline void set_field(uint32_t value, int offset, int width) {
       this->value = (this->value & ~(((1UL<<width)-1)<<offset)) | (value << offset);
@@ -346,9 +373,16 @@ namespace vp {
 
     inline uint64_t get() { return this->value; }
     inline void set(uint64_t value) {
+      this->trace.msg("Setting register (value: 0x%x)\n", value);
       this->value = value;
       if (this->reg_event.get_event_active())
         this->reg_event.event((uint8_t *)&this->value);
+    }
+    inline void inc(uint64_t value) {
+      this->set(this->get() + value);
+    }
+    inline void dec(uint64_t value) {
+      this->set(this->get() - value);
     }
     inline void write(uint8_t *value) {
       memcpy((void *)this->value_bytes, (void *)value, this->nb_bytes);
