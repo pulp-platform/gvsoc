@@ -31,7 +31,8 @@ namespace vp {
     {
     public:
         queue(block *parent);
-        void push(queue_elem *elem);
+        void push_back(queue_elem *elem);
+        void push_front(queue_elem *elem);
         queue_elem *head();
         queue_elem *pop();
         bool empty();

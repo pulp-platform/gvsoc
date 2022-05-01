@@ -59,7 +59,7 @@ void vp::queue::reset(bool active)
     this->first = NULL;
 }
 
-void vp::queue::push(queue_elem *elem)
+void vp::queue::push_back(queue_elem *elem)
 {
     if (this->first)
     {
@@ -72,6 +72,20 @@ void vp::queue::push(queue_elem *elem)
 
     this->last = elem;
     elem->next = NULL;
+
+    elem->cancel_callback = &vp::queue::cancel_callback;
+    elem->cancel_this = this;
+}
+
+void vp::queue::push_front(queue_elem *elem)
+{
+    if (!this->first)
+    {
+        this->last = elem;
+    }
+
+    elem->next = this->first;
+    this->first = elem;
 
     elem->cancel_callback = &vp::queue::cancel_callback;
     elem->cancel_this = this;
