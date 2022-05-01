@@ -81,7 +81,7 @@ void Mem_plug::enqueue(Mem_plug_req *req)
 
     // Just push the request to the list of waiting requests and let the FSM check if it can
     // be processed
-    this->waiting_reqs.push(req);
+    this->waiting_reqs.push_back(req);
 
     this->check_state();
 }
@@ -105,11 +105,11 @@ bool Mem_plug_port::enqueue(Mem_plug_req *req)
     if (!this->pending_req.empty())
         return false;
 
-    this->trace.msg(vp::trace::LEVEL_TRACE, "Enqueueing request (addr: 0x%x, data: %p, size: 0x%x, is_write: %d)\n",
-        req->addr, req->data, req->size, req->is_write);
+    this->trace.msg(vp::trace::LEVEL_TRACE, "Enqueueing request (req: %p, addr: 0x%x, data: %p, size: 0x%x, is_write: %d)\n",
+        req, req->addr, req->data, req->size, req->is_write);
 
     // Enqueue the request
-    this->pending_req.push(req);
+    this->pending_req.push_back(req);
 
     // And the FSM do regular accesses to L2 
     this->check_state();
@@ -156,8 +156,8 @@ void Mem_plug_port::event_handler(void *__this, vp::clock_event *event)
     out_req->set_size(req->size < 4 ? req->size : 4);
     out_req->set_is_write(req->is_write);
 
-    _this->trace.msg(vp::trace::LEVEL_TRACE, "Sending L2 request (addr: 0x%x, data: %p, size: 0x%x, is_write: %d)\n",
-        out_req->get_addr(), out_req->get_data(), out_req->get_size(), out_req->get_is_write());
+    _this->trace.msg(vp::trace::LEVEL_TRACE, "Sending L2 request (req: %p, addr: 0x%x, data: %p, size: 0x%x, is_write: %d)\n",
+        req, out_req->get_addr(), out_req->get_data(), out_req->get_size(), out_req->get_is_write());
 
     // Update the input request
     req->addr += 4;
