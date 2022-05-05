@@ -108,9 +108,10 @@ static inline void iss_irq_req(iss_t *iss, int irq)
 {
   iss->cpu.irq.req_irq = irq;
 
-  if (iss->cpu.state.elw_insn != NULL)
+  if (iss->cpu.state.elw_insn != NULL && iss->cpu.state.elw_stalled)
   {
     iss_msg(iss, "Unstalling core due to IRQ\n");
+    iss->cpu.state.elw_stalled = false;
     iss_unstall(iss);
   }
 }

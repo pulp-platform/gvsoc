@@ -776,6 +776,10 @@ static inline iss_insn_t *p_elw_exec(iss_t *iss, iss_insn_t *insn)
   {
     iss->cpu.state.elw_insn = NULL;
   }
+  else
+  {
+    iss->cpu.state.elw_stalled = true;
+  }
   return insn->next;
 }
 

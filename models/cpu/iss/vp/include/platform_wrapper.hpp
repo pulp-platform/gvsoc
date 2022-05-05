@@ -221,7 +221,6 @@ static inline void iss_csr_ext_counter_get(iss_t *iss, int id, unsigned int *val
 
 static inline void iss_unstall(iss_t *iss)
 {
-  printf("INSN UNSTALL\n");
   iss->stalled.dec(1);
 }
 

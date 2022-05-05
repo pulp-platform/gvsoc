@@ -268,6 +268,7 @@ void iss_reset(iss_t *iss, int active)
     
     iss->cpu.prev_insn = NULL;
     iss->cpu.state.elw_insn = NULL;
+    iss->cpu.state.elw_stalled = false;
     iss->cpu.state.do_fetch = false;
 
     iss->cpu.state.hwloop_end_insn[0] = NULL;

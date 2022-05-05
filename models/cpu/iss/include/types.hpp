@@ -413,6 +413,7 @@ typedef struct iss_cpu_state_s {
   iss_reg_t vf1;
 
   iss_insn_t *elw_insn;
+  bool elw_stalled;
   int elw_interrupted;
   iss_insn_t *hwloop_next_insn;
 
