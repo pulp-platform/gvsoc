@@ -293,6 +293,10 @@ int iss_open(iss_t *iss)
   iss->cpu.prefetch_insn = NULL;
   iss->cpu.prev_insn = NULL;
   iss->cpu.state.fetch_cycles = 0;
+  iss->cpu.state.hwloop_end_insn[0] = NULL;
+  iss->cpu.state.hwloop_end_insn[1] = NULL;
+
+  iss->cpu.state.fcsr.frm = 0;
 
   iss_irq_build(iss);
   iss_resource_init(iss);
