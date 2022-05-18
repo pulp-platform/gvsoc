@@ -12,6 +12,7 @@ set(GVSOC_ENGINE_CXX_SRCS
     "src/clock/clock.cpp"
     "src/vp.cpp"
     "src/block.cpp"
+    "src/register.cpp"
     "src/signal.cpp"
     "src/queue.cpp"
     "src/proxy.cpp"
