@@ -38,6 +38,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <regex>
+#include <queue>
 
 extern "C" void dpi_set_status(int status);
 
@@ -189,6 +190,7 @@ typedef struct
     uint8_t is_sai0_ws;
     uint8_t clk_polarity;
     uint8_t ws_polarity;
+    uint8_t ws_delay;
 }
 __attribute__((packed)) pi_testbench_i2s_verif_config_t;
 
@@ -221,6 +223,29 @@ typedef enum
     PI_TESTBENCH_I2S_VERIF_RX_FILE_READER
 } pi_testbench_i2s_verif_start_config_type_e;
 
+
+typedef enum
+{
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_RAW,
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_WAV,
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN,
+    PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_AU,
+} pi_testbench_i2s_verif_start_config_rx_file_reader_type_e;
+
+typedef enum
+{
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_RAW,
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_WAV,
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_BIN,
+    PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_AU,
+} pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e;
+
+typedef enum
+{
+    PI_TESTBENCH_I2S_VERIF_FILE_ENCODING_TYPE_ASIS = 0, // Keep as is (default)
+    PI_TESTBENCH_I2S_VERIF_FILE_ENCODING_TYPE_PLUSMINUS, // Assume file contains -1/+1 values (usable for PDM only)
+} pi_testbench_i2s_verif_start_config_file_encoding_type_e;
+
 // This structure can be used to describe what an I2S slot should do
 typedef struct
 {
@@ -239,12 +264,18 @@ typedef struct
             int32_t nb_samples;
             uint32_t filepath;
             uint32_t filepath_len;
+            uint8_t type;
+            uint8_t width;
+            uint8_t encoding;
         } tx_file_dumper;
         struct
         {
             int32_t nb_samples;
             uint32_t filepath;
             uint32_t filepath_len;
+            uint8_t type;
+            uint8_t width;
+            uint8_t encoding;
         } rx_file_reader;
     };
 
@@ -258,6 +289,8 @@ typedef struct
 {
     uint8_t itf;   // Reserved for runtime
     uint8_t slot;  // Reserved for runtime
+    uint8_t stop_rx;
+    uint8_t stop_tx;
 }
 __attribute__((packed)) pi_testbench_i2s_verif_slot_stop_config_t;
 
@@ -330,7 +363,7 @@ public:
     void i2s_verif_setup(pi_testbench_i2s_verif_config_t *config);
     void i2s_verif_start(pi_testbench_i2s_verif_start_config_t *config);
     void i2s_verif_slot_setup(pi_testbench_i2s_verif_slot_config_t *config);
-    void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config);
+    void i2s_verif_slot_start(pi_testbench_i2s_verif_slot_start_config_t *config, std::vector<int> slots);
     void i2s_verif_slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config);
     static void sync(void *__this, int sck, int ws, int sd);
     void sync_sck(int sck);
@@ -434,6 +467,7 @@ public:
     void set_control(bool active, int baudrate);
     void set_dev(Uart_dev *dev) { this->dev = dev; }
     void send_byte(uint8_t byte);
+    void send_buffer(uint8_t *byte, int size);
     void set_cts(int cts);
 
     uint64_t baudrate;
@@ -448,6 +482,9 @@ public:
     int phase;
     int id;
     bool is_control_active;
+
+    FILE *proxy_file;
+    int req;
 
 private:
 
@@ -474,6 +511,8 @@ private:
     Uart_dev *dev = NULL;
 
     vp::trace trace;
+
+    std::queue<uint8_t> pending_buffers;
 
     vp::clk_slave    periph_clock_itf;
 
@@ -549,10 +588,13 @@ public:
 
     int build();
     void start();
+    std::string handle_command(Gv_proxy *proxy, FILE *req_file, FILE *reply_file, std::vector<std::string> args, std::string req);
 
     void handle_received_byte(uint8_t byte);
 
     void send_byte_done();
+
+    Gv_proxy *proxy;
 
     vp::trace trace;
 
@@ -581,7 +623,7 @@ private:
     void handle_i2s_verif_setup();
     void handle_i2s_verif_start();
     void handle_i2s_verif_slot_setup();
-    void handle_i2s_verif_slot_start();
+    void handle_i2s_verif_slot_start(std::vector<int> slots);
     void handle_i2s_verif_slot_stop();
 
     static void gpio_sync(void *__this, int value, int id);

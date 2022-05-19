@@ -25,6 +25,7 @@
 #include "vp/vp_data.hpp"
 #include "vp/component.hpp"
 #include "vp/trace/trace.hpp"
+#include "gv/gvsoc.hpp"
 #include <pthread.h>
 #include <thread>
 
@@ -47,9 +48,15 @@ namespace vp {
 
     virtual int get_max_path_len() = 0;
     virtual int get_trace_level() = 0;
+    virtual void set_trace_level(const char *trace_level) = 0;
 
     int get_format() { return this->trace_format; }
     
+    void set_vcd_user(gv::Vcd_user *user)
+    {
+        this->event_dumper.set_vcd_user(user);
+        this->vcd_user = user;
+    }
 
     void dump_event(vp::trace *trace, int64_t timestamp, uint8_t *event, int width);
 
@@ -68,6 +75,7 @@ namespace vp {
     vp::trace *get_trace_from_id(int id);
 
     virtual void add_trace_path(int events, std::string path) {}
+    virtual void conf_trace(int event, std::string path, bool enabled) {}
     virtual void add_exclude_trace_path(int events, std::string path) {}
     virtual void check_traces() {}
 
@@ -83,7 +91,12 @@ namespace vp {
     void flush();
     void check_pending_events(int64_t timestamp);
     void dump_event_to_buffer(vp::trace *trace, int64_t timestamp, uint8_t *event, int bytes, bool include_size=false);
-    void flush_Event_traces(int64_t timestamp);
+
+    // This can be called to flush all the pending traces which have been registered for the
+    // specified timestamp.
+    // This mechanism is used to merged different values of the same trace dumped during
+    // the same timestamp.
+    void flush_event_traces(int64_t timestamp);
 
     vector<char *> event_buffers;
     vector<char *> ready_event_buffers;
@@ -97,7 +110,7 @@ namespace vp {
 
     Event_trace *first_trace_to_dump;
     bool global_enable = true;
-
+    gv::Vcd_user *vcd_user;
   };
 
 };

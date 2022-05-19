@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
@@ -29,9 +29,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "vp/itf/hyper.hpp"
-#include "vp/itf/wire.hpp"
-#include "archi/utils.h"
+#include <vp/itf/hyper.hpp>
+#include <vp/itf/wire.hpp>
 
 #define REGS_AREA_SIZE 1024
 
@@ -83,6 +82,8 @@ public:
   static void sync_cycle(void *_this, int data);
   static void cs_sync(void *__this, bool value);
 
+  int get_nb_word() {return nb_word;}
+
 protected:
   vp::trace     trace;
   vp::hyper_slave   in_itf;
@@ -114,6 +115,10 @@ protected:
   int ca_count;
   int current_address;
   int reg_access;
+
+  bool burst_write = false;
+  int nb_word = -1;
+  int sector;
 };
 
 
@@ -180,16 +185,50 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
     {
       if (this->state == HYPERFLASH_STATE_PROGRAM)
       {
-        this->trace.msg(vp::trace::LEVEL_TRACE, "Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
-
-        uint8_t new_value = this->data[address] & data;
-
-        if (new_value != data)
+        if(burst_write)
         {
-          this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
-        }
+          if((address >> 1 == sector) && data == 0x29)
+          {
+            this->burst_write = false;
+            this->nb_word = -1;
+          }
+          else
+          {
+            this->trace.msg(vp::trace::LEVEL_TRACE, "[Write Buffer Programming] Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
 
-        this->data[address] &= new_value;
+            uint8_t new_value = this->data[address] & data;
+
+            if (new_value != data)
+            {
+              this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
+            }
+
+            this->data[address] &= new_value;
+
+            if(pending_bytes)
+            {
+              this->nb_word--;
+              this->pending_bytes = 0;
+            }
+            else
+            {
+              this->pending_bytes = 1;
+            }
+          }
+        }
+        else
+        {
+          this->trace.msg(vp::trace::LEVEL_TRACE, "[Word Programming] Writing to flash (address: 0x%x, value: 0x%x)\n", address, data);
+
+          uint8_t new_value = this->data[address] & data;
+
+          if (new_value != data)
+          {
+            this->warning.force_warning("Failed to program specified location (addr: 0x%x, flash_val: 0x%2.2x, program_val: 0x%2.2x)\n", address, this->data[address], data);
+          }
+
+          this->data[address] &= data;
+        }
       }
       else
       {
@@ -241,6 +280,17 @@ void Hyperflash::handle_access(int reg_access, int address, int read, uint8_t da
               else if ((address >> 1) == 0x555 && cmd == 0x38)
               {
                 this->state = HYPERFLASH_STATE_WAIT_CMD0;
+              }
+              else if(cmd == 0x25)
+              {
+                this->burst_write = true;
+                this->sector = address >> 1;
+                this->state = HYPERFLASH_STATE_WAIT_CMD2;
+              }
+              else if ((address >> 1 == sector) && burst_write)
+              {
+                this->nb_word = cmd;
+                this->state = HYPERFLASH_STATE_PROGRAM_START;
               }
             break;
 
@@ -422,7 +472,15 @@ void Hyperflash::cs_sync(void *__this, bool value)
     else if (_this->state == HYPERFLASH_STATE_PROGRAM)
     {
       _this->trace.msg(vp::trace::LEVEL_DEBUG, "End of program command (addr: 0x%x)\n", _this->current_address);
-      _this->state = HYPERFLASH_STATE_WAIT_CMD0;
+
+      if(_this->get_nb_word() < 0)
+      {
+        _this->state = HYPERFLASH_STATE_WAIT_CMD0;
+      }
+      else
+      {
+        _this->state = HYPERFLASH_STATE_PROGRAM;
+      }
     }
   }
 }
@@ -440,6 +498,7 @@ int Hyperflash::build()
   js::config *conf = this->get_js_config();
 
   this->size = conf->get("size")->get_int();
+  this->trace.msg(vp::trace::LEVEL_INFO, "Building flash (size: 0x%x)\n", this->size);
 
   this->data = new uint8_t[this->size];
   memset(this->data, 0xff, this->size);
@@ -452,7 +511,7 @@ int Hyperflash::build()
   this->state = HYPERFLASH_STATE_WAIT_CMD0;
   this->pending_bytes = 0;
   this->pending_cmd = 0;
-  
+
   js::config *preload_file_conf = conf->get("preload_file");
   if (preload_file_conf == NULL)
   {
@@ -475,7 +534,6 @@ int Hyperflash::build()
 
   return 0;
 }
-
 
 
 extern "C" vp::component *vp_constructor(js::config *config)

@@ -40,7 +40,6 @@ public:
 
 private:
 
-  static void power_callback(void *__this, vp::clock_event *event);
   static void power_ctrl_sync(void *__this, bool value);
 
   vp::trace     trace;
@@ -60,15 +59,13 @@ private:
   bool power_trigger;
   bool powered_up;
 
-  vp::power_trace power_trace;
-  vp::power_source idle_power;
-  vp::power_source read_8_power;
-  vp::power_source read_16_power;
-  vp::power_source read_32_power;
-  vp::power_source write_8_power;
-  vp::power_source write_16_power;
-  vp::power_source write_32_power;
-  vp::power_source leakage_power;
+  vp::power::power_source read_8_power;
+  vp::power::power_source read_16_power;
+  vp::power::power_source read_32_power;
+  vp::power::power_source write_8_power;
+  vp::power::power_source write_16_power;
+  vp::power::power_source write_32_power;
+  vp::power::power_source background_power;
 
   vp::clock_event *power_event;
   int64_t last_access_timestamp;
@@ -78,15 +75,6 @@ memory::memory(js::config *config)
 : vp::component(config)
 {
 
-}
-
-void memory::power_callback(void *__this, vp::clock_event *event)
-{
-  memory *_this = (memory *)__this;
-  if (_this->last_access_timestamp < _this->get_time())
-  {
-    _this->idle_power.power_on();
-  }
 }
 
 vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
@@ -105,69 +93,68 @@ vp::io_req_status_e memory::req(void *__this, vp::io_req *req)
 
   _this->trace.msg("Memory access (offset: 0x%x, size: 0x%x, is_write: %d)\n", offset, size, req->get_is_write());
 
-  // Impact the memory bandwith on the packet
-  if (_this->width_bits != 0) {
-#define MAX(a,b) (((a)>(b))?(a):(b))
-    int duration = MAX(size >> _this->width_bits, 1);
-    req->set_duration(duration);
-    int64_t cycles = _this->get_cycles();
-    int64_t diff = _this->next_packet_start - cycles;
-    if (diff > 0) {
-      _this->trace.msg("Delayed packet (latency: %ld)\n", diff);
-      req->inc_latency(diff);
+  if (!req->is_debug())
+  {
+    // Impact the memory bandwith on the packet
+    if (_this->width_bits != 0) {
+  #define MAX(a,b) (((a)>(b))?(a):(b))
+      int duration = MAX(size >> _this->width_bits, 1);
+      req->set_duration(duration);
+      int64_t cycles = _this->get_cycles();
+      int64_t diff = _this->next_packet_start - cycles;
+      if (diff > 0) {
+        _this->trace.msg("Delayed packet (latency: %ld)\n", diff);
+        req->inc_latency(diff);
+      }
+      _this->next_packet_start = MAX(_this->next_packet_start, cycles) + duration;
     }
-    _this->next_packet_start = MAX(_this->next_packet_start, cycles) + duration;
+
+    if (_this->power.get_power_trace()->get_active())
+    {
+      _this->last_access_timestamp = _this->get_time();
+
+      if (req->get_is_write())
+      {
+        if (size == 1)
+          _this->write_8_power.account_energy_quantum();
+        else if (size == 2)
+          _this->write_16_power.account_energy_quantum();
+        else if (size == 4)
+          _this->write_32_power.account_energy_quantum();
+      }
+      else
+      {
+        if (size == 1)
+          _this->read_8_power.account_energy_quantum();
+        else if (size == 2)
+          _this->read_16_power.account_energy_quantum();
+        else if (size == 4)
+          _this->read_32_power.account_energy_quantum();
+      }
+    }
+
+  #ifdef VP_TRACE_ACTIVE
+    if (_this->power_trigger)
+    {
+      if (req->get_is_write() && size == 4 && offset == 0)
+      {
+        if (*(uint32_t *)data == 0xabbaabba)
+        {
+          _this->power.get_engine()->start_capture();
+        }
+        else if (*(uint32_t *)data == 0xdeadcaca)
+        {
+          _this->power.get_engine()->stop_capture();
+        }
+      }
+    }
+  #endif
   }
 
   if (offset + size > _this->size) {
     _this->trace.force_warning("Received out-of-bound request (reqAddr: 0x%x, reqSize: 0x%x, memSize: 0x%x)\n", offset, size, _this->size);
     return vp::IO_REQ_INVALID;
   }
-
-  if (_this->power_trace.get_active())
-  {
-    _this->last_access_timestamp = _this->get_time();
-
-    if (req->get_is_write())
-    {
-      if (size == 1)
-        _this->write_8_power.account_event();
-      else if (size == 2)
-        _this->write_16_power.account_event();
-      else if (size == 4)
-        _this->write_32_power.account_event();
-    }
-    else
-    {
-      if (size == 1)
-        _this->read_8_power.account_event();
-      else if (size == 2)
-        _this->read_16_power.account_event();
-      else if (size == 4)
-        _this->read_32_power.account_event();
-    }
-
-    if (!_this->power_event->is_enqueued())
-      _this->event_enqueue(_this->power_event, 1);
-  }
-
-#ifdef VP_TRACE_ACTIVE
-  if (_this->power_trigger)
-  {
-    if (req->get_is_write() && size == 4)
-    {
-      if (*(uint32_t *)data == 0xabbaabba)
-      {
-        _this->power.get_engine()->start_capture();
-      }
-      else if (*(uint32_t *)data == 0xdeadcaca)
-      {
-        _this->power.get_engine()->stop_capture();
-      }
-    }
-  }
-#endif
-
 
   if (req->get_is_write()) {
     if (_this->check_mem) {
@@ -222,18 +209,13 @@ int memory::build()
   js::config *config = get_js_config()->get("power_trigger");
   this->power_trigger = config != NULL && config->get_bool();
 
-  if (power.new_trace("power_trace", &power_trace)) return -1;
-
-  power.new_leakage_event("leakage", &leakage_power, this->get_js_config()->get("**/leakage"), &power_trace);
-  power.new_event("idle", &idle_power, this->get_js_config()->get("**/idle"), &power_trace);
-  power.new_event("read_8", &read_8_power, this->get_js_config()->get("**/read_8"), &power_trace);
-  power.new_event("read_16", &read_16_power, this->get_js_config()->get("**/read_16"), &power_trace);
-  power.new_event("read_32", &read_32_power, this->get_js_config()->get("**/read_32"), &power_trace);
-  power.new_event("write_8", &write_8_power, this->get_js_config()->get("**/write_8"), &power_trace);
-  power.new_event("write_16", &write_16_power, this->get_js_config()->get("**/write_16"), &power_trace);
-  power.new_event("write_32", &write_32_power, this->get_js_config()->get("**/write_32"), &power_trace);
-
-  power_event = this->event_new(memory::power_callback);
+  power.new_power_source("leakage", &background_power, this->get_js_config()->get("**/background"));
+  power.new_power_source("read_8", &read_8_power, this->get_js_config()->get("**/read_8"));
+  power.new_power_source("read_16", &read_16_power, this->get_js_config()->get("**/read_16"));
+  power.new_power_source("read_32", &read_32_power, this->get_js_config()->get("**/read_32"));
+  power.new_power_source("write_8", &write_8_power, this->get_js_config()->get("**/write_8"));
+  power.new_power_source("write_16", &write_16_power, this->get_js_config()->get("**/write_16"));
+  power.new_power_source("write_32", &write_32_power, this->get_js_config()->get("**/write_32"));
 
   return 0;
 }
@@ -270,23 +252,26 @@ void memory::start()
   if (stim_file_conf != NULL)
   {
     string path = stim_file_conf->get_str();
-    trace.msg("Preloading memory with stimuli file (path: %s)\n", path.c_str());
+    if (path != "")
+    {
+      trace.msg("Preloading memory with stimuli file (path: %s)\n", path.c_str());
 
-    FILE *file = fopen(path.c_str(), "rb");
-    if (file == NULL)
-    {
-      this->trace.fatal("Unable to open stim file: %s, %s\n", path.c_str(), strerror(errno));
-      return;
-    }
-    if (fread(this->mem_data, 1, size, file) == 0)
-    {
-      this->trace.fatal("Failed to read stim file: %s, %s\n", path.c_str(), strerror(errno));
-      return;
+      FILE *file = fopen(path.c_str(), "rb");
+      if (file == NULL)
+      {
+        this->trace.fatal("Unable to open stim file: %s, %s\n", path.c_str(), strerror(errno));
+        return;
+      }
+      if (fread(this->mem_data, 1, size, file) == 0)
+      {
+        this->trace.fatal("Failed to read stim file: %s, %s\n", path.c_str(), strerror(errno));
+        return;
+      }
     }
   }
 
-  this->leakage_power.power_on();
-  this->idle_power.power_on();
+  this->background_power.leakage_power_start();
+  this->background_power.dynamic_power_start();
   this->last_access_timestamp = -1;
 }
 

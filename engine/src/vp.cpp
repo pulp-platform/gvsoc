@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-/* 
+/*
  * Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
  */
 
@@ -44,6 +44,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <vp/time/time_scheduler.hpp>
+#include <vp/proxy.hpp>
+#include <vp/queue.hpp>
+#include <vp/signal.hpp>
 
 
 extern "C" long long int dpi_time_ps();
@@ -62,137 +66,55 @@ char vp_error[VP_ERROR_SIZE];
 
 
 
-class Gv_proxy
-{
-  public:
-    Gv_proxy(vp::component *top, int req_pipe, int reply_pipe): top(top), req_pipe(req_pipe), reply_pipe(reply_pipe) {}
-    int open(int port, int *out_port);
-    void stop();
-    
-  private:
- 
-
-    void listener(void);
-    void proxy_loop(int);
-    
-    int telnet_socket;
-    int socket_port;
-    
-    std::thread *loop_thread;
-    std::thread *listener_thread;
-
-    std::vector<int> sockets;
-
-    vp::component *top;
-    int req_pipe;
-    int reply_pipe;
-};
-
-
 static Gv_proxy *proxy = NULL;
 
 
-uint64_t vp::reg::get_field(int offset, int width)
-{
-    uint64_t value = 0;
-    this->read(0, (offset + width + 7)/8, (uint8_t *)&value);
-    return (value >> offset) & ((1UL<<width)-1);
-}
 
 
-void vp::regmap::reset(bool active)
+
+
+void vp::component::get_trace(std::vector<vp::trace *> &traces, std::string path)
 {
-    for (auto x: this->get_registers())
+    if (this->get_path() != "" && path.find(this->get_path()) != 0)
     {
-        x->reset(active);
+        return;
     }
-}
 
-bool vp::regmap::access(uint64_t offset, int size, uint8_t *value, bool is_write)
-{
-    for (auto x: this->get_registers())
+    for (vp::component *component: this->get_childs())
     {
-        if (offset >= x->offset && offset + size <= x->offset + (x->width+7)/8)
+        component->get_trace(traces, path);
+    }
+
+    for (auto x: this->traces.traces)
+    {
+        if (x.second->get_full_path().find(path) == 0)
         {
-            vp::reg *aliased_reg = x;
-
-            if (x->alias)
-            {
-                x = x->alias();
-            }
-
-            x->access((offset - aliased_reg->offset), size, value, is_write);
-            
-            if (aliased_reg->trace.get_active(vp::trace::LEVEL_DEBUG))
-            {
-                std::string regfields_values = "";
-
-                if (aliased_reg->regfields.size() != 0)
-                {
-                    for (auto y: aliased_reg->regfields)
-                    {
-                        char buff[256];
-                        snprintf(buff, 256, "0x%lx", x->get_field(y->bit, y->width));
-
-                        if (regfields_values != "")
-                            regfields_values += ", ";
-
-                        regfields_values += y->name + "=" + std::string(buff);
-                    }
-                    
-                    regfields_values = "{ " + regfields_values + " }";
-                }
-                else
-                {
-                    char buff[256];
-                    snprintf(buff, 256, "0x%lx", x->get_field(0, aliased_reg->width));
-                    regfields_values = std::string(buff);
-                }
-
-                aliased_reg->trace.msg(vp::trace::LEVEL_DEBUG,
-                    "Register access (name: %s, offset: 0x%x, size: 0x%x, is_write: 0x%x, value: %s)\n",
-                    aliased_reg->get_name().c_str(), offset, size, is_write, regfields_values.c_str()
-                );
-            }
-
-            return false;
+            traces.push_back(x.second);
         }
     }
 
-    vp_warning_always(this->trace, "Accessing invalid register (offset: 0x%lx, size: 0x%x, is_write: %d)\n", offset, size, is_write);
-    return true;
-}
-
-
-
-void vp::regmap::build(vp::component *comp, vp::trace *trace, std::string name)
-{
-    this->comp = comp;
-    this->trace = trace;
-
-    for (auto x: this->get_registers())
+    for (auto x: this->traces.trace_events)
     {
-        std::string reg_name = name;
-        if (reg_name == "")
-            reg_name = x->get_hw_name();
-        else
-            reg_name = reg_name + "/" + x->get_hw_name();
-
-        x->build(comp, reg_name);
+        if (x.second->get_full_path().find(path) == 0)
+        {
+            traces.push_back(x.second);
+        }
     }
 }
-
-
 
 void vp::component::reg_step_pre_start(std::function<void()> callback)
 {
     this->pre_start_callbacks.push_back(callback);
 }
 
+void vp::component::register_build_callback(std::function<void()> callback)
+{
+    this->build_callbacks.push_back(callback);
+}
+
 void vp::component::post_post_build()
 {
     traces.post_post_build();
-    power.post_post_build();
 }
 
 void vp::component::final_bind()
@@ -224,7 +146,15 @@ void vp::component::set_vp_config(js::config *config)
 
 void vp::component::set_gv_conf(struct gv_conf *gv_conf)
 {
-    memcpy(&this->gv_conf, gv_conf, sizeof(struct gv_conf));
+    if (gv_conf)
+    {
+        memcpy(&this->gv_conf, gv_conf, sizeof(struct gv_conf));
+    }
+    else
+    {
+        memset(&this->gv_conf, 0, sizeof(struct gv_conf));
+        gv_init(&this->gv_conf);
+    }
 }
 
 
@@ -343,6 +273,7 @@ void vp::component_clock::clk_reg(component *_this, component *clock)
     }
 }
 
+
 void vp::component::reset_all(bool active, bool from_itf)
 {
     // Small hack to not propagate the reset from top level if the reset has
@@ -362,6 +293,16 @@ void vp::component::reset_all(bool active, bool from_itf)
             reg->reset(active);
         }
 
+        this->block::reset_all(active);
+
+        if (active)
+        {
+            for (clock_event *event: this->events)
+            {
+                this->event_cancel(event);
+            }
+        }
+
         this->reset(active);
 
         for (auto &x : this->childs)
@@ -369,6 +310,7 @@ void vp::component::reset_all(bool active, bool from_itf)
             x->reset_all(active);
         }
     }
+
 }
 
 void vp::component_clock::reset_sync(void *__this, bool active)
@@ -388,6 +330,7 @@ void vp::component_clock::pre_build(component *comp)
 
     comp->traces.new_trace("comp", comp->get_trace(), vp::DEBUG);
     comp->traces.new_trace("warning", &comp->warning, vp::WARNING);
+
 }
 
 
@@ -766,6 +709,12 @@ int64_t vp::clock_engine::exec()
 vp::clock_event::clock_event(component_clock *comp, clock_event_meth_t *meth)
     : comp(comp), _this((void *)static_cast<vp::component *>((vp::component_clock *)(comp))), meth(meth), enqueued(false)
 {
+    comp->add_clock_event(this);
+}
+
+void vp::component_clock::add_clock_event(clock_event *event)
+{
+    this->events.push_back(event);
 }
 
 vp::time_engine *vp::component::get_time_engine()
@@ -1126,6 +1075,52 @@ void vp::component::add_child(std::string name, vp::component *child)
     this->childs_dict[name] = child;
 }
 
+
+
+
+vp::component *vp::component::get_component(std::vector<std::string> path_list)
+{
+    if (path_list.size() == 0)
+    {
+        return this;
+    }
+
+    std::string name = "";
+    unsigned int name_pos= 0;
+    for (auto x: path_list)
+    {
+        if (x != "*" && x != "**")
+        {
+            name = x;
+            break;
+        }
+        name_pos += 1;
+    }
+
+    for (auto x:this->childs)
+    {
+        vp::component *comp;
+        if (name == x->get_name())
+        {
+            comp = x->get_component({ path_list.begin() + name_pos + 1, path_list.end() });
+        }
+        else if (path_list[0] == "**")
+        {
+            comp = x->get_component(path_list);
+        }
+        else if (path_list[0] == "*")
+        {
+            comp = x->get_component({ path_list.begin() + 1, path_list.end() });
+        }
+        if (comp)
+        {
+            return comp;
+        }
+    }
+
+    return NULL;
+}
+
 void vp::component::elab()
 {
     for (auto &x : this->childs)
@@ -1230,6 +1225,11 @@ void vp::reg::reset(bool active)
         else
         {
             memset((void *)this->value_bytes, 0, this->nb_bytes);
+        }
+
+        if (this->reg_event.get_event_active())
+        {
+            this->reg_event.event((uint8_t *)this->value_bytes);
         }
     }
 }
@@ -1342,12 +1342,33 @@ void vp::component::throw_error(std::string error)
 }
 
 
+void vp::component::build_instance(std::string name, vp::component *parent)
+{
+    std::string comp_path = parent->get_path() != "" ? parent->get_path() + "/" + name : name == "" ? "" : "/" + name;
+
+    this->conf(name, comp_path, parent);
+    this->pre_pre_build();
+    this->pre_build();
+    this->build();
+    this->power.build();
+
+    for (auto x : build_callbacks)
+    {
+        x();
+    }
+}
+
 
 vp::component *vp::component::new_component(std::string name, js::config *config, std::string module_name)
 {
     if (module_name == "")
     {
         module_name = config->get_child_str("vp_component");
+
+        if (module_name == "")
+        {
+            module_name = "utils.composite_impl";
+        }
     }
 
     if (this->get_vp_config()->get_child_bool("sv-mode"))
@@ -1379,18 +1400,13 @@ vp::component *vp::component::new_component(std::string name, js::config *config
 
     vp::component *instance = constructor(config);
 
-    std::string comp_path = this->get_path() != "" ? this->get_path() + "/" + name : name == "" ? "" : "/" + name;
-
-    instance->conf(name, comp_path, this);
-    instance->pre_pre_build();
-    instance->pre_build();
-    instance->build();
+    instance->build_instance(name, this);
 
     return instance;
 }
 
 vp::component::component(js::config *config)
-    : traces(*this), power(*this), reset_done_from_itf(false)
+    : block(NULL), traces(*this), power(*this), reset_done_from_itf(false)
 {
     this->comp_js_config = config;
 
@@ -1401,6 +1417,10 @@ void vp::component::create_ports()
 {
     js::config *config = this->get_js_config();
     js::config *ports = config->get("vp_ports");
+    if (ports == NULL)
+    {
+        ports = config->get("ports");
+    }
 
     if (ports != NULL)
     {
@@ -1422,6 +1442,10 @@ void vp::component::create_bindings()
 {
     js::config *config = this->get_js_config();
     js::config *bindings = config->get("vp_bindings");
+    if (bindings == NULL)
+    {
+        bindings = config->get("bindings");
+    }
 
     if (bindings != NULL)
     {
@@ -1520,11 +1544,11 @@ void vp::component::bind_comps()
 }
 
 
-void *vp::component::external_bind(std::string name, int handle)
+void *vp::component::external_bind(std::string comp_name, std::string itf_name, void *handle)
 {
     for (auto &x : this->childs)
     {
-        void *result = x->external_bind(name, handle);
+        void *result = x->external_bind(comp_name, itf_name, handle);
         if (result != NULL)
             return result;
     }
@@ -1543,6 +1567,10 @@ void vp::component::create_comps()
 {
     js::config *config = this->get_js_config();
     js::config *comps = config->get("vp_comps");
+    if (comps == NULL)
+    {
+        comps = config->get("components");
+    }
 
     if (comps != NULL)
     {
@@ -1566,176 +1594,20 @@ void vp::component::create_comps()
 
 
 
-void Gv_proxy::proxy_loop(int socket_fd)
+void vp::component::dump_traces_recursive(FILE *file)
 {
-    FILE *sock = fdopen(socket_fd, "r");
+    this->dump_traces(file);
 
-    while(1)
+    for (auto& x: this->get_childs())
     {
-        char line[1024];
-
-        if (!fgets(line, 1024, sock)) 
-            return ;
-
-        std::string s = std::string(line);
-        std::regex regex{R"([\s]+)"};
-        std::sregex_token_iterator it{s.begin(), s.end(), regex, -1};
-        std::vector<std::string> words{it, {}};
-
-        if (words.size() > 0)
-        {
-            if (words[0] == "run")
-            {
-                int64_t timestamp = top->get_time();
-                this->top->run();
-                dprintf(this->reply_pipe, "running %ld\n", timestamp);
-            }
-            else if (words[0] == "stop")
-            {
-                this->top->pause();
-                this->top->flush_all();
-                fflush(NULL);
-                dprintf(this->reply_pipe, "stopped %ld\n", top->get_time());
-            }
-            else if (words[0] == "quit")
-            {
-                this->top->quit();
-            }
-            else if (words[0] == "trace")
-            {
-                if (words.size() != 3)
-                {
-                    fprintf(stderr, "This command requires 2 arguments: trace [add|remove] regexp");
-                }
-                else
-                {
-                    if (words[1] == "add")
-                    {
-                        this->top->traces.get_trace_manager()->add_trace_path(0, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                    else
-                    {
-                        this->top->traces.get_trace_manager()->add_exclude_trace_path(0, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                }
-            }
-            else if (words[0] == "event")
-            {
-                if (words.size() != 3)
-                {
-                    fprintf(stderr, "This command requires 2 arguments: event [add|remove] regexp");
-                }
-                else
-                {
-                    if (words[1] == "add")
-                    {
-                        this->top->traces.get_trace_manager()->add_trace_path(1, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                    else
-                    {
-                        this->top->traces.get_trace_manager()->add_exclude_trace_path(1, words[2]);
-                        this->top->traces.get_trace_manager()->check_traces();
-                    }
-                }
-            }
-            else
-            {
-                printf("Ignoring invalid command: %s\n", words[0].c_str());
-            }
-        }
+        x->dump_traces_recursive(file);
     }
 }
 
 
-void Gv_proxy::listener(void)
+vp::component *vp::__gv_create(std::string config_path, struct gv_conf *gv_conf)
 {
-    int client_fd;
-    while(1)
-    {
-        if ((client_fd = accept(this->telnet_socket, NULL, NULL)) == -1)
-        {
-            if(errno == EAGAIN) continue;
-            fprintf(stderr, "Failed to accept connection: %s\n", strerror(errno));
-            return;
-        }
-
-        this->sockets.push_back(client_fd);
-        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, client_fd);
-    }
-}
-
-
-
-int Gv_proxy::open(int port, int *out_port)
-{
-    if (this->req_pipe == -1)
-    {
-        struct sockaddr_in addr;
-        int yes = 1;
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(port);
-        addr.sin_addr.s_addr = INADDR_ANY;
-        socklen_t size = sizeof(addr.sin_zero);
-        memset(addr.sin_zero, '\0', sizeof(addr.sin_zero));
-
-        this->telnet_socket = socket(PF_INET, SOCK_STREAM, 0);
-
-        if (this->telnet_socket < 0)
-        {
-            fprintf(stderr, "Unable to create comm socket: %s\n", strerror(errno));
-            return -1;
-        }
-
-        if (setsockopt(this->telnet_socket, SOL_SOCKET, SO_REUSEADDR, &yes,
-                sizeof(int)) == -1) {
-            fprintf(stderr, "Unable to setsockopt on the socket: %s\n", strerror(errno));
-            return -1;
-        }
-
-        if (bind(this->telnet_socket, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
-            fprintf(stderr, "Unable to bind the socket: %s\n", strerror(errno));
-            return -1;
-        }
-
-        if (listen(this->telnet_socket, 1) == -1) {
-            fprintf(stderr, "Unable to listen: %s\n", strerror(errno));
-            return -1;
-        }
-
-        getsockname(this->telnet_socket, (sockaddr*)&addr, &size);
-
-        if (out_port)
-        {
-            *out_port = ntohs(addr.sin_port);
-        }
-
-        this->listener_thread = new std::thread(&Gv_proxy::listener, this);
-    }
-    else
-    {
-        this->loop_thread = new std::thread(&Gv_proxy::proxy_loop, this, this->req_pipe);
-    }
-
-    return 0;
-}
-
-
-
-void Gv_proxy::stop()
-{
-    for (auto x: this->sockets)
-    {
-        shutdown(x, SHUT_RDWR);
-    }
-}
-
-
-extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
-{
-    setenv("PULP_CONFIG_FILE", config_path, 1);
+    setenv("PULP_CONFIG_FILE", config_path.c_str(), 1);
 
     js::config *js_config = js::import_config_from_file(config_path);
     if (js_config == NULL)
@@ -1776,10 +1648,21 @@ extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
 
     vp::component *instance = constructor(js_config);
 
+    vp::top *top = new vp::top();
+
+    top->top_instance = instance;
+    top->power_engine = new vp::power::engine(instance);
+
     instance->set_vp_config(gv_config);
     instance->set_gv_conf(gv_conf);
 
-    return (void *)instance;
+    return (vp::component *)top;
+}
+
+
+extern "C" void *gv_create(const char *config_path, struct gv_conf *gv_conf)
+{
+    return (void *)vp::__gv_create(config_path, gv_conf);
 }
 
 
@@ -1790,17 +1673,28 @@ extern "C" void gv_destroy(void *arg)
 
 extern "C" void gv_start(void *arg)
 {
-    vp::component *instance = (vp::component *)arg;
+    vp::top *top = (vp::top *)arg;
+    vp::component *instance = (vp::component *)top->top_instance;
 
     instance->pre_pre_build();
     instance->pre_build();
     instance->build();
     instance->build_new();
 
-    if (instance->gv_conf.open_proxy)
+    if (instance->gv_conf.open_proxy || instance->get_vp_config()->get_child_bool("proxy/enabled"))
     {
+        int in_port = instance->gv_conf.open_proxy ? 0 : instance->get_vp_config()->get_child_int("proxy/port");
+        int out_port;
         proxy = new Gv_proxy(instance, instance->gv_conf.req_pipe, instance->gv_conf.reply_pipe);
-        proxy->open(0, instance->gv_conf.proxy_socket);
+        if (proxy->open(in_port, &out_port))
+        {
+            instance->throw_error("Failed to start proxy");
+        }
+
+        if (instance->gv_conf.proxy_socket)
+        {
+            *instance->gv_conf.proxy_socket = out_port;
+        }
     }
 
 }
@@ -1808,7 +1702,8 @@ extern "C" void gv_start(void *arg)
 
 extern "C" void gv_step(void *arg, int64_t timestamp)
 {
-    vp::component *instance = (vp::component *)arg;
+    vp::top *top = (vp::top *)arg;
+    vp::component *instance = (vp::component *)top->top_instance;
 
     instance->step(timestamp);
 }
@@ -1816,7 +1711,8 @@ extern "C" void gv_step(void *arg, int64_t timestamp)
 
 extern "C" int64_t gv_time(void *arg)
 {
-    vp::component *instance = (vp::component *)arg;
+    vp::top *top = (vp::top *)arg;
+    vp::component *instance = (vp::component *)top->top_instance;
 
     return instance->get_time_engine()->get_next_event_time();
 }
@@ -1857,19 +1753,13 @@ void Gvsoc_proxy::proxy_loop()
     {
         char line[1024];
 
-        if (!fgets(line, 1024, sock)) 
+        if (!fgets(line, 1024, sock))
             return ;
 
         std::string s = std::string(line);
         std::regex regex{R"([\s]+)"};
         std::sregex_token_iterator it{s.begin(), s.end(), regex, -1};
         std::vector<std::string> words{it, {}};
-
-
-        for (auto x: words)
-        {
-            printf("%s\n", x.c_str());
-        }
 
         if (words.size() > 0)
         {
@@ -1891,6 +1781,9 @@ void Gvsoc_proxy::proxy_loop()
                 this->running = true;
                 this->cond.notify_all();
                 this->mutex.unlock();
+            }
+            else if (words[0] == "req=")
+            {
             }
             else
             {
@@ -1924,12 +1817,12 @@ int Gvsoc_proxy::open()
         // test in case the original parent exited just
         // before the prctl() call
         if (getppid() != ppid_before_fork) exit(1);
-        
+
         void *instance = gv_open(this->config_path.c_str(), true, NULL, this->req_pipe[0], this->reply_pipe[1]);
 
         int retval = gv_run(instance);
 
-        gv_stop(instance);
+        gv_stop(instance, retval);
 
         return retval;
     }
@@ -1946,7 +1839,7 @@ int Gvsoc_proxy::open()
 
 void Gvsoc_proxy::run()
 {
-    dprintf(this->req_pipe[1], "run\n");
+    dprintf(this->req_pipe[1], "cmd=run\n");
 }
 
 
@@ -1954,7 +1847,7 @@ void Gvsoc_proxy::run()
 int64_t Gvsoc_proxy::pause()
 {
     int64_t result;
-    dprintf(this->req_pipe[1], "stop\n");
+    dprintf(this->req_pipe[1], "cmd=stop\n");
     std::unique_lock<std::mutex> lock(this->mutex);
     while (this->running)
     {
@@ -1969,14 +1862,14 @@ int64_t Gvsoc_proxy::pause()
 
 void Gvsoc_proxy::close()
 {
-    dprintf(this->req_pipe[1], "quit\n");
+    dprintf(this->req_pipe[1], "cmd=quit\n");
 }
 
 
 
 void Gvsoc_proxy::add_event_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "event add %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=event add %s\n", regex.c_str());
 
 }
 
@@ -1984,29 +1877,89 @@ void Gvsoc_proxy::add_event_regex(std::string regex)
 
 void Gvsoc_proxy::remove_event_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "event remove %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=event remove %s\n", regex.c_str());
 }
 
 
 
 void Gvsoc_proxy::add_trace_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "trace add %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=trace add %s\n", regex.c_str());
 }
 
 
 
 void Gvsoc_proxy::remove_trace_regex(std::string regex)
 {
-    dprintf(this->req_pipe[1], "trace remove %s\n", regex.c_str());
+    dprintf(this->req_pipe[1], "cmd=trace remove %s\n", regex.c_str());
 }
 
 
-
-
-extern "C" int gv_run(void *_instance)
+vp::time_scheduler::time_scheduler(js::config *config)
+    : time_engine_client(config), first_event(NULL)
 {
-    vp::component *instance = (vp::component *)_instance;
+
+}
+
+
+int64_t vp::time_scheduler::exec()
+{
+    vp::time_event *current = this->first_event;
+
+    while (current && current->time == this->get_time())
+    {
+        this->first_event = current->next;
+
+        current->meth(current->_this, current);
+
+        current = this->first_event;
+    }
+
+    if (this->first_event == NULL)
+    {
+        return -1;
+    }
+    else
+    {
+        return this->first_event->time - this->get_time();
+    }
+}
+
+
+vp::time_event::time_event(time_scheduler *comp, time_event_meth_t *meth)
+    : comp(comp), _this((void *)static_cast<vp::component *>((vp::time_scheduler *)(comp))), meth(meth), enqueued(false)
+{
+
+}
+
+vp::time_event *vp::time_scheduler::enqueue(time_event *event, int64_t time)
+{
+    vp::time_event *current = this->first_event, *prev = NULL;
+    int64_t full_time = time + this->get_time();
+
+    while (current && current->time < full_time)
+    {
+        prev = current;
+        current = current->next;
+    }
+
+    if (prev)
+        prev->next = event;
+    else
+        this->first_event = event;
+    event->next = current;
+    event->time = full_time;
+
+    this->enqueue_to_engine(time);
+
+    return event;
+}
+
+
+extern "C" int gv_run(void *arg)
+{
+    vp::top *top = (vp::top *)arg;
+    vp::component *instance = (vp::component *)top->top_instance;
 
     if (!proxy)
     {
@@ -2020,22 +1973,28 @@ extern "C" int gv_run(void *_instance)
 extern "C" void gv_init(struct gv_conf *gv_conf)
 {
     gv_conf->open_proxy = 0;
-    gv_conf->open_proxy = NULL;
+    if (gv_conf->proxy_socket)
+    {
+        *gv_conf->proxy_socket = -1;
+    }
     gv_conf->req_pipe = 0;
     gv_conf->reply_pipe = 0;
 }
 
 
-extern "C" void gv_stop(void *_instance)
+extern "C" void gv_stop(void *arg, int retval)
 {
-    vp::component *instance = (vp::component *)_instance;
+    vp::top *top = (vp::top *)arg;
+    vp::component *instance = (vp::component *)top->top_instance;
 
     if (proxy)
     {
-        proxy->stop();
+        proxy->stop(retval);
     }
 
     instance->stop();
+
+    delete top->power_engine;
 }
 
 
@@ -2059,8 +2018,19 @@ int sc_main(int argc, char *argv[])
 #endif
 
 
+void vp::fatal(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    if (vfprintf(stderr, fmt, ap) < 0) {}
+    va_end(ap);
+    abort();
+}
+
+
 extern "C" void *gv_chip_pad_bind(void *handle, char *name, int ext_handle)
 {
-    vp::component *instance = (vp::component *)handle;
-    return instance->external_bind(name, ext_handle);
+    vp::top *top = (vp::top *)handle;
+    vp::component *instance = (vp::component *)top->top_instance;
+    return instance->external_bind(name, "", (void *)(long)ext_handle);
 }

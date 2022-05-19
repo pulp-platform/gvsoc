@@ -3,6 +3,7 @@
 import argparse
 import os
 from subprocess import Popen, PIPE
+import sys
 
 
 parser = argparse.ArgumentParser(description='Generate PC debug info')
@@ -62,12 +63,15 @@ toolchain = os.environ.get('PULP_RISCV_GCC_TOOLCHAIN_CI')
 if toolchain is None:
 	toolchain = os.environ.get('PULP_RISCV_GCC_TOOLCHAIN')
 
-if toolchain is not None:
-	readelf = toolchain + '/bin/riscv32-unknown-elf-readelf'
-	addr2line = toolchain + '/bin/riscv32-unknown-elf-addr2line'
-else:
-	readelf = 'riscv32-unknown-elf-readelf'
-	addr2line = 'riscv32-unknown-elf-addr2line'
+# if toolchain is not None:
+# 	readelf = toolchain + '/bin/riscv32-unknown-elf-readelf'
+# 	addr2line = toolchain + '/bin/riscv32-unknown-elf-addr2line'
+# else:
+# 	readelf = 'riscv32-unknown-elf-readelf'
+# 	addr2line = 'riscv32-unknown-elf-addr2line'
+
+readelf = 'readelf'
+addr2line = 'addr2line'
 
 process = Popen((readelf + ' -s %s' % args.file).split(), stdin=PIPE, stdout=PIPE)
 
@@ -124,6 +128,11 @@ for f in functions:
 
 
 # And finally generate the output files
+
+if args.allFile is None and args.pcFile is None and args.debugFile is None and args.inlineFile is None:
+	for f in functions:
+		f.dumpAll(sys.stdout)
+
 
 # PC oriented file
 if args.allFile != None:

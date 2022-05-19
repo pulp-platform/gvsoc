@@ -921,7 +921,7 @@ static bool scratch1_write(iss_t *iss, iss_reg_t value) {
 
 
 static bool pcer_write(iss_t *iss, unsigned int prev_val, unsigned int value) {
-  iss->cpu.csr.pcer = value;
+  iss->cpu.csr.pcer = value & 0x7fffffff;
   check_perf_config_change(iss, prev_val, iss->cpu.csr.pcmr);
   return false;
 }
@@ -940,6 +940,18 @@ static bool hwloop_read(iss_t *iss, int reg, iss_reg_t *value) {
 
 static bool hwloop_write(iss_t *iss, int reg, unsigned int value) {
   iss->cpu.pulpv2.hwloop_regs[reg] = value;
+
+  // Since the HW loop is using decode instruction for the HW loop start to jump faster
+  // we need to recompute it when it is modified.
+  if (reg == 0)
+  {
+      iss->cpu.state.hwloop_start_insn[0] = insn_cache_get(iss, value);
+  }
+  else if (reg == 4)
+  {
+      iss->cpu.state.hwloop_start_insn[1] = insn_cache_get(iss, value);
+  }
+
   return false;
 }
 
@@ -1042,10 +1054,10 @@ static bool perfCounters_write(iss_t *iss, int reg, unsigned int value)
     iss_perf_counter_msg(iss, "Setting value to all PCCR (value: 0x%x)\n", value);
 
     int i;
-    for (i=0; i<CSR_PCER_NB_EVENTS; i++)
+    for (i=0; i<31; i++)
     {
       iss->cpu.csr.pccr[i] = value;
-      if (i >= CSR_PCER_NB_INTERNAL_EVENTS)
+      if (i >= CSR_PCER_NB_INTERNAL_EVENTS  && i < CSR_PCER_NB_EVENTS)
       {
         update_external_pccr(iss, i, 0, 0);
       }

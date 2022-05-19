@@ -19,14 +19,17 @@
 # Authors: Germain Haugou, GreenWaves Technologies (germain.haugou@greenwaves-technologies.com)
 #
 
-instrLabels = {}
-insn_isa_tags = {}
+import collections
+
+instrLabels = collections.OrderedDict({})
+insn_isa_tags = collections.OrderedDict({})
 instrLabelsList = []
 nb_insn = 0
 nb_decoder_tree = 0
 
 def append_insn_to_isa_tag(isa_tag, insn):
     global insn_isa_tags
+
     if insn_isa_tags.get(isa_tag) is None:
         insn_isa_tags[isa_tag] = []
     insn_isa_tags[isa_tag].append(insn)
@@ -353,9 +356,9 @@ class DecodeLeaf(object):
         #    self.isaFile.write('  ')
         self.isaFile.write(str)
 
-    def gen(self):
+    def gen(self, isa):
         self.dump('// %s\n' % (self.instr.getStr()))
-        self.instr.gen(self.isaFile, self.opcode, self.others)
+        self.instr.gen(isa, self.isaFile, self.opcode, self.others)
         #self.dump('static iss_decoder_item_t %s = { false, 0, { %d, 0, 0, NULL } }; \n\n' % (self.get_name(), self.firstBit))
 #
 #        #if self.instr.active != None: self.dump('if (!%s) goto error;\n' % (self.instr.active.replace('-', '_')))
@@ -369,7 +372,7 @@ class DecodeTree(object):
         self.opcode = opcode
         self.isaFile = isaFile
         self.level = 0
-        self.subtrees = {}
+        self.subtrees = collections.OrderedDict({})
         self.firstBit = 0
         global nb_decoder_tree
         self.tree_id = nb_decoder_tree
@@ -449,7 +452,7 @@ class DecodeTree(object):
 
         # Now group them together in sub-groups depending on their
         # opcode for this mask
-        groups = {}
+        groups = collections.OrderedDict({})
         for instr in instrs:
             size = instr.len
 
@@ -513,7 +516,7 @@ class DecodeTree(object):
             return list(self.subtrees.values())[0].get_name()
 
 
-    def gen(self, is_top=False):
+    def gen(self, isa, is_top=False):
 
         if len(self.subtrees) != 0:
 
@@ -523,12 +526,12 @@ class DecodeTree(object):
                     if opcode == 'OTHERS':
                         others = subtree
                     else:
-                        subtree.gen()
+                        subtree.gen(isa)
                 if others != None:
-                    others.gen()
+                    others.gen(isa)
             else:
                 subtree = list(self.subtrees.values())[0]
-                subtree.gen()
+                subtree.gen(isa)
 
 
             if self.needTree:
@@ -575,6 +578,9 @@ class IsaSubset(object):
             for insn in self.instrs:
                 if len(insn.isa_tags) == 0:
                     append_insn_to_isa_tag(self.name, insn)
+                else:
+                    for isa_tag in insn.isa_tags:
+                        append_insn_to_isa_tag(isa_tag, insn)
 
         return self.instrs
 
@@ -583,7 +589,7 @@ class IsaSubset(object):
             instr.setPower(power)
 
     def getOptions(self):
-        options = {}
+        options = collections.OrderedDict({})
         for instr in self.instrs:
             options.update(instr.getOptions())
 
@@ -611,10 +617,17 @@ class IsaDecodeTree(object):
             self.tree = DecodeTree(isaFile, instrs, 0xffffffff, '0')
 
         if len(instrs) != 0:
-            self.tree.gen(is_top=True)
+            self.tree.gen(isa, is_top=True)
 
     def dump_ref(self, isa, isaFile):
         dump(isaFile, '  {(char *)"%s", &%s},\n' % (self.name, self.tree.get_name()))
+
+
+class Resource(object):
+
+    def __init__(self, name, instances=1):
+        self.name = name
+        self.instances = instances
 
 
 class Isa(object):
@@ -622,6 +635,23 @@ class Isa(object):
         self.level = 0
         self.name = name
         self.trees = trees
+        self.trees_dict = {}
+        self.resources = []
+
+        for tree in self.trees:
+            self.trees_dict[tree.name] = tree
+
+    def get_resource_index(self, resource_name):
+        index = 0
+        for resource in self.resources:
+            if resource.name == resource_name:
+                return index
+            index += 1
+
+        return -1
+
+    def add_resource(self, name, instances=1):
+        self.resources.append(Resource(name, instances))
 
 
     def get_insns(self):
@@ -637,6 +667,9 @@ class Isa(object):
             self.isaFile.write('  ')
         self.isaFile.write(str)
 
+    def get_tree(self, name):
+        return self.trees_dict.get(name)
+
     def gen(self, isaFile, isaFileHeader):
 
         self.isaFile = isaFile
@@ -651,11 +684,15 @@ class Isa(object):
         self.isaFileHeader.write('#endif\n')
         
 
-
+        self.dump('static iss_resource_t __iss_resources[]\n')
+        self.dump('{\n')
+        for resource in self.resources:
+            self.dump('  {"%s", %d},\n' % (resource.name, resource.instances))
+        self.dump('};\n')
+        self.dump('\n')
 
         for tree in self.trees:
             tree.dumpTree(self, isaFile)
-
 
         for isa_tag in insn_isa_tags.keys():
             self.dump('static iss_decoder_item_t *__iss_isa_tag_%s[] = {\n' % isa_tag)
@@ -683,7 +720,9 @@ class Isa(object):
 
         self.dump('iss_isa_set_t __iss_isa_set = {\n')
         self.dump('  .nb_isa=sizeof(__iss_isa_list)/sizeof(iss_isa_t),\n')
-        self.dump('  .isa_set=__iss_isa_list\n')        
+        self.dump('  .isa_set=__iss_isa_list,\n')
+        self.dump('  .nb_resources=%d,\n' % len(self.resources))
+        self.dump('  .resources=__iss_resources,\n')
         self.dump('};\n')
 
 
@@ -757,7 +796,7 @@ class Isa(object):
 
         for subset in self.subsets:
             for instr in subset.instrs:
-                instr.gen(isaFile, self.level)
+                instr.gen(self, isaFile, self.level)
 
         for subset in self.subsets:
             subset.dumpTree(self, isaFile)
@@ -868,7 +907,7 @@ class IsaGroup(object):
 
     def getOptions(self):
         if self.offload != None: return { self.offload[0] : self.offload }
-        else: return {}
+        else: return collections.OrderedDict({})
 
 
 
@@ -899,14 +938,15 @@ class Instr(object):
     def __init__(self, label, type, encoding, decode=None, N=None, L=None, mapTo=None, power=None, group=None, fast_handler=False, tags=[], isa_tags=[]):
         global nb_insn
 
-        for isa_tag in isa_tags:
-            append_insn_to_isa_tag(isa_tag, self)
-
         self.insn_number = nb_insn
         self.tags = tags
         self.isa_tags = isa_tags
         self.out_reg_latencies = []
         self.latency = 0
+        self.power_group = 0
+        self.resource = None
+        self.resource_latency = 0
+        self.resource_bandwidth = 0
         nb_insn += 1
 
         encoding = encoding[::-1].replace(' ', '')
@@ -947,8 +987,16 @@ class Instr(object):
         
         self.id = instrLabels[self.traceLabel]
 
+    def attach_resource(self, name, latency, bandwidth):
+        self.resource = name
+        self.resource_latency = latency
+        self.resource_bandwidth = bandwidth
+
     def set_latency(self, latency):
         self.latency = latency
+
+    def set_power_group(self, power_group):
+        self.power_group = power_group
 
     def get_out_reg(self, reg):
         index = 0
@@ -989,7 +1037,7 @@ class Instr(object):
     def genCall(self, isaFile, level):
         self.dump(isaFile, '%s(cpu, pc);\n' % (self.decodeFunc), level)
 
-    def gen(self, isaFile, opcode, others=False):
+    def gen(self, isa, isaFile, opcode, others=False):
 
         name = self.get_full_name()
 
@@ -1011,7 +1059,11 @@ class Instr(object):
         if len(self.args) > 0:
             for arg in self.args:
                 arg.gen(isaFile, indent=8)
-        self.dump(isaFile, '      }\n')
+        self.dump(isaFile, '      },\n')
+        self.dump(isaFile, '      .resource_id=%d,\n' % (-1 if self.resource is None else isa.get_resource_index(self.resource)))
+        self.dump(isaFile, '      .resource_latency=%d,\n' % self.resource_latency)
+        self.dump(isaFile, '      .resource_bandwidth=%d,\n' % self.resource_bandwidth)
+        self.dump(isaFile, '      .power_group=%d,\n' % (self.power_group))
         self.dump(isaFile, '    }\n')
         self.dump(isaFile, '  }\n')
         self.dump(isaFile, '};\n')
@@ -1020,4 +1072,4 @@ class Instr(object):
 
     def getOptions(self):
         if self.group != None: return self.group.getOptions()
-        else: return {}
+        else: return collections.OrderedDict({})

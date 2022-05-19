@@ -21,26 +21,142 @@
 
 #include <vp/vp.hpp>
 #include "i2s_verif.hpp"
+#ifdef USE_SNDFILE
+#include <sndfile.hh>
+#endif
 
-class Slot
+class Slot;
+
+
+class Rx_stream
 {
+public:
+    virtual ~Rx_stream() {};
+    virtual uint32_t get_sample(int channel_id) = 0;
+    int use_count = 0;
+};
+
+
+class Tx_stream
+{
+public:
+    virtual ~Tx_stream() {};
+    virtual void push_sample(uint32_t sample, int channel_id) = 0;
+    int use_count = 0;
+};
+
+
+class Rx_stream_libsnd_file : public Rx_stream
+{
+public:
+    Rx_stream_libsnd_file(I2s_verif *i2s, pi_testbench_i2s_verif_start_config_rx_file_reader_type_e type, string filepath, int nb_channels, int width);
+    uint32_t get_sample(int channel_id);
+    I2s_verif *i2s;
+
+private:
+#ifdef USE_SNDFILE
+    SNDFILE *sndfile;
+    SF_INFO sfinfo;
+#endif
+    int period;
+    int width;
+    uint32_t pending_channels;
+
+    int64_t last_data_time;
+    long long last_data;
+    int64_t next_data_time;
+    long long next_data;
+
+    int32_t *items;
+};
+
+
+class Rx_stream_raw_file : public Rx_stream
+{
+public:
+    Rx_stream_raw_file(Slot *slot, string filepath, int width, bool is_bin, pi_testbench_i2s_verif_start_config_file_encoding_type_e encoding);
+    uint32_t get_sample(int channel_id);
+    Slot *slot;
+
+private:
+    FILE *infile;
+    int width;
+    bool is_bin;
+    pi_testbench_i2s_verif_start_config_file_encoding_type_e encoding;
+};
+
+
+class Tx_stream_raw_file : public Tx_stream
+{
+public:
+    Tx_stream_raw_file(Slot *slot, string filepath, int width, bool is_bin, pi_testbench_i2s_verif_start_config_file_encoding_type_e encoding);
+    void push_sample(uint32_t sample, int channel_id);
+    Slot *slot;
+
+private:
+    FILE *outfile;
+    int width;
+    bool is_bin;
+    pi_testbench_i2s_verif_start_config_file_encoding_type_e encoding;
+};
+
+
+class Tx_stream_libsnd_file : public Tx_stream
+{
+public:
+    Tx_stream_libsnd_file(I2s_verif *i2s, pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e type, string filepath, int channels, int width);
+    ~Tx_stream_libsnd_file();
+    void push_sample(uint32_t sample, int channel_id);
+
+private:
+    I2s_verif *i2s;
+#ifdef USE_SNDFILE
+    SNDFILE *sndfile;
+    SF_INFO sfinfo;
+#endif
+    int period;
+    int width;
+    uint32_t pending_channels;
+    int32_t *items;
+};
+
+
+class Rx_stream_iter : public Rx_stream
+{
+public:
+    Rx_stream_iter();
+    uint32_t get_sample(int channel_id);
+
+private:
+};
+
+
+class Slot : public vp::time_engine_client
+{
+    friend class Rx_stream_libsnd_file;
+    friend class Rx_stream_raw_file;
+    friend class Tx_stream_libsnd_file;
+    friend class Tx_stream_raw_file;
 public:
     Slot(Testbench *top, I2s_verif *i2s, int itf, int id);
     void setup(pi_testbench_i2s_verif_slot_config_t *config);
-    void start(pi_testbench_i2s_verif_slot_start_config_t *config);
-    void stop();
+    void start(pi_testbench_i2s_verif_slot_start_config_t *config, Slot *reuse_slot = NULL, int nb_channels=1, int channel_id=0);
+    void stop(pi_testbench_i2s_verif_slot_stop_config_t *config);
     void start_frame();
     int get_data();
     void send_data(int sdo);
     void pdm_sync(int sd);
-    int pdm_get();
+    void pdm_get();
+    int64_t exec();
+
+protected:
+    Testbench *top;
+    pi_testbench_i2s_verif_slot_config_t config_rx;
 
 private:
-    Testbench *top;
     I2s_verif *i2s;
     int id;
     vp::trace trace;
-    pi_testbench_i2s_verif_slot_config_t config_rx;
     pi_testbench_i2s_verif_slot_config_t config_tx;
     pi_testbench_i2s_verif_slot_start_config_t start_config_rx;
     pi_testbench_i2s_verif_slot_start_config_t start_config_tx;
@@ -54,6 +170,11 @@ private:
     uint32_t tx_pending_value;
     FILE *outfile;
     FILE *infile;
+    Tx_stream *outstream;
+    Rx_stream *instream;
+    int rx_channel_id;
+    std::vector<int> tx_channel_id;
+    bool close;
 };
 
 
@@ -66,19 +187,22 @@ I2s_verif::~I2s_verif()
 
 
 I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testbench_i2s_verif_config_t *config)
-  : vp::time_engine_client(NULL)
+  : vp::time_engine_client(NULL), top(top)
 {
     ::memcpy(&this->config, config, sizeof(pi_testbench_i2s_verif_config_t));
 
     this->itf = itf;
     this->prev_ws = 0;
     this->frame_active = false;
-    this->ws_delay = 1;
+    this->ws_delay = config->ws_delay;
+    this->zero_delay_start = this->ws_delay == 0;
+    this->sync_ongoing = false;
     this->current_ws_delay = 0;
     this->is_pdm = config->is_pdm;
     this->is_full_duplex = config->is_full_duplex;
     this->prev_sck = 0;
     this->is_ext_clk = config->is_ext_clk;
+    this->clk_active = false;
 
     this->clk = 2;
     this->propagated_clk = 0;
@@ -90,6 +214,19 @@ I2s_verif::I2s_verif(Testbench *top, vp::i2s_master *itf, int itf_id, pi_testben
     if (this->is_pdm)
     {
         this->config.nb_slots = 4;
+    
+        if (this->is_ext_clk)
+        {
+            if (config->sampling_freq <= 0)
+            {
+                this->trace.fatal("Invalid sampling frequency with external clock (sampling_freq: %d)\n", config->sampling_freq);
+                return;
+            }
+
+            this->clk_period = 1000000000000ULL / config->sampling_freq / 2;
+
+            this->clk = 0;
+        }
     }
     else
     {
@@ -164,21 +301,39 @@ void I2s_verif::slot_setup(pi_testbench_i2s_verif_slot_config_t *config)
 }
 
 
-void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config)
+void I2s_verif::slot_start(pi_testbench_i2s_verif_slot_start_config_t *config, std::vector<int> slots)
 {
     this->trace.msg(vp::trace::LEVEL_INFO, "Starting (slot: %d, nb_samples: %d, incr_start: 0x%x, incr_end: 0x%x, incr_value: 0x%x)\n",
         config->slot, config->rx_iter.nb_samples, config->rx_iter.incr_start, config->rx_iter.incr_end, config->rx_iter.incr_value);
 
-    int slot = config->slot;
-
-    if (slot >= this->config.nb_slots)
+    if (slots.size() > 1)
     {
-        this->trace.fatal("Trying to configure invalid slot (slot: %d, nb_slot: %d)", slot, this->config.nb_slots);
-        return;
+        Slot *reuse_slot = NULL;
+
+        int channel_id = 0;
+        for (auto slot_id: slots)
+        {
+            if (slot_id != -1)
+            {
+                Slot *slot = this->slots[slot_id];
+                slot->start(config, reuse_slot, slots.size(), channel_id);
+                reuse_slot = slot;
+            }
+            channel_id++;
+        }
     }
+    else
+    {
+        int slot = config->slot;
 
-    this->slots[slot]->start(config);
+        if (slot >= this->config.nb_slots)
+        {
+            this->trace.fatal("Trying to configure invalid slot (slot: %d, nb_slot: %d)\n", slot, this->config.nb_slots);
+            return;
+        }
 
+        this->slots[slot]->start(config);
+    }
 }
 
 
@@ -195,7 +350,7 @@ void I2s_verif::slot_stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
         return;
     }
 
-    this->slots[slot]->stop();
+    this->slots[slot]->stop(config);
 }
 
 
@@ -212,9 +367,22 @@ void I2s_verif::sync_ws(int ws)
 }
 
 
+void I2s_verif::set_pdm_data(int slot, int data)
+{
+    this->data = (this->data & ~(0x3 << (slot * 2))) | (data << (slot * 2));
+    this->itf->sync(this->clk, 2, this->data);
+}
+
 
 void I2s_verif::sync(int sck, int ws, int sdio)
 {
+    bool got_data = false;
+
+    if (this->sync_ongoing)
+        return;
+
+    this->sync_ongoing = true;
+
     this->sdio = sdio;
 
     if (this->config.is_sai0_clk)
@@ -234,51 +402,61 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
     int sd = this->is_full_duplex ? sdio >> 2 : sdio & 0x3;
 
+    if (!this->is_pdm && this->zero_delay_start && this->prev_ws != ws && ws == 1 && !this->config.is_ext_ws)
+    {
+        got_data = true;
+        this->zero_delay_start = false;
+        this->frame_active = true;
+        this->active_slot = 0;
+        this->pending_bits = this->config.word_size;
+        this->slots[0]->start_frame();
+        this->data = this->slots[0]->get_data() | (2 << 2);
+        this->itf->sync(this->clk, this->ws_value, this->data);
+    }
+
     if (sck != this->prev_sck)
     {
         this->trace.msg(vp::trace::LEVEL_TRACE, "I2S edge (sck: %d, ws: %d, sdo: %d)\n", sck, ws, sd);
-
-
+        
         this->prev_sck = sck;
-
 
         if (this->is_pdm)
         {
-            if (!sck)
+            if (sck == 0)
             {
-                int val0 = this->slots[0]->pdm_get();
-                int val1 = this->slots[2]->pdm_get();
-                this->itf->sync(2, 2, val0 | (val1 << 2));
+                this->slots[0]->pdm_get();
+                this->slots[2]->pdm_get();
             }
-            else
+            else if (sck == 1)
             {
                 this->slots[0]->pdm_sync(sdio & 3);
                 this->slots[2]->pdm_sync(sdio >> 2);
 
-                int val0 = this->slots[1]->pdm_get();
-                int val1 = this->slots[3]->pdm_get();
-                this->itf->sync(2, 2, val0 | (val1 << 2));
+                this->slots[1]->pdm_get();
+                this->slots[3]->pdm_get();
             }
         }
         else
         {
-            if (sck)
+            if (sck == 1)
             {
                 // The channel is the one of this microphone
                 if (this->prev_ws != ws && ws == 1)
                 {
-                    this->trace.msg(vp::trace::LEVEL_INFO, "Detected frame start\n");
+                    this->trace.msg(vp::trace::LEVEL_DEBUG, "Detected frame start\n");
 
                     if (this->sampling_period != 0 && this->prev_frame_start_time != -1)
                     {
                         int64_t measured_period = this->get_time() - this->prev_frame_start_time;
 
                         float error = ((float)measured_period - this->sampling_period) / this->sampling_period * 100;
+                        if (error < 0)
+                            error = -error;
 
                         if (error >= 10)
                         {
-                            this->trace.fatal("Detected wrong period (expected: %ld ps, measured: %ld ps)\n", this->sampling_period, measured_period);
-                            return;                            
+                            //this->trace.fatal("Detected wrong period (expected: %ld ps, measured: %ld ps)\n", this->sampling_period, measured_period);
+                            //goto end;
                         }
                     }
 
@@ -286,12 +464,6 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
                     // If the WS just changed, apply the delay before starting sending
                     this->current_ws_delay = this->ws_delay;
-                    if (this->current_ws_delay == 0)
-                    {
-                        this->frame_active = true;
-                        this->pending_bits = this->config.word_size;
-                        this->active_slot = 0;
-                    }
                 }
 
                 if (this->frame_active)
@@ -307,6 +479,10 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                         if (this->active_slot == this->config.nb_slots)
                         {
                             this->frame_active = false;
+                            if (this->ws_delay == 0)
+                            {
+                                this->zero_delay_start = true;
+                            }
                         }
                     }
 
@@ -330,20 +506,23 @@ void I2s_verif::sync(int sck, int ws, int sdio)
             {
                 if (this->frame_active)
                 {
-
-                    if (this->pending_bits == this->config.word_size)
+                    if (!got_data)
                     {
-                        this->slots[this->active_slot]->start_frame();
+                        if (this->pending_bits == this->config.word_size)
+                        {
+                            this->slots[this->active_slot]->start_frame();
+                        }
+                        this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
+
+
+                        this->trace.msg(vp::trace::LEVEL_TRACE, "I2S output data (sdi: 0x%x)\n", this->data & 3);
+    
+                        this->itf->sync(this->clk, this->ws_value, this->data);
                     }
-                    this->data = this->slots[this->active_slot]->get_data() | (2 << 2);
-
-
-                    this->trace.msg(vp::trace::LEVEL_TRACE, "I2S output data (sdi: 0x%x)\n", this->data & 3);
-                    this->itf->sync(this->clk, this->ws_value, this->data);
                 }
             }
 
-            if (sck == 1)
+            if (sck == 0)
             {
                 if (this->config.is_ext_ws)
                 {
@@ -352,6 +531,15 @@ void I2s_verif::sync(int sck, int ws, int sdio)
                     {
                         this->ws_value = 1;
                         this->ws_count = this->config.word_size * this->config.nb_slots;
+
+                        if (this->ws_delay == 0)
+                        {
+                            this->frame_active = true;
+                            this->active_slot = 0;
+                            this->pending_bits = this->config.word_size;
+                            this->slots[0]->start_frame();
+                            this->data = this->slots[0]->get_data() | (2 << 2);
+                        }
                     }
                     this->itf->sync(this->clk, this->ws_value, this->data);
                     this->ws_count--;
@@ -360,22 +548,288 @@ void I2s_verif::sync(int sck, int ws, int sdio)
 
         }
     }
+
+end:
+    this->sync_ongoing = false;
 }
 
 
 
 void I2s_verif::start(pi_testbench_i2s_verif_start_config_t *config)
 {
-    if (this->is_ext_clk)
+    this->clk_active = config->start;
+    this->prev_frame_start_time = -1;
+
+    if (this->clk_active && this->is_ext_clk)
     {
         this->enqueue_to_engine(this->clk_period);
     }
 }
 
 
+Tx_stream_raw_file::Tx_stream_raw_file(Slot *slot, std::string filepath, int width, bool is_bin, pi_testbench_i2s_verif_start_config_file_encoding_type_e encoding)
+{
+    this->width = width;
+    this->is_bin = is_bin;
+    this->encoding = encoding;
+    this->slot = slot;
+    this->outfile = fopen(filepath.c_str(), "w");
+    this->slot->trace.msg(vp::trace::LEVEL_INFO, "Opening dumper (path: %s)\n", filepath.c_str());
+    if (this->outfile == NULL)
+    {
+        this->slot->top->trace.fatal("Unable to open output file (file: %s, error: %s)\n", filepath.c_str(), strerror(errno));
+    }
+}
 
 
-Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s), id(id)
+void Tx_stream_raw_file::push_sample(uint32_t sample, int channel_id)
+{
+    if (this->is_bin)
+    {
+        if (this->encoding == PI_TESTBENCH_I2S_VERIF_FILE_ENCODING_TYPE_PLUSMINUS)
+        {
+            // Convert encoding from 0/1 to -1/+1
+            if (sample == 0)
+                sample = (uint32_t)-1;
+            else if (sample == 1)
+                sample = 1;
+            else
+                sample = 0; // Error
+        }
+
+        int nb_bytes = (this->width + 7) / 8;
+        if (fwrite((void *)&sample, nb_bytes, 1, this->outfile) != 1)
+        {
+            return;
+        }
+    }
+    else
+    {
+        fprintf(this->outfile, "0x%x\n", sample);
+    }
+}
+
+
+Tx_stream_libsnd_file::Tx_stream_libsnd_file(I2s_verif *i2s, pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e type, std::string filepath, int channels, int width)
+: i2s(i2s)
+{
+#ifdef USE_SNDFILE
+
+    unsigned int pcm_width;
+    
+    this->width = width != 0 ? width : i2s->config.word_size;
+
+    switch (this->width)
+    {
+        case 8: pcm_width = SF_FORMAT_PCM_S8; break;
+        case 16: pcm_width = SF_FORMAT_PCM_16; break;
+        case 24: pcm_width = SF_FORMAT_PCM_24; break;
+        case 32:
+        default:
+            pcm_width = SF_FORMAT_PCM_32; break;
+    }
+    
+    this->sfinfo.format = pcm_width | (type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_AU ? SF_FORMAT_AU : SF_FORMAT_WAV);
+    this->sfinfo.samplerate = i2s->config.sampling_freq;
+    this->sfinfo.channels = channels;
+    this->sndfile = sf_open(filepath.c_str(), SFM_WRITE, &this->sfinfo);
+    if (this->sndfile == NULL)
+    {
+        throw std::invalid_argument(("Failed to open file " + filepath + ": " + strerror(errno)).c_str());
+    }
+    this->period = 1000000000000UL / this->sfinfo.samplerate;
+
+    this->pending_channels = 0;
+    this->items = new int32_t[channels];
+    memset(this->items, 0, sizeof(uint32_t)*this->sfinfo.channels);
+#else
+
+    this->i2s->top->get_trace()->fatal("Unable to open file (%s), libsndfile support is not active\n", filepath.c_str());
+    return;
+
+#endif
+}
+
+
+Tx_stream_libsnd_file::~Tx_stream_libsnd_file()
+{
+#ifdef USE_SNDFILE
+    if (this->pending_channels)
+    {
+        sf_writef_int(this->sndfile, (const int *)this->items, 1);
+    }
+    sf_close(this->sndfile);
+#endif
+}
+
+
+void Tx_stream_libsnd_file::push_sample(uint32_t data, int channel)
+{
+#ifdef USE_SNDFILE
+    if (((this->pending_channels >> channel) & 1) == 1)
+    {
+        sf_writef_int(this->sndfile, (const int *)this->items, 1);
+        this->pending_channels = 0;
+        memset(this->items, 0, sizeof(uint32_t)*this->sfinfo.channels);
+    }
+
+    data <<= (32 - this->width);
+    items[channel] = data;
+    this->pending_channels |= 1 << channel;
+#endif
+}
+
+
+Rx_stream_raw_file::Rx_stream_raw_file(Slot *slot, std::string filepath, int width, bool is_bin, pi_testbench_i2s_verif_start_config_file_encoding_type_e encoding)
+{
+    this->width = width;
+    this->is_bin = is_bin;
+    this->encoding = encoding;
+    this->slot = slot;
+    this->infile = fopen(filepath.c_str(), "r");
+    if (this->infile == NULL)
+    {
+         this->slot->top->trace.fatal("Unable to open input file (file: %s, error: %s)\n", filepath.c_str(), strerror(errno));
+    }
+}
+
+
+uint32_t Rx_stream_raw_file::get_sample(int channel_id)
+{
+    if (this->is_bin)
+    {
+        int nb_bytes = (this->width + 7) / 8;
+        uint32_t result = 0;
+        int freadres = fread((void *)&result, nb_bytes, 1, this->infile);
+
+        // this->slot->top->trace.msg(vp::trace::LEVEL_TRACE, "channel_id=%d, nb_bytes=%d, freadres=%d, result=%d\n", channel_id, nb_bytes, freadres, result);
+
+        if (freadres != 1)
+        {
+            return 0;
+        }
+
+        if (this->encoding == PI_TESTBENCH_I2S_VERIF_FILE_ENCODING_TYPE_PLUSMINUS)
+        {
+            // Convert encoding from -1/+1 to 0/1
+            if ((int32_t)result == -1)
+                result = 0;
+            else if ((int32_t)result == 1)
+                result = 1;
+            else
+                result = 0;
+        }
+
+        return result;
+    }
+    else
+    {
+        char line [64];
+
+        if (fgets(line, 64, this->infile) == NULL)
+        {
+            fseek(this->infile, 0, SEEK_SET);
+            if (fgets(line, 16, this->infile) == NULL)
+            {
+                this->slot->top->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
+                return 0;
+            }
+        }
+
+        return strtol(line, NULL, 0);
+    }
+}
+
+
+Rx_stream_libsnd_file::Rx_stream_libsnd_file(I2s_verif *i2s, pi_testbench_i2s_verif_start_config_rx_file_reader_type_e type, std::string filepath, int nb_channels, int width)
+{
+    this->i2s = i2s;
+
+#ifdef USE_SNDFILE
+
+    unsigned int pcm_width;
+    
+    this->width = width != 0 ? width : i2s->config.word_size;
+    this->pending_channels = 0;
+
+    int format = type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_AU ? SF_FORMAT_AU : SF_FORMAT_WAV;
+
+    this->sfinfo.format = 0;
+    this->sfinfo.channels = nb_channels;
+    this->sndfile = sf_open(filepath.c_str(), SFM_READ, &this->sfinfo);
+    if (this->sndfile == NULL)
+    {
+        throw std::invalid_argument(("Failed to open file " + filepath + ": " + strerror(errno)).c_str());
+    }
+    this->period = 1000000000000UL / this->sfinfo.samplerate;
+
+    this->last_data_time = -1;
+    this->next_data_time = -1;
+
+    this->items = new int32_t[nb_channels];
+#else
+
+    this->i2s->top->get_trace()->fatal("Unable to open file (%s), libsndfile support is not active\n", filepath.c_str());
+    return;
+
+#endif
+}
+
+uint32_t Rx_stream_libsnd_file::get_sample(int channel)
+{
+#ifdef USE_SNDFILE
+
+    if (((this->pending_channels >> channel) & 1) == 0)
+    {
+        sf_readf_int(this->sndfile, this->items, 1);
+        this->pending_channels = (1 << this->sfinfo.channels) - 1;
+    }
+
+    this->pending_channels &= ~(1 << channel);
+
+    int32_t result = this->items[channel] >> (32 - this->width);
+
+#if 0
+    // FIXME do not work anymore with multi-channel support
+    if (this->period == 0)
+        return result;
+
+    if (this->last_data_time == -1)
+    {
+        this->last_data = result;
+        this->last_data_time = this->i2s->top->get_time();
+    }
+
+    if (this->next_data_time == -1)
+    {
+        this->next_data = result;
+        this->next_data_time = this->last_data_time + this->period;
+    }
+
+    // Get samples from the file until the current timestamp fits the window
+    while (this->i2s->top->get_time() >= this->next_data_time)
+    {
+        this->last_data_time = this->next_data_time;
+        this->last_data = this->next_data;
+        this->next_data_time = this->last_data_time + this->period;
+        this->next_data = result;
+    }
+
+    // Now do the interpolation between the 2 known samples
+    float coeff = (float)(this->i2s->top->get_time() - this->last_data_time) / (this->next_data_time - this->last_data_time);
+    float value = (float)this->last_data + (float)(this->next_data - this->last_data) * coeff;
+
+    this->i2s->top->trace.msg(vp::trace::LEVEL_TRACE, "Interpolated new sample (value: %d, timestamp: %ld, prev_timestamp: %ld, next_timestamp: %ld, prev_value: %d, next_value: %d)", value, this->i2s->top->get_time(), last_data_time, next_data_time, last_data, next_data);
+#endif
+
+    return result;
+#else
+    return 0;
+#endif
+}
+
+
+Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : vp::time_engine_client(NULL), top(top), i2s(i2s), id(id)
 {
     top->traces.new_trace("i2s_verif_itf" + std::to_string(itf) + "_slot" + std::to_string(id), &trace, vp::DEBUG);
 
@@ -383,7 +837,11 @@ Slot::Slot(Testbench *top, I2s_verif *i2s, int itf, int id) : top(top), i2s(i2s)
     this->rx_started = false;
     this->tx_started = false;
     this->infile = NULL;
+    this->instream = NULL;
     this->outfile = NULL;
+    this->outstream = NULL;
+
+    this->engine = (vp::time_engine*)top->get_service("time");
 }
 
 
@@ -409,7 +867,7 @@ void Slot::setup(pi_testbench_i2s_verif_slot_config_t *config)
 }
 
 
-void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
+void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config, Slot *reuse_slot, int nb_channels, int channel_id)
 {
     if (config->type == PI_TESTBENCH_I2S_VERIF_RX_ITER)
     {
@@ -427,20 +885,42 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
     }
     else if (config->type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER)
     {
-        ::memcpy(&this->start_config_tx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
+        this->tx_channel_id.push_back(channel_id);
 
-        this->tx_started = true;
-
-        char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
-        this->outfile = fopen(filepath, "w");
-        if (this->outfile == NULL)
+        if (this->tx_channel_id.size() == 1)
         {
-            this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
-        }
+            ::memcpy(&this->start_config_tx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
 
-        if (this->i2s->is_pdm)
-        {
-            this->i2s->pdm_lanes_is_out[this->id / 2] = false;
+            this->tx_started = true;
+
+            char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
+
+            if (reuse_slot)
+            {
+                this->outstream = reuse_slot->outstream;
+            }
+            else
+            {
+                if (config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_TX_FILE_DUMPER_TYPE_RAW || config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN)
+                {
+                    this->outstream = new Tx_stream_raw_file(
+                        this,
+                        filepath,
+                        config->tx_file_dumper.width,
+                        config->tx_file_dumper.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN,
+                        (pi_testbench_i2s_verif_start_config_file_encoding_type_e)config->tx_file_dumper.encoding);
+                }
+                else
+                {
+                    this->outstream = new Tx_stream_libsnd_file(this->i2s, (pi_testbench_i2s_verif_start_config_tx_file_dumper_type_e)config->rx_file_reader.type, filepath, nb_channels, config->tx_file_dumper.width);
+                }
+            }
+            this->outstream->use_count++;
+
+            if (this->i2s->is_pdm)
+            {
+                this->i2s->pdm_lanes_is_out[this->id / 2] = false;
+            }
         }
     }
     else if (config->type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER)
@@ -448,14 +928,31 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         ::memcpy(&this->start_config_tx, config, sizeof(pi_testbench_i2s_verif_slot_start_config_t));
 
         this->rx_started = true;
+        this->rx_channel_id = channel_id;
 
         char *filepath = (char *)config + sizeof(pi_testbench_i2s_verif_slot_start_config_t);
 
-        this->infile = fopen(filepath, "r");
-        if (this->infile == NULL)
+        if (reuse_slot)
         {
-            this->trace.fatal("Unable to open file (file: %s, error: %s)\n", filepath, strerror(errno));
+            this->instream = reuse_slot->instream;
         }
+        else
+        {
+            if (config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_RAW || config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN)
+            {
+                this->instream = new Rx_stream_raw_file(
+                    this,
+                    filepath,
+                    config->rx_file_reader.width,
+                    config->rx_file_reader.type == PI_TESTBENCH_I2S_VERIF_RX_FILE_READER_TYPE_BIN,
+                    (pi_testbench_i2s_verif_start_config_file_encoding_type_e)config->rx_file_reader.encoding);
+            }
+            else
+            {
+                this->instream = new Rx_stream_libsnd_file(this->i2s, (pi_testbench_i2s_verif_start_config_rx_file_reader_type_e)config->rx_file_reader.type, filepath, nb_channels, config->rx_file_reader.width);
+            }
+        }
+        this->instream->use_count++;
 
         if (this->i2s->is_pdm)
         {
@@ -463,37 +960,67 @@ void Slot::start(pi_testbench_i2s_verif_slot_start_config_t *config)
         }
 
         this->i2s->data = this->id < 2 ? this->i2s->data & 0xC : this->i2s->data & 0x3;
+    
         this->i2s->itf->sync(2, 2, this->i2s->data);
     }
 }
 
 
-void Slot::stop()
+void Slot::stop(pi_testbench_i2s_verif_slot_stop_config_t *config)
 {
-    this->rx_started = false;
+    if (config->stop_rx)
+    {
+        this->rx_started = false;
+
+        if (this->infile)
+        {
+            fclose(this->infile);
+            this->infile = NULL;
+        }
+
+        if (this->instream)
+        {
+            this->instream->use_count--;
+            if (this->instream->use_count == 0)
+            {
+                delete this->instream;
+            }
+            this->instream = NULL;
+        }
+    }
+
+    if (config->stop_tx)
+    {
+
+        if (this->outfile)
+        {
+            fclose(this->outfile);
+            this->outfile = NULL;
+        }
+
+        if (this->outstream)
+        {
+            this->outstream->use_count--;
+            if (this->outstream->use_count == 0)
+            {
+                delete this->outstream;
+            }
+            this->outstream = NULL;
+        }
+    }
 }
 
 
 void Slot::start_frame()
 {
+    this->trace.msg(vp::trace::LEVEL_DEBUG, "Start frame\n");
+
     if (this->rx_started)
     {
-        if (this->infile)
+        if (this->instream)
         {
-            char line [64];
-
-            if (fgets(line, 64, this->infile) == NULL)
-            {
-                fseek(this->infile, 0, SEEK_SET);
-                if (fgets(line, 16, this->infile) == NULL)
-                {
-                    this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
-                    return;
-                }
-            }
-
             this->rx_pending_bits = this->i2s->config.word_size;
-            this->rx_pending_value = strtol(line, NULL, 0);
+            this->rx_pending_value = this->instream->get_sample(this->rx_channel_id);
         }
         else
         {
@@ -507,7 +1034,6 @@ void Slot::start_frame()
         if (this->rx_pending_bits > 0)
         {
             this->trace.msg(vp::trace::LEVEL_DEBUG, "Starting RX sample (sample: 0x%x)\n", this->rx_pending_value);
-
 
             int msb_first = (this->config_rx.format >> 0) & 1;
             int left_align = (this->config_rx.format >> 1) & 1;
@@ -579,6 +1105,8 @@ void Slot::send_data(int sd)
             this->tx_pending_bits--;
             this->tx_pending_value = (this->tx_pending_value << 1) | (sd == 1);
 
+            this->trace.msg(vp::trace::LEVEL_DEBUG, "Sampling bit (bit: %d, value: 0x%lx, remaining_bits: %d)\n", sd, this->tx_pending_value, this->tx_pending_bits);
+
             if (this->tx_pending_bits == 0)
             {
                 int msb_first = (this->config_tx.format >> 0) & 1;
@@ -637,7 +1165,13 @@ void Slot::send_data(int sd)
                 }
 
                 this->trace.msg(vp::trace::LEVEL_DEBUG, "Writing sample (value: 0x%lx)\n", this->tx_pending_value);
-                fprintf(this->outfile, "0x%x\n", this->tx_pending_value);
+                if (this->outstream)
+                {
+                    for (auto channel_id: this->tx_channel_id)
+                    {
+                        this->outstream->push_sample(this->tx_pending_value, channel_id);
+                    }
+                }
                 this->tx_pending_bits = this->i2s->config.word_size;
             }
         }
@@ -677,47 +1211,62 @@ int Slot::get_data()
 
 void Slot::pdm_sync(int sd)
 {
-    if (this->outfile)
+    if (this->outstream)
     {
-        fprintf(this->outfile, "%d\n", sd);
+        this->outstream->push_sample(sd, this->tx_channel_id[0]);
     }
 }
 
 
-int Slot::pdm_get()
+int64_t Slot::exec()
 {
-    if (this->infile)
+    if (close)
     {
-        char line [16];
-
-        if (fgets(line, 16, this->infile) == NULL)
-        {
-            fseek(this->infile, 0, SEEK_SET);
-            if (fgets(line, 16, this->infile) == NULL)
-            {
-                this->trace.fatal("Unable to get sample from file (error: %s)\n", strerror(errno));
-                return 3;
-            }
-        }
-
-        int data = strtol(line, NULL, 0);
-
-        return data;
+        this->i2s->set_pdm_data(this->id / 2, 2);
+        this->close = false;
+        return 17000;
     }
     else
     {
-        if (this->i2s->pdm_lanes_is_out[this->id / 2])
-            return 0;
+        int data;
+
+        if (this->instream)
+        {
+            data = this->instream->get_sample(this->rx_channel_id);
+        }
         else
-            return 2;
+        {
+            if (this->i2s->pdm_lanes_is_out[this->id / 2])
+                data = 0;
+            else
+                data = 2;
+        }
+
+        this->i2s->set_pdm_data(this->id / 2, data);
+        return -1;
     }
+}
+
+
+void Slot::pdm_get()
+{
+    this->close = true;
+    this->enqueue_to_engine(4000);
 }
 
 
 int64_t I2s_verif::exec()
 {
-    this->clk ^= 1;
-    this->itf->sync(this->clk, this->ws_value, this->data);
+    if (this->clk_active)
+    {
+        this->clk ^= 1;
 
-    return this->clk_period;
+        this->itf->sync(this->clk, this->ws_value, this->data);
+    
+        return this->clk_period;
+    }
+    else
+    {
+        return -1;
+    }
 }

@@ -26,13 +26,13 @@
 #define PULPV2_HWLOOP_LPEND0   1
 #define PULPV2_HWLOOP_LPCOUNT0 2
 
-#define PULPV2_HWLOOP_LPSTART1 3
-#define PULPV2_HWLOOP_LPEND1   4
-#define PULPV2_HWLOOP_LPCOUNT1 5
+#define PULPV2_HWLOOP_LPSTART1 4
+#define PULPV2_HWLOOP_LPEND1   5
+#define PULPV2_HWLOOP_LPCOUNT1 6
 
-#define PULPV2_HWLOOP_LPSTART(x) (PULPV2_HWLOOP_LPSTART0 + (x)*3)
-#define PULPV2_HWLOOP_LPEND(x) (PULPV2_HWLOOP_LPEND0 + (x)*3)
-#define PULPV2_HWLOOP_LPCOUNT(x) (PULPV2_HWLOOP_LPCOUNT0 + (x)*3)
+#define PULPV2_HWLOOP_LPSTART(x) (PULPV2_HWLOOP_LPSTART0 + (x)*4)
+#define PULPV2_HWLOOP_LPEND(x) (PULPV2_HWLOOP_LPEND0 + (x)*4)
+#define PULPV2_HWLOOP_LPCOUNT(x) (PULPV2_HWLOOP_LPCOUNT0 + (x)*4)
 
 static inline iss_insn_t *LB_RR_exec_fast(iss_t *iss, iss_insn_t *insn)
 {
@@ -595,19 +595,34 @@ static inline iss_insn_t *hwloop_check_exec(iss_t *iss, iss_insn_t *insn)
 static inline void hwloop_set_start(iss_t *iss, iss_insn_t *insn, int index, iss_reg_t start)
 {
   iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPSTART(index)] = start;
-  iss->cpu.state.hwloop_start_insn[index] = insn_cache_get(iss, start);  
+  iss->cpu.state.hwloop_start_insn[index] = insn_cache_get(iss, start);
 }
+
+static inline void hwloop_set_insn_end(iss_t *iss, iss_insn_t *insn)
+{
+  if (insn->fetched)
+  {
+    if (insn->hwloop_handler == NULL)
+    {
+      insn->hwloop_handler = insn->handler;
+      insn->handler = hwloop_check_exec;
+      insn->fast_handler = hwloop_check_exec;
+    }
+  }
+  else
+  {
+    insn->hwloop_handler = hwloop_check_exec;
+  }
+}
+
 
 static inline void hwloop_set_end(iss_t *iss, iss_insn_t *insn, int index, iss_reg_t end)
 {
-  iss_insn_t *end_insn = insn_cache_get_decoded(iss, end);
+  iss_insn_t *end_insn = insn_cache_get(iss, end);
 
-  if (end_insn->hwloop_handler == NULL)
-  {
-    end_insn->hwloop_handler = end_insn->handler;
-    end_insn->handler = hwloop_check_exec;
-    end_insn->fast_handler = hwloop_check_exec;
-  }
+  iss->cpu.state.hwloop_end_insn[index] = end_insn;
+
+  hwloop_set_insn_end(iss, end_insn);
 
   iss->cpu.pulpv2.hwloop_regs[PULPV2_HWLOOP_LPEND(index)] = end;
 }
@@ -750,12 +765,21 @@ static inline iss_insn_t *SW_RR_exec(iss_t *iss, iss_insn_t *insn)
 static inline iss_insn_t *p_elw_exec(iss_t *iss, iss_insn_t *insn)
 {
   uint32_t value = 0;
+  // Always account the overhead of the elw
+  iss->cpu.state.insn_cycles += 2;
+
   iss->cpu.state.elw_insn = insn;
   // Init this flag so that we can check afterwards that theelw has been replayed
   iss->cpu.state.elw_interrupted = 0;
   iss_lsu_elw_perf(iss, insn, REG_GET(0) + SIM_GET(0), 4, REG_OUT(0));
-  if (iss->cpu.state.insn_cycles != -1)
+  if (!iss->stalled.get())
+  {
     iss->cpu.state.elw_insn = NULL;
+  }
+  else
+  {
+    iss->cpu.state.elw_stalled = true;
+  }
   return insn->next;
 }
 

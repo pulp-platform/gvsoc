@@ -9,6 +9,7 @@ TARGETS += $(INSTALL_DIR)/$(1)
 
 endef
 
+INSTALL_FILES += bin/gvcontrol
 INSTALL_FILES += bin/pulp-pc-info
 INSTALL_FILES += bin/pulp-trace-extend
 $(foreach file, $(INSTALL_FILES), $(eval $(call declareInstallFile,$(file))))

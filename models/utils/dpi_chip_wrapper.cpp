@@ -194,7 +194,7 @@ class dpi_chip_wrapper : public vp::component
 public:
     dpi_chip_wrapper(js::config *config);
 
-    void *external_bind(std::string name, int handle);
+    void *external_bind(std::string comp_name, std::string itf_name, void *handle);
 
     int build();
     void start();
@@ -205,7 +205,7 @@ private:
     static void uart_rx_edge(void *__this, int data, int id);
     static void uart_rx_edge_full(void *__this, int data, int sck, int rtr, int id);
     static void uart_sync(void *__this, int data, int sck, int rtr, int id);
-    static void i2c_rx_edge(void *__this, int sda, int id);
+    static void i2c_rx_edge(void *__this, int scl, int sda, int id);
     static void i2c_sync(void *__this, int scl, int sda, int id);
     static void hyper_sync_cycle(void *__this, int data, int id);
     static void i2s_slave_edge(void *__this, int sck, int ws, int sd, int id);
@@ -405,7 +405,7 @@ void dpi_chip_wrapper::uart_rx_edge_full(void *__this, int data, int sck, int rt
 }
 
 
-void dpi_chip_wrapper::i2c_rx_edge(void *__this, int data, int id)
+void dpi_chip_wrapper::i2c_rx_edge(void *__this, int scl, int data, int id)
 {
     dpi_chip_wrapper *_this = (dpi_chip_wrapper *)__this;
     I2C_group *group = static_cast<I2C_group *>(_this->groups[id]);
@@ -447,8 +447,9 @@ void dpi_chip_wrapper::hyper_sync_cycle(void *__this, int data, int id)
 #endif
 }
 
-void *dpi_chip_wrapper::external_bind(std::string name, int handle)
+void *dpi_chip_wrapper::external_bind(std::string name, std::string itf_name, void *_handle)
 {
+    int handle = (int)(long)_handle;
     trace.msg("Binding pad (name: %s, handle: %d)\n", name.c_str(), handle);
 
     int delim_pos = name.find(".");

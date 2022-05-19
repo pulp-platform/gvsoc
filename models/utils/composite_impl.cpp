@@ -36,6 +36,10 @@ public:
     void add_master_port(std::string name, vp::master_port *port) { this->add_port(name, port); }
 
     int build();
+    void start();
+    void power_supply_set(int state);
+
+    void dump_traces(FILE *file);
 
 
 private:
@@ -51,6 +55,10 @@ composite::composite(js::config *config)
 }
 
 
+void composite::dump_traces(FILE *file)
+{
+    this->power.get_power_trace()->dump(file);
+}
 
 
 int composite::build()
@@ -63,6 +71,11 @@ int composite::build()
 }
 
 
+void composite::start()
+{
+}
+
+
 
 void composite::add_port(std::string name, vp::port *port)
 {
@@ -71,6 +84,10 @@ void composite::add_port(std::string name, vp::port *port)
     this->ports[name] = port;
 }
 
+void composite::power_supply_set(int state)
+{
+    //printf("%s power set %d\n", this->get_path().c_str(), state);
+}
 
 
 extern "C" vp::component *vp_constructor(js::config *config)
