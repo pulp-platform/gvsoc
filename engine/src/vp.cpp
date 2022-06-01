@@ -303,8 +303,6 @@ void vp::component::reset_all(bool active, bool from_itf)
             }
         }
 
-        this->reset(active);
-
         for (auto &x : this->childs)
         {
             x->reset_all(active);
@@ -1697,6 +1695,14 @@ extern "C" void gv_start(void *arg)
         }
     }
 
+}
+
+
+extern "C" void gv_reset(void *arg, bool active)
+{
+    vp::top *top = (vp::top *)arg;
+    vp::component *instance = (vp::component *)top->top_instance;
+    instance->reset_all(active);
 }
 
 

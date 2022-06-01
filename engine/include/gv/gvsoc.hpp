@@ -336,6 +336,14 @@ namespace gv {
         virtual void close() = 0;
 
         /**
+         * Start the simulated system
+         *
+         * This executes all the required steps so that the simulated system is ready to execute.
+         *
+         */
+        virtual void start() = 0;
+
+        /**
          * Run execution
          *
          * This starts execution in a separate thread and immediately returns so that

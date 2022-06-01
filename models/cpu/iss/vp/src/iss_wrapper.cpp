@@ -1525,6 +1525,17 @@ void iss_wrapper::reset(bool active)
 
     this->active_pc_trace_event.event(NULL);
 
+    if (this->get_js_config()->get("**/binaries") != NULL)
+    {
+      std::string binaries = "static enable";
+      for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
+      {
+        binaries += " " +  x->get_str();
+      }
+
+      this->binaries_trace_event.event_string(binaries);
+    }
+
     iss_reset(this, 1);
   }
   else
@@ -1543,17 +1554,6 @@ void iss_wrapper::reset(bool active)
     if (this->gdbserver)
     {
       this->halted.set(true);
-    }
-
-    if (this->get_js_config()->get("**/binaries") != NULL)
-    {
-      std::string binaries = "static enable";
-      for (auto x:this->get_js_config()->get("**/binaries")->get_elems())
-      {
-        binaries += " " +  x->get_str();
-      }
-
-      this->binaries_trace_event.event_string(binaries);
     }
 
     check_state();
