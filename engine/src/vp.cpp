@@ -200,13 +200,6 @@ int vp::component::build_new()
 
     this->final_bind();
 
-    this->reset_all(true);
-
-    if (!this->get_js_config()->get_child_bool("**/gvsoc/use_external_bridge"))
-    {
-        this->reset_all(false);
-    }
-
     return 0;
 }
 
@@ -491,6 +484,7 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
 
     // Check if we can enqueue to the fast circular queue in case were not
     // running.
+
     bool can_enqueue_to_cycle = false;
     if (!this->is_running())
     {
@@ -509,7 +503,9 @@ vp::clock_event *vp::clock_engine::enqueue_other(vp::clock_event *event, int64_t
     {
         this->must_flush_delayed_queue = true;
         if (this->period != 0)
+        {
             enqueue_to_engine(cycle * period);
+        }
 
         vp::clock_event *current = delayed_queue, *prev = NULL;
         int64_t full_cycle = cycle + get_cycles();
