@@ -170,6 +170,8 @@ namespace vp {
 
     void start_all();
 
+    void stop_all();
+
     void final_bind();
 
     virtual void *external_bind(std::string comp_name, std::string itf_name, void *handle);

@@ -229,6 +229,17 @@ void vp::component::start_all()
 
 
 
+void vp::component::stop_all()
+{
+    for (auto &x : this->childs)
+    {
+        x->stop_all();
+    }
+
+    this->stop();
+}
+
+
 void vp::component::flush_all()
 {
     for (auto &x : this->childs)
@@ -1994,7 +2005,7 @@ extern "C" void gv_stop(void *arg, int retval)
         proxy->stop(retval);
     }
 
-    instance->stop();
+    instance->stop_all();
 
     delete top->power_engine;
 }
