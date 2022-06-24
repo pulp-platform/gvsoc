@@ -159,6 +159,8 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
         arg->u.indirect_imm.reg_index = decode_info(iss, insn, opcode, &darg->u.indirect_imm.reg.info, false);
         if (darg->u.indirect_imm.reg.flags & ISS_DECODER_ARG_FLAG_COMPRESSED) arg->u.indirect_imm.reg_index += 8;
         insn->in_regs[darg->u.indirect_imm.reg.id] = arg->u.indirect_imm.reg_index;
+        if (darg->u.indirect_imm.reg.id >= insn->nb_in_reg)
+          insn->nb_in_reg = darg->u.indirect_imm.reg.id + 1;
         arg->u.indirect_imm.imm = decode_info(iss, insn, opcode, &darg->u.indirect_imm.imm.info, darg->u.indirect_imm.imm.is_signed);
         insn->sim[darg->u.indirect_imm.imm.id] = arg->u.indirect_imm.imm;
         break;
@@ -167,10 +169,14 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
         arg->u.indirect_reg.base_reg_index = decode_info(iss, insn, opcode, &darg->u.indirect_reg.base_reg.info, false);
         if (darg->u.indirect_reg.base_reg.flags & ISS_DECODER_ARG_FLAG_COMPRESSED) arg->u.indirect_reg.base_reg_index += 8;
         insn->in_regs[darg->u.indirect_reg.base_reg.id] = arg->u.indirect_reg.base_reg_index;
+        if (darg->u.indirect_reg.base_reg.id >= insn->nb_in_reg)
+          insn->nb_in_reg = darg->u.indirect_reg.base_reg.id + 1;
 
         arg->u.indirect_reg.offset_reg_index = decode_info(iss, insn, opcode, &darg->u.indirect_reg.offset_reg.info, false);
         if (darg->u.indirect_reg.offset_reg.flags & ISS_DECODER_ARG_FLAG_COMPRESSED) arg->u.indirect_reg.offset_reg_index += 8;
         insn->in_regs[darg->u.indirect_reg.offset_reg.id] = arg->u.indirect_reg.offset_reg_index;
+        if (darg->u.indirect_reg.offset_reg.id >= insn->nb_in_reg)
+          insn->nb_in_reg = darg->u.indirect_reg.offset_reg.id + 1;
 
         break;
     }
