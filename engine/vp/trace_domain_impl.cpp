@@ -481,7 +481,7 @@ void trace_domain::conf_trace(int event, std::string path_str, bool enabled)
 
     for (vp::trace *trace: traces)
     {
-        if (event)
+        if (event && trace->is_event)
         {
             if (enabled)
             {
@@ -496,7 +496,7 @@ void trace_domain::conf_trace(int event, std::string path_str, bool enabled)
             }
             trace->set_event_active(enabled);
         }
-        else
+        else if (!trace->is_event)
         {
             trace->set_active(enabled);
         }
