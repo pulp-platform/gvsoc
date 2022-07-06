@@ -414,6 +414,7 @@ INLINE void ff_init_longdouble(flexfloat_t *obj, long double value, flexfloat_de
     flexfloat_sanitize(obj);
 }
 
+#ifdef FLEXFLOAT_ON_QUAD
 INLINE void ff_init_float128(flexfloat_t *obj, __float128 value, flexfloat_desc_t desc) {
     obj->value = (fp_t)value;
     #ifdef FLEXFLOAT_TRACKING
@@ -424,6 +425,7 @@ INLINE void ff_init_float128(flexfloat_t *obj, __float128 value, flexfloat_desc_
     obj->desc = desc;
     flexfloat_sanitize(obj);
 }
+#endif
 
 INLINE void ff_init_int(flexfloat_t *obj, int value, flexfloat_desc_t desc) {
     obj->value = (fp_t)value;
@@ -480,9 +482,11 @@ INLINE long double ff_get_longdouble(const flexfloat_t *obj) {
     return (long double)(*((const fp_t *)(&(obj->value))));
 }
 
+#ifdef FLEXFLOAT_ON_QUAD
 INLINE __float128 ff_get_float128(const flexfloat_t *obj) {
     return (__float128)(*((const fp_t *)(&(obj->value))));
 }
+#endif
 
 
 // Arithmetics
